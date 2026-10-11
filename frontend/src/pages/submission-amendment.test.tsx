@@ -349,6 +349,7 @@ describe("sending an amendment (FR-35)", () => {
 
     await user.type(box, "{Enter}");
     await user.type(box, "Ferritin level{Enter}");
+    await user.type(box, "{Shift>}{Enter}{/Shift}");
 
     expect(writes(calls)).toHaveLength(0);
     expect(screen.queryByRole("heading", { name: "There is a problem" })).toBeNull();

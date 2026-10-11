@@ -67,6 +67,7 @@ type Stage = "form" | "duplicates" | "submitted";
 
 const HEADING_ID = "submission-new-heading";
 const DONE_HEADING_ID = "submission-done-heading";
+const PROPERTIES_HEADING_ID = "submission-properties-heading";
 
 function isPropertyField(fieldId: string, key: string): boolean {
   return fieldId.startsWith(`${key}-`);
@@ -310,7 +311,14 @@ function NewTestForm() {
                 </p>
               )}
               {rows.length > 0 && (
-                <div role="group" aria-label="Properties">
+                <div
+                  role="group"
+                  aria-labelledby={PROPERTIES_HEADING_ID}
+                  className="flex flex-col gap-2"
+                >
+                  <h2 id={PROPERTIES_HEADING_ID} className="m-0">
+                    Properties
+                  </h2>
                   <FieldGrid>
                     {rows.map((definition) => (
                       <RepeatableValues

@@ -5,8 +5,8 @@ import type { SubmissionValues } from "./form-state.ts";
 
 /** The example in the reference-link hint: a published method suits a new test, not a new name. */
 const REFERENCE_EXAMPLE = {
-  test: "a guideline or a published method",
-  change: "a guideline or a supplier's test directory",
+  test: "a guideline or a method",
+  change: "a supplier's test directory",
 } as const;
 
 /**
@@ -36,7 +36,7 @@ export function ReferenceLinkField({
     <Field
       id={FIELD_IDS.reference_url}
       label={referenceRequired ? "Reference link (required)" : "Reference link"}
-      hint={`${referenceRequired ? "" : "Optional. "}A web page that supports this ${noun}, such as ${REFERENCE_EXAMPLE[noun]}.`}
+      hint={`${referenceRequired ? "" : "Optional. "}A supporting page, such as ${REFERENCE_EXAMPLE[noun]}. The platform checks it answers.`}
       error={errorFor(FIELD_IDS.reference_url)}
     >
       {(controlProps) => (
@@ -83,6 +83,7 @@ export function OrganisationField({
     <Field
       id={FIELD_IDS.organisation}
       label="Organisation"
+      hint="Filled in from your profile. Change it if needed."
       error={errorFor(FIELD_IDS.organisation)}
     >
       {(controlProps) => (

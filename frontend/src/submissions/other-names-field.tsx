@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import type { ClipboardEvent } from "react";
 
 import { commitOnEnter } from "../catalogue/property-controls/types.ts";
@@ -46,21 +46,31 @@ export function OtherNamesField({
 }) {
   const { message, politeness, announce } = useAnnounce();
   const box = useRef<HTMLInputElement>(null);
+  const [refusal, setRefusal] = useState<string | null>(null);
 
-  /** Adds the given names, keeps `remainder` in the box and says what happened. */
-  function add(candidates: string[], remainder: string) {
+  /**
+   * Adds the given names, keeps `remainder` in the box and says what happened. A
+   * name that is already listed is also named under the box, because the live
+   * region is for assistive technology only. When nothing was added, `kept` stays
+   * in the box so the user can see what was refused.
+   */
+  function add(candidates: string[], remainder: string, kept = remainder) {
     const result = addNames(names, candidates);
-    onChange({ names: result.names, nameDraft: remainder });
+    const nothingAdded = result.added.length === 0 && result.repeats.length > 0;
+    onChange({ names: result.names, nameDraft: nothingAdded ? kept : remainder });
+    const repeated =
+      result.repeats.length === 0
+        ? null
+        : `${list(result.repeats)} ${result.repeats.length === 1 ? "is" : "are"} already in the ${label} list.`;
+    setRefusal(repeated);
     const said: string[] = [];
     if (result.added.length > 0) {
       said.push(
         `Added ${list(result.added)}. ${result.names.length} in the ${label} list.`,
       );
     }
-    if (result.repeats.length > 0) {
-      said.push(
-        `${list(result.repeats)} ${result.repeats.length === 1 ? "is" : "are"} already in the ${label} list.`,
-      );
+    if (repeated !== null) {
+      said.push(repeated);
     }
     if (said.length > 0) {
       announce(said.join(" "));
@@ -68,12 +78,13 @@ export function OtherNamesField({
   }
 
   function type(text: string) {
+    setRefusal(null);
     if (!text.includes(";")) {
       onChange({ names, nameDraft: text });
       return;
     }
     const parts = text.split(";");
-    const remainder = parts.pop() ?? "";
+    const remainder = (parts.pop() ?? "").trimStart();
     add(parts, remainder);
   }
 
@@ -94,7 +105,7 @@ export function OtherNamesField({
       <Field
         id={FIELD_IDS.synonyms}
         label={label}
-        hint="Press Enter or a semicolon to add a name."
+        hint={refusal ?? "Press Enter or a semicolon to add a name."}
         error={error}
       >
         {(controlProps) => (
@@ -105,7 +116,7 @@ export function OtherNamesField({
             type="text"
             value={draft}
             onChange={(event) => type(event.target.value)}
-            onKeyDown={commitOnEnter((value) => add([String(value)], ""), draft)}
+            onKeyDown={commitOnEnter((value) => add([String(value)], "", draft), draft)}
             onPaste={paste}
           />
         )}
@@ -119,6 +130,7 @@ export function OtherNamesField({
         }))}
         onRemove={(id) => {
           const removed = names.find((row) => row.id === id);
+          setRefusal(null);
           onChange({ names: names.filter((row) => row.id !== id), nameDraft: draft });
           if (removed !== undefined) {
             announce(

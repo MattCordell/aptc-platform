@@ -515,6 +515,34 @@ describe("CONTROLS.text as an entry box", () => {
   });
 });
 
+describe("CONTROLS.text as a single-line entry box", () => {
+  it("swallows Shift+Enter so the browser cannot submit the form", () => {
+    const Control = CONTROLS.text;
+    const onCommit = vi.fn();
+    render(
+      withProviders(
+        <Control
+          id="prop-0"
+          label="Usage guidance"
+          propertyKey="usage_guidance"
+          params={{}}
+          value="x"
+          onChange={vi.fn()}
+          onCommit={onCommit}
+        />,
+      ),
+    );
+
+    const allowed = fireEvent.keyDown(screen.getByLabelText("Usage guidance"), {
+      key: "Enter",
+      shiftKey: true,
+    });
+
+    expect(allowed).toBe(false);
+    expect(onCommit).not.toHaveBeenCalled();
+  });
+});
+
 describe("CONTROLS.textarea as an entry box", () => {
   it("leaves Shift+Enter to start a new line", async () => {
     const Control = CONTROLS.textarea;
@@ -533,10 +561,12 @@ describe("CONTROLS.textarea as an entry box", () => {
       ),
     );
 
-    await userEvent
-      .setup()
-      .type(screen.getByLabelText("Usage guidance"), "{Shift>}{Enter}{/Shift}");
+    const allowed = fireEvent.keyDown(screen.getByLabelText("Usage guidance"), {
+      key: "Enter",
+      shiftKey: true,
+    });
 
+    expect(allowed).toBe(true);
     expect(onCommit).not.toHaveBeenCalled();
   });
 });

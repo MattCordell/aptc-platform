@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -307,7 +307,7 @@ describe("SubmissionNewPage fields", () => {
     expect(box).toHaveValue("");
   });
 
-  it("refuses a blank name and a repeat, and says so", async () => {
+  it("refuses a blank name and a repeat, and says so where a sighted user can read it", async () => {
     stubApi([ME, DEFINITIONS]);
     const user = userEvent.setup();
     await renderPage();
@@ -315,12 +315,40 @@ describe("SubmissionNewPage fields", () => {
 
     await user.type(box, "Ferritin{Enter}");
     await user.type(box, "   {Enter}");
+    await user.clear(box);
     await user.type(box, " ferritin {Enter}");
 
     expect(screen.getAllByRole("button", { name: /^Remove / })).toHaveLength(1);
+    expect(box).toHaveValue(" ferritin ");
+    expect(box).toHaveAccessibleDescription(
+      "ferritin is already in the Other names list.",
+    );
     expect(
-      await screen.findByText("ferritin is already in the Other names list."),
-    ).toBeInTheDocument();
+      screen.getAllByText("ferritin is already in the Other names list."),
+    ).not.toHaveLength(0);
+  });
+
+  it("clears the refusal once the user edits the box", async () => {
+    stubApi([ME, DEFINITIONS]);
+    const user = userEvent.setup();
+    await renderPage();
+    const box = screen.getByLabelText("Other names");
+
+    await user.type(box, "Ferritin{Enter}Ferritin{Enter}");
+    await user.type(box, "x");
+
+    expect(box).toHaveAccessibleDescription("Press Enter or a semicolon to add a name.");
+  });
+
+  it("drops the space after a typed semicolon from the text left in the box", async () => {
+    stubApi([ME, DEFINITIONS]);
+    await renderPage();
+    const box = screen.getByLabelText("Other names");
+
+    fireEvent.change(box, { target: { value: "Ferritin; level" } });
+
+    expect(screen.getByRole("button", { name: "Remove Ferritin" })).toBeVisible();
+    expect(box).toHaveValue("level");
   });
 
   it("announces an added and a removed name, and moves focus after a Remove", async () => {
@@ -354,6 +382,8 @@ describe("SubmissionNewPage fields", () => {
 
     await user.type(box, "{Enter}");
     await user.type(box, "Ferritin{Enter}");
+    await user.type(box, "{Shift>}{Enter}{/Shift}");
+    await user.type(box, "Fe store{Shift>}{Enter}{/Shift}");
 
     expect(calls.filter((call) => call.method === "POST")).toHaveLength(0);
     expect(screen.queryByRole("heading", { name: "There is a problem" })).toBeNull();
@@ -934,6 +964,7 @@ describe("SubmissionNewPage layout (FR-23)", () => {
     await screen.findByLabelText("Assay method (required)");
 
     const group = screen.getByRole("group", { name: "Properties" });
+    expect(screen.getByRole("heading", { level: 2, name: "Properties" })).toBeVisible();
     expect(within(group).getByLabelText("Assay method (required)")).toBeVisible();
     expect(within(group).getByLabelText("Clinical use")).toBeVisible();
   });
