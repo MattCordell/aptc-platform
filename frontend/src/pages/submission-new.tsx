@@ -10,7 +10,7 @@ import {
   useSubmissionPropertyDefinitions,
 } from "../api/queries.ts";
 import type { components } from "../api/schema.ts";
-import { CONTROLS, RepeatableValues } from "../catalogue/property-controls/index.ts";
+import { RepeatableValues } from "../catalogue/property-controls/index.ts";
 import type { PropertyValueSlot } from "../catalogue/property-controls/index.ts";
 import { useCodeSelection } from "../catalogue/use-code-selection.ts";
 import { buttonClassName } from "../components/button-class-name.ts";
@@ -295,7 +295,6 @@ function NewTestForm() {
               )}
               {rows.length > 0 && <h2>Properties</h2>}
               {rows.map((definition) => {
-                const Control = CONTROLS[definition.form_control.control];
                 return (
                   <RepeatableValues
                     key={definition.key}
@@ -306,7 +305,7 @@ function NewTestForm() {
                         : definition.label
                     }
                     cardinality={definition.cardinality as PropertyCardinality}
-                    control={Control}
+                    control={definition.form_control.control}
                     params={definition.form_control.params}
                     slots={values.slots[definition.key] ?? []}
                     onChange={(next: PropertyValueSlot[]) =>

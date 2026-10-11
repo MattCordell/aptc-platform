@@ -20,11 +20,11 @@ import { formatPropertyValue } from "./format-property-value.ts";
 import { propertyValidationFieldErrors } from "./property-form-errors.ts";
 import { normaliseForComparison } from "./python-text.ts";
 import {
-  CONTROLS,
   RepeatableValues,
   groupFieldId,
-  isEmptySlotValue,
   newSlotId,
+  slotValue,
+  submittedSlotIndexes,
 } from "./property-controls/index.ts";
 import type { PropertyValueSlot } from "./property-controls/index.ts";
 import { describeRun } from "./run-save.ts";
@@ -67,7 +67,7 @@ import { useEntrySave } from "./use-entry-save.ts";
  * order (`useEntrySave`).
  *
  * **Generated, not hand-written.** Each property row comes from
- * `usePropertyDefinitions`, and `CONTROLS` picks its input from
+ * `usePropertyDefinitions`, and `RepeatableValues` picks its input from
  * `form_control.control`, so a definition added in the registry appears here
  * with no deployment (FR-09, ADR-0013). The one exception is the specimen
  * hint, carried over from the panel this form replaces (FR-89).
@@ -161,15 +161,6 @@ function toItem(value: PropertyValue): ValueItem {
   return { value: value.value, justification: value.justification };
 }
 
-function nonEmptySlotIndexes(slots: PropertyValueSlot[]): number[] {
-  return slots.reduce<number[]>((indexes, slot, index) => {
-    if (!isEmptySlotValue(slot.value)) {
-      indexes.push(index);
-    }
-    return indexes;
-  }, []);
-}
-
 /** An emptied justification box is the same as none. */
 function justificationOf(slot: PropertyValueSlot): string | null {
   return slot.justification === null || slot.justification === ""
@@ -235,8 +226,8 @@ export function EntryEditForm({ entry }: { entry: EntryDetail }) {
     const keys = new Set([...Object.keys(slots), ...Object.keys(next.slots)]);
     const nextSlots = { ...slots };
     for (const key of keys) {
-      const current = nonEmptySlotIndexes(slots[key] ?? []).map((index) => ({
-        value: slots[key][index].value,
+      const current = submittedSlotIndexes(slots[key] ?? []).map((index) => ({
+        value: slotValue(slots[key][index]),
         justification: justificationOf(slots[key][index]),
       }));
       const fresh = next.baseline.values[key] ?? [];
@@ -350,9 +341,9 @@ export function EntryEditForm({ entry }: { entry: EntryDetail }) {
       }
       const key = row.definition.key;
       const rowSlots = slots[key] ?? [];
-      const submittedIndexes = nonEmptySlotIndexes(rowSlots);
+      const submittedIndexes = submittedSlotIndexes(rowSlots);
       const values = submittedIndexes.map((index) => ({
-        value: rowSlots[index].value,
+        value: slotValue(rowSlots[index]),
         justification: justificationOf(rowSlots[index]),
       }));
       if (!sameValues(values, baseline.values[key] ?? [])) {
@@ -728,7 +719,6 @@ export function EntryEditForm({ entry }: { entry: EntryDetail }) {
               </dl>
             );
           }
-          const Control = CONTROLS[definition.form_control.control];
           const changeId = `property:${definition.key}`;
           return (
             <div key={definition.key} className="flex flex-col gap-2">
@@ -742,7 +732,7 @@ export function EntryEditForm({ entry }: { entry: EntryDetail }) {
                 propertyKey={definition.key}
                 label={definition.label}
                 cardinality={definition.cardinality as PropertyCardinality}
-                control={Control}
+                control={definition.form_control.control}
                 params={definition.form_control.params}
                 slots={slots[definition.key] ?? []}
                 onChange={(next) => {

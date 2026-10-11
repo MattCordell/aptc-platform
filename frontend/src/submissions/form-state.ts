@@ -2,9 +2,10 @@ import type { SubmissionField } from "../api/conflicts.ts";
 import type { components } from "../api/schema.ts";
 import { SUBMISSION_LIMITS } from "../catalogue/limits.ts";
 import {
-  isEmptySlotValue,
   newSlotId,
   slotFieldId,
+  slotValue,
+  submittedSlotIndexes,
 } from "../catalogue/property-controls/index.ts";
 import type { PropertyValueSlot } from "../catalogue/property-controls/index.ts";
 import type { CodeSelection } from "../catalogue/use-code-selection.ts";
@@ -76,12 +77,7 @@ export function filledNames(names: NameRow[]): string[] {
 
 /** The render index of each slot that holds a value, which is what the server's `ordinal` counts. */
 export function filledSlotIndexes(slots: PropertyValueSlot[]): number[] {
-  return slots.reduce<number[]>((indexes, slot, index) => {
-    if (!isEmptySlotValue(slot.value)) {
-      indexes.push(index);
-    }
-    return indexes;
-  }, []);
+  return submittedSlotIndexes(slots);
 }
 
 export function submittedIndexesByKey(
@@ -264,7 +260,7 @@ export function createBody(
     const filled = filledSlotIndexes(list).map((index) => list[index]);
     if (filled.length > 0) {
       propertyValues[definition.key] = filled.map((slot) => ({
-        value: slot.value,
+        value: slotValue(slot),
         justification:
           slot.justification === null || slot.justification === ""
             ? null

@@ -1,33 +1,45 @@
-import { useId, useState } from "react";
+import { Combobox } from "@base-ui/react/combobox";
+import { useRef, useState } from "react";
 
-import { usePropertyValueOptions } from "../../api/queries.ts";
+import { refusalDetail } from "../../api/conflicts.ts";
+import {
+  usePropertyValueOptions,
+  usePropertyValueResolveQueries,
+} from "../../api/queries.ts";
+import { Button } from "../../components/button.tsx";
 import { Field } from "../../components/field.tsx";
 import { INPUT_CLASSES } from "../../components/input-classes.ts";
-import { Select } from "../../components/select.tsx";
-import type { SelectOption } from "../../components/select.tsx";
 import { useDebouncedValue } from "../use-debounced-value.ts";
 import type { ControlProps } from "./types.ts";
+import { codeLabel } from "./value-labels.ts";
 
 /**
- * `ControlKind.CONCEPT_PICKER` - the `code` datatype (issue #150's
- * successor for property values rather than the entry's own binding).
+ * `ControlKind.CONCEPT_PICKER` - the `code` datatype. One type-ahead box over
+ * the property's offerable values (FR-23, FR-52).
  *
- * Composes `Select` (issue #210's native-select baseline), fed by a
- * separate filter `Field`: the filter text narrows what
- * `usePropertyValueOptions` returns server-side (FR-52's own text-filter
- * primitive), and the select lists whatever comes back. This never
- * branches on `binding_target` - it asks `usePropertyValueOptions
- * (propertyKey, ...)`, which resolves that server-side (issue #247) - so
- * the same component serves `specimen` (SNOMED value set) and
- * `discipline`/`subgroup` (local code systems) identically.
+ * Whether the list is short or long comes from the server's own page, never
+ * from the property's datatype or binding target (FR-77, ADR-0013): when
+ * `total` fits in the unfiltered page the browser holds the whole list and
+ * narrows it as the user types; otherwise the typed text goes to the server,
+ * debounced, and the popup says when more matched than it shows.
  *
- * The currently held code is always offered as an option, even when it
- * falls outside the current filter's results - the same reasoning
- * `CheckboxGroup` gives for carrying through a value with no matching
- * option: a retired or superseded code already recorded here must stay
- * choosable (in effect, unchanged) rather than disappearing the moment an
- * editor types a filter that does not happen to match it.
+ * Without `onCommit` the box holds one value and shows the chosen code, with a
+ * Clear button. With it, a pick is handed to `onCommit` and the box empties for
+ * the next search; the caller lists what was picked.
  */
+
+const SEARCH_DEBOUNCE_MS = 400;
+
+const ITEM_CLASSES =
+  "flex min-h-8 cursor-pointer select-none items-center gap-2 px-2 py-1 text-sm text-[var(--color-text)] data-[highlighted]:bg-[var(--color-accent)] data-[highlighted]:text-[var(--color-accent-contrast)]";
+
+interface Option {
+  value: string;
+  label: string;
+}
+
+const itemLabel = (option: Option): string => option.label;
+
 export function ConceptPickerControl({
   id,
   label,
@@ -35,71 +47,203 @@ export function ConceptPickerControl({
   error,
   value,
   onChange,
+  onCommit,
   propertyKey,
 }: ControlProps) {
-  const filterId = useId();
-  const [filterText, setFilterText] = useState("");
-  const debouncedFilter = useDebouncedValue(filterText, 400);
-  const options = usePropertyValueOptions(propertyKey, debouncedFilter);
-  const currentCode = typeof value === "string" ? value : "";
+  const entry = onCommit !== undefined;
+  const code = !entry && typeof value === "string" && value !== "" ? value : null;
+  const [text, setText] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [open, setOpen] = useState(false);
+  const highlighted = useRef(false);
 
-  const fetchedOptions: SelectOption[] = (options.data?.items ?? []).map((item) => ({
-    value: item.code,
-    label: item.display === null ? item.code : `${item.code} — ${item.display}`,
-  }));
-  const selectOptions =
-    currentCode.length > 0 &&
-    !fetchedOptions.some((option) => option.value === currentCode)
-      ? [
-          { value: currentCode, label: `${currentCode} (currently recorded)` },
-          ...fetchedOptions,
-        ]
-      : fetchedOptions;
+  const searching = entry || editing;
+  const typedText = searching ? text.trim() : "";
+  const debounced = useDebouncedValue(typedText, SEARCH_DEBOUNCE_MS);
 
-  // `PropertyValuePage.total` can exceed what one page returns (a SNOMED
-  // value set easily does); with no signal an editor whose code sits past
-  // the first page sees an apparently-complete list with nothing wrong,
-  // and no reason to type a filter to narrow it further.
-  const page = options.data;
-  const truncated = page !== undefined && page.total > page.items.length;
-  const searchHint =
-    options.isPending && debouncedFilter.length > 0
+  const everything = usePropertyValueOptions(propertyKey, "");
+  const wholeList =
+    everything.data !== undefined &&
+    everything.data.total <= everything.data.items.length;
+  const serverQuery = wholeList ? "" : debounced;
+  const narrowed = usePropertyValueOptions(propertyKey, serverQuery);
+  const resolved = usePropertyValueResolveQueries([
+    { key: propertyKey, codes: code === null ? [] : [code] },
+  ])[0];
+
+  const settled = wholeList || typedText === "" || debounced === typedText;
+  const page = typedText === "" || wholeList ? everything : narrowed;
+  const needle = typedText.toLowerCase();
+  const options: Option[] =
+    settled && page.data !== undefined
+      ? page.data.items
+          .map((item) => ({
+            value: item.code,
+            label: codeLabel(item.code, item.display),
+          }))
+          .filter((option) => !wholeList || option.label.toLowerCase().includes(needle))
+      : [];
+
+  const failure = everything.isError
+    ? everything.error
+    : !wholeList && settled && typedText !== "" && narrowed.isError
+      ? narrowed.error
+      : null;
+  const loadFailed = failure !== null;
+  const loading =
+    everything.isPending ||
+    (typedText !== "" && !wholeList && (!settled || narrowed.isFetching));
+  const total = page.data?.total ?? null;
+  const truncated = !wholeList && total !== null && total > options.length;
+
+  const statusText = loadFailed
+    ? null
+    : loading
       ? "Searching…"
-      : options.isError
-        ? "The list of values could not be loaded. Try again."
-        : truncated && page !== undefined
-          ? `Showing ${page.items.length} of ${page.total} — type to narrow.`
-          : undefined;
+      : options.length === 0 && typedText !== ""
+        ? "No value matches what you typed."
+        : truncated
+          ? `Showing ${options.length} of ${total}. Type more to narrow the list.`
+          : null;
+  const loadError = loadFailed
+    ? `${
+        refusalDetail(failure) ?? "The list of values could not be loaded."
+      } Reload the page to try again.`
+    : undefined;
+
+  const chosenLabel =
+    code === null
+      ? ""
+      : codeLabel(
+          code,
+          resolved.data?.items.find((item) => item.code === code)?.display ??
+            everything.data?.items.find((item) => item.code === code)?.display,
+        );
+  const inputValue = searching ? text : chosenLabel;
+
+  function pick(option: Option) {
+    if (onCommit !== undefined) {
+      onCommit(option.value, option.label);
+    } else {
+      onChange(option.value);
+    }
+    setText("");
+    setEditing(false);
+    setOpen(false);
+  }
 
   return (
-    <div className="flex flex-col gap-2">
-      <Field
-        id={filterId}
-        label={`Filter ${label}`}
-        hint="Type to narrow the list below."
-      >
-        {(controlProps) => (
-          <input
-            {...controlProps}
-            className={INPUT_CLASSES}
-            type="text"
-            value={filterText}
-            onChange={(event) => setFilterText(event.target.value)}
-          />
-        )}
-      </Field>
-      <Select
-        label={label}
-        id={id}
-        hint={searchHint ?? hint}
-        error={error}
-        options={selectOptions}
-        placeholder="Choose a code"
-        value={currentCode}
-        onChange={(event) =>
-          onChange(event.target.value === "" ? null : event.target.value)
-        }
-      />
-    </div>
+    <Field
+      id={id}
+      label={label}
+      hint={
+        hint ??
+        (entry
+          ? "Type to search, then choose a value to add it to the list."
+          : "Type to search the list.")
+      }
+      error={error ?? loadError}
+    >
+      {(controlProps) => (
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <Combobox.Root<Option, false>
+              items={options}
+              filter={null}
+              onItemHighlighted={(item) => {
+                highlighted.current = item !== undefined;
+              }}
+              value={null}
+              inputValue={inputValue}
+              open={open && (options.length > 0 || statusText !== null)}
+              onOpenChange={setOpen}
+              itemToStringLabel={itemLabel}
+              onInputValueChange={(next, details) => {
+                if (details.reason === "input-change") {
+                  setText(next);
+                  setEditing(true);
+                  setOpen(true);
+                }
+              }}
+              onValueChange={(item) => {
+                if (item !== null) {
+                  pick(item);
+                }
+              }}
+            >
+              <Combobox.Input
+                {...controlProps}
+                // Base UI hides the visible label from assistive technology while
+                // the popup is open, which would leave the input unnamed.
+                aria-label={label}
+                className={INPUT_CLASSES}
+                autoComplete="off"
+                onFocus={(event) => {
+                  if (!entry) {
+                    event.currentTarget.select();
+                  }
+                }}
+                onBlur={() => {
+                  if (!entry) {
+                    setEditing(false);
+                    setText("");
+                  }
+                }}
+                onKeyDown={(event) => {
+                  // Enter in a form's text box would submit the whole form. Here it
+                  // chooses the highlighted result, or the first when none is.
+                  if (event.key !== "Enter") {
+                    return;
+                  }
+                  event.preventDefault();
+                  const first = options[0];
+                  if (open && typedText !== "" && !highlighted.current && first) {
+                    pick(first);
+                  }
+                }}
+              />
+              <Combobox.Portal>
+                <Combobox.Positioner sideOffset={4} className="z-50 outline-none">
+                  <Combobox.Popup className="max-h-72 w-[var(--anchor-width)] max-w-[var(--available-width)] overflow-y-auto rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface)] py-1">
+                    {/* Inside the popup, because Base UI marks everything outside it
+                        inert while it is open, and an inert live region is not read. */}
+                    <Combobox.Status className="text-sm text-[var(--color-text-muted)]">
+                      {statusText === null ? null : (
+                        <p className="m-0 px-2 py-1">{statusText}</p>
+                      )}
+                    </Combobox.Status>
+                    <Combobox.List>
+                      {(option: Option) => (
+                        <Combobox.Item
+                          key={option.value}
+                          value={option}
+                          className={ITEM_CLASSES}
+                        >
+                          {option.label}
+                        </Combobox.Item>
+                      )}
+                    </Combobox.List>
+                  </Combobox.Popup>
+                </Combobox.Positioner>
+              </Combobox.Portal>
+            </Combobox.Root>
+          </div>
+          {code === null ? null : (
+            <Button
+              type="button"
+              variant="secondary"
+              aria-label={`Clear ${label}`}
+              onClick={() => {
+                onChange(null);
+                setText("");
+                setEditing(false);
+              }}
+            >
+              Clear
+            </Button>
+          )}
+        </div>
+      )}
+    </Field>
   );
 }

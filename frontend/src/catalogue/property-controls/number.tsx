@@ -1,5 +1,6 @@
 import { Field } from "../../components/field.tsx";
 import { INPUT_CLASSES } from "../../components/input-classes.ts";
+import { commitOnEnter, entryHint } from "./types.ts";
 import type { ControlProps } from "./types.ts";
 
 /**
@@ -19,6 +20,7 @@ export function NumberControl({
   error,
   value,
   onChange,
+  onCommit,
   params,
 }: ControlProps) {
   const step =
@@ -28,7 +30,7 @@ export function NumberControl({
   const min = typeof params.minimum === "number" ? params.minimum : undefined;
 
   return (
-    <Field id={id} label={label} hint={hint} error={error}>
+    <Field id={id} label={label} hint={entryHint(hint, onCommit)} error={error}>
       {(controlProps) => (
         <input
           {...controlProps}
@@ -37,6 +39,7 @@ export function NumberControl({
           step={step}
           min={min}
           value={typeof value === "number" ? value : ""}
+          onKeyDown={commitOnEnter(onCommit, value)}
           onChange={(event) => {
             const raw = event.target.value;
             if (raw === "") {

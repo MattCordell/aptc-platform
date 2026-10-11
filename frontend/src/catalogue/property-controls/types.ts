@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 
 import type { components } from "../../api/schema.ts";
 
@@ -35,6 +35,15 @@ export interface ControlProps {
   params: Record<string, unknown>;
   value: unknown;
   onChange: (value: unknown) => void;
+  /**
+   * Present only when the property takes several values. The control is then
+   * an entry box: `value`/`onChange` carry the text typed so far, and the
+   * control calls `onCommit` once the user adds it - Enter in a text box, a
+   * pick from a list. The caller clears the box by dropping the value. `label`
+   * is the text to announce for the added value, when the control knows a
+   * better one than the value itself.
+   */
+  onCommit?: (value: unknown, label?: string) => void;
 }
 
 /**
@@ -52,6 +61,12 @@ export interface PropertyValueSlot {
   id: string;
   value: unknown;
   justification: string | null;
+  /**
+   * Set on the one trailing slot that holds text typed into a several-valued
+   * property's entry box and not yet added. It is submitted like any other
+   * value, so a user who forgets to press Enter does not lose what they typed.
+   */
+  draft?: boolean;
 }
 
 let nextSlotId = 0;
@@ -90,6 +105,35 @@ export function isEmptySlotValue(value: unknown): boolean {
   );
 }
 
+/**
+ * What a slot sends. A draft is text the user typed and never added, so it is
+ * trimmed the way `commitOnEnter` trims an added value.
+ */
+export function slotValue(slot: PropertyValueSlot): unknown {
+  return slot.draft === true && typeof slot.value === "string"
+    ? slot.value.trim()
+    : slot.value;
+}
+
+/**
+ * The render index of each slot a save sends, which is what the server's
+ * `ordinal` counts: every slot with a value, except a draft that repeats a
+ * value already added. Dropping the repeat sends what `commit` would have
+ * accepted, so leaving "Anaemia " in the box beside "Anaemia" adds nothing.
+ */
+export function submittedSlotIndexes(slots: readonly PropertyValueSlot[]): number[] {
+  return slots.reduce<number[]>((indexes, slot, index) => {
+    const value = slotValue(slot);
+    const repeat =
+      slot.draft === true &&
+      slots.some((other) => other.draft !== true && other.value === value);
+    if (!isEmptySlotValue(value) && !repeat) {
+      indexes.push(index);
+    }
+    return indexes;
+  }, []);
+}
+
 /** The field id a `PropertyIssueItem` with this `ordinal` maps to (`properties-panel.tsx`). */
 export function slotFieldId(propertyKey: string, ordinal: number): string {
   return `${propertyKey}-${ordinal}`;
@@ -98,4 +142,37 @@ export function slotFieldId(propertyKey: string, ordinal: number): string {
 /** The field id a cardinality-level issue (`ordinal: null`) maps to. */
 export function groupFieldId(propertyKey: string): string {
   return `${propertyKey}-group`;
+}
+
+/**
+ * The `onKeyDown` for a text-style control in entry mode, or `undefined`
+ * outside it. Enter adds the value and never submits the form, whether the box
+ * holds one or not. Shift+Enter is left alone so a textarea can still break a
+ * line, and so is the Enter that confirms an input-method composition.
+ */
+export function commitOnEnter(
+  onCommit: ControlProps["onCommit"],
+  current: unknown,
+): ((event: KeyboardEvent<HTMLElement>) => void) | undefined {
+  if (onCommit === undefined) {
+    return undefined;
+  }
+  return (event) => {
+    if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) {
+      return;
+    }
+    event.preventDefault();
+    if (!isEmptySlotValue(current)) {
+      onCommit(typeof current === "string" ? current.trim() : current);
+    }
+  };
+}
+
+/** The hint for a text-style control: the caller's, else how to add in entry mode. */
+export function entryHint(
+  hint: ReactNode,
+  onCommit: ControlProps["onCommit"],
+  howToAdd = "Press Enter to add this value.",
+): ReactNode {
+  return hint ?? (onCommit === undefined ? undefined : howToAdd);
 }

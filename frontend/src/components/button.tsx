@@ -1,4 +1,4 @@
-import type { ComponentPropsWithoutRef } from "react";
+import type { ComponentPropsWithRef } from "react";
 
 import { buttonClassName, type ButtonVariant } from "./button-class-name.ts";
 
@@ -7,7 +7,7 @@ type ButtonProps = {
   /** No default: forces every call site to choose, rather than silently
    * inheriting the native element's "submit" default. */
   type: "button" | "submit" | "reset";
-} & Omit<ComponentPropsWithoutRef<"button">, "type">;
+} & Omit<ComponentPropsWithRef<"button">, "type">;
 
 /**
  * A button that always declares its `type` explicitly (issue #148): inside

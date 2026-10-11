@@ -9,7 +9,7 @@ import { groupFieldId, slotFieldId } from "./property-controls/index.ts";
  * dialog does not re-derive it a second time).
  *
  * `submittedIndexes` is the render index of each slot actually sent on the
- * wire (`nonEmptySlotIndexes`'s own result) - a server issue's `ordinal`
+ * wire (`submittedSlotIndexes`'s own result) - a server issue's `ordinal`
  * indexes *that* filtered array, not the dialog's full `slots`, so
  * `submittedIndexes[issue.ordinal]` is the one place both directions agree
  * on which rendered slot produced a given issue.

@@ -1,5 +1,6 @@
 import { Field } from "../../components/field.tsx";
 import { INPUT_CLASSES } from "../../components/input-classes.ts";
+import { commitOnEnter, entryHint } from "./types.ts";
 import type { ControlProps } from "./types.ts";
 
 /**
@@ -8,9 +9,17 @@ import type { ControlProps } from "./types.ts";
  * ADR-0030 keeps the server the authority on shape, and a bad scheme comes
  * back as a field-level 422 naming this property.
  */
-export function UriControl({ id, label, hint, error, value, onChange }: ControlProps) {
+export function UriControl({
+  id,
+  label,
+  hint,
+  error,
+  value,
+  onChange,
+  onCommit,
+}: ControlProps) {
   return (
-    <Field id={id} label={label} hint={hint} error={error}>
+    <Field id={id} label={label} hint={entryHint(hint, onCommit)} error={error}>
       {(controlProps) => (
         <input
           {...controlProps}
@@ -18,6 +27,7 @@ export function UriControl({ id, label, hint, error, value, onChange }: ControlP
           type="url"
           value={typeof value === "string" ? value : ""}
           onChange={(event) => onChange(event.target.value)}
+          onKeyDown={commitOnEnter(onCommit, value)}
         />
       )}
     </Field>
