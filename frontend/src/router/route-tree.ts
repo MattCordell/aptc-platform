@@ -20,6 +20,7 @@ import { createPlaceholderPage } from "../pages/placeholder.tsx";
 import { RegisterPage } from "../pages/register.tsx";
 import { SignInPage } from "../pages/sign-in.tsx";
 import { SignOutPage } from "../pages/sign-out.tsx";
+import { SubmissionListPage } from "../pages/submission-list.tsx";
 import { SubmissionNewPage } from "../pages/submission-new.tsx";
 import { TermsPage } from "../pages/terms.tsx";
 import { AdminLayout } from "../shell/admin-layout.tsx";
@@ -274,7 +275,7 @@ const submissionsRoute = createRoute({
 const submissionListRoute = createRoute({
   getParentRoute: () => submissionsRoute,
   path: "/",
-  component: createPlaceholderPage({ title: "Submissions" }),
+  component: SubmissionListPage,
   head: titled("Submissions"),
 });
 
