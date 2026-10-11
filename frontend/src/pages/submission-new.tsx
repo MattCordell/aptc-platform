@@ -28,6 +28,7 @@ import { useAnnounce } from "../components/use-announce.ts";
 import { AmendmentForm } from "../submissions/amendment-form.tsx";
 import { SubmissionCodeField } from "../submissions/code-field.tsx";
 import { DuplicatePanel } from "../submissions/duplicate-panel.tsx";
+import { FieldGrid } from "../submissions/field-grid.tsx";
 import {
   FIELD_IDS,
   createBody,
@@ -40,7 +41,11 @@ import {
 import type { SubmissionValues } from "../submissions/form-state.ts";
 import { OtherNamesField } from "../submissions/other-names-field.tsx";
 import { readRefusal } from "../submissions/refusals.ts";
-import { SupportFields } from "../submissions/support-fields.tsx";
+import {
+  NotesField,
+  OrganisationField,
+  ReferenceLinkField,
+} from "../submissions/support-fields.tsx";
 
 /**
  * Proposing a new test (FR-23 to FR-27, FR-43, FR-54).
@@ -136,6 +141,10 @@ function NewTestForm() {
         : current,
     );
     setFormError(null);
+  }
+
+  function onSupportEdit(patch: Partial<SubmissionValues>, fieldId: string) {
+    edit(patch, (id) => id === fieldId);
   }
 
   function showMatches(found: DuplicateMatch[]) {
@@ -234,7 +243,7 @@ function NewTestForm() {
         ) : null}
 
         <div hidden={stage !== "form"}>
-          <Card>
+          <Card compact>
             <Form
               key={formKey}
               submitLabel="Submit test"
@@ -249,34 +258,42 @@ function NewTestForm() {
                 </Link>
               }
             >
-              <Field
-                id={FIELD_IDS.preferred_term}
-                label="Test name (required)"
-                hint="The name the test is requested by."
-                error={errorFor(FIELD_IDS.preferred_term)}
-              >
-                {(controlProps) => (
-                  <input
-                    {...controlProps}
-                    className={INPUT_CLASSES}
-                    type="text"
-                    value={values.preferredTerm}
-                    onChange={(event) =>
-                      edit(
-                        { preferredTerm: event.target.value },
-                        (id) => id === FIELD_IDS.preferred_term,
-                      )
-                    }
-                  />
-                )}
-              </Field>
+              <FieldGrid>
+                <Field
+                  id={FIELD_IDS.preferred_term}
+                  label="Test name (required)"
+                  error={errorFor(FIELD_IDS.preferred_term)}
+                >
+                  {(controlProps) => (
+                    <input
+                      {...controlProps}
+                      className={INPUT_CLASSES}
+                      type="text"
+                      value={values.preferredTerm}
+                      onChange={(event) =>
+                        edit(
+                          { preferredTerm: event.target.value },
+                          (id) => id === FIELD_IDS.preferred_term,
+                        )
+                      }
+                    />
+                  )}
+                </Field>
 
-              <OtherNamesField
-                names={values.names}
-                draft={values.nameDraft}
-                error={errorFor(FIELD_IDS.synonyms)}
-                onChange={(change) => edit(change, (id) => id === FIELD_IDS.synonyms)}
-              />
+                <OtherNamesField
+                  names={values.names}
+                  draft={values.nameDraft}
+                  error={errorFor(FIELD_IDS.synonyms)}
+                  onChange={(change) => edit(change, (id) => id === FIELD_IDS.synonyms)}
+                />
+
+                <OrganisationField
+                  value={values.organisation}
+                  defaultValue={user?.organisation ?? ""}
+                  errorFor={errorFor}
+                  onEdit={onSupportEdit}
+                />
+              </FieldGrid>
 
               <SubmissionCodeField
                 selection={selection}
@@ -292,42 +309,52 @@ function NewTestForm() {
                     "The properties could not be loaded, so they are not shown. Reload the page to try again."}
                 </p>
               )}
-              {rows.length > 0 && <h2>Properties</h2>}
-              {rows.map((definition) => {
-                return (
-                  <RepeatableValues
-                    key={definition.key}
-                    propertyKey={definition.key}
-                    label={
-                      definition.required_for_submission
-                        ? `${definition.label} (required)`
-                        : definition.label
-                    }
-                    cardinality={definition.cardinality as PropertyCardinality}
-                    control={definition.form_control.control}
-                    params={definition.form_control.params}
-                    slots={values.slots[definition.key] ?? []}
-                    onChange={(next: PropertyValueSlot[]) =>
-                      edit(
-                        (previous) => ({
-                          slots: { ...previous.slots, [definition.key]: next },
-                        }),
-                        (id) => isPropertyField(id, definition.key),
-                      )
-                    }
-                    errors={errors}
-                  />
-                );
-              })}
+              {rows.length > 0 && (
+                <div role="group" aria-label="Properties">
+                  <FieldGrid>
+                    {rows.map((definition) => (
+                      <RepeatableValues
+                        key={definition.key}
+                        propertyKey={definition.key}
+                        label={
+                          definition.required_for_submission
+                            ? `${definition.label} (required)`
+                            : definition.label
+                        }
+                        cardinality={definition.cardinality as PropertyCardinality}
+                        control={definition.form_control.control}
+                        params={definition.form_control.params}
+                        slots={values.slots[definition.key] ?? []}
+                        onChange={(next: PropertyValueSlot[]) =>
+                          edit(
+                            (previous) => ({
+                              slots: { ...previous.slots, [definition.key]: next },
+                            }),
+                            (id) => isPropertyField(id, definition.key),
+                          )
+                        }
+                        errors={errors}
+                        compact
+                      />
+                    ))}
+                  </FieldGrid>
+                </div>
+              )}
 
-              <SupportFields
-                values={values}
-                errorFor={errorFor}
-                onEdit={(patch, fieldId) => edit(patch, (id) => id === fieldId)}
-                defaultOrganisation={user?.organisation ?? ""}
-                referenceRequired
-                noun="test"
-              />
+              <FieldGrid>
+                <ReferenceLinkField
+                  value={values.referenceUrl}
+                  errorFor={errorFor}
+                  onEdit={onSupportEdit}
+                  referenceRequired
+                  noun="test"
+                />
+                <NotesField
+                  value={values.notes}
+                  errorFor={errorFor}
+                  onEdit={onSupportEdit}
+                />
+              </FieldGrid>
 
               <dl className="m-0 grid grid-cols-[max-content_1fr] gap-x-6">
                 <dt className="text-[var(--color-text-muted)]">Submitted by</dt>

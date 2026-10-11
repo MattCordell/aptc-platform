@@ -903,6 +903,42 @@ describe("SubmissionNewPage success", () => {
   });
 });
 
+describe("SubmissionNewPage layout (FR-23)", () => {
+  it("lists the fields in reading order, which is their tab order", async () => {
+    stubApi([ME, DEFINITIONS]);
+    await renderPage();
+    await screen.findByLabelText("Assay method (required)");
+
+    const order = [
+      "Test name (required)",
+      "Other names",
+      "Organisation",
+      "SNOMED CT code",
+      "Assay method (required)",
+      "Clinical use",
+      "Reference link (required)",
+      "Notes",
+    ].map((label) => screen.getByLabelText(label));
+
+    for (let index = 1; index < order.length; index += 1) {
+      expect(
+        order[index - 1].compareDocumentPosition(order[index]) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
+  });
+
+  it("groups the registry's properties under one name for assistive technology", async () => {
+    stubApi([ME, DEFINITIONS]);
+    await renderPage();
+    await screen.findByLabelText("Assay method (required)");
+
+    const group = screen.getByRole("group", { name: "Properties" });
+    expect(within(group).getByLabelText("Assay method (required)")).toBeVisible();
+    expect(within(group).getByLabelText("Clinical use")).toBeVisible();
+  });
+});
+
 describe("SubmissionNewPage accessibility", () => {
   it("has no axe violations, with an error summary showing", async () => {
     stubApi([ME, DEFINITIONS]);

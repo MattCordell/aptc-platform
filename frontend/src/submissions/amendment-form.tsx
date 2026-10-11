@@ -27,9 +27,10 @@ import {
   validateAmendment,
 } from "./form-state.ts";
 import type { SubmissionValues } from "./form-state.ts";
+import { FieldGrid } from "./field-grid.tsx";
 import { OtherNamesField } from "./other-names-field.tsx";
 import { readRefusal } from "./refusals.ts";
-import { SupportFields } from "./support-fields.tsx";
+import { NotesField, OrganisationField, ReferenceLinkField } from "./support-fields.tsx";
 
 /**
  * Proposing new names or a code for an existing entry (FR-35), reached from
@@ -205,6 +206,10 @@ function AmendmentView({ entry }: { entry: EntryDetail }) {
     setFormError(null);
   }
 
+  function onSupportEdit(patch: Partial<SubmissionValues>, fieldId: string) {
+    edit(patch, (id) => id === fieldId);
+  }
+
   function refuse(error: unknown): SubmitOutcome {
     setErrors([]);
     if (error instanceof ApiError && error.status === 409) {
@@ -278,7 +283,7 @@ function AmendmentView({ entry }: { entry: EntryDetail }) {
 
             <CurrentEntry entry={entry} />
 
-            <Card>
+            <Card compact>
               <Form
                 submitLabel="Propose change"
                 pendingLabel="Proposing"
@@ -296,13 +301,22 @@ function AmendmentView({ entry }: { entry: EntryDetail }) {
                   </Link>
                 }
               >
-                <OtherNamesField
-                  label="New other names"
-                  names={values.names}
-                  draft={values.nameDraft}
-                  error={errorFor(FIELD_IDS.synonyms)}
-                  onChange={(change) => edit(change, (id) => id === FIELD_IDS.synonyms)}
-                />
+                <FieldGrid>
+                  <OtherNamesField
+                    label="New other names"
+                    names={values.names}
+                    draft={values.nameDraft}
+                    error={errorFor(FIELD_IDS.synonyms)}
+                    onChange={(change) => edit(change, (id) => id === FIELD_IDS.synonyms)}
+                  />
+
+                  <OrganisationField
+                    value={values.organisation}
+                    defaultValue={user?.organisation ?? ""}
+                    errorFor={errorFor}
+                    onEdit={onSupportEdit}
+                  />
+                </FieldGrid>
 
                 <SubmissionCodeField
                   selection={selection}
@@ -313,14 +327,20 @@ function AmendmentView({ entry }: { entry: EntryDetail }) {
                   }
                 />
 
-                <SupportFields
-                  values={values}
-                  errorFor={errorFor}
-                  onEdit={(patch, fieldId) => edit(patch, (id) => id === fieldId)}
-                  defaultOrganisation={user?.organisation ?? ""}
-                  referenceRequired={false}
-                  noun="change"
-                />
+                <FieldGrid>
+                  <ReferenceLinkField
+                    value={values.referenceUrl}
+                    errorFor={errorFor}
+                    onEdit={onSupportEdit}
+                    referenceRequired={false}
+                    noun="change"
+                  />
+                  <NotesField
+                    value={values.notes}
+                    errorFor={errorFor}
+                    onEdit={onSupportEdit}
+                  />
+                </FieldGrid>
 
                 <dl className="m-0 grid grid-cols-[max-content_1fr] gap-x-6">
                   <dt className="text-[var(--color-text-muted)]">Proposed by</dt>

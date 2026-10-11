@@ -28,6 +28,16 @@ describe("Card", () => {
     );
   });
 
+  it("pads 16px when compact, and keeps the rest of its look", () => {
+    const { container } = render(<Card compact>Card body</Card>);
+
+    const classes = (container.firstElementChild as HTMLElement).className.split(" ");
+    expect(classes).toContain("p-4");
+    expect(classes).not.toContain("p-6");
+    expect(classes).toContain("border-[var(--color-border)]");
+    expect(container.firstElementChild).not.toHaveAttribute("compact");
+  });
+
   it("uses design tokens only: no hex values, palette classes or shadows", () => {
     const { container } = render(<Card>Card body</Card>);
 
