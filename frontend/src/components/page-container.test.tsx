@@ -28,7 +28,7 @@ describe("PageContainer", () => {
       expect.arrayContaining([
         "mx-auto",
         "max-w-page",
-        "px-6",
+        "px-4",
         "flex",
         "flex-col",
         "gap-6",

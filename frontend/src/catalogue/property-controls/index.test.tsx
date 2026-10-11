@@ -515,6 +515,34 @@ describe("CONTROLS.text as an entry box", () => {
   });
 });
 
+describe("CONTROLS.text as a single-line entry box", () => {
+  it("swallows Shift+Enter so the browser cannot submit the form", () => {
+    const Control = CONTROLS.text;
+    const onCommit = vi.fn();
+    render(
+      withProviders(
+        <Control
+          id="prop-0"
+          label="Usage guidance"
+          propertyKey="usage_guidance"
+          params={{}}
+          value="x"
+          onChange={vi.fn()}
+          onCommit={onCommit}
+        />,
+      ),
+    );
+
+    const allowed = fireEvent.keyDown(screen.getByLabelText("Usage guidance"), {
+      key: "Enter",
+      shiftKey: true,
+    });
+
+    expect(allowed).toBe(false);
+    expect(onCommit).not.toHaveBeenCalled();
+  });
+});
+
 describe("CONTROLS.textarea as an entry box", () => {
   it("leaves Shift+Enter to start a new line", async () => {
     const Control = CONTROLS.textarea;
@@ -533,10 +561,12 @@ describe("CONTROLS.textarea as an entry box", () => {
       ),
     );
 
-    await userEvent
-      .setup()
-      .type(screen.getByLabelText("Usage guidance"), "{Shift>}{Enter}{/Shift}");
+    const allowed = fireEvent.keyDown(screen.getByLabelText("Usage guidance"), {
+      key: "Enter",
+      shiftKey: true,
+    });
 
+    expect(allowed).toBe(true);
     expect(onCommit).not.toHaveBeenCalled();
   });
 });
@@ -549,6 +579,7 @@ function Harness({
   initial = [],
   params = {},
   errors = [],
+  compact = false,
   onSlots,
 }: {
   control: ControlKind;
@@ -558,6 +589,7 @@ function Harness({
   initial?: PropertyValueSlot[];
   params?: Record<string, unknown>;
   errors?: FormError[];
+  compact?: boolean;
   onSlots?: (slots: PropertyValueSlot[]) => void;
 }) {
   const [slots, setSlots] = useState<PropertyValueSlot[]>(initial);
@@ -575,6 +607,7 @@ function Harness({
           setSlots(next);
         }}
         errors={errors}
+        compact={compact}
       />
     </form>
   );
@@ -586,6 +619,42 @@ function slot(id: string, value: unknown): PropertyValueSlot {
 
 const list = () => screen.getByRole("list", { name: "Specimen values" });
 const items = () => within(list()).getAllByRole("listitem");
+
+describe("RepeatableValues compact hints (FR-23)", () => {
+  it("leaves out the default hint on a property with one value", () => {
+    stubValues(() => ({ body: SHORT_LIST }));
+    render(
+      withProviders(
+        <Harness
+          control="concept_picker"
+          cardinality="0..1"
+          label="Discipline"
+          compact
+        />,
+      ),
+    );
+
+    expect(screen.getByLabelText("Discipline")).not.toHaveAttribute("aria-describedby");
+    expect(screen.queryByText("Type to search the list.")).not.toBeInTheDocument();
+  });
+
+  it("shows that hint when not compact", () => {
+    stubValues(() => ({ body: SHORT_LIST }));
+    render(
+      withProviders(
+        <Harness control="concept_picker" cardinality="0..1" label="Discipline" />,
+      ),
+    );
+
+    expect(screen.getByText("Type to search the list.")).toBeInTheDocument();
+  });
+
+  it("keeps the short cue for adding on a property with several values", () => {
+    render(withProviders(<Harness control="text" compact />));
+
+    expect(screen.getByText("Press Enter to add this value.")).toBeInTheDocument();
+  });
+});
 
 describe("RepeatableValues (FR-23, FR-52)", () => {
   describe("a property with one value", () => {

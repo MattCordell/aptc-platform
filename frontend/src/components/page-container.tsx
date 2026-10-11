@@ -13,7 +13,7 @@ export function PageContainer({ className, ...rest }: PageContainerProps) {
   return (
     <div
       {...rest}
-      className={["max-w-page mx-auto flex w-full flex-col gap-6 px-6", className]
+      className={["max-w-page mx-auto flex w-full flex-col gap-6 px-4", className]
         .filter(Boolean)
         .join(" ")}
     />

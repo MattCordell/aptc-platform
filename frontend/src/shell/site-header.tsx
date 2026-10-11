@@ -27,7 +27,7 @@ const NAV_LINKS = [
 export function SiteHeader() {
   return (
     <header className="border-b border-[var(--color-border)] bg-[var(--color-surface)]">
-      <div className="max-w-page mx-auto flex min-h-14 flex-wrap items-center gap-x-6 gap-y-2 px-6 py-2">
+      <div className="max-w-page mx-auto flex min-h-14 flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2">
         <Link
           to="/"
           activeOptions={{ exact: true }}

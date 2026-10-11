@@ -1156,7 +1156,7 @@ describe("the Propose a change link (FR-35, NFR-20)", () => {
     expect(
       await screen.findByRole("heading", { level: 1, name: "Propose a change" }),
     ).toBeVisible();
-    expect(await screen.findByLabelText("Other name 1")).toBeVisible();
+    expect(await screen.findByLabelText("New other names")).toBeVisible();
     expect(screen.getByRole("link", { name: "Ferritin" })).toHaveAttribute(
       "href",
       `/catalogue/${KEY}`,

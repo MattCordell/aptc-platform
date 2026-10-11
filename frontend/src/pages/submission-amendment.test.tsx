@@ -126,7 +126,7 @@ type User = ReturnType<typeof userEvent.setup>;
 
 async function renderPage(path = `/submissions/new?entry=${KEY}`) {
   const result = await renderRoute(path, SIGNED_IN);
-  await screen.findByLabelText("Other name 1");
+  await screen.findByLabelText("New other names");
   return result;
 }
 
@@ -197,14 +197,14 @@ describe("the amendment form (FR-35)", () => {
 
     await renderPage();
 
-    expect(screen.getByLabelText("Other name 1")).toBeVisible();
+    expect(screen.getByLabelText("New other names")).toBeVisible();
     expect(screen.getByLabelText("SNOMED CT code")).toBeVisible();
     expect(screen.getByLabelText("Reference link")).toBeVisible();
     expect(describedBy(screen.getByLabelText("Reference link"))).toContain(
       "supplier's test directory",
     );
     expect(describedBy(screen.getByLabelText("Reference link"))).not.toContain(
-      "published method",
+      "a guideline or a method",
     );
     expect(screen.getByLabelText("Notes")).toBeVisible();
     expect(screen.getByLabelText("Organisation")).toBeVisible();
@@ -247,7 +247,7 @@ describe("sending an amendment (FR-35)", () => {
     const user = userEvent.setup();
     await renderPage();
 
-    await user.type(screen.getByLabelText("Other name 1"), "Ferritin level");
+    await user.type(screen.getByLabelText("New other names"), "Ferritin level");
     await submit(user);
 
     const heading = await screen.findByRole("heading", {
@@ -277,7 +277,7 @@ describe("sending an amendment (FR-35)", () => {
     const user = userEvent.setup();
     await renderPage();
 
-    await user.click(screen.getByLabelText("Other name 1"));
+    await user.click(screen.getByLabelText("New other names"));
     await user.paste("Ferritin; Serum Fe store");
     await submit(user);
     await screen.findByText("Your change was proposed");
@@ -306,7 +306,7 @@ describe("sending an amendment (FR-35)", () => {
       expect(screen.getByLabelText("Organisation")).toHaveValue("Acme Pathology"),
     );
 
-    await user.type(screen.getByLabelText("Other name 1"), "Ferritin level");
+    await user.type(screen.getByLabelText("New other names"), "Ferritin level");
     await user.type(screen.getByLabelText("Reference link"), REFERENCE);
     await user.type(screen.getByLabelText("Notes"), "Seen in the RCPA manual.");
     await user.clear(screen.getByLabelText("Organisation"));
@@ -323,12 +323,45 @@ describe("sending an amendment (FR-35)", () => {
     });
   });
 
+  it("sends the names added with Enter and the text left in the box, each once", async () => {
+    const calls = stubApi([ME, ENTRY_OK, CREATED]);
+    const user = userEvent.setup();
+    await renderPage();
+    const box = screen.getByLabelText("New other names");
+
+    await user.type(box, "Ferritin level{Enter}");
+    await user.type(box, "Fe store{Enter}");
+    await user.type(box, "ferritin level");
+    await submit(user);
+    await screen.findByText("Your change was proposed");
+
+    expect(bodyOf(calls)).toEqual({
+      entry_business_key: KEY,
+      synonyms: ["Ferritin level", "Fe store"],
+    });
+  });
+
+  it("never submits the form on Enter in the box, empty or filled", async () => {
+    const calls = stubApi([ME, ENTRY_OK, CREATED]);
+    const user = userEvent.setup();
+    await renderPage();
+    const box = screen.getByLabelText("New other names");
+
+    await user.type(box, "{Enter}");
+    await user.type(box, "Ferritin level{Enter}");
+    await user.type(box, "{Shift>}{Enter}{/Shift}");
+
+    expect(writes(calls)).toHaveLength(0);
+    expect(screen.queryByRole("heading", { name: "There is a problem" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Remove Ferritin level" })).toBeVisible();
+  });
+
   it("leaves a blank reference link and an untouched organisation out of the request", async () => {
     const calls = stubApi([ME, ENTRY_OK, CREATED]);
     const user = userEvent.setup();
     await renderPage();
 
-    await user.type(screen.getByLabelText("Other name 1"), "Ferritin level");
+    await user.type(screen.getByLabelText("New other names"), "Ferritin level");
     await user.type(screen.getByLabelText("Reference link"), "   ");
     await submit(user);
     await screen.findByText("Your change was proposed");
@@ -353,9 +386,9 @@ describe("what holds an amendment back (FR-35)", () => {
         "Add a new other name or a SNOMED CT code to propose a change.",
       ),
     ).toBeVisible();
-    expect(describedBy(screen.getByRole("group", { name: "New other names" }))).toContain(
-      "Add a new other name",
-    );
+    expect(
+      describedBy(screen.getByRole("textbox", { name: "New other names" })),
+    ).toContain("Add a new other name");
     expect(writes(calls)).toHaveLength(0);
   });
 
@@ -364,7 +397,7 @@ describe("what holds an amendment back (FR-35)", () => {
     const user = userEvent.setup();
     await renderPage();
 
-    await user.type(screen.getByLabelText("Other name 1"), "   ");
+    await user.type(screen.getByLabelText("New other names"), "   ");
     await submit(user);
 
     expect(
@@ -401,7 +434,7 @@ describe("what holds an amendment back (FR-35)", () => {
     expect(writes(calls)).toHaveLength(0);
 
     await user.click(screen.getByRole("button", { name: "Clear the code" }));
-    await user.type(screen.getByLabelText("Other name 1"), "Ferritin level");
+    await user.type(screen.getByLabelText("New other names"), "Ferritin level");
     await submit(user);
     await screen.findByText("Your change was proposed");
     expect(bodyOf(calls)).not.toHaveProperty("snomed_code");
@@ -412,7 +445,7 @@ describe("what holds an amendment back (FR-35)", () => {
     const user = userEvent.setup();
     await renderPage();
 
-    await user.click(screen.getByLabelText("Other name 1"));
+    await user.click(screen.getByLabelText("New other names"));
     await user.paste("x".repeat(501));
     await submit(user);
 
@@ -429,7 +462,7 @@ describe("what the server refuses (FR-35, FR-43, NFR-20, NFR-45)", () => {
     const calls = stubApi([ME, ENTRY_OK, ...routes]);
     const user = userEvent.setup();
     await renderPage();
-    await user.type(screen.getByLabelText("Other name 1"), "Ferritin level");
+    await user.type(screen.getByLabelText("New other names"), "Ferritin level");
     await submit(user);
     return { calls, user };
   }
@@ -455,7 +488,7 @@ describe("what the server refuses (FR-35, FR-43, NFR-20, NFR-45)", () => {
     expect(message).toHaveTextContent(
       "This entry can no longer be amended. This entry is deprecated, so it cannot be amended.",
     );
-    expect(screen.getByLabelText("Other name 1")).toHaveValue("Ferritin level");
+    expect(screen.getByLabelText("New other names")).toHaveValue("Ferritin level");
   });
 
   it("shows the sentence for an entry that no longer exists", async () => {
@@ -483,11 +516,11 @@ describe("what the server refuses (FR-35, FR-43, NFR-20, NFR-45)", () => {
       refusal(422, { detail: "This term could not be saved.", field: "synonyms" }),
     ]);
 
-    const group = screen.getByRole("group", { name: "New other names" });
+    const group = screen.getByRole("textbox", { name: "New other names" });
     await waitFor(() => expect(describedBy(group)).toContain("could not be saved"));
-    expect(screen.getByLabelText("Other name 1")).toHaveValue("Ferritin level");
+    expect(screen.getByLabelText("New other names")).toHaveValue("Ferritin level");
 
-    await user.type(screen.getByLabelText("Other name 1"), "x");
+    await user.type(screen.getByLabelText("New other names"), "x");
     expect(describedBy(group)).not.toContain("could not be saved");
   });
 
@@ -551,7 +584,7 @@ describe("what the server refuses (FR-35, FR-43, NFR-20, NFR-45)", () => {
     ]);
 
     expect(await screen.findByText(/Your answers are kept/)).toBeVisible();
-    expect(screen.getByLabelText("Other name 1")).toHaveValue("Ferritin level");
+    expect(screen.getByLabelText("New other names")).toHaveValue("Ferritin level");
   });
 
   it("shows a plain sentence when the request cannot be sent at all", async () => {
@@ -576,7 +609,7 @@ describe("an entry that is not active (FR-35)", () => {
 
       const message = await screen.findByText(/This entry can no longer be amended\./);
       expect(message).toHaveTextContent(`is ${label.toLowerCase()}`);
-      expect(screen.queryByLabelText("Other name 1")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("New other names")).not.toBeInTheDocument();
       expect(
         screen.queryByRole("button", { name: "Propose change" }),
       ).not.toBeInTheDocument();
@@ -639,7 +672,7 @@ describe("loading the entry (FR-35)", () => {
     expect(
       await screen.findByRole("heading", { name: "We couldn't find that page" }),
     ).toBeInTheDocument();
-    expect(screen.queryByLabelText("Other name 1")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("New other names")).not.toBeInTheDocument();
   });
 
   it("shows the not-found page for a key that is not well formed", async () => {
@@ -669,11 +702,11 @@ describe("loading the entry (FR-35)", () => {
         )
       ).length,
     ).toBeGreaterThan(0);
-    expect(screen.queryByLabelText("Other name 1")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("New other names")).not.toBeInTheDocument();
 
     failing = false;
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
-    expect(await screen.findByLabelText("Other name 1")).toBeVisible();
+    expect(await screen.findByLabelText("New other names")).toBeVisible();
   });
 });
 
@@ -690,11 +723,22 @@ describe("the amendment form and accessibility (FR-35)", () => {
     await expectNoA11yViolations(container);
   });
 
+  it("has no axe violations with new names listed", async () => {
+    stubApi([ME, ENTRY_OK]);
+    const user = userEvent.setup();
+    const { container } = await renderPage();
+
+    await user.type(screen.getByLabelText("New other names"), "Ferritin level{Enter}");
+    await screen.findByRole("button", { name: "Remove Ferritin level" });
+
+    await expectNoA11yViolations(container);
+  });
+
   it("has no axe violations on the confirmation", async () => {
     stubApi([ME, ENTRY_OK, CREATED]);
     const user = userEvent.setup();
     const { container } = await renderPage();
-    await user.type(screen.getByLabelText("Other name 1"), "Ferritin level");
+    await user.type(screen.getByLabelText("New other names"), "Ferritin level");
     await submit(user);
     await screen.findByRole("heading", { name: "Your change was proposed" });
 

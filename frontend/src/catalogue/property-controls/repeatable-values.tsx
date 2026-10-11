@@ -30,6 +30,12 @@ interface RepeatableValuesProps {
   slots: PropertyValueSlot[];
   onChange: (slots: PropertyValueSlot[]) => void;
   errors: FormError[];
+  /**
+   * Leaves out the hint a control shows by default on a property with one value, for a form
+   * that has to fit one screen. A property with several values keeps its short cue for
+   * adding, because the user needs it before typing.
+   */
+  compact?: boolean;
 }
 
 /**
@@ -104,6 +110,7 @@ function OneValue({
   slots,
   onChange,
   errors,
+  compact = false,
 }: RepeatableValuesProps) {
   const Control = CONTROLS[control];
   // Stable for the component's lifetime, not regenerated each render - see
@@ -126,6 +133,7 @@ function OneValue({
       <Control
         id={fieldId}
         label={label}
+        hint={compact ? false : undefined}
         error={errors.find((error) => error.fieldId === fieldId)?.message}
         propertyKey={propertyKey}
         params={params}

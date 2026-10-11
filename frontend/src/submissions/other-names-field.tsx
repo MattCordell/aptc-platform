@@ -1,135 +1,146 @@
-import { Button } from "../components/button.tsx";
+import { useRef, useState } from "react";
+import type { ClipboardEvent } from "react";
+
+import { commitOnEnter } from "../catalogue/property-controls/types.ts";
+import { splitSynonyms } from "../catalogue/split-synonyms.ts";
 import { Field } from "../components/field.tsx";
 import { INPUT_CLASSES } from "../components/input-classes.ts";
-import { splitSynonyms } from "../catalogue/split-synonyms.ts";
-import { FIELD_IDS, blankName } from "./form-state.ts";
+import { LiveRegion } from "../components/live-region.tsx";
+import { RemovableList } from "../components/removable-list.tsx";
+import { useAnnounce } from "../components/use-announce.ts";
+import { FIELD_IDS, addNames } from "./form-state.ts";
 import type { NameRow } from "./form-state.ts";
 
 /**
- * The other names a new test is known by (FR-23). A short list to add to and
- * remove from, not the entry form's synonym editor, which exists to retire and
- * reinstate names that are already stored.
+ * The other names a new test is known by (FR-23): one box and a list of what has
+ * been added. A short list to add to and remove from, not the entry form's synonym
+ * editor, which exists to retire and reinstate names that are already stored.
  *
- * Pasting a list such as `Zovirax; Cyclir` fills one row per name, split the
- * way the catalogue splits a pasted synonym cell (FR-04).
+ * Enter adds the name and never submits the form. A semicolon adds the names before
+ * it, and a pasted list such as `Zovirax; Cyclir` adds one name each, split the way
+ * the catalogue splits a pasted synonym cell (FR-04). Text left in the box is sent
+ * with the form, so a forgotten Enter loses nothing.
  */
 
-function atLeastOne(rows: NameRow[]): NameRow[] {
-  return rows.length === 0 ? [blankName()] : rows;
+export interface OtherNamesChange {
+  names: NameRow[];
+  nameDraft: string;
+}
+
+function list(terms: string[]): string {
+  return terms.join(", ");
 }
 
 export function OtherNamesField({
-  rows,
+  names,
+  draft,
   error,
   onChange,
-  legend = "Other names",
-  description = "Other names this test is known by. Paste a list separated by semicolons to add several at once.",
+  label = "Other names",
 }: {
-  rows: NameRow[];
+  names: NameRow[];
+  draft: string;
   error?: string;
-  onChange: (rows: NameRow[]) => void;
-  legend?: string;
-  description?: string;
+  onChange: (change: OtherNamesChange) => void;
+  label?: string;
 }) {
-  const errorId = error ? `${FIELD_IDS.synonyms}-error` : undefined;
-
-  function setTerm(id: string, term: string) {
-    onChange(rows.map((row) => (row.id === id ? { ...row, term } : row)));
-  }
+  const { message, politeness, announce } = useAnnounce();
+  const box = useRef<HTMLInputElement>(null);
+  const [refusal, setRefusal] = useState<string | null>(null);
 
   /**
-   * Splits pasted text into names without losing what the row holds. The pasted text replaces
-   * the selection. If the row still has text outside it, that text stays and every pasted name
-   * becomes a row after it. If nothing is left, the first name takes the row.
+   * Adds the given names, keeps `remainder` in the box and says what happened. A
+   * name that is already listed is also named under the box, because the live
+   * region is for assistive technology only. When nothing was added, `kept` stays
+   * in the box so the user can see what was refused.
    */
-  function paste(input: HTMLInputElement, id: string, text: string): boolean {
-    const parts = splitSynonyms(text);
-    if (parts.length < 2) {
-      return false;
+  function add(candidates: string[], remainder: string, kept = remainder) {
+    const result = addNames(names, candidates);
+    const nothingAdded = result.added.length === 0 && result.repeats.length > 0;
+    onChange({ names: result.names, nameDraft: nothingAdded ? kept : remainder });
+    const repeated =
+      result.repeats.length === 0
+        ? null
+        : `${list(result.repeats)} ${result.repeats.length === 1 ? "is" : "are"} already in the ${label} list.`;
+    setRefusal(repeated);
+    const said: string[] = [];
+    if (result.added.length > 0) {
+      said.push(
+        `Added ${list(result.added)}. ${result.names.length} in the ${label} list.`,
+      );
     }
-    const at = rows.findIndex((row) => row.id === id);
-    const current = rows[at].term;
-    const start = input.selectionStart ?? current.length;
-    const end = input.selectionEnd ?? current.length;
-    const kept = current.slice(0, start) + current.slice(end);
-    const keepsRow = kept.trim() !== "";
-    const added = (keepsRow ? parts : parts.slice(1)).map((term) => ({
-      ...blankName(),
-      term,
-    }));
-    const replaced = rows.map((row) =>
-      row.id === id ? { ...row, term: keepsRow ? kept : parts[0] } : row,
-    );
-    onChange([...replaced.slice(0, at + 1), ...added, ...replaced.slice(at + 1)]);
-    return true;
+    if (repeated !== null) {
+      said.push(repeated);
+    }
+    if (said.length > 0) {
+      announce(said.join(" "));
+    }
+  }
+
+  function type(text: string) {
+    setRefusal(null);
+    if (!text.includes(";")) {
+      onChange({ names, nameDraft: text });
+      return;
+    }
+    const parts = text.split(";");
+    const remainder = (parts.pop() ?? "").trimStart();
+    add(parts, remainder);
+  }
+
+  function paste(event: ClipboardEvent<HTMLInputElement>) {
+    const parts = splitSynonyms(event.clipboardData.getData("text"));
+    if (parts.length < 2) {
+      return;
+    }
+    event.preventDefault();
+    const input = event.currentTarget;
+    const start = input.selectionStart ?? draft.length;
+    const end = input.selectionEnd ?? draft.length;
+    add(parts, draft.slice(0, start) + draft.slice(end));
   }
 
   return (
-    <fieldset
-      id={FIELD_IDS.synonyms}
-      tabIndex={-1}
-      aria-describedby={errorId}
-      className="m-0 flex flex-col gap-3 border-0 p-0"
-    >
-      <legend className="mb-1 text-sm font-medium text-[var(--color-text)]">
-        {legend}
-      </legend>
-      <p className="m-0 text-sm text-[var(--color-text-muted)]">{description}</p>
-      {rows.map((row, index) => (
-        <div key={row.id} className="flex items-end gap-2">
-          <div className="flex-1">
-            <Field
-              id={`${FIELD_IDS.synonyms}-${index + 1}`}
-              label={`Other name ${index + 1}`}
-            >
-              {(controlProps) => (
-                <input
-                  {...controlProps}
-                  className={INPUT_CLASSES}
-                  type="text"
-                  value={row.term}
-                  onChange={(event) => setTerm(row.id, event.target.value)}
-                  onPaste={(event) => {
-                    if (
-                      paste(
-                        event.currentTarget,
-                        row.id,
-                        event.clipboardData.getData("text"),
-                      )
-                    ) {
-                      event.preventDefault();
-                    }
-                  }}
-                />
-              )}
-            </Field>
-          </div>
-          <Button
-            type="button"
-            variant="danger"
-            aria-label={`Remove other name ${index + 1}`}
-            onClick={() =>
-              onChange(atLeastOne(rows.filter((other) => other.id !== row.id)))
-            }
-          >
-            Remove
-          </Button>
-        </div>
-      ))}
-      <div>
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => onChange([...rows, blankName()])}
-        >
-          Add another name
-        </Button>
-      </div>
-      {error ? (
-        <p id={errorId} className="m-0 text-sm text-[var(--color-danger)]">
-          {error}
-        </p>
-      ) : null}
-    </fieldset>
+    <div className="flex flex-col gap-2">
+      <Field
+        id={FIELD_IDS.synonyms}
+        label={label}
+        hint={refusal ?? "Press Enter or a semicolon to add a name."}
+        error={error}
+      >
+        {(controlProps) => (
+          <input
+            {...controlProps}
+            ref={box}
+            className={INPUT_CLASSES}
+            type="text"
+            value={draft}
+            onChange={(event) => type(event.target.value)}
+            onKeyDown={commitOnEnter((value) => add([String(value)], "", draft), draft)}
+            onPaste={paste}
+          />
+        )}
+      </Field>
+      <RemovableList
+        label={`${label} added`}
+        items={names.map((row) => ({
+          id: row.id,
+          label: row.term,
+          removeLabel: `Remove ${row.term}`,
+        }))}
+        onRemove={(id) => {
+          const removed = names.find((row) => row.id === id);
+          setRefusal(null);
+          onChange({ names: names.filter((row) => row.id !== id), nameDraft: draft });
+          if (removed !== undefined) {
+            announce(
+              `Removed ${removed.term}. ${names.length - 1} left in the ${label} list.`,
+            );
+          }
+        }}
+        focusWhenEmpty={() => box.current?.focus()}
+      />
+      <LiveRegion message={message} politeness={politeness} />
+    </div>
   );
 }

@@ -6,7 +6,7 @@ const FOOTER_LINK_CLASSES =
 export function SiteFooter() {
   return (
     <footer className="mt-8 border-t border-[var(--color-border)] bg-[var(--color-surface)]">
-      <div className="max-w-page mx-auto flex flex-col gap-3 px-6 py-6">
+      <div className="max-w-page mx-auto flex flex-col gap-3 px-4 py-6">
         <nav aria-label="Footer">
           <ul className="m-0 -ml-1 flex list-none flex-wrap gap-x-4 gap-y-1 p-0">
             <li>

@@ -11,17 +11,17 @@ Open the form at `/submissions/new`. The page title is **Submit a new test**.
 
 ## What you fill in
 
-Fields marked **(required)** must be filled in before you can submit.
+Fields marked **(required)** must be filled in before you can submit. The form is laid out in rows so that it fits one screen on a laptop. On a narrow window, or when you zoom in, the fields stack in one column in the same order.
 
 | Field | What to enter |
 | --- | --- |
 | **Test name (required)** | The name the test is requested by. |
-| **Other names** | Other names the test is known by. Choose **Add another name** for more rows, or paste a list separated by semicolons to get one row per name. A pasted list never overwrites text already in a row: it replaces only the text you selected, and the pasted names go in the rows after it. Empty rows are ignored. |
+| **Other names** | Other names the test is known by. Type a name and press Enter to add it to the list under the box. Type a semicolon, or paste a list such as `Zovirax; Cyclir`, to add one name for each part. Choose **Remove** next to a name to take it out. Enter, with or without Shift, never sends the form. A blank name is not added. A name already in the list is not added either, ignoring capital letters; the text stays in the box and a line under the box names it. A name left in the box when you submit is sent with the rest. A pasted list replaces only the text you selected; text outside the selection stays in the box. |
 | **SNOMED CT code** | Optional. Search by term or by code, then choose a result. See [Choosing a code](#choosing-a-code). |
 | **Properties** | One field for each property an administrator has made part of a proposal. A property marked **(required)** needs a value. This list changes when an administrator changes a property, so it can differ from what this guide shows. A property that takes several values shows a box with a list under it: choose a code, or type a value and press Enter, to add it to the list, and choose **Remove** to take one out. See [Editing registry properties](editing-registry-properties.md#editing-a-propertys-values). |
-| **Reference link (required)** | A web page that supports the test, such as a guideline or a published method. |
+| **Reference link (required)** | A supporting page, such as a guideline or a method. The platform checks that it answers when you submit. |
 | **Notes** | Anything a reviewer should know. |
-| **Organisation** | Filled in from your profile. Change it if the test comes from a different organisation. |
+| **Organisation** | Filled in from your profile, so change it only if the test comes from a different organisation. |
 | **Submitted by** | Your name. You cannot change it. |
 
 The form never asks for values the platform works out itself, such as a name's length.

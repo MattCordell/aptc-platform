@@ -147,8 +147,10 @@ export function groupFieldId(propertyKey: string): string {
 /**
  * The `onKeyDown` for a text-style control in entry mode, or `undefined`
  * outside it. Enter adds the value and never submits the form, whether the box
- * holds one or not. Shift+Enter is left alone so a textarea can still break a
- * line, and so is the Enter that confirms an input-method composition.
+ * holds one or not. Shift+Enter adds nothing: a textarea keeps it to break a
+ * line, and a single-line box swallows it because a browser would otherwise
+ * submit the form. The Enter that confirms an input-method composition is left
+ * alone.
  */
 export function commitOnEnter(
   onCommit: ControlProps["onCommit"],
@@ -158,7 +160,13 @@ export function commitOnEnter(
     return undefined;
   }
   return (event) => {
-    if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) {
+    if (event.key !== "Enter" || event.nativeEvent.isComposing) {
+      return;
+    }
+    if (event.shiftKey) {
+      if (event.currentTarget.tagName !== "TEXTAREA") {
+        event.preventDefault();
+      }
       return;
     }
     event.preventDefault();

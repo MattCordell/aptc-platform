@@ -40,7 +40,10 @@ export interface NameRow {
 
 export interface SubmissionValues {
   preferredTerm: string;
+  /** The other names the user has added, shown as a list. */
   names: NameRow[];
+  /** Text typed into the other-names box and not yet added. It is sent like an added name. */
+  nameDraft: string;
   /** The code the user picked. Sent only once the terminology server has named it. */
   code: string | null;
   slots: Record<string, PropertyValueSlot[]>;
@@ -50,14 +53,11 @@ export interface SubmissionValues {
   organisation: string | null;
 }
 
-export function blankName(): NameRow {
-  return { id: newSlotId(), term: "" };
-}
-
 export function initialValues(): SubmissionValues {
   return {
     preferredTerm: "",
-    names: [blankName()],
+    names: [],
+    nameDraft: "",
     code: null,
     slots: {},
     referenceUrl: "",
@@ -71,8 +71,50 @@ export function submissionRows(definitions: PropertyDefinition[]): PropertyDefin
   return [...definitions].sort((a, b) => a.display_order - b.display_order);
 }
 
-export function filledNames(names: NameRow[]): string[] {
-  return names.map((row) => row.term.trim()).filter((term) => term.length > 0);
+/**
+ * How two names are compared when deciding whether one repeats another. The server folds
+ * names further (`distinct_synonyms`) and stays the authority; this keeps the obvious
+ * repeats out of the list the user sees.
+ */
+function nameKey(term: string): string {
+  return term.trim().toLowerCase();
+}
+
+/**
+ * Adds names to the list. A blank name and a name already in the list (or earlier in
+ * `candidates`) is left out and the repeat reported, so the caller can say so.
+ */
+export function addNames(
+  existing: NameRow[],
+  candidates: string[],
+): { names: NameRow[]; added: string[]; repeats: string[] } {
+  const seen = new Set(existing.map((row) => nameKey(row.term)));
+  const added: NameRow[] = [];
+  const repeats: string[] = [];
+  for (const candidate of candidates) {
+    const term = candidate.trim();
+    if (term === "") {
+      continue;
+    }
+    if (seen.has(nameKey(term))) {
+      repeats.push(term);
+      continue;
+    }
+    seen.add(nameKey(term));
+    added.push({ id: newSlotId(), term });
+  }
+  return {
+    names: [...existing, ...added],
+    added: added.map((row) => row.term),
+    repeats,
+  };
+}
+
+/** The names to send: those added, then the text left in the box, each once. */
+export function filledNames(
+  values: Pick<SubmissionValues, "names" | "nameDraft">,
+): string[] {
+  return addNames([], [...values.names.map((row) => row.term), values.nameDraft]).added;
 }
 
 /** The render index of each slot that holds a value, which is what the server's `ordinal` counts. */
@@ -106,7 +148,7 @@ function overLimit(count: number, limit: number): boolean {
 
 function nameErrors(values: SubmissionValues): FormError[] {
   const { termLength, synonyms } = SUBMISSION_LIMITS;
-  const names = filledNames(values.names);
+  const names = filledNames(values);
   if (overLimit(names.length, synonyms)) {
     return [
       {
@@ -243,7 +285,7 @@ export function duplicateCheckBody(
   const code = codeToSend(selection);
   return {
     preferred_term: values.preferredTerm,
-    synonyms: filledNames(values.names),
+    synonyms: filledNames(values),
     ...(code === undefined ? {} : { snomed_code: code }),
   };
 }
@@ -292,7 +334,7 @@ export function validateAmendment(
 ): FormError[] {
   const found = [...nameErrors(values), ...codeErrors(selection)];
   if (
-    filledNames(values.names).length === 0 &&
+    filledNames(values).length === 0 &&
     selection.status !== "ready" &&
     found.length === 0
   ) {
@@ -314,7 +356,7 @@ export function amendmentBody(
   selection: CodeSelection,
 ): CreateAmendmentBody {
   const code = codeToSend(selection);
-  const names = filledNames(values.names);
+  const names = filledNames(values);
   return {
     entry_business_key: entryBusinessKey,
     ...(names.length === 0 ? {} : { synonyms: names }),

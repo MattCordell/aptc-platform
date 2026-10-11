@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -252,45 +252,142 @@ describe("SubmissionNewPage fields", () => {
     expect(bodyOf(calls, "/submissions").organisation).toBe("");
   });
 
-  it("splits a pasted list of names into one row each", async () => {
+  it("adds one name for each part of a pasted list", async () => {
     stubApi([ME, DEFINITIONS]);
     const user = userEvent.setup();
     await renderPage();
 
-    await user.click(screen.getByLabelText("Other name 1"));
+    await user.click(screen.getByLabelText("Other names"));
     await user.paste("Ferritin; Serum Fe store; Ferritin level");
 
-    expect(screen.getByLabelText("Other name 1")).toHaveValue("Ferritin");
-    expect(screen.getByLabelText("Other name 2")).toHaveValue("Serum Fe store");
-    expect(screen.getByLabelText("Other name 3")).toHaveValue("Ferritin level");
+    const list = screen.getByRole("list", { name: "Other names added" });
+    expect(
+      within(list)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent),
+    ).toEqual([
+      expect.stringContaining("Ferritin"),
+      expect.stringContaining("Serum Fe store"),
+      expect.stringContaining("Ferritin level"),
+    ]);
+    expect(screen.getByLabelText("Other names")).toHaveValue("");
   });
 
-  it("keeps what a row holds when a list is pasted into it", async () => {
+  it("keeps what the box holds outside the selection when a list is pasted", async () => {
     stubApi([ME, DEFINITIONS]);
     const user = userEvent.setup();
     await renderPage();
+    const box = screen.getByLabelText("Other names");
 
-    await user.type(screen.getByLabelText("Other name 1"), "Ferritin");
+    await user.type(box, "Ferritin old");
+    (box as HTMLInputElement).setSelectionRange(8, 12);
     await user.paste("Fe store; Serum Fe");
 
-    expect(screen.getByLabelText("Other name 1")).toHaveValue("Ferritin");
-    expect(screen.getByLabelText("Other name 2")).toHaveValue("Fe store");
-    expect(screen.getByLabelText("Other name 3")).toHaveValue("Serum Fe");
+    expect(box).toHaveValue("Ferritin");
+    expect(screen.getByRole("button", { name: "Remove Fe store" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Remove Serum Fe" })).toBeVisible();
   });
 
-  it("replaces only the selected text with a pasted list", async () => {
+  it("adds a name on Enter, on a typed semicolon and on a comma-space paste", async () => {
     stubApi([ME, DEFINITIONS]);
     const user = userEvent.setup();
     await renderPage();
-    const first = screen.getByLabelText("Other name 1");
+    const box = screen.getByLabelText("Other names");
 
-    await user.type(first, "Ferritin old");
-    (first as HTMLInputElement).setSelectionRange(8, 12);
-    await user.paste("Fe store; Serum Fe");
+    await user.type(box, "Ferritin{Enter}");
+    await user.type(box, "Serum Fe;");
+    await user.type(box, "Smith, factor V");
+    expect(box).toHaveValue("Smith, factor V");
+    await user.clear(box);
+    await user.paste("Fe store, Ferritin level");
 
-    expect(screen.getByLabelText("Other name 1")).toHaveValue("Ferritin");
-    expect(screen.getByLabelText("Other name 2")).toHaveValue("Fe store");
-    expect(screen.getByLabelText("Other name 3")).toHaveValue("Serum Fe");
+    for (const name of ["Ferritin", "Serum Fe", "Fe store", "Ferritin level"]) {
+      expect(screen.getByRole("button", { name: `Remove ${name}` })).toBeVisible();
+    }
+    expect(box).toHaveValue("");
+  });
+
+  it("refuses a blank name and a repeat, and says so where a sighted user can read it", async () => {
+    stubApi([ME, DEFINITIONS]);
+    const user = userEvent.setup();
+    await renderPage();
+    const box = screen.getByLabelText("Other names");
+
+    await user.type(box, "Ferritin{Enter}");
+    await user.type(box, "   {Enter}");
+    await user.clear(box);
+    await user.type(box, " ferritin {Enter}");
+
+    expect(screen.getAllByRole("button", { name: /^Remove / })).toHaveLength(1);
+    expect(box).toHaveValue(" ferritin ");
+    expect(box).toHaveAccessibleDescription(
+      "ferritin is already in the Other names list.",
+    );
+    expect(
+      screen.getAllByText("ferritin is already in the Other names list."),
+    ).not.toHaveLength(0);
+  });
+
+  it("clears the refusal once the user edits the box", async () => {
+    stubApi([ME, DEFINITIONS]);
+    const user = userEvent.setup();
+    await renderPage();
+    const box = screen.getByLabelText("Other names");
+
+    await user.type(box, "Ferritin{Enter}Ferritin{Enter}");
+    await user.type(box, "x");
+
+    expect(box).toHaveAccessibleDescription("Press Enter or a semicolon to add a name.");
+  });
+
+  it("drops the space after a typed semicolon from the text left in the box", async () => {
+    stubApi([ME, DEFINITIONS]);
+    await renderPage();
+    const box = screen.getByLabelText("Other names");
+
+    fireEvent.change(box, { target: { value: "Ferritin; level" } });
+
+    expect(screen.getByRole("button", { name: "Remove Ferritin" })).toBeVisible();
+    expect(box).toHaveValue("level");
+  });
+
+  it("announces an added and a removed name, and moves focus after a Remove", async () => {
+    stubApi([ME, DEFINITIONS]);
+    const user = userEvent.setup();
+    await renderPage();
+    const box = screen.getByLabelText("Other names");
+
+    await user.type(box, "Ferritin{Enter}");
+    await user.type(box, "Fe store{Enter}");
+    expect(
+      await screen.findByText("Added Fe store. 2 in the Other names list."),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Remove Ferritin" }));
+    expect(
+      await screen.findByText("Removed Ferritin. 1 left in the Other names list."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove Fe store" })).toHaveFocus();
+
+    await user.click(screen.getByRole("button", { name: "Remove Fe store" }));
+    expect(box).toHaveFocus();
+  });
+
+  it("never submits the form on Enter in the other-names box", async () => {
+    const calls = stubApi([ME, DEFINITIONS, NO_MATCHES, CREATED]);
+    const user = userEvent.setup();
+    await renderPage();
+    await fillRequired(user);
+    const box = screen.getByLabelText("Other names");
+
+    await user.type(box, "{Enter}");
+    await user.type(box, "Ferritin{Enter}");
+    await user.type(box, "{Shift>}{Enter}{/Shift}");
+    await user.type(box, "Fe store{Shift>}{Enter}{/Shift}");
+
+    expect(calls.filter((call) => call.method === "POST")).toHaveLength(0);
+    expect(screen.queryByRole("heading", { name: "There is a problem" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Remove Ferritin" })).toBeVisible();
   });
 
   it("keeps the values of two different properties as each is edited", async () => {
@@ -364,21 +461,36 @@ describe("SubmissionNewPage fields", () => {
     });
   });
 
-  it("adds and removes other names and drops blank ones from the request", async () => {
+  it("sends the names added and the text left in the box, each once", async () => {
     const calls = stubApi([ME, DEFINITIONS, NO_MATCHES, CREATED]);
     const user = userEvent.setup();
     await renderPage();
     await fillRequired(user);
+    const box = screen.getByLabelText("Other names");
 
-    await user.type(screen.getByLabelText("Other name 1"), "Ferritin");
-    await user.click(screen.getByRole("button", { name: "Add another name" }));
-    await user.click(screen.getByRole("button", { name: "Add another name" }));
-    await user.type(screen.getByLabelText("Other name 3"), "Fe store");
-    await user.click(screen.getByRole("button", { name: "Remove other name 1" }));
+    await user.type(box, "Ferritin{Enter}");
+    await user.type(box, "Fe store{Enter}");
+    await user.click(screen.getByRole("button", { name: "Remove Ferritin" }));
+    await user.type(box, "Serum Fe");
     await submit(user);
     await screen.findByText("Your test was submitted");
 
-    expect(bodyOf(calls, "/submissions").synonyms).toEqual(["Fe store"]);
+    expect(bodyOf(calls, "/submissions").synonyms).toEqual(["Fe store", "Serum Fe"]);
+  });
+
+  it("sends a name left in the box once when it repeats an added one", async () => {
+    const calls = stubApi([ME, DEFINITIONS, NO_MATCHES, CREATED]);
+    const user = userEvent.setup();
+    await renderPage();
+    await fillRequired(user);
+    const box = screen.getByLabelText("Other names");
+
+    await user.type(box, "Ferritin{Enter}");
+    await user.type(box, "ferritin ");
+    await submit(user);
+    await screen.findByText("Your test was submitted");
+
+    expect(bodyOf(calls, "/submissions").synonyms).toEqual(["Ferritin"]);
   });
 });
 
@@ -821,6 +933,43 @@ describe("SubmissionNewPage success", () => {
   });
 });
 
+describe("SubmissionNewPage layout (FR-23)", () => {
+  it("lists the fields in reading order, which is their tab order", async () => {
+    stubApi([ME, DEFINITIONS]);
+    await renderPage();
+    await screen.findByLabelText("Assay method (required)");
+
+    const order = [
+      "Test name (required)",
+      "Other names",
+      "Organisation",
+      "SNOMED CT code",
+      "Assay method (required)",
+      "Clinical use",
+      "Reference link (required)",
+      "Notes",
+    ].map((label) => screen.getByLabelText(label));
+
+    for (let index = 1; index < order.length; index += 1) {
+      expect(
+        order[index - 1].compareDocumentPosition(order[index]) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
+  });
+
+  it("groups the registry's properties under one name for assistive technology", async () => {
+    stubApi([ME, DEFINITIONS]);
+    await renderPage();
+    await screen.findByLabelText("Assay method (required)");
+
+    const group = screen.getByRole("group", { name: "Properties" });
+    expect(screen.getByRole("heading", { level: 2, name: "Properties" })).toBeVisible();
+    expect(within(group).getByLabelText("Assay method (required)")).toBeVisible();
+    expect(within(group).getByLabelText("Clinical use")).toBeVisible();
+  });
+});
+
 describe("SubmissionNewPage accessibility", () => {
   it("has no axe violations, with an error summary showing", async () => {
     stubApi([ME, DEFINITIONS]);
@@ -831,6 +980,20 @@ describe("SubmissionNewPage accessibility", () => {
 
     await submit(user);
     await screen.findByRole("heading", { name: "There is a problem" });
+
+    await expectNoA11yViolations(container);
+  });
+
+  it("has no axe violations with other names listed", async () => {
+    stubApi([ME, DEFINITIONS]);
+    const user = userEvent.setup();
+    const { container } = await renderPage();
+
+    await user.type(
+      screen.getByLabelText("Other names"),
+      "Ferritin{Enter}Fe store{Enter}",
+    );
+    await screen.findByRole("button", { name: "Remove Fe store" });
 
     await expectNoA11yViolations(container);
   });
