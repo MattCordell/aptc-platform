@@ -105,6 +105,35 @@ export function isEmptySlotValue(value: unknown): boolean {
   );
 }
 
+/**
+ * What a slot sends. A draft is text the user typed and never added, so it is
+ * trimmed the way `commitOnEnter` trims an added value.
+ */
+export function slotValue(slot: PropertyValueSlot): unknown {
+  return slot.draft === true && typeof slot.value === "string"
+    ? slot.value.trim()
+    : slot.value;
+}
+
+/**
+ * The render index of each slot a save sends, which is what the server's
+ * `ordinal` counts: every slot with a value, except a draft that repeats a
+ * value already added. Dropping the repeat sends what `commit` would have
+ * accepted, so leaving "Anaemia " in the box beside "Anaemia" adds nothing.
+ */
+export function submittedSlotIndexes(slots: readonly PropertyValueSlot[]): number[] {
+  return slots.reduce<number[]>((indexes, slot, index) => {
+    const value = slotValue(slot);
+    const repeat =
+      slot.draft === true &&
+      slots.some((other) => other.draft !== true && other.value === value);
+    if (!isEmptySlotValue(value) && !repeat) {
+      indexes.push(index);
+    }
+    return indexes;
+  }, []);
+}
+
 /** The field id a `PropertyIssueItem` with this `ordinal` maps to (`properties-panel.tsx`). */
 export function slotFieldId(propertyKey: string, ordinal: number): string {
   return `${propertyKey}-${ordinal}`;
@@ -143,6 +172,7 @@ export function commitOnEnter(
 export function entryHint(
   hint: ReactNode,
   onCommit: ControlProps["onCommit"],
+  howToAdd = "Press Enter to add this value.",
 ): ReactNode {
-  return hint ?? (onCommit === undefined ? undefined : "Press Enter to add this value.");
+  return hint ?? (onCommit === undefined ? undefined : howToAdd);
 }

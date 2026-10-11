@@ -127,7 +127,10 @@ const SHORT_LIST = { items: [PLASMA, SERUM], total: 2 };
  * Answers every request with `respond`'s result and returns the URLs asked
  * for, so a test can tell a browser-side narrowing from a server search.
  */
-function stubValues(respond: (url: URL) => { status?: number; body: unknown }): URL[] {
+function stubValues(
+  respond: (url: URL) => { status?: number; body: unknown },
+  delay: (url: URL) => number = () => 0,
+): URL[] {
   const urls: URL[] = [];
   vi.stubGlobal(
     "fetch",
@@ -135,12 +138,16 @@ function stubValues(respond: (url: URL) => { status?: number; body: unknown }): 
       const url = new URL(input instanceof Request ? input.url : String(input));
       urls.push(url);
       const { status = 200, body } = respond(url);
-      return Promise.resolve(
-        new Response(JSON.stringify(body), {
-          status,
-          headers: { "Content-Type": "application/json" },
-        }),
-      );
+      const response = new Response(JSON.stringify(body), {
+        status,
+        headers: { "Content-Type": "application/json" },
+      });
+      const wait = delay(url);
+      return wait === 0
+        ? Promise.resolve(response)
+        : new Promise<Response>((resolve) => {
+            setTimeout(() => resolve(response), wait);
+          });
     }),
   );
   return urls;
@@ -367,6 +374,43 @@ describe("CONTROLS.concept_picker (FR-23, FR-52)", () => {
     });
   });
 
+  describe.each([
+    ["holding one value", "onChange"],
+    ["adding to a list", "onCommit"],
+  ] as const)("the keyboard, %s", (_name, mode) => {
+    function renderMode() {
+      const chosen = vi.fn();
+      renderPicker(mode === "onChange" ? { onChange: chosen } : { onCommit: chosen });
+      return chosen;
+    }
+
+    it("chooses the highlighted option on Down arrow then Enter", async () => {
+      stubValues(() => ({ body: SHORT_LIST }));
+      const user = userEvent.setup();
+      const chosen = renderMode();
+
+      await user.click(box());
+      await screen.findAllByRole("option");
+      await user.keyboard("{ArrowDown}{ArrowDown}{Enter}");
+
+      expect(chosen).toHaveBeenCalledTimes(1);
+      expect(chosen.mock.calls[0][0]).toBe("119364003");
+    });
+
+    it("closes the list on Escape without choosing anything", async () => {
+      stubValues(() => ({ body: SHORT_LIST }));
+      const user = userEvent.setup();
+      const chosen = renderMode();
+
+      await user.click(box());
+      await screen.findAllByRole("option");
+      await user.keyboard("{Escape}");
+
+      await waitFor(() => expect(screen.queryByRole("option")).not.toBeInTheDocument());
+      expect(chosen).not.toHaveBeenCalled();
+    });
+  });
+
   it("says why when the list of values cannot be loaded", async () => {
     stubValues(() => ({ status: 500, body: { detail: "The server said no." } }));
     renderPicker({});
@@ -433,7 +477,13 @@ describe.each(["text", "textarea", "number", "uri"] as ControlKind[])(
     it("tells the user how to add", () => {
       renderEntry(null);
 
-      expect(screen.getByText("Press Enter to add this value.")).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          kind === "textarea"
+            ? "Press Enter to add this value. Press Shift+Enter for a new line."
+            : "Press Enter to add this value.",
+        ),
+      ).toBeInTheDocument();
     });
   },
 );
@@ -627,6 +677,30 @@ describe("RepeatableValues (FR-23, FR-52)", () => {
           "119361006 — Plasma specimen is already in the Specimen list.",
         ),
       );
+    });
+
+    it("keeps the labels already shown while a new value's label loads", async () => {
+      stubValues(
+        () => ({ body: SHORT_LIST }),
+        (url) => (url.searchParams.get("code") === "119364003" ? 300 : 0),
+      );
+      const user = userEvent.setup();
+      render(
+        withProviders(
+          <Harness control="concept_picker" initial={[slot("1", "119361006")]} />,
+        ),
+      );
+      await waitFor(() => expect(items()[0]).toHaveTextContent("Plasma specimen"));
+
+      await user.click(box());
+      await user.click(await screen.findByRole("option", { name: /Serum specimen/ }));
+
+      expect(items()).toHaveLength(2);
+      expect(items()[0]).toHaveTextContent("119361006 — Plasma specimen");
+      expect(items()[1]).toHaveTextContent("119364003 — Serum specimen");
+      expect(
+        screen.getByRole("button", { name: "Remove 119361006 — Plasma specimen" }),
+      ).toBeInTheDocument();
     });
 
     it("removes a value with a Remove button named for it, and announces it", async () => {

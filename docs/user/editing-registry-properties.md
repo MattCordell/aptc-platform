@@ -42,10 +42,10 @@ Change the value in its control. What you see depends on the property's own type
 - A **coded property** (discipline, subgroup, specimen, and others like them) shows one box.
   Click into it, or press the down arrow, to see the list of codes. Type to narrow the list,
   then choose one with the mouse or with Enter. Press Escape to close the list.
-  - For a short list, such as discipline or subgroup, the box shows every code and narrows
-    the list as you type.
-  - For a long list, such as specimen, the box searches as you type. When more codes match
-    than it can show, the list says "Showing 50 of 340. Type more to narrow the list."
+  - For a short list, one that fits in a single page from the server, the box shows every
+    code and narrows the list as you type.
+  - For a long list, the box searches as you type. When more codes match than it can show,
+    the list says "Showing 50 of 340. Type more to narrow the list."
 
 A property that takes at most one value (**0..1** or **1..1** in the registry) shows its
 chosen value in the box. A coded property has a **Clear** button next to the box.
@@ -56,7 +56,9 @@ empties, ready for the next one.
 
 - For a coded property, choose a code to add it.
 - For a text, number or web address property, type the value and press Enter. Enter never
-  saves the form. Text you leave in the box when you choose **Save** is saved as a value too.
+  saves the form. In a longer block of text, press Shift+Enter for a new line. Text you leave
+  in the box when you choose **Save** is saved as a value too, unless the list already holds
+  that value.
 - Choose **Remove** next to a value to take it out. Focus moves to the next value, or back to
   the box when the list is empty.
 - A value that is already in the list is not added twice.

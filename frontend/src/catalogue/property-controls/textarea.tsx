@@ -13,7 +13,16 @@ export function TextareaControl({
   onCommit,
 }: ControlProps) {
   return (
-    <Field id={id} label={label} hint={entryHint(hint, onCommit)} error={error}>
+    <Field
+      id={id}
+      label={label}
+      hint={entryHint(
+        hint,
+        onCommit,
+        "Press Enter to add this value. Press Shift+Enter for a new line.",
+      )}
+      error={error}
+    >
       {(controlProps) => (
         <textarea
           {...controlProps}

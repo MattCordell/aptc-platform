@@ -1,4 +1,4 @@
-import { MAX_RESOLVE_CODES, usePropertyValueResolveQueries } from "../../api/queries.ts";
+import { usePropertyValueResolveQueries } from "../../api/queries.ts";
 import type { ControlKind } from "./types.ts";
 
 /** How a coded value reads wherever it is shown: the code, then its name when one is known. */
@@ -29,22 +29,29 @@ function useTextLabels(_propertyKey: string, values: readonly unknown[]) {
  * Resolves by code, so a value the property's bound list no longer offers still
  * gets its name when the server knows one, and reads as its bare code when it
  * does not.
+ *
+ * One query per code, not one for the whole set: a set that gains or loses a
+ * member is a new query with no data, which would turn every label already
+ * shown back into a bare code until it answered. A query per code keeps the
+ * others cached and asks only for the code that is new.
  */
 function useCodeLabels(propertyKey: string, values: readonly unknown[]) {
   const codes = values.filter((value): value is string => typeof value === "string");
-  const [resolved] = usePropertyValueResolveQueries([
-    { key: propertyKey, codes: codes.slice(0, MAX_RESOLVE_CODES) },
-  ]);
+  const resolved = usePropertyValueResolveQueries(
+    codes.map((code) => ({ key: propertyKey, codes: [code] })),
+  );
+  const byCode = new Map(codes.map((code, index) => [code, resolved[index]]));
   return values.map((value) => {
     if (typeof value !== "string") {
       return value === null || value === undefined ? "" : String(value);
     }
-    if (resolved.data === undefined) {
-      return resolved.isError ? value : null;
+    const query = byCode.get(value);
+    if (query?.data === undefined) {
+      return query?.isError ? value : null;
     }
     return codeLabel(
       value,
-      resolved.data.items.find((item) => item.code === value)?.display,
+      query.data.items.find((item) => item.code === value)?.display,
     );
   });
 }

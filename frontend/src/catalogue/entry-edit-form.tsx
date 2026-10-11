@@ -22,8 +22,9 @@ import { normaliseForComparison } from "./python-text.ts";
 import {
   RepeatableValues,
   groupFieldId,
-  isEmptySlotValue,
   newSlotId,
+  slotValue,
+  submittedSlotIndexes,
 } from "./property-controls/index.ts";
 import type { PropertyValueSlot } from "./property-controls/index.ts";
 import { describeRun } from "./run-save.ts";
@@ -160,15 +161,6 @@ function toItem(value: PropertyValue): ValueItem {
   return { value: value.value, justification: value.justification };
 }
 
-function nonEmptySlotIndexes(slots: PropertyValueSlot[]): number[] {
-  return slots.reduce<number[]>((indexes, slot, index) => {
-    if (!isEmptySlotValue(slot.value)) {
-      indexes.push(index);
-    }
-    return indexes;
-  }, []);
-}
-
 /** An emptied justification box is the same as none. */
 function justificationOf(slot: PropertyValueSlot): string | null {
   return slot.justification === null || slot.justification === ""
@@ -234,8 +226,8 @@ export function EntryEditForm({ entry }: { entry: EntryDetail }) {
     const keys = new Set([...Object.keys(slots), ...Object.keys(next.slots)]);
     const nextSlots = { ...slots };
     for (const key of keys) {
-      const current = nonEmptySlotIndexes(slots[key] ?? []).map((index) => ({
-        value: slots[key][index].value,
+      const current = submittedSlotIndexes(slots[key] ?? []).map((index) => ({
+        value: slotValue(slots[key][index]),
         justification: justificationOf(slots[key][index]),
       }));
       const fresh = next.baseline.values[key] ?? [];
@@ -349,9 +341,9 @@ export function EntryEditForm({ entry }: { entry: EntryDetail }) {
       }
       const key = row.definition.key;
       const rowSlots = slots[key] ?? [];
-      const submittedIndexes = nonEmptySlotIndexes(rowSlots);
+      const submittedIndexes = submittedSlotIndexes(rowSlots);
       const values = submittedIndexes.map((index) => ({
-        value: rowSlots[index].value,
+        value: slotValue(rowSlots[index]),
         justification: justificationOf(rowSlots[index]),
       }));
       if (!sameValues(values, baseline.values[key] ?? [])) {

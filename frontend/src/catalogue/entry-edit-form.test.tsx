@@ -716,7 +716,7 @@ describe("a refused field", () => {
     const calls = stubApi([
       ...BASE_ROUTES,
       amendOk(),
-      propertyRefusal(DISCIPLINE_PATH, "Not a recognised discipline code."),
+      propertyRefusal(DISCIPLINE_PATH, "Not a recognised discipline code.", 1),
       propertyOk(USAGE_PATH, 6),
     ]);
     const user = userEvent.setup();
@@ -738,15 +738,20 @@ describe("a refused field", () => {
     // The refusal is also marked on the field, whose value is kept.
     const added = within(listOf("Discipline")).getAllByRole("listitem");
     expect(added).toHaveLength(2);
-    expect(added[0]).toHaveTextContent("Not a recognised discipline code.");
+    expect(added[0]).toHaveTextContent("HAEM");
+    expect(added[0]).not.toHaveTextContent("Not a recognised discipline code.");
     expect(added[1]).toHaveTextContent("BIOC");
+    expect(added[1]).toHaveTextContent("Not a recognised discipline code.");
     // A refusal changed nothing, so the next request carries the version after the first save.
     expect(bodyOf(calls, USAGE_PATH)).toMatchObject({ expected_row_version: 5 });
     expect(form().getByLabelText("Usage guidance")).toHaveValue("Fasting sample.");
   });
 
   it("moves focus to the summary", async () => {
-    stubApi([...BASE_ROUTES, propertyRefusal(DISCIPLINE_PATH, "Not a recognised code.")]);
+    stubApi([
+      ...BASE_ROUTES,
+      propertyRefusal(DISCIPLINE_PATH, "Not a recognised code.", 1),
+    ]);
     const user = userEvent.setup();
     await renderLoaded();
 
@@ -764,7 +769,7 @@ describe("a refused field", () => {
     const calls = stubApi([
       ...BASE_ROUTES,
       amendOk(),
-      propertyRefusal(DISCIPLINE_PATH, "Not a recognised discipline code."),
+      propertyRefusal(DISCIPLINE_PATH, "Not a recognised discipline code.", 1),
     ]);
     const user = userEvent.setup();
     await renderLoaded();
@@ -851,7 +856,10 @@ describe("a refused field", () => {
   });
 
   it("has no accessibility violations with the summary showing", async () => {
-    stubApi([...BASE_ROUTES, propertyRefusal(DISCIPLINE_PATH, "Not a recognised code.")]);
+    stubApi([
+      ...BASE_ROUTES,
+      propertyRefusal(DISCIPLINE_PATH, "Not a recognised code.", 1),
+    ]);
     const user = userEvent.setup();
     await renderLoaded();
 
@@ -1123,7 +1131,7 @@ describe("saving again after a run", () => {
       [
         ...BASE_ROUTES,
         amendOk(),
-        propertyRefusal(DISCIPLINE_PATH, "Not a recognised discipline code."),
+        propertyRefusal(DISCIPLINE_PATH, "Not a recognised discipline code.", 1),
       ],
       {
         vary: (call) => {

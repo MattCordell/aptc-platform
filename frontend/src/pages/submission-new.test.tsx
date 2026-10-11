@@ -348,6 +348,22 @@ describe("SubmissionNewPage fields", () => {
     });
   });
 
+  it("sends text left in the box once when it repeats a value already added (FR-23)", async () => {
+    const calls = stubApi([ME, DEFINITIONS, NO_MATCHES, CREATED]);
+    const user = userEvent.setup();
+    await renderPage();
+    await fillRequired(user);
+
+    await user.type(screen.getByLabelText("Clinical use"), "Anaemia{Enter}");
+    await user.type(screen.getByLabelText("Clinical use"), "Anaemia ");
+    await submit(user);
+    await screen.findByText("Your test was submitted");
+
+    expect(bodyOf(calls, "/submissions").property_values).toMatchObject({
+      clinical_use: [{ value: "Anaemia", justification: null }],
+    });
+  });
+
   it("adds and removes other names and drops blank ones from the request", async () => {
     const calls = stubApi([ME, DEFINITIONS, NO_MATCHES, CREATED]);
     const user = userEvent.setup();
