@@ -258,6 +258,23 @@ describe("CONTROLS.concept_picker (FR-23, FR-52)", () => {
     });
   });
 
+  it("shows the unfiltered list again at once when the typed text is cleared", async () => {
+    stubValues((url) =>
+      url.searchParams.get("filter") === "pla"
+        ? { body: { items: [PLASMA], total: 3 } }
+        : { body: { items: [PLASMA, SERUM], total: 340 } },
+    );
+    const user = userEvent.setup();
+    renderPicker({});
+
+    await user.click(box());
+    await user.type(box(), "pla");
+    await screen.findByText(/Showing 1 of 3/);
+    await user.clear(box());
+
+    expect(screen.getAllByRole("option")).toHaveLength(2);
+  });
+
   describe("holding one value", () => {
     it("reports the chosen code through onChange", async () => {
       stubValues(() => ({ body: SHORT_LIST }));

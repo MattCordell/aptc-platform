@@ -71,7 +71,7 @@ export function ConceptPickerControl({
     { key: propertyKey, codes: code === null ? [] : [code] },
   ])[0];
 
-  const settled = wholeList || debounced === typedText;
+  const settled = wholeList || typedText === "" || debounced === typedText;
   const page = typedText === "" || wholeList ? everything : narrowed;
   const needle = typedText.toLowerCase();
   const options: Option[] =

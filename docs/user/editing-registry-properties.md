@@ -37,17 +37,33 @@ deprecated property with nothing ever recorded against it does not appear at all
 
 Change the value in its control. What you see depends on the property's own type:
 
-- A short line of text, a longer block of text, or a number, as appropriate to what the
-  property records.
-- A **coded property** (discipline, subgroup, specimen, and others like them) shows a
-  filter box and a list of codes to choose from — type to narrow the list, then pick one.
-  The list always includes whatever code is already recorded, even if your filter does not
-  match it, so an existing value is never dropped just because you were looking for
-  something else.
+- A short line of text, a longer block of text, a web address or a number, as appropriate to
+  what the property records.
+- A **coded property** (discipline, subgroup, specimen, and others like them) shows one box.
+  Click into it, or press the down arrow, to see the list of codes. Type to narrow the list,
+  then choose one with the mouse or with Enter. Press Escape to close the list.
+  - For a short list, such as discipline or subgroup, the box shows every code and narrows
+    the list as you type.
+  - For a long list, such as specimen, the box searches as you type. When more codes match
+    than it can show, the list says "Showing 50 of 340. Type more to narrow the list."
+
+A property that takes at most one value (**0..1** or **1..1** in the registry) shows its
+chosen value in the box. A coded property has a **Clear** button next to the box.
 
 A property that can take more than one value (**0..\*** or **1..\*** in the registry) shows
-**Add another value** and a **Remove** button on each entry. A property that takes at most
-one value shows a single input.
+the same box with a bulleted list under it. Each value you add goes into the list and the box
+empties, ready for the next one.
+
+- For a coded property, choose a code to add it.
+- For a text, number or web address property, type the value and press Enter. Enter never
+  saves the form. Text you leave in the box when you choose **Save** is saved as a value too.
+- Choose **Remove** next to a value to take it out. Focus moves to the next value, or back to
+  the box when the list is empty.
+- A value that is already in the list is not added twice.
+- A code that is recorded but no longer offered stays in the list, shown by its code, and you
+  can still remove it.
+
+A screen reader announces each value you add or remove.
 
 Write a changelog note and choose **Save**. The form sends only the properties you changed.
 Saving a property replaces its entire set of values in one step. There is no way to add or

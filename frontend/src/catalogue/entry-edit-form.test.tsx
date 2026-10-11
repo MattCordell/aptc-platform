@@ -560,6 +560,47 @@ describe("saving", () => {
     });
   });
 
+  it("saves text left in a several-valued box as a value (FR-23)", async () => {
+    const NOTE_PATH = `/catalogue/entries/${BUSINESS_KEY}/properties/clinical_note`;
+    const calls = stubApi([
+      READ_OK,
+      {
+        ...PROPERTIES_OK,
+        body: {
+          items: [
+            ...DEFINITIONS.items,
+            definition({
+              key: "clinical_note",
+              label: "Clinical note",
+              cardinality: "0..*",
+              display_order: 45,
+            }),
+          ],
+        },
+      },
+      DISCIPLINE_OPTIONS_OK,
+      SPECIMEN_OPTIONS_OK,
+      propertyOk(NOTE_PATH, 5),
+    ]);
+    const user = userEvent.setup();
+    await renderLoaded();
+
+    await user.type(form().getByLabelText("Clinical note"), "Check iron stores{Enter}");
+    await user.type(form().getByLabelText("Clinical note"), "Not yet added");
+    await fillNote(user, "Record clinical notes");
+    await save(user);
+
+    await form().findByRole("heading", { name: "Changes saved" });
+    expect(bodyOf(calls, NOTE_PATH)).toEqual({
+      values: [
+        { value: "Check iron stores", justification: null },
+        { value: "Not yet added", justification: null },
+      ],
+      reason: "Record clinical notes",
+      expected_row_version: 4,
+    });
+  });
+
   it("records a first value on a coded property that had none", async () => {
     const calls = stubApi([...BASE_ROUTES, propertyOk(SPECIMEN_PATH, 5)]);
     const user = userEvent.setup();

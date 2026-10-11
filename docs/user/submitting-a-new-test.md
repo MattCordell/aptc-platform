@@ -18,7 +18,7 @@ Fields marked **(required)** must be filled in before you can submit.
 | **Test name (required)** | The name the test is requested by. |
 | **Other names** | Other names the test is known by. Choose **Add another name** for more rows, or paste a list separated by semicolons to get one row per name. A pasted list never overwrites text already in a row: it replaces only the text you selected, and the pasted names go in the rows after it. Empty rows are ignored. |
 | **SNOMED CT code** | Optional. Search by term or by code, then choose a result. See [Choosing a code](#choosing-a-code). |
-| **Properties** | One field for each property an administrator has made part of a proposal. A property marked **(required)** needs a value. This list changes when an administrator changes a property, so it can differ from what this guide shows. |
+| **Properties** | One field for each property an administrator has made part of a proposal. A property marked **(required)** needs a value. This list changes when an administrator changes a property, so it can differ from what this guide shows. A property that takes several values shows a box with a list under it: choose a code, or type a value and press Enter, to add it to the list, and choose **Remove** to take one out. See [Editing registry properties](editing-registry-properties.md#editing-a-propertys-values). |
 | **Reference link (required)** | A web page that supports the test, such as a guideline or a published method. |
 | **Notes** | Anything a reviewer should know. |
 | **Organisation** | Filled in from your profile. Change it if the test comes from a different organisation. |

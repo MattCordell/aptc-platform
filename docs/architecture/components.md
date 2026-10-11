@@ -331,6 +331,15 @@ the value, the selection and the cursor, usually in the URL.
   popup inert while it is open, so a live region outside would not be read. For the same
   reason it names the input with `aria-label`, since the visible label is hidden from
   assistive technology while the popup is open.
+- **`removable-list.tsx` — `RemovableList`.** A plain bulleted list of values the user has
+  added, each with a Remove button named for it ("Remove 119361006 — Plasma specimen"). Each
+  item can carry an error and extra content, such as a justification input, and an `elementId`
+  an `ErrorSummary` link can focus. It holds no state: the caller owns the items and is told
+  each removal through `onRemove`. When a Remove takes the focused button out of the page it
+  moves focus to the next item, else the one before, else calls `focusWhenEmpty` so focus
+  returns to the box that adds to the list. The property controls use it for a property with
+  several values (`catalogue/property-controls/repeatable-values.tsx`); other lists of added
+  values can reuse it.
 - **`pagination.tsx` — `Pagination`.** Previous and Next for keyset paging: no page
   numbers and no total, because the API returns neither (ADR-0024). It takes `hasNext`,
   `onNext` and an optional `onPrevious`, and names no URL parameter, so a screen paging by
