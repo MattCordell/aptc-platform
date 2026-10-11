@@ -36,11 +36,11 @@ You must give at least one new other name or a SNOMED CT code. Everything else i
 
 | Field | What to enter |
 | --- | --- |
-| **New other names** | Other names to add to the entry. Choose **Add another name** for more rows, or paste a list separated by semicolons to get one row per name. Empty rows are ignored. |
+| **New other names** | Other names to add to the entry. Type a name and press Enter to add it to the list under the box. Type a semicolon, or paste a list separated by semicolons, to add one name for each part. Choose **Remove** next to a name to take it out. Enter never sends the form. A blank name and a name already in the list are not added. A name left in the box when you submit is sent with the rest. |
 | **SNOMED CT code** | A code to propose for the entry. Search by term or by code, then choose a result. The form shows its fully specified name and AU preferred term, which the terminology server supplies. See [Choosing a code](submitting-a-new-test.md#choosing-a-code). |
 | **Reference link** | A web page that supports the change, such as a guideline or a supplier's test directory. If you give one, the platform checks that the page answers. |
 | **Notes** | Anything a reviewer should know. |
-| **Organisation** | Filled in from your profile. Change it if the change comes from a different organisation. |
+| **Organisation** | Filled in from your profile, so change it only if the change comes from a different organisation. |
 | **Proposed by** | Your name. You cannot change it. |
 
 If you send the form with no name and no code, it asks you to add one, and sends nothing.

@@ -127,8 +127,9 @@ values are fixed here and implemented by `PageContainer`, `PageHeader` and `Card
   children. `main` in `app.css` pads only top and bottom (1rem), so content starts 16px
   from the viewport edge. The header and footer containers use the same 16px gutter so
   the three stay aligned.
-- **Card padding**: one value, 24px, inside the 22-32px range above. No padding option
-  and no variants.
+- **Card padding**: 24px, inside the 22-32px range above. One option exists: `compact`,
+  16px, which the new-test and amendment forms use so that the form fits a 1440x900
+  window. There are no other variants.
 - **Page title**: `text-3xl`, 30px, inside the 26-38px range of the notes, in the serif
   face. Its meta line is 12px, in the muted text colour.
 

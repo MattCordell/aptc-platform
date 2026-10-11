@@ -94,7 +94,7 @@ export function OtherNamesField({
       <Field
         id={FIELD_IDS.synonyms}
         label={label}
-        hint="Press Enter to add a name. Separate several with semicolons."
+        hint="Press Enter or a semicolon to add a name."
         error={error}
       >
         {(controlProps) => (

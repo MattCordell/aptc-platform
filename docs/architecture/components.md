@@ -253,8 +253,9 @@ class string that no hex value, Tailwind palette class or `shadow-*` class is us
   a `<header>` element, because `app.css` pads every `header` globally. `focusable`
   renders `tabindex="-1"` on the `h1`, so a screen can move focus to it without adding
   a tab stop.
-- **`card.tsx` — `Card`.** A white surface with a 1px border and the 6px card radius, one
-  24px padding and no shadow. It spreads native `div` props, so a caller adds `role` or
+- **`card.tsx` — `Card`.** A white surface with a 1px border and the 6px card radius, 24px
+  padding and no shadow. `compact` gives 16px padding instead; only the two submission forms
+  use it, so that the form fits one screen. It spreads native `div` props, so a caller adds `role` or
   `aria-labelledby` when a card is a labelled region.
 - **`notice-page.tsx` — `NoticePage`.** A whole screen that says one thing and offers a way
   on: a `PageContainer`, a `PageHeader` (the one `h1`) and a `Card` holding the message,

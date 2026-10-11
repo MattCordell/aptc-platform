@@ -142,7 +142,7 @@ function CurrentEntry({ entry }: { entry: EntryDetail }) {
     .filter((designation) => designation.status === "active")
     .map((designation) => designation.term);
   return (
-    <Card>
+    <Card compact>
       <h2 className="mt-0">The entry now</h2>
       <dl className="m-0 grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2">
         <dt className="text-[var(--color-text-muted)]">Test name</dt>
