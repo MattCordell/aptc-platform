@@ -241,9 +241,10 @@ class string that no hex value, Tailwind palette class or `shadow-*` class is us
 (`expectTokenClassesOnly` in `frontend/src/test/token-classes.ts`).
 
 - **`page-container.tsx` — `PageContainer`.** The page-width wrapper: centred, capped at
-  the `--container-page` token, with a 24px gutter and 24px between its children. A `div`,
+  the `--container-page` token, with a 16px gutter and 24px between its children. A `div`,
   not `main` — `root-layout.tsx` already provides the one `<main id="main-content">`
-  landmark. Its gutter stacks on the `main { padding: 1rem }` base rule in `app.css`.
+  landmark. `main` in `app.css` adds vertical padding only, so this gutter is the whole
+  horizontal margin. The site header and footer use the same 16px gutter.
 - **`page-header.tsx` — `PageHeader`.** The page's single `h1`, an optional muted meta
   line and optional actions on the right. The title and meta come before the actions in
   DOM order, so keyboard order matches reading order. An optional `id` lands on the `h1`
