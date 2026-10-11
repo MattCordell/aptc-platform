@@ -252,45 +252,112 @@ describe("SubmissionNewPage fields", () => {
     expect(bodyOf(calls, "/submissions").organisation).toBe("");
   });
 
-  it("splits a pasted list of names into one row each", async () => {
+  it("adds one name for each part of a pasted list", async () => {
     stubApi([ME, DEFINITIONS]);
     const user = userEvent.setup();
     await renderPage();
 
-    await user.click(screen.getByLabelText("Other name 1"));
+    await user.click(screen.getByLabelText("Other names"));
     await user.paste("Ferritin; Serum Fe store; Ferritin level");
 
-    expect(screen.getByLabelText("Other name 1")).toHaveValue("Ferritin");
-    expect(screen.getByLabelText("Other name 2")).toHaveValue("Serum Fe store");
-    expect(screen.getByLabelText("Other name 3")).toHaveValue("Ferritin level");
+    const list = screen.getByRole("list", { name: "Other names added" });
+    expect(
+      within(list)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent),
+    ).toEqual([
+      expect.stringContaining("Ferritin"),
+      expect.stringContaining("Serum Fe store"),
+      expect.stringContaining("Ferritin level"),
+    ]);
+    expect(screen.getByLabelText("Other names")).toHaveValue("");
   });
 
-  it("keeps what a row holds when a list is pasted into it", async () => {
+  it("keeps what the box holds outside the selection when a list is pasted", async () => {
     stubApi([ME, DEFINITIONS]);
     const user = userEvent.setup();
     await renderPage();
+    const box = screen.getByLabelText("Other names");
 
-    await user.type(screen.getByLabelText("Other name 1"), "Ferritin");
+    await user.type(box, "Ferritin old");
+    (box as HTMLInputElement).setSelectionRange(8, 12);
     await user.paste("Fe store; Serum Fe");
 
-    expect(screen.getByLabelText("Other name 1")).toHaveValue("Ferritin");
-    expect(screen.getByLabelText("Other name 2")).toHaveValue("Fe store");
-    expect(screen.getByLabelText("Other name 3")).toHaveValue("Serum Fe");
+    expect(box).toHaveValue("Ferritin");
+    expect(screen.getByRole("button", { name: "Remove Fe store" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Remove Serum Fe" })).toBeVisible();
   });
 
-  it("replaces only the selected text with a pasted list", async () => {
+  it("adds a name on Enter, on a typed semicolon and on a comma-space paste", async () => {
     stubApi([ME, DEFINITIONS]);
     const user = userEvent.setup();
     await renderPage();
-    const first = screen.getByLabelText("Other name 1");
+    const box = screen.getByLabelText("Other names");
 
-    await user.type(first, "Ferritin old");
-    (first as HTMLInputElement).setSelectionRange(8, 12);
-    await user.paste("Fe store; Serum Fe");
+    await user.type(box, "Ferritin{Enter}");
+    await user.type(box, "Serum Fe;");
+    await user.type(box, "Smith, factor V");
+    expect(box).toHaveValue("Smith, factor V");
+    await user.clear(box);
+    await user.paste("Fe store, Ferritin level");
 
-    expect(screen.getByLabelText("Other name 1")).toHaveValue("Ferritin");
-    expect(screen.getByLabelText("Other name 2")).toHaveValue("Fe store");
-    expect(screen.getByLabelText("Other name 3")).toHaveValue("Serum Fe");
+    for (const name of ["Ferritin", "Serum Fe", "Fe store", "Ferritin level"]) {
+      expect(screen.getByRole("button", { name: `Remove ${name}` })).toBeVisible();
+    }
+    expect(box).toHaveValue("");
+  });
+
+  it("refuses a blank name and a repeat, and says so", async () => {
+    stubApi([ME, DEFINITIONS]);
+    const user = userEvent.setup();
+    await renderPage();
+    const box = screen.getByLabelText("Other names");
+
+    await user.type(box, "Ferritin{Enter}");
+    await user.type(box, "   {Enter}");
+    await user.type(box, " ferritin {Enter}");
+
+    expect(screen.getAllByRole("button", { name: /^Remove / })).toHaveLength(1);
+    expect(
+      await screen.findByText("ferritin is already in the Other names list."),
+    ).toBeInTheDocument();
+  });
+
+  it("announces an added and a removed name, and moves focus after a Remove", async () => {
+    stubApi([ME, DEFINITIONS]);
+    const user = userEvent.setup();
+    await renderPage();
+    const box = screen.getByLabelText("Other names");
+
+    await user.type(box, "Ferritin{Enter}");
+    await user.type(box, "Fe store{Enter}");
+    expect(
+      await screen.findByText("Added Fe store. 2 in the Other names list."),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Remove Ferritin" }));
+    expect(
+      await screen.findByText("Removed Ferritin. 1 left in the Other names list."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove Fe store" })).toHaveFocus();
+
+    await user.click(screen.getByRole("button", { name: "Remove Fe store" }));
+    expect(box).toHaveFocus();
+  });
+
+  it("never submits the form on Enter in the other-names box", async () => {
+    const calls = stubApi([ME, DEFINITIONS, NO_MATCHES, CREATED]);
+    const user = userEvent.setup();
+    await renderPage();
+    await fillRequired(user);
+    const box = screen.getByLabelText("Other names");
+
+    await user.type(box, "{Enter}");
+    await user.type(box, "Ferritin{Enter}");
+
+    expect(calls.filter((call) => call.method === "POST")).toHaveLength(0);
+    expect(screen.queryByRole("heading", { name: "There is a problem" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Remove Ferritin" })).toBeVisible();
   });
 
   it("keeps the values of two different properties as each is edited", async () => {
@@ -364,21 +431,36 @@ describe("SubmissionNewPage fields", () => {
     });
   });
 
-  it("adds and removes other names and drops blank ones from the request", async () => {
+  it("sends the names added and the text left in the box, each once", async () => {
     const calls = stubApi([ME, DEFINITIONS, NO_MATCHES, CREATED]);
     const user = userEvent.setup();
     await renderPage();
     await fillRequired(user);
+    const box = screen.getByLabelText("Other names");
 
-    await user.type(screen.getByLabelText("Other name 1"), "Ferritin");
-    await user.click(screen.getByRole("button", { name: "Add another name" }));
-    await user.click(screen.getByRole("button", { name: "Add another name" }));
-    await user.type(screen.getByLabelText("Other name 3"), "Fe store");
-    await user.click(screen.getByRole("button", { name: "Remove other name 1" }));
+    await user.type(box, "Ferritin{Enter}");
+    await user.type(box, "Fe store{Enter}");
+    await user.click(screen.getByRole("button", { name: "Remove Ferritin" }));
+    await user.type(box, "Serum Fe");
     await submit(user);
     await screen.findByText("Your test was submitted");
 
-    expect(bodyOf(calls, "/submissions").synonyms).toEqual(["Fe store"]);
+    expect(bodyOf(calls, "/submissions").synonyms).toEqual(["Fe store", "Serum Fe"]);
+  });
+
+  it("sends a name left in the box once when it repeats an added one", async () => {
+    const calls = stubApi([ME, DEFINITIONS, NO_MATCHES, CREATED]);
+    const user = userEvent.setup();
+    await renderPage();
+    await fillRequired(user);
+    const box = screen.getByLabelText("Other names");
+
+    await user.type(box, "Ferritin{Enter}");
+    await user.type(box, "ferritin ");
+    await submit(user);
+    await screen.findByText("Your test was submitted");
+
+    expect(bodyOf(calls, "/submissions").synonyms).toEqual(["Ferritin"]);
   });
 });
 
@@ -831,6 +913,20 @@ describe("SubmissionNewPage accessibility", () => {
 
     await submit(user);
     await screen.findByRole("heading", { name: "There is a problem" });
+
+    await expectNoA11yViolations(container);
+  });
+
+  it("has no axe violations with other names listed", async () => {
+    stubApi([ME, DEFINITIONS]);
+    const user = userEvent.setup();
+    const { container } = await renderPage();
+
+    await user.type(
+      screen.getByLabelText("Other names"),
+      "Ferritin{Enter}Fe store{Enter}",
+    );
+    await screen.findByRole("button", { name: "Remove Fe store" });
 
     await expectNoA11yViolations(container);
   });

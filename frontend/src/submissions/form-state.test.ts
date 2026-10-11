@@ -5,9 +5,11 @@ import { slotFieldId } from "../catalogue/property-controls/index.ts";
 import type { CodeSelection } from "../catalogue/use-code-selection.ts";
 import {
   FIELD_IDS,
+  addNames,
   amendmentBody,
   createBody,
   duplicateCheckBody,
+  filledNames,
   filledSlotIndexes,
   initialValues,
   validate,
@@ -142,6 +144,67 @@ describe("request bodies", () => {
   });
 });
 
+describe("addNames (FR-23)", () => {
+  const rows = (...terms: string[]) => terms.map((term) => ({ id: term, term }));
+
+  it("trims each name and adds it after the ones already there", () => {
+    const result = addNames(rows("Ferritin"), [" Fe store ", "Serum Fe"]);
+
+    expect(result.names.map((row) => row.term)).toEqual([
+      "Ferritin",
+      "Fe store",
+      "Serum Fe",
+    ]);
+    expect(result.added).toEqual(["Fe store", "Serum Fe"]);
+    expect(result.repeats).toEqual([]);
+  });
+
+  it("leaves out a blank name without calling it a repeat", () => {
+    const result = addNames([], ["", "   "]);
+
+    expect(result.names).toEqual([]);
+    expect(result.repeats).toEqual([]);
+  });
+
+  it("leaves out a repeat of a listed name, ignoring case and outer space", () => {
+    const result = addNames(rows("Ferritin"), [" ferritin ", "FERRITIN"]);
+
+    expect(result.names).toHaveLength(1);
+    expect(result.repeats).toEqual(["ferritin", "FERRITIN"]);
+  });
+
+  it("adds a name given twice in one call once", () => {
+    const result = addNames([], ["Fe store", "fe store"]);
+
+    expect(result.added).toEqual(["Fe store"]);
+    expect(result.repeats).toEqual(["fe store"]);
+  });
+
+  it("gives each added name its own id", () => {
+    const result = addNames([], ["a", "b"]);
+
+    expect(new Set(result.names.map((row) => row.id)).size).toBe(2);
+  });
+});
+
+describe("filledNames (FR-23)", () => {
+  it("returns the added names and then the text left in the box", () => {
+    const values = { names: [{ id: "a", term: "Ferritin" }], nameDraft: " Fe store " };
+
+    expect(filledNames(values)).toEqual(["Ferritin", "Fe store"]);
+  });
+
+  it("returns a name once when the box repeats an added one", () => {
+    const values = { names: [{ id: "a", term: "Ferritin" }], nameDraft: "ferritin" };
+
+    expect(filledNames(values)).toEqual(["Ferritin"]);
+  });
+
+  it("returns nothing for a blank box and no names", () => {
+    expect(filledNames({ names: [], nameDraft: "  " })).toEqual([]);
+  });
+});
+
 describe("validateAmendment (FR-35)", () => {
   const named = (term: string) => ({ ...initialValues(), names: [{ id: "n", term }] });
 
@@ -151,6 +214,12 @@ describe("validateAmendment (FR-35)", () => {
 
   it("accepts a code the server named, with no name", () => {
     expect(validateAmendment(initialValues(), READY)).toEqual([]);
+  });
+
+  it("counts text left in the box as a name", () => {
+    expect(
+      validateAmendment({ ...initialValues(), nameDraft: "Ferritin level" }, NONE),
+    ).toEqual([]);
   });
 
   it("says what to add when there is neither a name nor a code", () => {
@@ -182,7 +251,10 @@ describe("validateAmendment (FR-35)", () => {
   it("refuses more names, or a longer name, than a submission may carry", () => {
     const many = {
       ...initialValues(),
-      names: Array.from({ length: 101 }, (_, index) => ({ id: `${index}`, term: "a" })),
+      names: Array.from({ length: 101 }, (_, index) => ({
+        id: `${index}`,
+        term: `name ${index}`,
+      })),
     };
 
     expect(validateAmendment(many, NONE).map((error) => error.fieldId)).toEqual([

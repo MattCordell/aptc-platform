@@ -37,7 +37,7 @@ import {
   submittedIndexesByKey,
   validate,
 } from "../submissions/form-state.ts";
-import type { NameRow, SubmissionValues } from "../submissions/form-state.ts";
+import type { SubmissionValues } from "../submissions/form-state.ts";
 import { OtherNamesField } from "../submissions/other-names-field.tsx";
 import { readRefusal } from "../submissions/refusals.ts";
 import { SupportFields } from "../submissions/support-fields.tsx";
@@ -272,11 +272,10 @@ function NewTestForm() {
               </Field>
 
               <OtherNamesField
-                rows={values.names}
+                names={values.names}
+                draft={values.nameDraft}
                 error={errorFor(FIELD_IDS.synonyms)}
-                onChange={(names: NameRow[]) =>
-                  edit({ names }, (id) => id === FIELD_IDS.synonyms)
-                }
+                onChange={(change) => edit(change, (id) => id === FIELD_IDS.synonyms)}
               />
 
               <SubmissionCodeField

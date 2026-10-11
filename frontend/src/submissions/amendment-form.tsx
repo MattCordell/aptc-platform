@@ -26,7 +26,7 @@ import {
   initialValues,
   validateAmendment,
 } from "./form-state.ts";
-import type { NameRow, SubmissionValues } from "./form-state.ts";
+import type { SubmissionValues } from "./form-state.ts";
 import { OtherNamesField } from "./other-names-field.tsx";
 import { readRefusal } from "./refusals.ts";
 import { SupportFields } from "./support-fields.tsx";
@@ -297,13 +297,11 @@ function AmendmentView({ entry }: { entry: EntryDetail }) {
                 }
               >
                 <OtherNamesField
-                  legend="New other names"
-                  description="Other names to add to this entry. Paste a list separated by semicolons to add several at once."
-                  rows={values.names}
+                  label="New other names"
+                  names={values.names}
+                  draft={values.nameDraft}
                   error={errorFor(FIELD_IDS.synonyms)}
-                  onChange={(names: NameRow[]) =>
-                    edit({ names }, (id) => id === FIELD_IDS.synonyms)
-                  }
+                  onChange={(change) => edit(change, (id) => id === FIELD_IDS.synonyms)}
                 />
 
                 <SubmissionCodeField
