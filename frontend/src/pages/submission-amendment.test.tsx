@@ -204,7 +204,7 @@ describe("the amendment form (FR-35)", () => {
       "supplier's test directory",
     );
     expect(describedBy(screen.getByLabelText("Reference link"))).not.toContain(
-      "published method",
+      "a guideline or a method",
     );
     expect(screen.getByLabelText("Notes")).toBeVisible();
     expect(screen.getByLabelText("Organisation")).toBeVisible();
