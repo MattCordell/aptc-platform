@@ -3,7 +3,7 @@ import { INPUT_CLASSES } from "../components/input-classes.ts";
 import { FIELD_IDS } from "./form-state.ts";
 import type { SubmissionValues } from "./form-state.ts";
 
-/** The example in the reference-link hint: a published method suits a new test, not a new name. */
+/** The example in the reference-link hint: a guideline or a method suits a new test, a supplier's directory a new name. */
 const REFERENCE_EXAMPLE = {
   test: "a guideline or a method",
   change: "a supplier's test directory",
@@ -36,7 +36,7 @@ export function ReferenceLinkField({
     <Field
       id={FIELD_IDS.reference_url}
       label={referenceRequired ? "Reference link (required)" : "Reference link"}
-      hint={`${referenceRequired ? "" : "Optional. "}A supporting page, such as ${REFERENCE_EXAMPLE[noun]}. The platform checks it answers.`}
+      hint={`${referenceRequired ? "" : "Optional. "}A supporting page, such as ${REFERENCE_EXAMPLE[noun]}. The platform checks that it answers.`}
       error={errorFor(FIELD_IDS.reference_url)}
     >
       {(controlProps) => (
