@@ -7,7 +7,9 @@ You need to be signed in. Provisional users, Members, Reviewers and Administrato
 submit. If your account cannot, the form shows the server's refusal when you submit, and
 nothing is sent.
 
-Open the form at `/submissions/new`. The page title is **Submit a new test**.
+To start, choose **Submissions** in the page header, then choose **Create submission**. You
+can also open the form directly at `/submissions/new`. The page title is **Submit a new
+test**.
 
 ## What you fill in
 

@@ -26,7 +26,8 @@
 - [Searching the audit log](searching-the-audit-log.md) — issue #447. The Administrator
   screen at `/admin/audit`: filters, paging and export.
 - [Submitting a new test](submitting-a-new-test.md) — issue #547. The form at
-  `/submissions/new` for Provisional users, Members, Reviewers and Administrators.
+  `/submissions/new` for Provisional users, Members, Reviewers and Administrators. Start from
+  **Create submission** on the Submissions page.
 - [Proposing a change to an entry](proposing-an-amendment.md) — issue #548. The same form in
   amendment mode, opened from **Propose a change** on an active entry's page.
 - [Reading the preferred-term length distribution report](reading-the-length-distribution-report.md)
