@@ -252,15 +252,18 @@ function bodyOf(
   return calls.find((call) => call.method !== "GET" && call.path.endsWith(suffix))?.body;
 }
 
-/** Picks a code once the property's value list has loaded into the select. */
+/** Adds a code to a coded property's list, picking it from the box's options. */
 async function choose(
   user: ReturnType<typeof userEvent.setup>,
   label: string,
   code: string,
 ) {
-  const select = form().getByLabelText(label);
-  await within(select).findByRole("option", { name: new RegExp(`^${code} `) });
-  await user.selectOptions(select, code);
+  await user.click(form().getByRole("combobox", { name: label }));
+  await user.click(await screen.findByRole("option", { name: new RegExp(`^${code} `) }));
+}
+
+function listOf(label: string) {
+  return form().getByRole("list", { name: `${label} values` });
 }
 
 async function fillNote(user: ReturnType<typeof userEvent.setup>, note: string) {
@@ -290,7 +293,7 @@ describe("what the form shows", () => {
     stubApi(BASE_ROUTES);
     await renderLoaded();
 
-    const labels = ["Discipline 1", "Specimen 1", "Usage guidance"].map((name) =>
+    const labels = ["Discipline", "Specimen", "Usage guidance"].map((name) =>
       form().getByLabelText(name),
     );
     const positions = labels.map((label) =>
@@ -440,7 +443,7 @@ describe("saving", () => {
     const term = form().getByLabelText("RCPA Preferred");
     await user.clear(term);
     await user.paste("Serum ferritin");
-    await choose(user, "Discipline 1", "BIOC");
+    await choose(user, "Discipline", "BIOC");
     await user.type(form().getByLabelText("Usage guidance"), "Fasting sample.");
     await fillNote(user, "Correct three fields together");
     await save(user);
@@ -461,7 +464,10 @@ describe("saving", () => {
       reason: "Correct three fields together",
     });
     expect(bodyOf(calls, DISCIPLINE_PATH)).toEqual({
-      values: [{ value: "BIOC", justification: null }],
+      values: [
+        { value: "HAEM", justification: null },
+        { value: "BIOC", justification: null },
+      ],
       reason: "Correct three fields together",
       expected_row_version: 5,
     });
@@ -539,7 +545,10 @@ describe("saving", () => {
     const user = userEvent.setup();
     await renderLoaded();
 
-    await user.type(form().getByLabelText("Justification"), "Locally agreed substitute");
+    await user.type(
+      form().getByLabelText(/^Justification for HAEM/),
+      "Locally agreed substitute",
+    );
     await fillNote(user, "Add a justification");
     await save(user);
 
@@ -556,7 +565,7 @@ describe("saving", () => {
     const user = userEvent.setup();
     await renderLoaded();
 
-    await choose(user, "Specimen 1", "119361006");
+    await choose(user, "Specimen", "119361006");
     await fillNote(user, "Record the plasma specimen");
     await save(user);
 
@@ -675,7 +684,7 @@ describe("a refused field", () => {
     const term = form().getByLabelText("RCPA Preferred");
     await user.clear(term);
     await user.paste("Serum ferritin");
-    await choose(user, "Discipline 1", "BIOC");
+    await choose(user, "Discipline", "BIOC");
     await user.type(form().getByLabelText("Usage guidance"), "Fasting sample.");
     await fillNote(user, "Correct three fields together");
     await save(user);
@@ -686,9 +695,10 @@ describe("a refused field", () => {
     expect(summary().getByText("RCPA Preferred")).toBeInTheDocument();
     expect(summary().getByText("Usage guidance")).toBeInTheDocument();
     // The refusal is also marked on the field, whose value is kept.
-    const select = form().getByLabelText("Discipline 1");
-    expect(select).toHaveValue("BIOC");
-    expect(select.getAttribute("aria-describedby") ?? "").toContain("discipline-0-error");
+    const added = within(listOf("Discipline")).getAllByRole("listitem");
+    expect(added).toHaveLength(2);
+    expect(added[0]).toHaveTextContent("Not a recognised discipline code.");
+    expect(added[1]).toHaveTextContent("BIOC");
     // A refusal changed nothing, so the next request carries the version after the first save.
     expect(bodyOf(calls, USAGE_PATH)).toMatchObject({ expected_row_version: 5 });
     expect(form().getByLabelText("Usage guidance")).toHaveValue("Fasting sample.");
@@ -699,7 +709,7 @@ describe("a refused field", () => {
     const user = userEvent.setup();
     await renderLoaded();
 
-    await choose(user, "Discipline 1", "BIOC");
+    await choose(user, "Discipline", "BIOC");
     await fillNote(user, "Change the discipline");
     await save(user);
 
@@ -721,7 +731,7 @@ describe("a refused field", () => {
     const term = form().getByLabelText("RCPA Preferred");
     await user.clear(term);
     await user.paste("Serum ferritin");
-    await choose(user, "Discipline 1", "BIOC");
+    await choose(user, "Discipline", "BIOC");
     await fillNote(user, "Correct two fields together");
     await save(user);
     await form().findByText(/Correct the marked fields/);
@@ -804,7 +814,7 @@ describe("a refused field", () => {
     const user = userEvent.setup();
     await renderLoaded();
 
-    await choose(user, "Discipline 1", "BIOC");
+    await choose(user, "Discipline", "BIOC");
     await fillNote(user, "Change the discipline");
     await save(user);
     await screen.findByRole("heading", { name: "Some changes were not saved" });
@@ -923,7 +933,7 @@ describe("a failure that stops the run", () => {
     const user = userEvent.setup();
     await renderLoaded();
 
-    await choose(user, "Discipline 1", "BIOC");
+    await choose(user, "Discipline", "BIOC");
     await user.type(form().getByLabelText("Usage guidance"), "Fasting sample.");
     await fillNote(user, "Correct two fields together");
     await save(user);
@@ -990,9 +1000,7 @@ describe("a field someone else changed", () => {
 
     // The term and the discipline were not touched here, so they now show the other editor's.
     expect(form().getByLabelText("RCPA Preferred")).toHaveValue("Ferritin (S)");
-    await waitFor(() =>
-      expect(form().getByLabelText("Discipline 1")).toHaveValue("BIOC"),
-    );
+    await waitFor(() => expect(listOf("Discipline")).toHaveTextContent("BIOC"));
     // What this editor typed is kept.
     expect(form().getByLabelText("Usage guidance")).toHaveValue("Fasting sample.");
   });
@@ -1006,9 +1014,7 @@ describe("a field someone else changed", () => {
     await fillNote(user, "Record fasting guidance");
     await save(user);
     await screen.findByRole("heading", { name: "Ferritin (S)", level: 1 });
-    await waitFor(() =>
-      expect(form().getByLabelText("Discipline 1")).toHaveValue("BIOC"),
-    );
+    await waitFor(() => expect(listOf("Discipline")).toHaveTextContent("BIOC"));
 
     await save(user);
 
@@ -1098,7 +1104,7 @@ describe("saving again after a run", () => {
     const term = form().getByLabelText("RCPA Preferred");
     await user.clear(term);
     await user.paste("Serum ferritin");
-    await choose(user, "Discipline 1", "BIOC");
+    await choose(user, "Discipline", "BIOC");
     await fillNote(user, "Correct two fields together");
     await save(user);
     await screen.findByRole("heading", { name: "Some changes were not saved" });

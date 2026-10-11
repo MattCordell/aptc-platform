@@ -25,7 +25,7 @@ function Harness({ initial }: { initial: RemovableListItem[] }) {
         label="Chosen values"
         items={current}
         onRemove={(id) => setCurrent((all) => all.filter((item) => item.id !== id))}
-        emptyFocus={box}
+        focusWhenEmpty={() => box.current?.focus()}
       />
     </>
   );

@@ -202,8 +202,8 @@ describe("SubmissionNewPage fields", () => {
     await renderPage();
 
     expect(await screen.findByLabelText("Assay method (required)")).toBeVisible();
-    expect(screen.getByLabelText("Clinical use 1")).toBeVisible();
-    expect(screen.getByLabelText("Clinical use 1").tagName).toBe("TEXTAREA");
+    expect(screen.getByLabelText("Clinical use")).toBeVisible();
+    expect(screen.getByLabelText("Clinical use").tagName).toBe("TEXTAREA");
     expect(screen.queryByLabelText(/length/i)).not.toBeInTheDocument();
     const request = calls.find((call) => call.path.endsWith("/registry/properties"));
     expect(request?.searchParams.get("scope")).toBe("submission");
@@ -299,13 +299,53 @@ describe("SubmissionNewPage fields", () => {
     await renderPage();
 
     await user.type(screen.getByLabelText("Assay method (required)"), "Immunoassay");
-    await user.type(screen.getByLabelText("Clinical use 1"), "Iron stores");
+    await user.type(screen.getByLabelText("Clinical use"), "Iron stores");
     await user.type(screen.getByLabelText("Assay method (required)"), " (batch)");
 
     expect(screen.getByLabelText("Assay method (required)")).toHaveValue(
       "Immunoassay (batch)",
     );
-    expect(screen.getByLabelText("Clinical use 1")).toHaveValue("Iron stores");
+    expect(screen.getByLabelText("Clinical use")).toHaveValue("Iron stores");
+  });
+
+  it("sends every value added to a several-valued property, in order (FR-23)", async () => {
+    const calls = stubApi([ME, DEFINITIONS, NO_MATCHES, CREATED]);
+    const user = userEvent.setup();
+    await renderPage();
+    await fillRequired(user);
+
+    await user.type(screen.getByLabelText("Clinical use"), "Iron stores{Enter}");
+    await user.type(screen.getByLabelText("Clinical use"), "Anaemia{Enter}");
+    await user.click(screen.getByRole("button", { name: "Remove Iron stores" }));
+    await user.type(screen.getByLabelText("Clinical use"), "Monitoring{Enter}");
+    await submit(user);
+    await screen.findByText("Your test was submitted");
+
+    expect(bodyOf(calls, "/submissions").property_values).toMatchObject({
+      clinical_use: [
+        { value: "Anaemia", justification: null },
+        { value: "Monitoring", justification: null },
+      ],
+    });
+  });
+
+  it("sends text left in a several-valued box rather than losing it (FR-23)", async () => {
+    const calls = stubApi([ME, DEFINITIONS, NO_MATCHES, CREATED]);
+    const user = userEvent.setup();
+    await renderPage();
+    await fillRequired(user);
+
+    await user.type(screen.getByLabelText("Clinical use"), "Anaemia{Enter}");
+    await user.type(screen.getByLabelText("Clinical use"), "Not yet added");
+    await submit(user);
+    await screen.findByText("Your test was submitted");
+
+    expect(bodyOf(calls, "/submissions").property_values).toMatchObject({
+      clinical_use: [
+        { value: "Anaemia", justification: null },
+        { value: "Not yet added", justification: null },
+      ],
+    });
   });
 
   it("adds and removes other names and drops blank ones from the request", async () => {

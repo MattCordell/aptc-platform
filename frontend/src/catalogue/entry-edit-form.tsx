@@ -20,7 +20,6 @@ import { formatPropertyValue } from "./format-property-value.ts";
 import { propertyValidationFieldErrors } from "./property-form-errors.ts";
 import { normaliseForComparison } from "./python-text.ts";
 import {
-  CONTROLS,
   RepeatableValues,
   groupFieldId,
   isEmptySlotValue,
@@ -67,7 +66,7 @@ import { useEntrySave } from "./use-entry-save.ts";
  * order (`useEntrySave`).
  *
  * **Generated, not hand-written.** Each property row comes from
- * `usePropertyDefinitions`, and `CONTROLS` picks its input from
+ * `usePropertyDefinitions`, and `RepeatableValues` picks its input from
  * `form_control.control`, so a definition added in the registry appears here
  * with no deployment (FR-09, ADR-0013). The one exception is the specimen
  * hint, carried over from the panel this form replaces (FR-89).
@@ -728,7 +727,6 @@ export function EntryEditForm({ entry }: { entry: EntryDetail }) {
               </dl>
             );
           }
-          const Control = CONTROLS[definition.form_control.control];
           const changeId = `property:${definition.key}`;
           return (
             <div key={definition.key} className="flex flex-col gap-2">
@@ -742,7 +740,7 @@ export function EntryEditForm({ entry }: { entry: EntryDetail }) {
                 propertyKey={definition.key}
                 label={definition.label}
                 cardinality={definition.cardinality as PropertyCardinality}
-                control={Control}
+                control={definition.form_control.control}
                 params={definition.form_control.params}
                 slots={slots[definition.key] ?? []}
                 onChange={(next) => {

@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef } from "react";
-import type { ReactNode, RefObject } from "react";
+import type { ReactNode } from "react";
 
 import { Button } from "./button.tsx";
 
@@ -21,8 +21,8 @@ type RemovableListProps = {
   label: string;
   items: readonly RemovableListItem[];
   onRemove: (id: string) => void;
-  /** Where focus goes when a Remove empties the list, usually the box that adds to it. */
-  emptyFocus?: RefObject<HTMLElement | null>;
+  /** Puts focus where the user can carry on once a Remove empties the list, usually the box that adds to it. */
+  focusWhenEmpty?: () => void;
 };
 
 /**
@@ -32,13 +32,13 @@ type RemovableListProps = {
  *
  * Focus never falls to the page when its Remove button leaves the DOM. It moves
  * to the Remove button of the item that takes its place, else the item before,
- * else `emptyFocus`.
+ * else `focusWhenEmpty`.
  */
 export function RemovableList({
   label,
   items,
   onRemove,
-  emptyFocus,
+  focusWhenEmpty,
 }: RemovableListProps) {
   const buttons = useRef(new Map<string, HTMLButtonElement>());
   const pending = useRef<{ id: string | null } | null>(null);
@@ -50,8 +50,12 @@ export function RemovableList({
     }
     pending.current = null;
     const next = target.id === null ? undefined : buttons.current.get(target.id);
-    (next ?? emptyFocus?.current)?.focus();
-  }, [items, emptyFocus]);
+    if (next === undefined) {
+      focusWhenEmpty?.();
+    } else {
+      next.focus();
+    }
+  }, [items, focusWhenEmpty]);
 
   if (items.length === 0) {
     return null;
