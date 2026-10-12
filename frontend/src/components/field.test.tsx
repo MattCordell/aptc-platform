@@ -95,6 +95,19 @@ describe("Field", () => {
     expect(screen.getByLabelText("Status").tagName).toBe("SELECT");
   });
 
+  it("keeps a hidden label as the control's name, with its error still linked", () => {
+    render(
+      <Field label="Synonym 1" hideLabel error="Enter the synonym, or remove it.">
+        {(controlProps) => <input {...controlProps} type="text" />}
+      </Field>,
+    );
+
+    const input = screen.getByRole("textbox", { name: "Synonym 1" });
+    expect(screen.getByText("Synonym 1")).toHaveClass("sr-only");
+    expect(input).toHaveAccessibleDescription("Enter the synonym, or remove it.");
+    expect(input).toHaveAttribute("aria-invalid", "true");
+  });
+
   it("has no automated accessibility violations", async () => {
     const { container } = render(
       <Field label="Requesting term" hint="A hint" error="An error">

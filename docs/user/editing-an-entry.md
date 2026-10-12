@@ -11,25 +11,37 @@ Open an entry for editing from **[Administration → Catalogue](finding-entries.
 straight to `/admin/catalogue/NPTC-000247/edit` for the entry you want. Entries that have not
 been published yet can be edited the same way as published ones.
 
-## What the form holds
+## What the screen holds
 
-- **Identifier.** For example `NPTC-000006`. It is shown as text. The platform creates it
-  and it never changes.
-- **Entry status and last changed.** Shown on one line beside the identifier, the status as
-  a badge. You cannot edit either here.
+The form fills the wide column. Beside it, a narrower column shows what the form does not
+change. When the window is narrow, that column moves below the form.
+
+The column beside the form holds:
+
+- **Details.** The **identifier**, for example `NPTC-000006`, which the platform creates and
+  which never changes. The **entry status**, as a badge. And when the entry **last
+  changed**. You cannot edit any of these here.
+- **Retired synonyms**, each with a **Reinstate** button, when the entry has any. See
+  [Editing an entry's terms](editing-designations.md#reinstating-a-retired-term).
+- **Retired SNOMED CT codes**, each with its reason and any replacement code, when the
+  entry has any.
+
+The form has three sections, **Terms**, **SNOMED CT code** and **Properties**, and then the
+changelog note:
+
 - **RCPA Preferred.** The catalogue's own name for the test. Under the box you see its
   length in characters. The length updates as you type. It is counted the way the catalogue
   counts it, after the spacing is cleaned, so a trailing non-breaking space does not add to
   it. After you save, the form also shows the length the server counted.
-- **SNOMED CT code.** The entry's active code, and a search box to bind or replace it. See
-  [Binding a SNOMED CT code](binding-a-code.md).
-- **RCPA Synonyms.** A box to add more, with one box for each active synonym and a
-  **Remove** button on each below it. It sits beside RCPA Preferred when the window is wide
-  enough. See [Editing an entry's terms](editing-designations.md).
+- **RCPA Synonyms.** The **Add synonyms** box sits beside RCPA Preferred when the window is
+  wide enough. Under both, **Current synonyms** lists one box for each active synonym, with
+  a **Remove** button beside each. See [Editing an entry's terms](editing-designations.md).
+- **SNOMED CT code.** The entry's active code, with the search box to replace it beside it.
+  See [Binding a SNOMED CT code](binding-a-code.md).
 - **Properties.** One control for every registry property, in the registry's own order,
   side by side when the window is wide enough. See
   [Editing registry properties](editing-registry-properties.md).
-- **Changelog note.** One note for the whole save.
+- **Changelog note.** One note for the whole save, below the properties.
 - **Save and Cancel.** **Cancel** leaves the form without saving anything, even if you have
   typed changes. It takes you back to the entry's public page when the entry is active. For
   a draft, deprecated or withdrawn entry, which has no public page, it takes you to

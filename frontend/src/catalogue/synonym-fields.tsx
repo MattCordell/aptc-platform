@@ -1,52 +1,38 @@
 import { Button } from "../components/button.tsx";
 import { Field } from "../components/field.tsx";
+import { FieldGrid } from "../components/field-grid.tsx";
 import { INPUT_CLASSES } from "../components/input-classes.ts";
 import { ADD_SYNONYMS_FIELD_ID, addedTerms, synonymFieldId } from "./synonym-state.ts";
 import type { SynonymRow } from "./synonym-state.ts";
 
 /**
- * The entry's RCPA Synonyms, inside the edit form (FR-04, FR-36).
+ * The entry's RCPA Synonyms, inside the edit form (FR-04, FR-36), in two parts the
+ * form places apart: the box that adds terms, beside the preferred term, and the
+ * synonyms the entry already holds, under them both.
  *
- * One box adds terms, and takes a cell pasted straight from the legacy
- * workbook, delimiters and all. Under it, each active synonym is a text box.
- * Remove marks a synonym for retirement and the form's Save performs it, so
- * one Save and one changelog note cover every change. A retired synonym is not
- * deleted: the platform keeps it and its history.
+ * The box takes a cell pasted straight from the legacy workbook, delimiters and
+ * all. Each active synonym is a text box. Remove marks a synonym for retirement
+ * and the form's Save performs it, so one Save and one changelog note cover every
+ * change. A retired synonym is not deleted: the platform keeps it and its history.
  */
 
-export function SynonymFields({
-  rows,
-  retiredTerms,
+export function AddSynonymsField({
   addText,
-  rowErrors,
   addError,
-  onRowsChange,
   onAddTextChange,
-  onReinstate,
 }: {
-  rows: SynonymRow[];
-  /** Synonyms the entry holds as retired. Each can be reinstated. */
-  retiredTerms: string[];
   addText: string;
-  /** The reason a row's change was refused or is invalid, by row id. */
-  rowErrors: Record<string, string>;
   addError: string | undefined;
-  onRowsChange: (next: SynonymRow[]) => void;
   onAddTextChange: (text: string) => void;
-  onReinstate: (term: string) => void;
 }) {
   const terms = addedTerms(addText);
 
-  function update(id: string, change: Partial<SynonymRow>) {
-    onRowsChange(rows.map((row) => (row.id === id ? { ...row, ...change } : row)));
-  }
-
   return (
-    <div role="group" aria-label="RCPA Synonyms" className="flex flex-col gap-2">
+    <div className="flex flex-col gap-1">
       <Field
         id={ADD_SYNONYMS_FIELD_ID}
         label="Add synonyms"
-        hint="Type one term, or paste a cell straight from the spreadsheet. Separate several with a semicolon."
+        hint="Separate terms with a semicolon, or paste a cell."
         error={addError}
       >
         {(controlProps) => (
@@ -71,78 +57,97 @@ export function SynonymFields({
                 .map((term) => `“${term}”`)
                 .join(", ")}`}
       </p>
+    </div>
+  );
+}
 
-      {rows.length === 0 && <p className="m-0">This entry has no RCPA Synonyms.</p>}
-      {rows.map((row, index) =>
-        row.removed ? (
-          <div key={row.id} className="flex flex-wrap items-center gap-2">
-            <p className="m-0">
-              <del>{row.original}</del> will be removed when you save. The term is kept as
-              a retired synonym.
-            </p>
-            {rowErrors[row.id] !== undefined && (
-              <p className="m-0 text-sm text-[var(--color-danger)]">
-                {rowErrors[row.id]}
-              </p>
-            )}
-            <Button
-              type="button"
-              variant="secondary"
-              aria-label={`Keep ${row.original}`}
-              onClick={() => update(row.id, { removed: false })}
-            >
-              Keep
-            </Button>
-          </div>
-        ) : (
-          <div key={row.id} className="flex flex-wrap items-end gap-2">
-            <Field
-              id={synonymFieldId(row.id)}
-              label={`Synonym ${index + 1}`}
-              error={rowErrors[row.id]}
-              className="min-w-48 flex-1"
-            >
-              {(controlProps) => (
-                <input
-                  {...controlProps}
-                  className={INPUT_CLASSES}
-                  type="text"
-                  value={row.term}
-                  onChange={(event) => update(row.id, { term: event.target.value })}
-                />
-              )}
-            </Field>
-            <Button
-              type="button"
-              variant="danger"
-              aria-label={`Remove ${row.original}`}
-              onClick={() => update(row.id, { removed: true })}
-            >
-              Remove
-            </Button>
-          </div>
-        ),
-      )}
+const CURRENT_SYNONYMS_LABEL_ID = "entry-current-synonyms";
 
-      {retiredTerms.length > 0 && (
-        <div>
-          <h3 className="m-0 text-base">Retired synonyms</h3>
-          <ul className="m-0 flex list-none flex-col gap-2 p-0">
-            {retiredTerms.map((term) => (
-              <li key={term} className="flex flex-wrap items-center gap-2">
-                <span>{term}</span>
+export function CurrentSynonyms({
+  rows,
+  rowErrors,
+  onRowsChange,
+}: {
+  rows: SynonymRow[];
+  /** The reason a row's change was refused or is invalid, by row id. */
+  rowErrors: Record<string, string>;
+  onRowsChange: (next: SynonymRow[]) => void;
+}) {
+  function update(id: string, change: Partial<SynonymRow>) {
+    onRowsChange(rows.map((row) => (row.id === id ? { ...row, ...change } : row)));
+  }
+
+  return (
+    <div
+      role="group"
+      aria-labelledby={CURRENT_SYNONYMS_LABEL_ID}
+      className="flex flex-col gap-1"
+    >
+      <p
+        id={CURRENT_SYNONYMS_LABEL_ID}
+        className="m-0 text-sm font-medium text-[var(--color-text)]"
+      >
+        Current synonyms
+      </p>
+      {rows.length === 0 ? (
+        <p className="m-0">This entry has no RCPA Synonyms.</p>
+      ) : (
+        <FieldGrid fill>
+          {rows.map((row, index) =>
+            row.removed ? (
+              <div key={row.id} className="flex flex-col gap-1">
+                <div className="flex min-h-10 items-center justify-between gap-2">
+                  <p className="m-0 min-w-0 break-words">
+                    <del>{row.original}</del> will be removed when you save.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="min-h-10 shrink-0"
+                    aria-label={`Keep ${row.original}`}
+                    onClick={() => update(row.id, { removed: false })}
+                  >
+                    Keep
+                  </Button>
+                </div>
+                {rowErrors[row.id] !== undefined && (
+                  <p className="m-0 text-sm text-[var(--color-danger)]">
+                    {rowErrors[row.id]}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div key={row.id} className="flex items-start gap-2">
+                <Field
+                  id={synonymFieldId(row.id)}
+                  label={`Synonym ${index + 1}`}
+                  hideLabel
+                  error={rowErrors[row.id]}
+                  className="min-w-0 flex-1"
+                >
+                  {(controlProps) => (
+                    <input
+                      {...controlProps}
+                      className={INPUT_CLASSES}
+                      type="text"
+                      value={row.term}
+                      onChange={(event) => update(row.id, { term: event.target.value })}
+                    />
+                  )}
+                </Field>
                 <Button
                   type="button"
-                  variant="secondary"
-                  aria-label={`Reinstate ${term}`}
-                  onClick={() => onReinstate(term)}
+                  variant="danger"
+                  className="min-h-10 shrink-0"
+                  aria-label={`Remove ${row.original}`}
+                  onClick={() => update(row.id, { removed: true })}
                 >
-                  Reinstate
+                  Remove
                 </Button>
-              </li>
-            ))}
-          </ul>
-        </div>
+              </div>
+            ),
+          )}
+        </FieldGrid>
       )}
     </div>
   );

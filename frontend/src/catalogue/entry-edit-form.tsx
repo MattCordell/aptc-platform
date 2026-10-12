@@ -6,6 +6,7 @@ import type { components } from "../api/schema.ts";
 import { refusalDetail } from "../api/conflicts.ts";
 import { buttonClassName } from "../components/button-class-name.ts";
 import { Card } from "../components/card.tsx";
+import { DetailLayout } from "../components/detail-layout.tsx";
 import type { FormError } from "../components/error-summary.tsx";
 import { Field } from "../components/field.tsx";
 import { FieldGrid } from "../components/field-grid.tsx";
@@ -13,13 +14,14 @@ import { Form } from "../components/form.tsx";
 import type { SubmitOutcome } from "../components/form.tsx";
 import { INPUT_CLASSES } from "../components/input-classes.ts";
 import { LiveRegion } from "../components/live-region.tsx";
-import { StatusBadge } from "../components/status-badge.tsx";
 import { useAnnounce } from "../components/use-announce.ts";
 import { ChangelogNoteField, useChangelogNote } from "./changelog-note-field.tsx";
 import { CODE_FIELD_ID, CodeField } from "./code-field.tsx";
 import { RefusalNotice } from "./collision-notice.tsx";
 import type { CollisionWarning, DesignationWarning } from "./collision-notice.tsx";
+import { EntryEditSidebar } from "./entry-edit-sidebar.tsx";
 import { formatPropertyValue } from "./format-property-value.ts";
+import { FormSection } from "./form-section.tsx";
 import { propertyValidationFieldErrors } from "./property-form-errors.ts";
 import { normaliseForComparison } from "./python-text.ts";
 import {
@@ -38,8 +40,7 @@ import {
   RetireBindingDialog,
 } from "./row-action-dialogs.tsx";
 import { SaveSummary, WarningList } from "./save-summary.tsx";
-import { statusLabelFor, statusToneFor } from "./status-options.ts";
-import { SynonymFields } from "./synonym-fields.tsx";
+import { AddSynonymsField, CurrentSynonyms } from "./synonym-fields.tsx";
 import {
   ADD_CHANGE_ID,
   ADD_SYNONYMS_FIELD_ID,
@@ -82,6 +83,7 @@ import { useEntrySave } from "./use-entry-save.ts";
 const SPECIMEN_KEY = "specimen";
 const TERM_FIELD_ID = "entry-preferred-term";
 const NOTE_FIELD_ID = "entry-edit-note";
+const TERMS_HEADING_ID = "entry-terms-heading";
 const PROPERTIES_HEADING_ID = "entry-properties-heading";
 const TERM_CHANGE_ID = "preferred_term";
 const BINDING_CHANGE_ID = "binding";
@@ -153,12 +155,6 @@ function buildRows(
 
 function activeCodeOf(entry: EntryDetail): string | null {
   return entry.bindings.find((binding) => binding.status === "active")?.code ?? null;
-}
-
-function retiredSynonyms(entry: EntryDetail): string[] {
-  return entry.designations
-    .filter((designation) => designation.status !== "active")
-    .map((designation) => designation.term);
 }
 
 function toItem(value: PropertyValue): ValueItem {
@@ -578,245 +574,237 @@ export function EntryEditForm({ entry }: { entry: EntryDetail }) {
 
   return (
     <section aria-labelledby="entry-form-heading">
-      <h2 id="entry-form-heading">Edit entry</h2>
       <LiveRegion message={message} politeness={politeness} />
 
-      <Card compact>
-        <Form
-          submitLabel="Save"
-          pendingLabel="Saving"
-          pending={entrySave.isPending}
-          errors={ownErrors}
-          formError={
-            unexpected === null ? undefined : <RefusalNotice error={unexpected} />
-          }
-          submitBlocked={blocked}
-          blockedReason={
-            hasChanges ? changelogNote.blockedReason : "There are no changes to save."
-          }
-          blockedFieldId={hasChanges ? changelogNote.fieldId : undefined}
-          onSubmitBlocked={() => {
-            changelogNote.markSubmitAttempted();
-            setOwnErrors(validateOwnFields());
-          }}
-          onSubmit={submit}
-          secondaryActions={
-            entry.status === "active" ? (
-              <Link
-                to="/catalogue/$businessKey"
-                params={{ businessKey: entry.business_key }}
-                className={buttonClassName("secondary")}
-              >
-                Cancel
-              </Link>
-            ) : (
-              <Link to="/admin/catalogue" className={buttonClassName("secondary")}>
-                Cancel
-              </Link>
-            )
-          }
-        >
-          <dl className="m-0 flex flex-wrap items-center gap-x-6 gap-y-1">
-            <div className="flex items-center gap-2">
-              <dt className="text-[var(--color-text-muted)]">Identifier</dt>
-              <dd className="m-0 font-mono">{entry.business_key}</dd>
-            </div>
-            <div className="flex items-center gap-2">
-              <dt className="text-[var(--color-text-muted)]">Entry status</dt>
-              <dd className="m-0">
-                <StatusBadge
-                  tone={statusToneFor(entry.status)}
-                  label={statusLabelFor(entry.status)}
-                />
-              </dd>
-            </div>
-            <div className="flex items-center gap-2">
-              <dt className="text-[var(--color-text-muted)]">Last changed</dt>
-              <dd className="m-0 tabular-nums">
-                {new Date(entry.updated_at).toLocaleString()}
-              </dd>
-            </div>
-          </dl>
+      <DetailLayout
+        sidebarLabel="Entry details"
+        sidebar={
+          <EntryEditSidebar
+            entry={entry}
+            onReinstate={(term) => setDialog({ kind: "reinstate", term })}
+          />
+        }
+      >
+        <Card compact className="flex flex-col gap-4">
+          <h2 id="entry-form-heading" className="m-0 text-xl text-[var(--color-text)]">
+            Edit entry
+          </h2>
+          <Form
+            submitLabel="Save"
+            pendingLabel="Saving"
+            pending={entrySave.isPending}
+            errors={ownErrors}
+            formError={
+              unexpected === null ? undefined : <RefusalNotice error={unexpected} />
+            }
+            submitBlocked={blocked}
+            blockedReason={
+              hasChanges ? changelogNote.blockedReason : "There are no changes to save."
+            }
+            blockedFieldId={hasChanges ? changelogNote.fieldId : undefined}
+            onSubmitBlocked={() => {
+              changelogNote.markSubmitAttempted();
+              setOwnErrors(validateOwnFields());
+            }}
+            onSubmit={submit}
+            secondaryActions={
+              entry.status === "active" ? (
+                <Link
+                  to="/catalogue/$businessKey"
+                  params={{ businessKey: entry.business_key }}
+                  className={buttonClassName("secondary")}
+                >
+                  Cancel
+                </Link>
+              ) : (
+                <Link to="/admin/catalogue" className={buttonClassName("secondary")}>
+                  Cancel
+                </Link>
+              )
+            }
+          >
+            <FormSection id={TERMS_HEADING_ID} title="Terms">
+              <FieldGrid>
+                <Field
+                  id={TERM_FIELD_ID}
+                  label="RCPA Preferred"
+                  hint={
+                    <>
+                      Length: {liveLength} {liveLength === 1 ? "character" : "characters"}
+                      .
+                      {serverLength !== null &&
+                        ` The server counted ${serverLength} when you last saved.`}
+                    </>
+                  }
+                  error={termErrors[0]?.message}
+                >
+                  {(controlProps) => (
+                    <input
+                      {...controlProps}
+                      className={INPUT_CLASSES}
+                      type="text"
+                      value={term}
+                      onChange={(event) => {
+                        setTerm(event.target.value);
+                        clearOwnErrors((fieldId) => fieldId === TERM_FIELD_ID);
+                        clearRefusal(TERM_CHANGE_ID);
+                      }}
+                    />
+                  )}
+                </Field>
 
-          <FieldGrid>
-            <Field
-              id={TERM_FIELD_ID}
-              label="RCPA Preferred"
-              hint={
-                <>
-                  The catalogue&rsquo;s own preferred term for this entry. Length:{" "}
-                  {liveLength} {liveLength === 1 ? "character" : "characters"}.
-                  {serverLength !== null &&
-                    ` The server counted ${serverLength} when you last saved.`}
-                </>
-              }
-              error={termErrors[0]?.message}
-            >
-              {(controlProps) => (
-                <input
-                  {...controlProps}
-                  className={INPUT_CLASSES}
-                  type="text"
-                  value={term}
-                  onChange={(event) => {
-                    setTerm(event.target.value);
-                    clearOwnErrors((fieldId) => fieldId === TERM_FIELD_ID);
-                    clearRefusal(TERM_CHANGE_ID);
+                <AddSynonymsField
+                  addText={addText}
+                  addError={addError}
+                  onAddTextChange={(text) => {
+                    setAddText(text);
+                    clearOwnErrors((fieldId) => fieldId === ADD_SYNONYMS_FIELD_ID);
+                    clearRefusal(ADD_CHANGE_ID);
                   }}
                 />
-              )}
-            </Field>
-
-            <SynonymFields
-              rows={synonyms}
-              retiredTerms={retiredSynonyms(entry)}
-              onReinstate={(term) => setDialog({ kind: "reinstate", term })}
-              addText={addText}
-              rowErrors={synonymRowErrors}
-              addError={addError}
-              onRowsChange={(next) => {
-                const edited = next.filter(
-                  (row) => synonyms.find((old) => old.id === row.id) !== row,
-                );
-                const editedFieldIds = new Set(
-                  edited.map((row) => synonymFieldId(row.id)),
-                );
-                const editedChangeIds = new Set(
-                  edited.flatMap((row) => [
-                    amendChangeId(row.original),
-                    retireChangeId(row.original),
-                  ]),
-                );
-                setSynonyms(next);
-                clearOwnErrors((fieldId) => editedFieldIds.has(fieldId));
-                clearRefusalsWhere((id) => editedChangeIds.has(id));
-              }}
-              onAddTextChange={(text) => {
-                setAddText(text);
-                clearOwnErrors((fieldId) => fieldId === ADD_SYNONYMS_FIELD_ID);
-                clearRefusal(ADD_CHANGE_ID);
-              }}
-            />
-          </FieldGrid>
-
-          <CodeField
-            bindings={entry.bindings}
-            selection={selection}
-            error={codeError}
-            onPick={(code) => {
-              clearRefusal(BINDING_CHANGE_ID);
-              clearOwnErrors((fieldId) => fieldId === CODE_FIELD_ID);
-              if (code === activeCode) {
-                setOwnErrors((current) => [
-                  ...current,
-                  {
-                    fieldId: CODE_FIELD_ID,
-                    message: "That code is already bound to this entry.",
-                  },
-                ]);
-                return;
-              }
-              setPickedCode(code);
-            }}
-            onClear={() => {
-              setPickedCode(null);
-              clearOwnErrors((fieldId) => fieldId === CODE_FIELD_ID);
-              clearRefusal(BINDING_CHANGE_ID);
-            }}
-            onRetire={(code) => setDialog({ kind: "retire-binding", code })}
-          />
-
-          {definitions.isPending && <p className="m-0">Loading registry properties…</p>}
-          {definitions.isError && (
-            <p className="m-0">
-              {refusalDetail(definitions.error) ??
-                "Registry properties could not be loaded. You can still edit the preferred term."}
-            </p>
-          )}
-          {rows.length > 0 && (
-            <div
-              role="group"
-              aria-labelledby={PROPERTIES_HEADING_ID}
-              className="flex flex-col gap-2"
-            >
-              <h3 id={PROPERTIES_HEADING_ID} className="m-0">
-                Properties
-              </h3>
-              <FieldGrid>
-                {rows.map((row) => {
-                  const { definition } = row;
-                  if (!row.editable) {
-                    return (
-                      <dl
-                        key={definition.key}
-                        className="m-0 grid grid-cols-[max-content_1fr] gap-x-6"
-                      >
-                        <dt>{definition.label} (deprecated, read only)</dt>
-                        <dd className="m-0">
-                          {row.values
-                            .map((value) => formatPropertyValue(value.value))
-                            .join(", ")}
-                        </dd>
-                      </dl>
-                    );
-                  }
-                  const changeId = `property:${definition.key}`;
-                  return (
-                    <div key={definition.key} className="flex flex-col gap-2">
-                      {definition.key === SPECIMEN_KEY ? (
-                        <p className="m-0 text-sm text-[var(--color-text-muted)]">
-                          To record that a test accepts any specimen, choose Specimen
-                          (123038009) on its own. A workbook import stores the same value
-                          as Any.
-                        </p>
-                      ) : null}
-                      <RepeatableValues
-                        propertyKey={definition.key}
-                        label={definition.label}
-                        cardinality={definition.cardinality as PropertyCardinality}
-                        control={definition.form_control.control}
-                        params={definition.form_control.params}
-                        slots={slots[definition.key] ?? []}
-                        onChange={(next) => {
-                          setSlots((current) => ({ ...current, [definition.key]: next }));
-                          clearRefusal(changeId);
-                        }}
-                        errors={refusals[changeId] ?? []}
-                        compact
-                      />
-                    </div>
-                  );
-                })}
               </FieldGrid>
+
+              <CurrentSynonyms
+                rows={synonyms}
+                rowErrors={synonymRowErrors}
+                onRowsChange={(next) => {
+                  const edited = next.filter(
+                    (row) => synonyms.find((old) => old.id === row.id) !== row,
+                  );
+                  const editedFieldIds = new Set(
+                    edited.map((row) => synonymFieldId(row.id)),
+                  );
+                  const editedChangeIds = new Set(
+                    edited.flatMap((row) => [
+                      amendChangeId(row.original),
+                      retireChangeId(row.original),
+                    ]),
+                  );
+                  setSynonyms(next);
+                  clearOwnErrors((fieldId) => editedFieldIds.has(fieldId));
+                  clearRefusalsWhere((id) => editedChangeIds.has(id));
+                }}
+              />
+            </FormSection>
+
+            <CodeField
+              bindings={entry.bindings}
+              selection={selection}
+              error={codeError}
+              onPick={(code) => {
+                clearRefusal(BINDING_CHANGE_ID);
+                clearOwnErrors((fieldId) => fieldId === CODE_FIELD_ID);
+                if (code === activeCode) {
+                  setOwnErrors((current) => [
+                    ...current,
+                    {
+                      fieldId: CODE_FIELD_ID,
+                      message: "That code is already bound to this entry.",
+                    },
+                  ]);
+                  return;
+                }
+                setPickedCode(code);
+              }}
+              onClear={() => {
+                setPickedCode(null);
+                clearOwnErrors((fieldId) => fieldId === CODE_FIELD_ID);
+                clearRefusal(BINDING_CHANGE_ID);
+              }}
+              onRetire={(code) => setDialog({ kind: "retire-binding", code })}
+            />
+
+            <FormSection id={PROPERTIES_HEADING_ID} title="Properties" divided>
+              {definitions.isPending && (
+                <p className="m-0">Loading registry properties…</p>
+              )}
+              {definitions.isError && (
+                <p className="m-0">
+                  {refusalDetail(definitions.error) ??
+                    "Registry properties could not be loaded. You can still edit the preferred term."}
+                </p>
+              )}
+              {rows.length > 0 && (
+                <FieldGrid>
+                  {rows.map((row) => {
+                    const { definition } = row;
+                    if (!row.editable) {
+                      return (
+                        <dl key={definition.key} className="m-0 flex flex-col gap-1">
+                          <dt className="text-sm font-medium text-[var(--color-text)]">
+                            {definition.label} (deprecated, read only)
+                          </dt>
+                          <dd className="m-0">
+                            {row.values
+                              .map((value) => formatPropertyValue(value.value))
+                              .join(", ")}
+                          </dd>
+                        </dl>
+                      );
+                    }
+                    const changeId = `property:${definition.key}`;
+                    return (
+                      <div key={definition.key} className="flex flex-col gap-1">
+                        <RepeatableValues
+                          propertyKey={definition.key}
+                          label={definition.label}
+                          cardinality={definition.cardinality as PropertyCardinality}
+                          control={definition.form_control.control}
+                          params={definition.form_control.params}
+                          slots={slots[definition.key] ?? []}
+                          onChange={(next) => {
+                            setSlots((current) => ({
+                              ...current,
+                              [definition.key]: next,
+                            }));
+                            clearRefusal(changeId);
+                          }}
+                          errors={refusals[changeId] ?? []}
+                          compact
+                        />
+                        {definition.key === SPECIMEN_KEY ? (
+                          <p className="m-0 text-sm text-[var(--color-text-muted)]">
+                            To record that a test accepts any specimen, choose Specimen
+                            (123038009) on its own. A workbook import stores the same
+                            value as Any.
+                          </p>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </FieldGrid>
+              )}
+              {definitions.isSuccess && rows.length === 0 && (
+                <p className="m-0">This entry has no registry properties.</p>
+              )}
+            </FormSection>
+
+            <div className="border-t border-[var(--color-border)] pt-4">
+              <ChangelogNoteField id={NOTE_FIELD_ID} changelogNote={changelogNote} />
             </div>
-          )}
-          {definitions.isSuccess && rows.length === 0 && (
-            <p className="m-0">This entry has no registry properties.</p>
-          )}
+          </Form>
+        </Card>
 
-          <ChangelogNoteField id={NOTE_FIELD_ID} changelogNote={changelogNote} />
-        </Form>
-      </Card>
-
-      {run !== null && (
-        <SaveSummary
-          run={run}
-          headingRef={summaryHeading}
-          acknowledged={acknowledged}
-          onAcknowledge={(warning) => setDialog({ kind: "acknowledge", warning })}
-        />
-      )}
-
-      {dialogWarnings.length > 0 && (
-        <section aria-labelledby="reinstated-warnings-heading">
-          <h2 id="reinstated-warnings-heading">After reinstating a term</h2>
-          <WarningList
-            warnings={dialogWarnings}
+        {run !== null && (
+          <SaveSummary
+            run={run}
+            headingRef={summaryHeading}
             acknowledged={acknowledged}
             onAcknowledge={(warning) => setDialog({ kind: "acknowledge", warning })}
           />
-        </section>
-      )}
+        )}
+
+        {dialogWarnings.length > 0 && (
+          <section aria-labelledby="reinstated-warnings-heading">
+            <h2 id="reinstated-warnings-heading">After reinstating a term</h2>
+            <WarningList
+              warnings={dialogWarnings}
+              acknowledged={acknowledged}
+              onAcknowledge={(warning) => setDialog({ kind: "acknowledge", warning })}
+            />
+          </section>
+        )}
+      </DetailLayout>
 
       {dialog?.kind === "reinstate" && (
         <ReinstateSynonymDialog

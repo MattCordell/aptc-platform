@@ -370,15 +370,51 @@ describe("what the form shows", () => {
   });
 });
 
-describe("the compact layout (FR-36)", () => {
+describe("the layout (FR-36)", () => {
+  const ACTIVE_CODE = {
+    code: "26604007",
+    fsn: "Complete blood count (procedure)",
+    au_preferred_term: "Full blood count",
+    status: "active",
+    retirement_reason: null,
+    replaced_by_code: null,
+  };
+  const RETIRED_CODE = {
+    code: "1234567890123456789",
+    fsn: "Old blood count (procedure)",
+    au_preferred_term: null,
+    status: "retired",
+    retirement_reason: "Inactivated in the July release",
+    replaced_by_code: "26604007",
+  };
+  const WITH_HISTORY = {
+    ...ENTRY,
+    designations: [
+      { term: "FBC", status: "active", length: 3 },
+      { term: "Old note", status: "retired", length: 8 },
+    ],
+    bindings: [ACTIVE_CODE, RETIRED_CODE],
+  };
+  const HISTORY_ROUTES: Route[] = [
+    { ...READ_OK, body: WITH_HISTORY },
+    PROPERTIES_OK,
+    DISCIPLINE_OPTIONS_OK,
+    SPECIMEN_OPTIONS_OK,
+  ];
+
+  function sidebar() {
+    return within(form().getByRole("complementary", { name: "Entry details" }));
+  }
+
   it("lists the fields in reading order, which is their tab order", async () => {
-    stubApi(BASE_ROUTES);
+    stubApi(HISTORY_ROUTES);
     await renderLoaded();
 
     const order = [
       "RCPA Preferred",
       "Add synonyms",
-      "SNOMED CT code",
+      "Synonym 1",
+      "Replacement SNOMED CT code",
       "Discipline",
       "Usage guidance",
       "Changelog note",
@@ -392,16 +428,72 @@ describe("the compact layout (FR-36)", () => {
     }
   });
 
-  it("groups the registry's properties under one name for assistive technology", async () => {
-    stubApi(BASE_ROUTES);
+  it("names the terms and the properties as groups, each under a level 3 heading", async () => {
+    stubApi(HISTORY_ROUTES);
     await renderLoaded();
 
-    const group = form().getByRole("group", { name: "Properties" });
-    expect(form().getByRole("heading", { level: 3, name: "Properties" })).toBeVisible();
-    expect(within(group).getByLabelText("Usage guidance")).toBeVisible();
+    const terms = form().getByRole("group", { name: "Terms" });
+    expect(within(terms).getByLabelText("RCPA Preferred")).toBeVisible();
+    expect(within(terms).getByLabelText("Synonym 1")).toHaveValue("FBC");
+
+    const properties = form().getByRole("group", { name: "Properties" });
+    expect(within(properties).getByLabelText("Usage guidance")).toBeVisible();
     expect(
-      within(group).getByText(/Retired note \(deprecated, read only\)/),
+      within(properties).getByText(/Retired note \(deprecated, read only\)/),
     ).toBeVisible();
+
+    for (const name of ["Terms", "SNOMED CT code", "Properties"]) {
+      expect(form().getByRole("heading", { level: 3, name })).toBeVisible();
+    }
+  });
+
+  it("puts the entry's details and what it has retired in the sidebar", async () => {
+    stubApi(HISTORY_ROUTES);
+    await renderLoaded();
+
+    expect(sidebar().getByText(BUSINESS_KEY)).toBeVisible();
+    expect(sidebar().getByText("Entry status")).toBeVisible();
+    expect(sidebar().getByText("Last changed")).toBeVisible();
+    expect(sidebar().getByRole("button", { name: "Reinstate Old note" })).toBeVisible();
+    const retiredCodes = sidebar().getByRole("heading", {
+      name: "Retired SNOMED CT codes",
+    });
+    expect(retiredCodes).toBeVisible();
+    expect(sidebar().getByText("Old blood count (procedure)")).toBeVisible();
+    expect(sidebar().getByText("Inactivated in the July release")).toBeVisible();
+  });
+
+  it("keeps every field in the form and every retired item out of it", async () => {
+    stubApi(HISTORY_ROUTES);
+    await renderLoaded();
+
+    const saveForm = form().getByRole("button", { name: "Save" }).closest("form");
+    for (const label of [
+      "RCPA Preferred",
+      "Add synonyms",
+      "Synonym 1",
+      "Replacement SNOMED CT code",
+      "Usage guidance",
+      "Changelog note",
+    ]) {
+      expect(form().getByLabelText(label).closest("form")).toBe(saveForm);
+    }
+    const reinstate = sidebar().getByRole("button", { name: "Reinstate Old note" });
+    expect(reinstate.closest("form")).toBeNull();
+    expect(sidebar().getByText("Old blood count (procedure)").closest("form")).toBeNull();
+  });
+
+  it("sends nothing when Reinstate is pressed until its dialog is confirmed", async () => {
+    const calls = stubApi(HISTORY_ROUTES);
+    const user = userEvent.setup();
+    await renderLoaded();
+
+    await user.type(form().getByLabelText("Usage guidance"), "Fasting sample.");
+    await fillNote(user, "Added usage guidance");
+    await user.click(sidebar().getByRole("button", { name: "Reinstate Old note" }));
+
+    expect(await screen.findByRole("dialog")).toBeVisible();
+    expect(writes(calls)).toEqual([]);
   });
 
   it("keeps the whole form, Save and Cancel inside one compact card", async () => {

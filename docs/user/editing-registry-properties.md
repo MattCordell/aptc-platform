@@ -20,10 +20,11 @@ published yet can be edited the same way as published ones.
 
 ## What you see
 
-The edit form lists **Properties** below the SNOMED CT code and the synonyms, one control
-for each active property, in the order the registry gives them. Controls sit side by side
-when the window is wide enough, and stack in one column when it is not. Each shows what is
-currently recorded. A deprecated property that holds a value is shown as read-only text.
+The edit form lists **Properties** in its own section, below the terms and the SNOMED CT
+code. It has one control for each active property, in the order the registry gives them.
+Controls sit side by side when the window is wide enough, and stack in one column when it
+is not. Each shows what is currently recorded. A deprecated property that holds a value is
+shown as read-only text, with its label above it like the others.
 
 The controls are generated from the registry's own definitions, not hand-built for each
 property. If an administrator adds a property definition elsewhere in the platform, it
