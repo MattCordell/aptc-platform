@@ -157,17 +157,20 @@ def test_the_default_list_omits_every_closed_state_and_keeps_the_rest(api: ApiTe
 
 @pytest.mark.req("FR-28")
 @pytest.mark.integration
-def test_the_default_filter_excludes_closed_states_rather_than_listing_open_ones(
+def test_the_default_list_is_one_statement_that_excludes_closed_states_by_name(
     api: ApiTestApp, app_db: Connection, capture_statements: Any
 ) -> None:
     """A state added later must count as open without a change here, so the statement must say
     `NOT IN` over the closed states. The `state` check stops a test storing a state the code does
-    not name, so the shape of the SQL is the evidence."""
-    token, _ = _sign_in(api, Role.MEMBER)
+    not name, so the shape of the SQL is the evidence. One statement serves the page, joins
+    included, so a page costs the same however many rows it holds."""
+    token, member = _sign_in(api, Role.MEMBER)
+    rows = [_add(api, member), _add(api, member, kind=SubmissionKind.AMENDMENT), _add(api, member)]
 
     with capture_statements(app_db, lambda statement, _: "FROM submission" in statement) as seen:
-        _listed(api, token)
+        items = _listed(api, token)
 
+    assert len(_ids(items, *rows)) == len(rows)
     assert len(seen) == 1
     assert "submission.state NOT IN" in seen[0]
     assert "submission.state IN" not in seen[0].replace("NOT IN", "")
