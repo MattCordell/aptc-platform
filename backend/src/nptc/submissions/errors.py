@@ -127,14 +127,12 @@ class AmendmentRefusedError(ValueError):
 
 
 class SubmissionNotFoundError(LookupError):
-    """No submission has the identifier. The message names no identifier, so a log line says only
-    that a read missed."""
+    """No submission has the identifier. The message names none, so a log line never carries one."""
 
     http_status: ClassVar[int] = 404
 
 
 class MalformedSubmissionCursorError(ValueError):
-    """An `after` cursor this API did not issue. Falling back to the first page would make a client's
-    paging loop restart for ever."""
+    """An `after` cursor this API did not issue; the first page would restart a paging loop."""
 
     http_status: ClassVar[int] = 422
