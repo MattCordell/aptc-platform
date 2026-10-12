@@ -15,19 +15,25 @@ been published yet can be edited the same way as published ones.
 
 - **Identifier.** For example `NPTC-000006`. It is shown as text. The platform creates it
   and it never changes.
-- **Entry status and last changed.** Shown below the identifier, the status as a badge.
-  You cannot edit either here.
+- **Entry status and last changed.** Shown on one line beside the identifier, the status as
+  a badge. You cannot edit either here.
 - **RCPA Preferred.** The catalogue's own name for the test. Under the box you see its
   length in characters. The length updates as you type. It is counted the way the catalogue
   counts it, after the spacing is cleaned, so a trailing non-breaking space does not add to
   it. After you save, the form also shows the length the server counted.
 - **SNOMED CT code.** The entry's active code, and a search box to bind or replace it. See
   [Binding a SNOMED CT code](binding-a-code.md).
-- **RCPA Synonyms.** One box for each active synonym, a **Remove** button on each, and a box
-  to add more. See [Editing an entry's terms](editing-designations.md).
-- **Registry properties.** One control for every registry property, in the registry's own
-  order. See [Editing registry properties](editing-registry-properties.md).
+- **RCPA Synonyms.** A box to add more, with one box for each active synonym and a
+  **Remove** button on each below it. It sits beside RCPA Preferred when the window is wide
+  enough. See [Editing an entry's terms](editing-designations.md).
+- **Properties.** One control for every registry property, in the registry's own order,
+  side by side when the window is wide enough. See
+  [Editing registry properties](editing-registry-properties.md).
 - **Changelog note.** One note for the whole save.
+- **Save and Cancel.** **Cancel** leaves the form without saving anything, even if you have
+  typed changes. It takes you back to the entry's public page when the entry is active. For
+  a draft, deprecated or withdrawn entry, which has no public page, it takes you to
+  **Administration → Catalogue**.
 
 ## How the form saves
 

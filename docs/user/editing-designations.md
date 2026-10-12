@@ -18,8 +18,10 @@ note.
 - **RCPA Preferred** is the catalogue's own name for the test. Under the box you see its
   **length** in characters, updated as you type. The length is worked out by the catalogue.
   It is not stored and not typed, so it always matches the term it describes.
-- **Synonym 1, Synonym 2 and so on** are the entry's active synonyms, one box each.
-- **Add synonyms** is one box for new terms.
+- **Add synonyms** is one box for new terms. It comes first, and a line under it says what
+  Save will add.
+- **Synonym 1, Synonym 2 and so on** are the entry's active synonyms, one box each, listed
+  under the add box.
 - **Retired synonyms** lists terms the entry used to hold, each with a **Reinstate** button.
   This list appears only when the entry has some.
 
