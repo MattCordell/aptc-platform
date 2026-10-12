@@ -27,7 +27,7 @@ import {
   validateAmendment,
 } from "./form-state.ts";
 import type { SubmissionValues } from "./form-state.ts";
-import { FieldGrid } from "./field-grid.tsx";
+import { FieldGrid } from "../components/field-grid.tsx";
 import { OtherNamesField } from "./other-names-field.tsx";
 import { readRefusal } from "./refusals.ts";
 import { NotesField, OrganisationField, ReferenceLinkField } from "./support-fields.tsx";

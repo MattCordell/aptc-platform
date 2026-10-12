@@ -28,7 +28,7 @@ import { useAnnounce } from "../components/use-announce.ts";
 import { AmendmentForm } from "../submissions/amendment-form.tsx";
 import { SubmissionCodeField } from "../submissions/code-field.tsx";
 import { DuplicatePanel } from "../submissions/duplicate-panel.tsx";
-import { FieldGrid } from "../submissions/field-grid.tsx";
+import { FieldGrid } from "../components/field-grid.tsx";
 import {
   FIELD_IDS,
   createBody,
