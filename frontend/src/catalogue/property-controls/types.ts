@@ -1,7 +1,7 @@
 import type { KeyboardEvent, ReactNode } from "react";
 
 import type { components } from "../../api/schema.ts";
-import { isCodedValue, sameCodedValue } from "./coded-value.ts";
+import { isCodedValue, sameCodedValue } from "../coded-value.ts";
 
 export type ControlKind = components["schemas"]["ControlKind"];
 

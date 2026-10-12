@@ -1,4 +1,4 @@
-import { isCodedValue } from "./property-controls/coded-value.ts";
+import { isCodedValue } from "./coded-value.ts";
 
 const SNOMED_SYSTEM = "http://snomed.info/sct";
 

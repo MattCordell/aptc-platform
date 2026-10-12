@@ -7,7 +7,7 @@ import type { FormError } from "../../components/error-summary.tsx";
 import { LiveRegion } from "../../components/live-region.tsx";
 import { RemovableList } from "../../components/removable-list.tsx";
 import { useAnnounce } from "../../components/use-announce.ts";
-import { isCodedValue } from "./coded-value.ts";
+import { isCodedValue } from "../coded-value.ts";
 import { CONTROLS } from "./controls.ts";
 import {
   groupFieldId,
@@ -77,6 +77,11 @@ export function RepeatableValues(props: RepeatableValuesProps) {
   ) : (
     <OneValue {...props} />
   );
+}
+
+/** What a value reads as before the server has named it: a coded value's own recorded term. */
+function plainLabel(value: unknown): string {
+  return isCodedValue(value) ? codeLabel(value.code, value.display) : String(value);
 }
 
 function JustificationField({
@@ -171,9 +176,6 @@ function SeveralValues({
 }: RepeatableValuesProps) {
   const Control = CONTROLS[control];
   const { message, politeness, announce } = useAnnounce();
-  // A label the picker handed over at the moment of adding, shown until the
-  // server's own answer for that code arrives.
-  const [known, setKnown] = useState<ReadonlyMap<unknown, string>>(new Map());
   const container = useRef<HTMLDivElement>(null);
 
   const added = slots.filter((slot) => slot.draft !== true);
@@ -183,14 +185,8 @@ function SeveralValues({
     propertyKey,
     added.map((slot) => slot.value),
   );
-  const labelOf = (index: number): string => {
-    const { value } = added[index];
-    return (
-      resolved[index] ??
-      known.get(value) ??
-      (isCodedValue(value) ? codeLabel(value.code, value.display) : String(value))
-    );
-  };
+  const labelOf = (index: number): string =>
+    resolved[index] ?? plainLabel(added[index].value);
   const allowJustification = params.allowJustification === true;
   const errorFor = (fieldId: string) =>
     errors.find((error) => error.fieldId === fieldId)?.message;
@@ -219,14 +215,11 @@ function SeveralValues({
   }
 
   function commit(value: unknown, name?: string) {
-    const text = name ?? String(value);
+    const text = name ?? plainLabel(value);
     if (added.some((slot) => sameSlotValue(slot.value, value))) {
       announce(`${text} is already in the ${label} list.`);
       onChange(added);
       return;
-    }
-    if (name !== undefined) {
-      setKnown((previous) => new Map(previous).set(value, name));
     }
     onChange([...added, { id: newSlotId(), value, justification: null }]);
     announce(`Added ${text}. ${added.length + 1} in the ${label} list.`);

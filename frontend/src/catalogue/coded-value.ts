@@ -47,3 +47,11 @@ export function toCodedValue(item: {
 export function sameCodedValue(a: CodedValue, b: CodedValue): boolean {
   return a.system === b.system && a.code === b.code;
 }
+
+/** The item naming the same value as `value`: both `system` and `code` must match. */
+export function findCoded<T extends { system: string; code: string }>(
+  items: readonly T[] | undefined,
+  value: CodedValue,
+): T | undefined {
+  return items?.find((item) => sameCodedValue(item, value));
+}

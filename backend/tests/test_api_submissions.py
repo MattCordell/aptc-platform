@@ -872,7 +872,8 @@ def test_a_value_picked_from_the_options_is_accepted_for_both_binding_targets(
 
     assert response.status_code == 201, response.text
     stored = response.json()["property_values"]
-    assert stored["discipline"][0]["value"]["code"] == discipline["code"]
+    assert stored["discipline"][0]["value"] == _picked_value(discipline)
+    assert stored["discipline"][0]["value"]["system"] == discipline["system"]
     assert stored["specimen"][0]["value"] == {
         "system": _SNOMED,
         "code": _SERUM,

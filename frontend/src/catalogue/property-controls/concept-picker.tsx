@@ -10,8 +10,8 @@ import { Button } from "../../components/button.tsx";
 import { Field } from "../../components/field.tsx";
 import { INPUT_CLASSES } from "../../components/input-classes.ts";
 import { useDebouncedValue } from "../use-debounced-value.ts";
-import { codeOf, isCodedValue, toCodedValue } from "./coded-value.ts";
-import type { CodedValue } from "./coded-value.ts";
+import { findCoded, isCodedValue, toCodedValue } from "../coded-value.ts";
+import type { CodedValue } from "../coded-value.ts";
 import type { ControlProps } from "./types.ts";
 import { codeLabel } from "./value-labels.ts";
 
@@ -53,8 +53,7 @@ export function ConceptPickerControl({
   propertyKey,
 }: ControlProps) {
   const entry = onCommit !== undefined;
-  const code = entry ? null : codeOf(value);
-  const storedDisplay = !entry && isCodedValue(value) ? value.display : undefined;
+  const chosen = !entry && isCodedValue(value) ? value : null;
   const [text, setText] = useState("");
   const [editing, setEditing] = useState(false);
   const [open, setOpen] = useState(false);
@@ -71,7 +70,7 @@ export function ConceptPickerControl({
   const serverQuery = wholeList ? "" : debounced;
   const narrowed = usePropertyValueOptions(propertyKey, serverQuery);
   const resolved = usePropertyValueResolveQueries([
-    { key: propertyKey, codes: code === null ? [] : [code] },
+    { key: propertyKey, codes: chosen === null ? [] : [chosen.code] },
   ])[0];
 
   const settled = wholeList || typedText === "" || debounced === typedText;
@@ -115,13 +114,13 @@ export function ConceptPickerControl({
     : undefined;
 
   const chosenLabel =
-    code === null
+    chosen === null
       ? ""
       : codeLabel(
-          code,
-          resolved.data?.items.find((item) => item.code === code)?.display ??
-            everything.data?.items.find((item) => item.code === code)?.display ??
-            storedDisplay,
+          chosen.code,
+          findCoded(resolved.data?.items, chosen)?.display ??
+            findCoded(everything.data?.items, chosen)?.display ??
+            chosen.display,
         );
   const inputValue = searching ? text : chosenLabel;
 
@@ -232,7 +231,7 @@ export function ConceptPickerControl({
               </Combobox.Portal>
             </Combobox.Root>
           </div>
-          {code === null ? null : (
+          {chosen === null ? null : (
             <Button
               type="button"
               variant="secondary"

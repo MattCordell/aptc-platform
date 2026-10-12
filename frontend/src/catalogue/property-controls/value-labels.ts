@@ -1,5 +1,5 @@
 import { usePropertyValueResolveQueries } from "../../api/queries.ts";
-import { codeOf } from "./coded-value.ts";
+import { findCoded, isCodedValue } from "../coded-value.ts";
 import type { ControlKind } from "./types.ts";
 
 /** How a coded value reads wherever it is shown: the code, then its name when one is known. */
@@ -27,7 +27,7 @@ function useTextLabels(_propertyKey: string, values: readonly unknown[]) {
 }
 
 /**
- * Resolves by code, so a value the property's bound list no longer offers still
+ * Resolves by code, then keeps the answer that names the same system as the value, so a value the property's bound list no longer offers still
  * gets its name when the server knows one, and reads as its bare code when it
  * does not.
  *
@@ -37,21 +37,23 @@ function useTextLabels(_propertyKey: string, values: readonly unknown[]) {
  * others cached and asks only for the code that is new.
  */
 function useCodeLabels(propertyKey: string, values: readonly unknown[]) {
-  const codes = values.flatMap((value) => codeOf(value) ?? []);
+  const coded = values.map((value) => (isCodedValue(value) ? value : null));
   const resolved = usePropertyValueResolveQueries(
-    codes.map((code) => ({ key: propertyKey, codes: [code] })),
+    coded.map((value) => ({
+      key: propertyKey,
+      codes: value === null ? [] : [value.code],
+    })),
   );
-  const byCode = new Map(codes.map((code, index) => [code, resolved[index]]));
-  return values.map((value) => {
-    const code = codeOf(value);
-    if (code === null) {
+  return values.map((value, index) => {
+    const own = coded[index];
+    if (own === null) {
       return value === null || value === undefined ? "" : String(value);
     }
-    const query = byCode.get(code);
+    const query = resolved[index];
     if (query?.data === undefined) {
-      return query?.isError ? code : null;
+      return query?.isError ? own.code : null;
     }
-    return codeLabel(code, query.data.items.find((item) => item.code === code)?.display);
+    return codeLabel(own.code, findCoded(query.data.items, own)?.display);
   });
 }
 

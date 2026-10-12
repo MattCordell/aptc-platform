@@ -766,6 +766,32 @@ describe("RepeatableValues (FR-23, FR-52)", () => {
       expect(latest.map((entry) => entry.value)).toEqual([PLASMA]);
     });
 
+    it("lists the same code from two systems as two values, each with its own name", async () => {
+      const LOCAL = "https://nptc.example/code-system/subgroup";
+      stubValues(() => ({
+        body: {
+          items: [
+            { system: SNOMED, code: "1", display: "From SNOMED" },
+            { system: LOCAL, code: "1", display: "From local" },
+          ],
+          total: 2,
+        },
+      }));
+      const user = userEvent.setup();
+      render(withProviders(<Harness control="concept_picker" />));
+
+      for (const name of [/From SNOMED/, /From local/]) {
+        await user.click(box());
+        await user.click(await screen.findByRole("option", { name }));
+      }
+
+      expect(items()).toHaveLength(2);
+      await waitFor(() => {
+        expect(items()[0]).toHaveTextContent("1 — From SNOMED");
+        expect(items()[1]).toHaveTextContent("1 — From local");
+      });
+    });
+
     it("ignores a value already in the list, and says so", async () => {
       stubValues(() => ({ body: SHORT_LIST }));
       const user = userEvent.setup();

@@ -34,6 +34,7 @@ write path it is built on.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import ClassVar
 
@@ -59,6 +60,7 @@ __all__ = [
     "InvalidLocalCodeSystemKeyError",
     "InvalidMatchStrengthError",
     "LocalCodeAlreadyDeprecatedError",
+    "LocalCodeEntry",
     "LocalCodeSystemAlreadyDeprecatedError",
     "create_local_code",
     "create_local_code_system",
@@ -66,7 +68,6 @@ __all__ = [
     "deprecate_local_code",
     "deprecate_local_code_system",
     "find_local_code",
-    "find_local_code_system_uri",
     "find_local_code_with_system_status",
     "find_local_codes",
     "list_local_codes",
@@ -105,6 +106,16 @@ class InvalidMatchStrengthError(ValueError):
     added to the session."""
 
     http_status: ClassVar[int] = 422
+
+
+@dataclass(frozen=True, slots=True)
+class LocalCodeEntry:
+    """A code with its owning system's `uri`: what a coded value needs to name the system it
+    belongs to (FR-52)."""
+
+    code: str
+    display: str
+    system_uri: str
 
 
 def _require_registry_manage(actor: Principal) -> None:
@@ -358,17 +369,9 @@ def find_local_code_with_system_status(
     return None if row is None else (row[0], row[1])
 
 
-def find_local_code_system_uri(session: Session, *, system_key: str) -> str | None:
-    """The `uri` of the system named `system_key`, whatever its `status`: a code
-    recorded against a retired system still names that system's URI."""
-    return session.execute(
-        select(LocalCodeSystem.uri).where(LocalCodeSystem.key == system_key)
-    ).scalar_one_or_none()
-
-
 def find_local_codes(
     session: Session, *, system_key: str, codes: Sequence[str]
-) -> Sequence[LocalCode]:
+) -> Sequence[LocalCodeEntry]:
     """Batch sibling of `find_local_code_with_system_status`: the same
     `local_code`/`local_code_system` join, with one `SELECT ... code IN (...)`
     for a set of codes instead of a round trip per code.
@@ -382,15 +385,14 @@ def find_local_codes(
     caller that needs `codes`' order, or the unmatched codes, builds a
     `{row.code: row}` map from the result.
     """
-    return (
-        session.execute(
-            select(LocalCode)
-            .join(LocalCodeSystem, LocalCode.system_id == LocalCodeSystem.id)
-            .where(LocalCodeSystem.key == system_key, LocalCode.code.in_(codes))
-        )
-        .scalars()
-        .all()
-    )
+    rows = session.execute(
+        select(LocalCode.code, LocalCode.display, LocalCodeSystem.uri)
+        .join(LocalCodeSystem, LocalCode.system_id == LocalCodeSystem.id)
+        .where(LocalCodeSystem.key == system_key, LocalCode.code.in_(codes))
+    ).all()
+    return [
+        LocalCodeEntry(code=code, display=display, system_uri=uri) for code, display, uri in rows
+    ]
 
 
 def _escape_like(text: str) -> str:
@@ -407,7 +409,7 @@ def list_local_codes(
     filter: str | None = None,
     offset: int = 0,
     limit: int | None = None,
-) -> tuple[Sequence[LocalCode], int]:
+) -> tuple[Sequence[LocalCodeEntry], int]:
     """Every active code in the local code system named `system_key`: the
     FR-90 read path behind a `binding_target = 'local_code_system'`
     property's values route.
@@ -446,18 +448,17 @@ def list_local_codes(
         .join(LocalCodeSystem, LocalCode.system_id == LocalCodeSystem.id)
         .where(*where_clauses)
     ).scalar_one()
-    page = (
-        session.execute(
-            select(LocalCode)
-            .join(LocalCodeSystem, LocalCode.system_id == LocalCodeSystem.id)
-            .where(*where_clauses)
-            .order_by(LocalCode.display_order, LocalCode.code)
-            .offset(offset)
-            .limit(limit)
-        )
-        .scalars()
-        .all()
-    )
+    rows = session.execute(
+        select(LocalCode.code, LocalCode.display, LocalCodeSystem.uri)
+        .join(LocalCodeSystem, LocalCode.system_id == LocalCodeSystem.id)
+        .where(*where_clauses)
+        .order_by(LocalCode.display_order, LocalCode.code)
+        .offset(offset)
+        .limit(limit)
+    ).all()
+    page = [
+        LocalCodeEntry(code=code, display=display, system_uri=uri) for code, display, uri in rows
+    ]
     return page, total
 
 

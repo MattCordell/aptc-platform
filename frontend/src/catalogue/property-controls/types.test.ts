@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { slotValue, submittedSlotIndexes } from "./types.ts";
+import { sameSlotValue, slotValue, submittedSlotIndexes } from "./types.ts";
 import type { PropertyValueSlot } from "./types.ts";
 
 function added(id: string, value: unknown): PropertyValueSlot {
@@ -32,6 +32,53 @@ describe("submittedSlotIndexes (FR-23)", () => {
 
   it("keeps an added value that happens to match another added value", () => {
     expect(submittedSlotIndexes([added("1", "a"), added("2", "a")])).toEqual([0, 1]);
+  });
+});
+
+describe("sameSlotValue (FR-23, FR-52)", () => {
+  const SNOMED = "http://snomed.info/sct";
+  const LOCAL = "https://nptc.example/code-system/subgroup";
+
+  it("matches coded values on system and code, whatever term each carries", () => {
+    expect(
+      sameSlotValue(
+        { system: SNOMED, code: "1", display: "Old term" },
+        { system: SNOMED, code: "1", display: "New term" },
+      ),
+    ).toBe(true);
+  });
+
+  it("treats the same code under two systems as two values", () => {
+    expect(
+      sameSlotValue({ system: SNOMED, code: "1" }, { system: LOCAL, code: "1" }),
+    ).toBe(false);
+  });
+
+  it("compares anything else with ===", () => {
+    expect(sameSlotValue("a", "a")).toBe(true);
+    expect(sameSlotValue("a", { system: SNOMED, code: "a" })).toBe(false);
+  });
+});
+
+describe("submittedSlotIndexes with coded values (FR-23)", () => {
+  const SNOMED = "http://snomed.info/sct";
+
+  it("drops a draft that repeats an added coded value, though it is another object", () => {
+    expect(
+      submittedSlotIndexes([
+        added("1", { system: SNOMED, code: "1", display: "A" }),
+        draft({ system: SNOMED, code: "1" }),
+      ]),
+    ).toEqual([0]);
+  });
+
+  it("keeps a draft with the same code under another system", () => {
+    expect(
+      submittedSlotIndexes([
+        added("1", { system: SNOMED, code: "1" }),
+        draft({ system: "https://nptc.example/code-system/subgroup", code: "1" }),
+      ]),
+    ).toEqual([0, 1]);
   });
 });
 
