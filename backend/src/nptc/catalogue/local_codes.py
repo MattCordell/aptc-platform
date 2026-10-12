@@ -66,6 +66,7 @@ __all__ = [
     "deprecate_local_code",
     "deprecate_local_code_system",
     "find_local_code",
+    "find_local_code_system_uri",
     "find_local_code_with_system_status",
     "find_local_codes",
     "list_local_codes",
@@ -355,6 +356,14 @@ def find_local_code_with_system_status(
         .where(LocalCodeSystem.key == system_key, LocalCode.code == code)
     ).one_or_none()
     return None if row is None else (row[0], row[1])
+
+
+def find_local_code_system_uri(session: Session, *, system_key: str) -> str | None:
+    """The `uri` of the system named `system_key`, whatever its `status`: a code
+    recorded against a retired system still names that system's URI."""
+    return session.execute(
+        select(LocalCodeSystem.uri).where(LocalCodeSystem.key == system_key)
+    ).scalar_one_or_none()
 
 
 def find_local_codes(

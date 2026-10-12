@@ -10,6 +10,8 @@ import { Button } from "../../components/button.tsx";
 import { Field } from "../../components/field.tsx";
 import { INPUT_CLASSES } from "../../components/input-classes.ts";
 import { useDebouncedValue } from "../use-debounced-value.ts";
+import { codeOf, isCodedValue, toCodedValue } from "./coded-value.ts";
+import type { CodedValue } from "./coded-value.ts";
 import type { ControlProps } from "./types.ts";
 import { codeLabel } from "./value-labels.ts";
 
@@ -34,7 +36,7 @@ const ITEM_CLASSES =
   "flex min-h-8 cursor-pointer select-none items-center gap-2 px-2 py-1 text-sm text-[var(--color-text)] data-[highlighted]:bg-[var(--color-accent)] data-[highlighted]:text-[var(--color-accent-contrast)]";
 
 interface Option {
-  value: string;
+  value: CodedValue;
   label: string;
 }
 
@@ -51,7 +53,8 @@ export function ConceptPickerControl({
   propertyKey,
 }: ControlProps) {
   const entry = onCommit !== undefined;
-  const code = !entry && typeof value === "string" && value !== "" ? value : null;
+  const code = entry ? null : codeOf(value);
+  const storedDisplay = !entry && isCodedValue(value) ? value.display : undefined;
   const [text, setText] = useState("");
   const [editing, setEditing] = useState(false);
   const [open, setOpen] = useState(false);
@@ -78,7 +81,7 @@ export function ConceptPickerControl({
     settled && page.data !== undefined
       ? page.data.items
           .map((item) => ({
-            value: item.code,
+            value: toCodedValue(item),
             label: codeLabel(item.code, item.display),
           }))
           .filter((option) => !wholeList || option.label.toLowerCase().includes(needle))
@@ -117,7 +120,8 @@ export function ConceptPickerControl({
       : codeLabel(
           code,
           resolved.data?.items.find((item) => item.code === code)?.display ??
-            everything.data?.items.find((item) => item.code === code)?.display,
+            everything.data?.items.find((item) => item.code === code)?.display ??
+            storedDisplay,
         );
   const inputValue = searching ? text : chosenLabel;
 
@@ -215,7 +219,7 @@ export function ConceptPickerControl({
                     <Combobox.List>
                       {(option: Option) => (
                         <Combobox.Item
-                          key={option.value}
+                          key={`${option.value.system}|${option.value.code}`}
                           value={option}
                           className={ITEM_CLASSES}
                         >

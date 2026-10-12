@@ -1,4 +1,5 @@
 import { usePropertyValueResolveQueries } from "../../api/queries.ts";
+import { codeOf } from "./coded-value.ts";
 import type { ControlKind } from "./types.ts";
 
 /** How a coded value reads wherever it is shown: the code, then its name when one is known. */
@@ -36,23 +37,21 @@ function useTextLabels(_propertyKey: string, values: readonly unknown[]) {
  * others cached and asks only for the code that is new.
  */
 function useCodeLabels(propertyKey: string, values: readonly unknown[]) {
-  const codes = values.filter((value): value is string => typeof value === "string");
+  const codes = values.flatMap((value) => codeOf(value) ?? []);
   const resolved = usePropertyValueResolveQueries(
     codes.map((code) => ({ key: propertyKey, codes: [code] })),
   );
   const byCode = new Map(codes.map((code, index) => [code, resolved[index]]));
   return values.map((value) => {
-    if (typeof value !== "string") {
+    const code = codeOf(value);
+    if (code === null) {
       return value === null || value === undefined ? "" : String(value);
     }
-    const query = byCode.get(value);
+    const query = byCode.get(code);
     if (query?.data === undefined) {
-      return query?.isError ? value : null;
+      return query?.isError ? code : null;
     }
-    return codeLabel(
-      value,
-      query.data.items.find((item) => item.code === value)?.display,
-    );
+    return codeLabel(code, query.data.items.find((item) => item.code === code)?.display);
   });
 }
 

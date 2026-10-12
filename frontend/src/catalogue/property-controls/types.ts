@@ -1,6 +1,7 @@
 import type { KeyboardEvent, ReactNode } from "react";
 
 import type { components } from "../../api/schema.ts";
+import { isCodedValue, sameCodedValue } from "./coded-value.ts";
 
 export type ControlKind = components["schemas"]["ControlKind"];
 
@@ -116,6 +117,15 @@ export function slotValue(slot: PropertyValueSlot): unknown {
 }
 
 /**
+ * Whether two slot values are the same value. Coded values match on `system` and
+ * `code` alone, so a recorded term that has since been reworded does not make the
+ * same code count as new.
+ */
+export function sameSlotValue(a: unknown, b: unknown): boolean {
+  return isCodedValue(a) && isCodedValue(b) ? sameCodedValue(a, b) : a === b;
+}
+
+/**
  * The render index of each slot a save sends, which is what the server's
  * `ordinal` counts: every slot with a value, except a draft that repeats a
  * value already added. Dropping the repeat sends what `commit` would have
@@ -126,7 +136,7 @@ export function submittedSlotIndexes(slots: readonly PropertyValueSlot[]): numbe
     const value = slotValue(slot);
     const repeat =
       slot.draft === true &&
-      slots.some((other) => other.draft !== true && other.value === value);
+      slots.some((other) => other.draft !== true && sameSlotValue(other.value, value));
     if (!isEmptySlotValue(value) && !repeat) {
       indexes.push(index);
     }

@@ -119,8 +119,9 @@ describe.each(["text", "number", "uri"] as ControlKind[])(
   },
 );
 
-const PLASMA = { code: "119361006", display: "Plasma specimen" };
-const SERUM = { code: "119364003", display: "Serum specimen" };
+const SNOMED = "http://snomed.info/sct";
+const PLASMA = { system: SNOMED, code: "119361006", display: "Plasma specimen" };
+const SERUM = { system: SNOMED, code: "119364003", display: "Serum specimen" };
 const SHORT_LIST = { items: [PLASMA, SERUM], total: 2 };
 
 /**
@@ -292,14 +293,14 @@ describe("CONTROLS.concept_picker (FR-23, FR-52)", () => {
       await user.click(box());
       await user.click(await screen.findByRole("option", { name: /Plasma specimen/ }));
 
-      expect(onChange).toHaveBeenCalledWith("119361006");
+      expect(onChange).toHaveBeenCalledWith(PLASMA);
     });
 
     it("shows the chosen value with its name, and clears it on request", async () => {
       stubValues(() => ({ body: SHORT_LIST }));
       const user = userEvent.setup();
       const onChange = vi.fn();
-      renderPicker({ value: "119361006", onChange });
+      renderPicker({ value: PLASMA, onChange });
 
       await waitFor(() => expect(box()).toHaveValue("119361006 — Plasma specimen"));
       await user.click(screen.getByRole("button", { name: "Clear Specimen" }));
@@ -311,12 +312,26 @@ describe("CONTROLS.concept_picker (FR-23, FR-52)", () => {
       stubValues(() => ({ body: SHORT_LIST }));
       const user = userEvent.setup();
       const onChange = vi.fn();
-      renderPicker({ value: "122554006", onChange });
+      renderPicker({ value: { system: SNOMED, code: "122554006" }, onChange });
 
       await waitFor(() => expect(box()).toHaveValue("122554006"));
       await user.click(screen.getByRole("button", { name: "Clear Specimen" }));
 
       expect(onChange).toHaveBeenCalledWith(null);
+    });
+
+    it("leaves display out of the picked value when the server named none", async () => {
+      stubValues(() => ({
+        body: { items: [{ system: SNOMED, code: "119361006", display: null }], total: 1 },
+      }));
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      renderPicker({ onChange });
+
+      await user.click(box());
+      await user.click(await screen.findByRole("option", { name: "119361006" }));
+
+      expect(onChange).toHaveBeenCalledWith({ system: SNOMED, code: "119361006" });
     });
 
     it("offers no Clear button when nothing is chosen", () => {
@@ -337,7 +352,7 @@ describe("CONTROLS.concept_picker (FR-23, FR-52)", () => {
       await user.click(box());
       await user.click(await screen.findByRole("option", { name: /Plasma specimen/ }));
 
-      expect(onCommit).toHaveBeenCalledWith("119361006", "119361006 — Plasma specimen");
+      expect(onCommit).toHaveBeenCalledWith(PLASMA, "119361006 — Plasma specimen");
       expect(box()).toHaveValue("");
     });
 
@@ -369,7 +384,7 @@ describe("CONTROLS.concept_picker (FR-23, FR-52)", () => {
       await screen.findByRole("option", { name: /Plasma specimen/ });
       await user.keyboard("{Enter}");
 
-      expect(onCommit).toHaveBeenCalledWith("119361006", "119361006 — Plasma specimen");
+      expect(onCommit).toHaveBeenCalledWith(PLASMA, "119361006 — Plasma specimen");
       expect(onSubmit).not.toHaveBeenCalled();
     });
   });
@@ -394,7 +409,7 @@ describe("CONTROLS.concept_picker (FR-23, FR-52)", () => {
       await user.keyboard("{ArrowDown}{ArrowDown}{Enter}");
 
       expect(chosen).toHaveBeenCalledTimes(1);
-      expect(chosen.mock.calls[0][0]).toBe("119364003");
+      expect(chosen.mock.calls[0][0]).toEqual(SERUM);
     });
 
     it("closes the list on Escape without choosing anything", async () => {
@@ -730,6 +745,27 @@ describe("RepeatableValues (FR-23, FR-52)", () => {
       ).not.toBeInTheDocument();
     });
 
+    it("sends the picked value as an object with system, code and display", async () => {
+      stubValues(() => ({ body: SHORT_LIST }));
+      const user = userEvent.setup();
+      let latest: PropertyValueSlot[] = [];
+      render(
+        withProviders(
+          <Harness
+            control="concept_picker"
+            onSlots={(next) => {
+              latest = next;
+            }}
+          />,
+        ),
+      );
+
+      await user.click(box());
+      await user.click(await screen.findByRole("option", { name: /Plasma specimen/ }));
+
+      expect(latest.map((entry) => entry.value)).toEqual([PLASMA]);
+    });
+
     it("ignores a value already in the list, and says so", async () => {
       stubValues(() => ({ body: SHORT_LIST }));
       const user = userEvent.setup();
@@ -755,9 +791,7 @@ describe("RepeatableValues (FR-23, FR-52)", () => {
       );
       const user = userEvent.setup();
       render(
-        withProviders(
-          <Harness control="concept_picker" initial={[slot("1", "119361006")]} />,
-        ),
+        withProviders(<Harness control="concept_picker" initial={[slot("1", PLASMA)]} />),
       );
       await waitFor(() => expect(items()[0]).toHaveTextContent("Plasma specimen"));
 
@@ -779,7 +813,7 @@ describe("RepeatableValues (FR-23, FR-52)", () => {
         withProviders(
           <Harness
             control="concept_picker"
-            initial={[slot("1", "119361006"), slot("2", "119364003")]}
+            initial={[slot("1", PLASMA), slot("2", SERUM)]}
           />,
         ),
       );
@@ -804,7 +838,10 @@ describe("RepeatableValues (FR-23, FR-52)", () => {
       const user = userEvent.setup();
       render(
         withProviders(
-          <Harness control="concept_picker" initial={[slot("1", "122554006")]} />,
+          <Harness
+            control="concept_picker"
+            initial={[slot("1", { system: SNOMED, code: "122554006" })]}
+          />,
         ),
       );
 
@@ -819,7 +856,10 @@ describe("RepeatableValues (FR-23, FR-52)", () => {
       const user = userEvent.setup();
       render(
         withProviders(
-          <Harness control="concept_picker" initial={[slot("1", "119361006")]} />,
+          <Harness
+            control="concept_picker"
+            initial={[slot("1", { system: SNOMED, code: "119361006" })]}
+          />,
         ),
       );
 
@@ -835,7 +875,7 @@ describe("RepeatableValues (FR-23, FR-52)", () => {
         withProviders(
           <Harness
             control="concept_picker"
-            initial={[slot("1", "119361006"), slot("2", "119364003")]}
+            initial={[slot("1", PLASMA), slot("2", SERUM)]}
             errors={[{ fieldId: "specimen-1", message: "Not a recognised code." }]}
           />,
         ),
@@ -868,7 +908,7 @@ describe("RepeatableValues (FR-23, FR-52)", () => {
         withProviders(
           <Harness
             control="concept_picker"
-            initial={[slot("1", "119361006"), slot("2", "119364003")]}
+            initial={[slot("1", PLASMA), slot("2", SERUM)]}
             params={{ allowJustification: true }}
             onSlots={(next) => {
               latest = next;
@@ -895,7 +935,7 @@ describe("RepeatableValues (FR-23, FR-52)", () => {
         withProviders(
           <Harness
             control="concept_picker"
-            initial={[slot("1", "119361006"), slot("2", "119364003")]}
+            initial={[slot("1", PLASMA), slot("2", SERUM)]}
           />,
         ),
       );
@@ -914,7 +954,7 @@ describe("RepeatableValues (FR-23, FR-52)", () => {
         withProviders(
           <Harness
             control="concept_picker"
-            initial={[slot("1", "119361006"), slot("2", "119364003")]}
+            initial={[slot("1", PLASMA), slot("2", SERUM)]}
             params={{ allowJustification: true }}
           />,
         ),

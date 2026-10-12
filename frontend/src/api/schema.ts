@@ -2414,6 +2414,8 @@ export interface components {
          *     names `binding_target`.
          */
         PropertyValueItem: {
+            /** System */
+            system: string;
             /** Code */
             code: string;
             /** Display */

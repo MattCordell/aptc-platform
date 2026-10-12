@@ -7,10 +7,17 @@ import type { FormError } from "../../components/error-summary.tsx";
 import { LiveRegion } from "../../components/live-region.tsx";
 import { RemovableList } from "../../components/removable-list.tsx";
 import { useAnnounce } from "../../components/use-announce.ts";
+import { isCodedValue } from "./coded-value.ts";
 import { CONTROLS } from "./controls.ts";
-import { groupFieldId, isEmptySlotValue, newSlotId, slotFieldId } from "./types.ts";
+import {
+  groupFieldId,
+  isEmptySlotValue,
+  newSlotId,
+  sameSlotValue,
+  slotFieldId,
+} from "./types.ts";
 import type { ControlKind, PropertyValueSlot } from "./types.ts";
-import { VALUE_LABELS } from "./value-labels.ts";
+import { VALUE_LABELS, codeLabel } from "./value-labels.ts";
 
 type PropertyCardinality = components["schemas"]["PropertyCardinality"];
 
@@ -176,8 +183,14 @@ function SeveralValues({
     propertyKey,
     added.map((slot) => slot.value),
   );
-  const labelOf = (index: number): string =>
-    resolved[index] ?? known.get(added[index].value) ?? String(added[index].value);
+  const labelOf = (index: number): string => {
+    const { value } = added[index];
+    return (
+      resolved[index] ??
+      known.get(value) ??
+      (isCodedValue(value) ? codeLabel(value.code, value.display) : String(value))
+    );
+  };
   const allowJustification = params.allowJustification === true;
   const errorFor = (fieldId: string) =>
     errors.find((error) => error.fieldId === fieldId)?.message;
@@ -207,7 +220,7 @@ function SeveralValues({
 
   function commit(value: unknown, name?: string) {
     const text = name ?? String(value);
-    if (added.some((slot) => slot.value === value)) {
+    if (added.some((slot) => sameSlotValue(slot.value, value))) {
       announce(`${text} is already in the ${label} list.`);
       onChange(added);
       return;

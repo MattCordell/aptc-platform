@@ -1,3 +1,5 @@
+import { isCodedValue } from "./property-controls/coded-value.ts";
+
 const SNOMED_SYSTEM = "http://snomed.info/sct";
 
 /**
@@ -16,26 +18,6 @@ export function formatPropertyValue(value: unknown): string {
     return String(value);
   }
   return JSON.stringify(value);
-}
-
-/** What the API serves for a coded value: the code, the system it belongs to,
- * and the term recorded with it. */
-interface CodedValue {
-  code: string;
-  system: string;
-  display: string | null;
-}
-
-function isCodedValue(value: unknown): value is CodedValue {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-  const { code, system, display } = value as Record<string, unknown>;
-  return (
-    typeof code === "string" &&
-    typeof system === "string" &&
-    (display === null || display === undefined || typeof display === "string")
-  );
 }
 
 export interface PropertyValueView {

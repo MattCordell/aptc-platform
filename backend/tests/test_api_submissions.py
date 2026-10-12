@@ -40,9 +40,12 @@ from nptc.submissions.reference_check import (
 )
 from nptc_shared.terminology import (
     AU_LANGUAGE_TAG,
+    SNOMED_CT_AU,
     SNOMED_SYSTEM,
     ConceptProperty,
     Designation,
+    ExpandedConcept,
+    Expansion,
     LookupResult,
     Operation,
     StubConcept,
@@ -825,6 +828,69 @@ def test_a_coded_property_is_checked_against_its_value_set_by_the_registry(
     assert response.json()["property_values"] == {
         "specimen": [{"value": {"system": _SNOMED, "code": _SERUM}, "justification": None}]
     }
+
+
+def _picked_value(item: dict[str, Any]) -> dict[str, Any]:
+    """The value the form's concept picker builds from one option, so a change to either side's
+    shape fails here instead of in the browser."""
+    picked = {"system": item["system"], "code": item["code"]}
+    if item["display"] is not None:
+        picked["display"] = item["display"]
+    return picked
+
+
+@pytest.mark.req("FR-23")
+@pytest.mark.req("FR-52")
+@pytest.mark.integration
+def test_a_value_picked_from_the_options_is_accepted_for_both_binding_targets(
+    api: ApiTestApp,
+) -> None:
+    """The form sends what it picked from `/values`; the server must accept that exact shape for
+    a local code system property and for a value set property."""
+    _seed_specimen_validation(api, _SERUM)
+    api.terminology.seed_expansion(
+        "<<123038009",
+        Expansion(
+            concepts=(ExpandedConcept(code=_SERUM, system=_SNOMED, display="Serum specimen"),),
+            total=1,
+            offset=0,
+        ),
+        edition=SNOMED_CT_AU,
+    )
+    token, _ = _token(api, Role.PROVISIONAL)
+    discipline = api.get("/registry/properties/discipline/values", token=token).json()["items"][0]
+    specimen = api.get("/registry/properties/specimen/values", token=token).json()["items"][0]
+
+    response = _post(
+        api,
+        token,
+        property_values={
+            "discipline": [{"value": _picked_value(discipline)}],
+            "specimen": [{"value": _picked_value(specimen)}],
+        },
+    )
+
+    assert response.status_code == 201, response.text
+    stored = response.json()["property_values"]
+    assert stored["discipline"][0]["value"]["code"] == discipline["code"]
+    assert stored["specimen"][0]["value"] == {
+        "system": _SNOMED,
+        "code": _SERUM,
+        "display": "Serum specimen",
+    }
+
+
+@pytest.mark.req("FR-23")
+@pytest.mark.integration
+def test_a_bare_code_for_a_coded_property_is_422(api: ApiTestApp) -> None:
+    seed_system_properties(api.session)
+    api.session.flush()
+    token, user = _token(api, Role.PROVISIONAL)
+
+    response = _post(api, token, property_values={"discipline": [{"value": "chemical_pathology"}]})
+
+    assert response.status_code == 422, response.text
+    assert _submission_count(api, user) == 0
 
 
 @pytest.mark.req("FR-89")

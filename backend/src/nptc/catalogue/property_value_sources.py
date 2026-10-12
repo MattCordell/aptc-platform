@@ -45,7 +45,11 @@ from typing import ClassVar
 
 from sqlalchemy.orm import Session
 
-from nptc.catalogue.local_codes import find_local_codes, list_local_codes
+from nptc.catalogue.local_codes import (
+    find_local_code_system_uri,
+    find_local_codes,
+    list_local_codes,
+)
 from nptc.db.definitions import load_definition
 from nptc.db.property_specs import spec_for
 from nptc.terminology.concepts import classify_terminology_error
@@ -113,6 +117,7 @@ class ValueItem:
     """One offerable value - identical in shape whichever `binding_target`
     served it."""
 
+    system: str
     code: str
     display: str | None
 
@@ -121,6 +126,12 @@ class ValueItem:
 class ValuePage:
     items: tuple[ValueItem, ...]
     total: int
+
+
+def _known(system_uri: str | None) -> str:
+    # A code row exists only under a system row, so a code is never found without its URI.
+    assert system_uri is not None
+    return system_uri
 
 
 def _value_set_page(
@@ -173,7 +184,8 @@ def _value_set_page(
         raise classify_terminology_error(exc) from exc
 
     items = tuple(
-        ValueItem(code=concept.code, display=concept.display) for concept in expansion.concepts
+        ValueItem(system=concept.system, code=concept.code, display=concept.display)
+        for concept in expansion.concepts
     )
     # `expansion.total` is `None` when the server reports none.
     # `offset + len(items)` is the honest floor; `len(items)` alone would read
@@ -193,7 +205,11 @@ def _local_code_system_page(
     codes, total = list_local_codes(
         session, system_key=system_key, filter=filter, offset=offset, limit=count
     )
-    items = tuple(ValueItem(code=code.code, display=code.display) for code in codes)
+    # A system with no active code has nothing to offer, so no URI is needed.
+    system_uri = find_local_code_system_uri(session, system_key=system_key) if codes else None
+    items = tuple(
+        ValueItem(system=_known(system_uri), code=code.code, display=code.display) for code in codes
+    )
     return ValuePage(items=items, total=total)
 
 
@@ -263,8 +279,9 @@ def _resolve_local_code_system_values(
     # side resolved.
     rows = find_local_codes(session, system_key=system_key, codes=codes)
     by_code = {row.code: row for row in rows}
+    system_uri = find_local_code_system_uri(session, system_key=system_key) if rows else None
     items = tuple(
-        ValueItem(code=by_code[code].code, display=by_code[code].display)
+        ValueItem(system=_known(system_uri), code=by_code[code].code, display=by_code[code].display)
         for code in codes
         if code in by_code
     )
@@ -312,7 +329,8 @@ def _resolve_value_set_values(
         raise classify_terminology_error(exc) from exc
 
     items = tuple(
-        ValueItem(code=concept.code, display=concept.display) for concept in expansion.concepts
+        ValueItem(system=concept.system, code=concept.code, display=concept.display)
+        for concept in expansion.concepts
     )
     return ValuePage(items=items, total=len(items))
 
