@@ -302,7 +302,7 @@ describe("CONTROLS.concept_picker (FR-23, FR-52)", () => {
       const onChange = vi.fn();
       renderPicker({ value: PLASMA, onChange });
 
-      await waitFor(() => expect(box()).toHaveValue("119361006 — Plasma specimen"));
+      await waitFor(() => expect(box()).toHaveValue("Plasma specimen"));
       await user.click(screen.getByRole("button", { name: "Clear Specimen" }));
 
       expect(onChange).toHaveBeenCalledWith(null);
@@ -352,7 +352,7 @@ describe("CONTROLS.concept_picker (FR-23, FR-52)", () => {
       await user.click(box());
       await user.click(await screen.findByRole("option", { name: /Plasma specimen/ }));
 
-      expect(onCommit).toHaveBeenCalledWith(PLASMA, "119361006 — Plasma specimen");
+      expect(onCommit).toHaveBeenCalledWith(PLASMA, "Plasma specimen");
       expect(box()).toHaveValue("");
     });
 
@@ -384,7 +384,7 @@ describe("CONTROLS.concept_picker (FR-23, FR-52)", () => {
       await screen.findByRole("option", { name: /Plasma specimen/ });
       await user.keyboard("{Enter}");
 
-      expect(onCommit).toHaveBeenCalledWith(PLASMA, "119361006 — Plasma specimen");
+      expect(onCommit).toHaveBeenCalledWith(PLASMA, "Plasma specimen");
       expect(onSubmit).not.toHaveBeenCalled();
     });
   });
@@ -738,7 +738,7 @@ describe("RepeatableValues (FR-23, FR-52)", () => {
       await user.click(await screen.findByRole("option", { name: /Plasma specimen/ }));
 
       expect(items()).toHaveLength(1);
-      expect(items()[0]).toHaveTextContent("119361006 — Plasma specimen");
+      expect(items()[0]).toHaveTextContent("Plasma specimen");
       expect(box()).toHaveValue("");
       expect(
         screen.queryByRole("button", { name: /add another/i }),
@@ -787,8 +787,8 @@ describe("RepeatableValues (FR-23, FR-52)", () => {
 
       expect(items()).toHaveLength(2);
       await waitFor(() => {
-        expect(items()[0]).toHaveTextContent("1 — From SNOMED");
-        expect(items()[1]).toHaveTextContent("1 — From local");
+        expect(items()[0]).toHaveTextContent("From SNOMED");
+        expect(items()[1]).toHaveTextContent("From local");
       });
     });
 
@@ -805,9 +805,38 @@ describe("RepeatableValues (FR-23, FR-52)", () => {
         ),
       );
 
-      await waitFor(() =>
-        expect(items()[0]).toHaveTextContent("122554006 — Recorded term"),
+      await waitFor(() => expect(items()[0]).toHaveTextContent("Recorded term"));
+    });
+
+    it("tells two values with the same name apart by their codes", async () => {
+      const LOCAL = "https://nptc.example/code-system/subgroup";
+      stubValues(() => ({ body: { items: [], total: 0 } }));
+      render(
+        withProviders(
+          <Harness
+            control="concept_picker"
+            initial={[
+              slot("1", { system: SNOMED, code: "1", display: "Same name" }),
+              slot("2", { system: LOCAL, code: "2", display: "Same name" }),
+              slot("3", { system: SNOMED, code: "3", display: "Other name" }),
+            ]}
+            params={{ allowJustification: true }}
+          />,
+        ),
       );
+
+      expect(
+        await screen.findByRole("button", { name: "Remove Same name (1)" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Remove Same name (2)" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Remove Other name" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByLabelText("Justification for Same name (2)"),
+      ).toBeInTheDocument();
     });
 
     it("ignores a value already in the list, and says so", async () => {
@@ -823,7 +852,7 @@ describe("RepeatableValues (FR-23, FR-52)", () => {
       expect(items()).toHaveLength(1);
       await waitFor(() =>
         expect(screen.getByRole("status")).toHaveTextContent(
-          "119361006 — Plasma specimen is already in the Specimen list.",
+          "Plasma specimen is already in the Specimen list.",
         ),
       );
     });
@@ -843,10 +872,10 @@ describe("RepeatableValues (FR-23, FR-52)", () => {
       await user.click(await screen.findByRole("option", { name: /Serum specimen/ }));
 
       expect(items()).toHaveLength(2);
-      expect(items()[0]).toHaveTextContent("119361006 — Plasma specimen");
-      expect(items()[1]).toHaveTextContent("119364003 — Serum specimen");
+      expect(items()[0]).toHaveTextContent("Plasma specimen");
+      expect(items()[1]).toHaveTextContent("Serum specimen");
       expect(
-        screen.getByRole("button", { name: "Remove 119361006 — Plasma specimen" }),
+        screen.getByRole("button", { name: "Remove Plasma specimen" }),
       ).toBeInTheDocument();
     });
 
@@ -864,7 +893,7 @@ describe("RepeatableValues (FR-23, FR-52)", () => {
 
       await user.click(
         await screen.findByRole("button", {
-          name: "Remove 119361006 — Plasma specimen",
+          name: "Remove Plasma specimen",
         }),
       );
 
@@ -872,7 +901,7 @@ describe("RepeatableValues (FR-23, FR-52)", () => {
       expect(items()[0]).toHaveTextContent("Serum specimen");
       await waitFor(() =>
         expect(screen.getByRole("status")).toHaveTextContent(
-          "Removed 119361006 — Plasma specimen. 1 left in the Specimen list.",
+          "Removed Plasma specimen. 1 left in the Specimen list.",
         ),
       );
     });
@@ -962,7 +991,7 @@ describe("RepeatableValues (FR-23, FR-52)", () => {
       );
 
       await user.type(
-        await screen.findByLabelText(/^Justification for 119364003/),
+        await screen.findByLabelText(/^Justification for Serum specimen/),
         "Locally agreed",
       );
 
@@ -984,8 +1013,10 @@ describe("RepeatableValues (FR-23, FR-52)", () => {
         ),
       );
 
-      await user.click(await screen.findByRole("button", { name: /^Remove 119361006/ }));
-      const last = await screen.findByRole("button", { name: /^Remove 119364003/ });
+      await user.click(
+        await screen.findByRole("button", { name: /^Remove Plasma specimen/ }),
+      );
+      const last = await screen.findByRole("button", { name: /^Remove Serum specimen/ });
       expect(last).toHaveFocus();
 
       await user.click(last);

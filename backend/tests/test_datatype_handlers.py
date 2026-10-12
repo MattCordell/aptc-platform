@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 from decimal import Decimal
+from typing import Any
 
 import jsonschema
 import pytest
@@ -35,7 +36,7 @@ from nptc.registry.datatypes.decimal import DecimalHandler
 from nptc.registry.datatypes.positive_int import PositiveIntHandler
 from nptc.registry.datatypes.string import StringHandler
 from nptc.registry.datatypes.url import UrlHandler
-from nptc_shared.terminology.models import Edition, ValidationResult
+from nptc_shared.terminology.models import SNOMED_CT_AU, Edition, ValidationResult
 from nptc_shared.terminology.stub import StubTerminologyClient
 
 
@@ -391,24 +392,103 @@ def test_code_rejects_a_numeric_system() -> None:
     assert [issue.code for issue in issues] == ["wrong-type"]
 
 
+_AU_VALUE_SET_URI = "http://snomed.info/sct?fhir_vs=ecl/%3C%3C123038009"
+
+
+class _RecordingClient(StubTerminologyClient):
+    """Keeps the edition each `validate_code` call was made against; the stub keys by label
+    alone, so it cannot tell a module id from a label."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.editions: list[Edition] = []
+
+    def validate_code(self, code: str, *, edition: Edition, **kwargs: Any) -> ValidationResult:
+        self.editions.append(edition)
+        return ValidationResult(code=code, result=True)
+
+
+_ECL = "?fhir_vs=ecl/%3C%3C123038009"
+
+
+@pytest.mark.req("FR-10")
+@pytest.mark.req("FR-48")
+@pytest.mark.req("FR-49")
+@pytest.mark.parametrize(
+    ("value_set_uri", "label", "expected_system_version"),
+    [
+        pytest.param(
+            f"http://snomed.info/sct{_ECL}",
+            "au",
+            "http://snomed.info/sct/32506021000036107",
+            id="bare-system-uses-the-label",
+        ),
+        pytest.param(
+            f"http://snomed.info/sct/900000000000207008{_ECL}",
+            "au",
+            "http://snomed.info/sct/900000000000207008",
+            id="module-qualified-international",
+        ),
+        pytest.param(
+            f"http://snomed.info/sct/32506021000036107/version/20260531{_ECL}",
+            "au",
+            "http://snomed.info/sct/32506021000036107/version/20260531",
+            id="pinned-version-is-kept",
+        ),
+    ],
+)
+def test_code_binding_check_asks_the_server_about_the_editions_module_not_its_label(
+    value_set_uri: str, label: str, expected_system_version: str
+) -> None:
+    """The stored edition is a label such as "au"; the server rejects
+    `http://snomed.info/sct/au` as an invalid version, so the call must carry the module id,
+    and a version the URI pins."""
+    client = _RecordingClient()
+    binding = BindingSpec(
+        binding_target="value_set", value_set_uri=value_set_uri, strength="required", edition=label
+    )
+
+    issues = CodeHandler(terminology_client=client).validate(
+        {"system": "http://snomed.info/sct", "code": "138875005"}, _spec("code", binding=binding)
+    )
+
+    assert issues == []
+    assert [edition.system_version_uri for edition in client.editions] == [expected_system_version]
+
+
+@pytest.mark.req("FR-10")
+def test_code_binding_with_an_unrecognised_edition_raises_loudly() -> None:
+    binding = BindingSpec(
+        binding_target="value_set",
+        value_set_uri="http://example.org/vs",
+        strength="required",
+        edition="au",
+    )
+
+    with pytest.raises(UnsupportedBindingError):
+        CodeHandler(terminology_client=StubTerminologyClient()).validate(
+            {"system": "http://snomed.info/sct", "code": "138875005"},
+            _spec("code", binding=binding),
+        )
+
+
 @pytest.mark.req("FR-10")
 def test_code_binding_check_surfaces_a_not_in_value_set_result() -> None:
     """FR-10's live binding check, through a StubTerminologyClient - no
     network access (NFR-37)."""
     stub = StubTerminologyClient()
-    edition = Edition(module_id="900000000000207008", label="900000000000207008")
     stub.seed_validate_code(
         "138875005",
         ValidationResult(code="138875005", result=False, message="not in value set"),
-        value_set_url="http://example.org/vs",
-        edition=edition,
+        value_set_url=_AU_VALUE_SET_URI,
+        edition=SNOMED_CT_AU,
     )
     handler = CodeHandler(terminology_client=stub)
     binding = BindingSpec(
         binding_target="value_set",
-        value_set_uri="http://example.org/vs",
+        value_set_uri=_AU_VALUE_SET_URI,
         strength="required",
-        edition="900000000000207008",
+        edition="au",
     )
     spec = _spec("code", binding=binding)
     value = {"system": "http://snomed.info/sct", "code": "138875005"}

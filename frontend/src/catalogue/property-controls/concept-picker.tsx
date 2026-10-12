@@ -13,7 +13,7 @@ import { useDebouncedValue } from "../use-debounced-value.ts";
 import { findCoded, isCodedValue, toCodedValue } from "../coded-value.ts";
 import type { CodedValue } from "../coded-value.ts";
 import type { ControlProps } from "./types.ts";
-import { codeLabel } from "./value-labels.ts";
+import { codeLabel, selectedLabel } from "./value-labels.ts";
 
 /**
  * `ControlKind.CONCEPT_PICKER` - the `code` datatype. One type-ahead box over
@@ -37,7 +37,10 @@ const ITEM_CLASSES =
 
 interface Option {
   value: CodedValue;
+  /** How the option reads in the list. */
   label: string;
+  /** How the value reads once chosen. */
+  name: string;
 }
 
 const itemLabel = (option: Option): string => option.label;
@@ -82,6 +85,7 @@ export function ConceptPickerControl({
           .map((item) => ({
             value: toCodedValue(item),
             label: codeLabel(item.code, item.display),
+            name: selectedLabel(item.code, item.display),
           }))
           .filter((option) => !wholeList || option.label.toLowerCase().includes(needle))
       : [];
@@ -116,7 +120,7 @@ export function ConceptPickerControl({
   const chosenLabel =
     chosen === null
       ? ""
-      : codeLabel(
+      : selectedLabel(
           chosen.code,
           findCoded(resolved.data?.items, chosen)?.display ??
             findCoded(everything.data?.items, chosen)?.display ??
@@ -126,7 +130,7 @@ export function ConceptPickerControl({
 
   function pick(option: Option) {
     if (onCommit !== undefined) {
-      onCommit(option.value, option.label);
+      onCommit(option.value, option.name);
     } else {
       onChange(option.value);
     }

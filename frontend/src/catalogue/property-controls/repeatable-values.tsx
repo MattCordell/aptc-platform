@@ -17,7 +17,7 @@ import {
   slotFieldId,
 } from "./types.ts";
 import type { ControlKind, PropertyValueSlot } from "./types.ts";
-import { VALUE_LABELS, codeLabel } from "./value-labels.ts";
+import { VALUE_LABELS, selectedLabel } from "./value-labels.ts";
 
 type PropertyCardinality = components["schemas"]["PropertyCardinality"];
 
@@ -81,7 +81,7 @@ export function RepeatableValues(props: RepeatableValuesProps) {
 
 /** What a value reads as before the server has named it: a coded value's own recorded term. */
 function plainLabel(value: unknown): string {
-  return isCodedValue(value) ? codeLabel(value.code, value.display) : String(value);
+  return isCodedValue(value) ? selectedLabel(value.code, value.display) : String(value);
 }
 
 function JustificationField({
@@ -185,8 +185,15 @@ function SeveralValues({
     propertyKey,
     added.map((slot) => slot.value),
   );
-  const labelOf = (index: number): string =>
-    resolved[index] ?? plainLabel(added[index].value);
+  const names = added.map((slot, index) => resolved[index] ?? plainLabel(slot.value));
+  // Two coded values can share a name, which would leave their Remove buttons and
+  // justification fields with one accessible name. Those get their code added.
+  const labelOf = (index: number): string => {
+    const { value } = added[index];
+    return isCodedValue(value) && names.filter((name) => name === names[index]).length > 1
+      ? `${names[index]} (${value.code})`
+      : names[index];
+  };
   const allowJustification = params.allowJustification === true;
   const errorFor = (fieldId: string) =>
     errors.find((error) => error.fieldId === fieldId)?.message;

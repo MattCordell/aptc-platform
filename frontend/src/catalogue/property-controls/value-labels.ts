@@ -2,9 +2,14 @@ import { usePropertyValueResolveQueries } from "../../api/queries.ts";
 import { findCoded, isCodedValue } from "../coded-value.ts";
 import type { ControlKind } from "./types.ts";
 
-/** How a coded value reads wherever it is shown: the code, then its name when one is known. */
+/** How an option reads in the list a user searches: the code, then its name when one is known. */
 export function codeLabel(code: string, display: string | null | undefined): string {
   return display === null || display === undefined ? code : `${code} — ${display}`;
+}
+
+/** How a chosen value reads: its name alone, or its code when no name is known. */
+export function selectedLabel(code: string, display: string | null | undefined): string {
+  return display === null || display === undefined ? code : display;
 }
 
 /**
@@ -52,9 +57,12 @@ function useCodeLabels(propertyKey: string, values: readonly unknown[]) {
     }
     const query = resolved[index];
     if (query?.data === undefined) {
-      return query?.isError ? codeLabel(own.code, own.display) : null;
+      return query?.isError ? selectedLabel(own.code, own.display) : null;
     }
-    return codeLabel(own.code, findCoded(query.data.items, own)?.display ?? own.display);
+    return selectedLabel(
+      own.code,
+      findCoded(query.data.items, own)?.display ?? own.display,
+    );
   });
 }
 

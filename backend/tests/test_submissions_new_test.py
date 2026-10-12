@@ -62,7 +62,7 @@ from nptc_shared.terminology import (
     TerminologyStatusError,
     TerminologyTimeoutError,
 )
-from nptc_shared.terminology.models import Edition, ValidationResult
+from nptc_shared.terminology.models import SNOMED_CT_AU, ValidationResult
 
 
 def _load(name: str) -> Any:
@@ -1055,7 +1055,7 @@ def test_no_terminology_call_is_made_while_the_append_lock_is_held(
             _SERUM,
             ValidationResult(code=_SERUM, result=True),
             value_set_url=_SPECIMEN_VALUE_SET_URI,
-            edition=Edition(module_id="au", label="au"),
+            edition=SNOMED_CT_AU,
         )
         _create(
             app_session,
