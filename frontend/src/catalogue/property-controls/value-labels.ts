@@ -1,4 +1,5 @@
 import { usePropertyValueResolveQueries } from "../../api/queries.ts";
+import { findCoded, isCodedValue } from "../coded-value.ts";
 import type { ControlKind } from "./types.ts";
 
 /** How a coded value reads wherever it is shown: the code, then its name when one is known. */
@@ -27,8 +28,9 @@ function useTextLabels(_propertyKey: string, values: readonly unknown[]) {
 
 /**
  * Resolves by code, so a value the property's bound list no longer offers still
- * gets its name when the server knows one, and reads as its bare code when it
- * does not.
+ * gets its name when the server knows one. The answer must name the same system
+ * as the value. When it does not, the label falls back to the term recorded with
+ * the value, then to the bare code.
  *
  * One query per code, not one for the whole set: a set that gains or loses a
  * member is a new query with no data, which would turn every label already
@@ -36,23 +38,23 @@ function useTextLabels(_propertyKey: string, values: readonly unknown[]) {
  * others cached and asks only for the code that is new.
  */
 function useCodeLabels(propertyKey: string, values: readonly unknown[]) {
-  const codes = values.filter((value): value is string => typeof value === "string");
+  const coded = values.map((value) => (isCodedValue(value) ? value : null));
   const resolved = usePropertyValueResolveQueries(
-    codes.map((code) => ({ key: propertyKey, codes: [code] })),
+    coded.map((value) => ({
+      key: propertyKey,
+      codes: value === null ? [] : [value.code],
+    })),
   );
-  const byCode = new Map(codes.map((code, index) => [code, resolved[index]]));
-  return values.map((value) => {
-    if (typeof value !== "string") {
+  return values.map((value, index) => {
+    const own = coded[index];
+    if (own === null) {
       return value === null || value === undefined ? "" : String(value);
     }
-    const query = byCode.get(value);
+    const query = resolved[index];
     if (query?.data === undefined) {
-      return query?.isError ? value : null;
+      return query?.isError ? codeLabel(own.code, own.display) : null;
     }
-    return codeLabel(
-      value,
-      query.data.items.find((item) => item.code === value)?.display,
-    );
+    return codeLabel(own.code, findCoded(query.data.items, own)?.display ?? own.display);
   });
 }
 

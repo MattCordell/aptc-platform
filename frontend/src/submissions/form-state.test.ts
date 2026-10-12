@@ -142,6 +142,22 @@ describe("request bodies", () => {
       ],
     });
   });
+
+  it("sends a coded value as the object the picker stored, with its system (FR-23, FR-52)", () => {
+    const specimen = {
+      system: "http://snomed.info/sct",
+      code: "119364003",
+      display: "Serum specimen",
+    };
+    const values = {
+      ...valid(),
+      slots: { specimen: [{ id: "a", value: specimen, justification: null }] },
+    };
+
+    expect(
+      createBody(values, [definition("specimen", false)], NONE, true).property_values,
+    ).toEqual({ specimen: [{ value: specimen, justification: null }] });
+  });
 });
 
 describe("addNames (FR-23)", () => {

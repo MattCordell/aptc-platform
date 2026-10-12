@@ -7,10 +7,17 @@ import type { FormError } from "../../components/error-summary.tsx";
 import { LiveRegion } from "../../components/live-region.tsx";
 import { RemovableList } from "../../components/removable-list.tsx";
 import { useAnnounce } from "../../components/use-announce.ts";
+import { isCodedValue } from "../coded-value.ts";
 import { CONTROLS } from "./controls.ts";
-import { groupFieldId, isEmptySlotValue, newSlotId, slotFieldId } from "./types.ts";
+import {
+  groupFieldId,
+  isEmptySlotValue,
+  newSlotId,
+  sameSlotValue,
+  slotFieldId,
+} from "./types.ts";
 import type { ControlKind, PropertyValueSlot } from "./types.ts";
-import { VALUE_LABELS } from "./value-labels.ts";
+import { VALUE_LABELS, codeLabel } from "./value-labels.ts";
 
 type PropertyCardinality = components["schemas"]["PropertyCardinality"];
 
@@ -70,6 +77,11 @@ export function RepeatableValues(props: RepeatableValuesProps) {
   ) : (
     <OneValue {...props} />
   );
+}
+
+/** What a value reads as before the server has named it: a coded value's own recorded term. */
+function plainLabel(value: unknown): string {
+  return isCodedValue(value) ? codeLabel(value.code, value.display) : String(value);
 }
 
 function JustificationField({
@@ -164,9 +176,6 @@ function SeveralValues({
 }: RepeatableValuesProps) {
   const Control = CONTROLS[control];
   const { message, politeness, announce } = useAnnounce();
-  // A label the picker handed over at the moment of adding, shown until the
-  // server's own answer for that code arrives.
-  const [known, setKnown] = useState<ReadonlyMap<unknown, string>>(new Map());
   const container = useRef<HTMLDivElement>(null);
 
   const added = slots.filter((slot) => slot.draft !== true);
@@ -177,7 +186,7 @@ function SeveralValues({
     added.map((slot) => slot.value),
   );
   const labelOf = (index: number): string =>
-    resolved[index] ?? known.get(added[index].value) ?? String(added[index].value);
+    resolved[index] ?? plainLabel(added[index].value);
   const allowJustification = params.allowJustification === true;
   const errorFor = (fieldId: string) =>
     errors.find((error) => error.fieldId === fieldId)?.message;
@@ -206,14 +215,11 @@ function SeveralValues({
   }
 
   function commit(value: unknown, name?: string) {
-    const text = name ?? String(value);
-    if (added.some((slot) => slot.value === value)) {
+    const text = name ?? plainLabel(value);
+    if (added.some((slot) => sameSlotValue(slot.value, value))) {
       announce(`${text} is already in the ${label} list.`);
       onChange(added);
       return;
-    }
-    if (name !== undefined) {
-      setKnown((previous) => new Map(previous).set(value, name));
     }
     onChange([...added, { id: newSlotId(), value, justification: null }]);
     announce(`Added ${text}. ${added.length + 1} in the ${label} list.`);

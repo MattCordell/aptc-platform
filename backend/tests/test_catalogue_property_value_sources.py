@@ -145,7 +145,12 @@ def test_list_property_values_serves_specimen_from_the_value_set_binding(
     page = list_property_values(app_session, client, key="specimen")
 
     assert page == ValuePage(
-        items=(ValueItem(code="122192001", display="Acanthamoeba culture"),), total=1
+        items=(
+            ValueItem(
+                system="http://snomed.info/sct", code="122192001", display="Acanthamoeba culture"
+            ),
+        ),
+        total=1,
     )
     assert [r.operation for r in client.requests] == [Operation.EXPAND]
 
@@ -377,6 +382,26 @@ def test_list_property_values_serves_discipline_with_no_terminology_call(
     assert client.requests == ()
 
 
+@pytest.mark.req("FR-23")
+@pytest.mark.req("FR-52")
+def test_every_local_code_item_names_its_code_systems_uri(app_session: Session) -> None:
+    """A browser cannot know a local code system's URI, so the server supplies it on each item
+    (listed and resolved alike)."""
+    _seed(app_session)
+    uri = app_session.execute(
+        select(LocalCodeSystem.uri).where(LocalCodeSystem.key == "discipline")
+    ).scalar_one()
+
+    listed = list_property_values(app_session, StubTerminologyClient(), key="discipline")
+    resolved = resolve_property_values(
+        app_session, StubTerminologyClient(), key="discipline", codes=["chemical_pathology"]
+    )
+
+    assert listed.items
+    assert {item.system for item in listed.items} == {uri}
+    assert [item.system for item in resolved.items] == [uri]
+
+
 @pytest.mark.req("FR-10")
 def test_list_property_values_excludes_a_deprecated_local_code(app_session: Session) -> None:
     _seed(app_session)
@@ -568,6 +593,7 @@ def test_resolve_property_values_resolves_an_inactive_snomed_code(app_session: S
     page = resolve_property_values(app_session, client, key="specimen", codes=["122192001"])
 
     assert [item.code for item in page.items] == ["122192001"]
+    assert [item.system for item in page.items] == ["http://snomed.info/sct"]
 
 
 @pytest.mark.req("FR-10")

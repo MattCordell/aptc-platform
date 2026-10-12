@@ -10,6 +10,8 @@ import { Button } from "../../components/button.tsx";
 import { Field } from "../../components/field.tsx";
 import { INPUT_CLASSES } from "../../components/input-classes.ts";
 import { useDebouncedValue } from "../use-debounced-value.ts";
+import { findCoded, isCodedValue, toCodedValue } from "../coded-value.ts";
+import type { CodedValue } from "../coded-value.ts";
 import type { ControlProps } from "./types.ts";
 import { codeLabel } from "./value-labels.ts";
 
@@ -34,7 +36,7 @@ const ITEM_CLASSES =
   "flex min-h-8 cursor-pointer select-none items-center gap-2 px-2 py-1 text-sm text-[var(--color-text)] data-[highlighted]:bg-[var(--color-accent)] data-[highlighted]:text-[var(--color-accent-contrast)]";
 
 interface Option {
-  value: string;
+  value: CodedValue;
   label: string;
 }
 
@@ -51,7 +53,7 @@ export function ConceptPickerControl({
   propertyKey,
 }: ControlProps) {
   const entry = onCommit !== undefined;
-  const code = !entry && typeof value === "string" && value !== "" ? value : null;
+  const chosen = !entry && isCodedValue(value) ? value : null;
   const [text, setText] = useState("");
   const [editing, setEditing] = useState(false);
   const [open, setOpen] = useState(false);
@@ -68,7 +70,7 @@ export function ConceptPickerControl({
   const serverQuery = wholeList ? "" : debounced;
   const narrowed = usePropertyValueOptions(propertyKey, serverQuery);
   const resolved = usePropertyValueResolveQueries([
-    { key: propertyKey, codes: code === null ? [] : [code] },
+    { key: propertyKey, codes: chosen === null ? [] : [chosen.code] },
   ])[0];
 
   const settled = wholeList || typedText === "" || debounced === typedText;
@@ -78,7 +80,7 @@ export function ConceptPickerControl({
     settled && page.data !== undefined
       ? page.data.items
           .map((item) => ({
-            value: item.code,
+            value: toCodedValue(item),
             label: codeLabel(item.code, item.display),
           }))
           .filter((option) => !wholeList || option.label.toLowerCase().includes(needle))
@@ -112,12 +114,13 @@ export function ConceptPickerControl({
     : undefined;
 
   const chosenLabel =
-    code === null
+    chosen === null
       ? ""
       : codeLabel(
-          code,
-          resolved.data?.items.find((item) => item.code === code)?.display ??
-            everything.data?.items.find((item) => item.code === code)?.display,
+          chosen.code,
+          findCoded(resolved.data?.items, chosen)?.display ??
+            findCoded(everything.data?.items, chosen)?.display ??
+            chosen.display,
         );
   const inputValue = searching ? text : chosenLabel;
 
@@ -215,7 +218,7 @@ export function ConceptPickerControl({
                     <Combobox.List>
                       {(option: Option) => (
                         <Combobox.Item
-                          key={option.value}
+                          key={`${option.value.system}|${option.value.code}`}
                           value={option}
                           className={ITEM_CLASSES}
                         >
@@ -228,7 +231,7 @@ export function ConceptPickerControl({
               </Combobox.Portal>
             </Combobox.Root>
           </div>
-          {code === null ? null : (
+          {chosen === null ? null : (
             <Button
               type="button"
               variant="secondary"

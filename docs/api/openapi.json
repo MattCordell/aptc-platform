@@ -8168,6 +8168,10 @@
       },
       "PropertyValueItem": {
         "properties": {
+          "system": {
+            "type": "string",
+            "title": "System"
+          },
           "code": {
             "type": "string",
             "title": "Code"
@@ -8186,6 +8190,7 @@
         },
         "type": "object",
         "required": [
+          "system",
           "code",
           "display"
         ],

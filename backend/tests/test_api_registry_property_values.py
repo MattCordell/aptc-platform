@@ -100,7 +100,16 @@ def test_specimen_lists_snomed_concepts_via_one_expand_call(api: ApiTestApp) -> 
 
     assert response.status_code == 200, response.text
     body = response.json()
-    assert body == {"items": [{"code": "122192001", "display": "Acanthamoeba culture"}], "total": 1}
+    assert body == {
+        "items": [
+            {
+                "system": "http://snomed.info/sct",
+                "code": "122192001",
+                "display": "Acanthamoeba culture",
+            }
+        ],
+        "total": 1,
+    }
     assert [r.operation for r in api.terminology.requests] == [Operation.EXPAND]
 
 
@@ -153,7 +162,7 @@ def test_response_shape_is_identical_for_both_binding_targets(api: ApiTestApp) -
     assert specimen.status_code == discipline.status_code == 200
     assert specimen.json().keys() == discipline.json().keys() == {"items", "total"}
     for item in discipline.json()["items"]:
-        assert item.keys() == {"code", "display"}
+        assert item.keys() == {"system", "code", "display"}
 
 
 @pytest.mark.req("FR-10")

@@ -412,6 +412,7 @@ class PropertyValueItem(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
+    system: str
     code: str
     display: str | None
 
@@ -663,6 +664,9 @@ def list_property_value_options(
             session, client, key=key, filter=filter, offset=offset, count=count
         )
     return PropertyValuePage(
-        items=[PropertyValueItem(code=item.code, display=item.display) for item in page.items],
+        items=[
+            PropertyValueItem(system=item.system, code=item.code, display=item.display)
+            for item in page.items
+        ],
         total=page.total,
     )

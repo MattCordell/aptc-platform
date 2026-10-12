@@ -99,6 +99,12 @@ const DEFINITIONS = {
   ],
 };
 
+const DISCIPLINE_SYSTEM = "https://nptc.example/code-system/discipline";
+const SNOMED = "http://snomed.info/sct";
+const HAEM = { system: DISCIPLINE_SYSTEM, code: "HAEM", display: "Haematology" };
+const BIOC = { system: DISCIPLINE_SYSTEM, code: "BIOC", display: "Biochemistry" };
+const PLASMA = { system: SNOMED, code: "119361006", display: "Plasma specimen" };
+
 const ENTRY = {
   business_key: BUSINESS_KEY,
   preferred_term: "Full blood count",
@@ -116,7 +122,7 @@ const ENTRY = {
       cardinality: "0..*",
       status: "active",
       ordinal: 0,
-      value: "HAEM",
+      value: HAEM,
       justification: null,
     },
     {
@@ -144,10 +150,7 @@ const DISCIPLINE_OPTIONS_OK: Route = {
   path: "/registry/properties/discipline/values",
   status: 200,
   body: {
-    items: [
-      { code: "HAEM", display: "Haematology" },
-      { code: "BIOC", display: "Biochemistry" },
-    ],
+    items: [HAEM, BIOC],
     total: 2,
   },
 };
@@ -156,10 +159,7 @@ const SPECIMEN_OPTIONS_OK: Route = {
   path: "/registry/properties/specimen/values",
   status: 200,
   body: {
-    items: [
-      { code: "123038009", display: "Specimen" },
-      { code: "119361006", display: "Plasma specimen" },
-    ],
+    items: [{ system: SNOMED, code: "123038009", display: "Specimen" }, PLASMA],
     total: 2,
   },
 };
@@ -279,6 +279,16 @@ afterEach(() => {
 });
 
 describe("what the form shows", () => {
+  it("shows a recorded coded value by its label, not as an object (FR-23)", async () => {
+    stubApi(BASE_ROUTES);
+    await renderLoaded();
+
+    const added = within(listOf("Discipline")).getAllByRole("listitem");
+    expect(added).toHaveLength(1);
+    await waitFor(() => expect(added[0]).toHaveTextContent("HAEM — Haematology"));
+    expect(added[0]).not.toHaveTextContent("[object Object]");
+  });
+
   it("shows the identifier as text, with no control to change it (FR-03)", async () => {
     stubApi(BASE_ROUTES);
     await renderLoaded();
@@ -465,8 +475,8 @@ describe("saving", () => {
     });
     expect(bodyOf(calls, DISCIPLINE_PATH)).toEqual({
       values: [
-        { value: "HAEM", justification: null },
-        { value: "BIOC", justification: null },
+        { value: HAEM, justification: null },
+        { value: BIOC, justification: null },
       ],
       reason: "Correct three fields together",
       expected_row_version: 5,
@@ -554,7 +564,7 @@ describe("saving", () => {
 
     await form().findByRole("heading", { name: "Changes saved" });
     expect(bodyOf(calls, DISCIPLINE_PATH)).toEqual({
-      values: [{ value: "HAEM", justification: "Locally agreed substitute" }],
+      values: [{ value: HAEM, justification: "Locally agreed substitute" }],
       reason: "Add a justification",
       expected_row_version: 4,
     });
@@ -612,7 +622,7 @@ describe("saving", () => {
 
     await form().findByRole("heading", { name: "Changes saved" });
     expect(bodyOf(calls, SPECIMEN_PATH)).toEqual({
-      values: [{ value: "119361006", justification: null }],
+      values: [{ value: PLASMA, justification: null }],
       reason: "Record the plasma specimen",
       expected_row_version: 4,
     });
@@ -997,7 +1007,7 @@ describe("a failure that stops the run", () => {
 });
 
 describe("a field someone else changed", () => {
-  const BIOC = { ...ENTRY.properties[0], value: "BIOC" };
+  const BIOC_ENTRY = { ...ENTRY.properties[0], value: BIOC };
 
   /** The entry as another editor left it: a new term and a new discipline, at version 9. */
   function changedByOthers(): Route {
@@ -1007,7 +1017,7 @@ describe("a field someone else changed", () => {
         ...ENTRY,
         preferred_term: "Ferritin (S)",
         row_version: 9,
-        properties: [BIOC, ENTRY.properties[1]],
+        properties: [BIOC_ENTRY, ENTRY.properties[1]],
       },
     };
   }
