@@ -7,7 +7,7 @@ signed-up administrator who has accepted the terms and has two-factor sign-in co
 One command replaces the manual sequence of starting the stack, seeding it, registering a user,
 granting a role and setting up an authenticator. In order, it:
 
-  1. Builds and starts the stack: docker compose -f deploy/compose.yml up -d --build
+  1. Builds the images, then starts the stack: docker compose -f deploy/compose.yml build, then up -d
   2. Seeds the sample catalogue (scripts/dev-seed.ps1). A catalogue that already holds data is
      left alone.
   3. Creates the dev user in Keycloak with a password and a TOTP authenticator secret. Keycloak
@@ -272,13 +272,15 @@ try {
         $keycloakId = & docker compose -f $ComposeFile ps -q keycloak
         if (-not $keycloakId) { Stop-WithError "docker compose up failed (exit $upExit)" $ExitStack }
         Write-Host 'Compose stopped waiting for a service. Waiting for Keycloak, then trying once more.'
-        $keycloakHealthy = $false
+        $keycloakState = ''
         foreach ($attempt in 1..36) {
-            if ((& docker inspect --format '{{.State.Health.Status}}' $keycloakId) -eq 'healthy') { $keycloakHealthy = $true; break }
+            $keycloakState = & docker inspect --format '{{.State.Status}} {{.State.Health.Status}}' $keycloakId
+            if ($keycloakState -eq 'running healthy' -or $keycloakState -notlike 'running *') { break }
             Start-Sleep -Seconds 5
         }
-        if (-not $keycloakHealthy) {
-            Stop-WithError 'Keycloak did not become healthy within 3 minutes. See: docker compose -f deploy/compose.yml logs keycloak' $ExitStack
+        if ($keycloakState -ne 'running healthy') {
+            $why = if ($keycloakState -like 'running *') { 'did not become healthy within 3 minutes' } else { 'is not running' }
+            Stop-WithError "Keycloak $why (state: $keycloakState). See: docker compose -f deploy/compose.yml logs keycloak" $ExitStack
         }
         & docker compose --progress plain -f $ComposeFile up -d | Out-Host
         if ($LASTEXITCODE -ne 0) { Stop-WithError "docker compose up failed (exit $LASTEXITCODE)" $ExitStack }
