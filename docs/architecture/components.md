@@ -66,7 +66,10 @@ over rule configuration).
   than leaving it for a caller to wire by hand, and threads an optional hint and error
   message through `aria-describedby`/`aria-invalid`. Takes the control itself as a
   render-prop so it composes with any input type (`<input>`, `<select>`, `<textarea>`)
-  without `Field` needing to special-case each one.
+  without `Field` needing to special-case each one. `hideLabel` keeps the label for
+  assistive technology but hides it on screen (`sr-only`). It is only for a control whose
+  purpose a visible label nearby already gives, such as one box in the entry edit form's
+  labelled list of synonyms.
 - **`button.tsx` — `Button`.** `type` is a required prop, not defaulted: an untyped
   `<button>` inside a `<form>` defaults to `type="submit"`, a frequent source of an
   accidental submit on what was meant to be a plain action button. `aria-disabled`
@@ -254,9 +257,16 @@ class string that no hex value, Tailwind palette class or `shadow-*` class is us
   renders `tabindex="-1"` on the `h1`, so a screen can move focus to it without adding
   a tab stop.
 - **`card.tsx` — `Card`.** A white surface with a 1px border and the 6px card radius, 24px
-  padding and no shadow. `compact` gives 16px padding instead; only the two submission forms
-  use it, so that the form fits one screen. It spreads native `div` props, so a caller adds `role` or
-  `aria-labelledby` when a card is a labelled region.
+  padding and no shadow. `compact` gives 16px padding instead; the two submission forms
+  and the catalogue entry edit form use it, so that the form fits one screen. It spreads
+  native `div` props, so a caller adds `role` or `aria-labelledby` when a card is a
+  labelled region.
+- **`field-grid.tsx` — `FieldGrid`.** Fields side by side where there is room and one
+  column where there is not, so a form still wraps at 200% zoom. Source order is the visual
+  order, so tab order matches reading order. The two submission forms and the catalogue
+  entry edit form use it. `fill` keeps every column the same width however few fields there
+  are (`auto-fill` in place of `auto-fit`), so a short list lines up under the row above
+  it; the entry edit form's current synonyms use it.
 - **`notice-page.tsx` — `NoticePage`.** A whole screen that says one thing and offers a way
   on: a `PageContainer`, a `PageHeader` (the one `h1`) and a `Card` holding the message,
   then the actions, in that DOM order. The stub placeholder, not-found, route-error and
@@ -295,6 +305,14 @@ The sections of the entry page itself live in `frontend/src/catalogue/entry-*.ts
 render what the API sends and nothing else: a property value goes through
 `format-property-value.ts` whatever its type, because a branch on `datatype` is what
 ADR-0013 forbids, and a fully specified name is shown exactly as served (FR-83).
+
+The entry edit form uses the same `DetailLayout`. `entry-edit-sidebar.tsx`
+(`EntryEditSidebar`) holds what the form does not change: the entry's details, its retired
+synonyms with their Reinstate buttons, and its retired codes as a stacked list, because a
+three-column table does not fit the sidebar. It sits outside the `<form>`, so nothing in it
+can submit the form. `form-section.tsx` (`FormSection`) titles each part of the form with an
+`h3`, draws the rule between parts, and names the part as a group unless the title would
+only repeat the label of the one control inside it.
 
 `entry-audit-trail.tsx` (`EntryAuditTrail`, issue #441) is the audit trail pattern from the
 design system: an ordered list of an entry's changes with a rule down the left, each with a

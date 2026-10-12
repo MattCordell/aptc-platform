@@ -128,8 +128,11 @@ values are fixed here and implemented by `PageContainer`, `PageHeader` and `Card
   from the viewport edge. The header and footer containers use the same 16px gutter so
   the three stay aligned.
 - **Card padding**: 24px, inside the 22-32px range above. One option exists: `compact`,
-  16px, which the new-test and amendment forms use so that the form fits a 1440x900
-  window. There are no other variants.
+  16px, which the new-test and amendment forms and the catalogue entry edit form use so
+  that the form fits a 1440x900 window. There are no other variants. The entry edit form
+  follows the Detail/edit page pattern above: its compact card is the main column of a
+  `DetailLayout`, and the sidebar holds the entry's details and the synonyms and codes it
+  has retired, which the form does not change.
 - **Page title**: `text-3xl`, 30px, inside the 26-38px range of the notes, in the serif
   face. Its meta line is 12px, in the muted text colour.
 

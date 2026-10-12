@@ -21,6 +21,10 @@ type FieldProps = {
    * text, so an alert role on top of that announces it twice. A submit-time
    * validation summary should announce through `LiveRegion` instead. */
   error?: ReactNode;
+  /** Keeps the label for assistive technology but hides it on screen. Only for a
+   * control whose purpose a visible heading or label nearby already gives, such as
+   * one box in a labelled list of boxes. */
+  hideLabel?: boolean;
   /** The control to render inside the field - typically an `<input>`,
    * `<textarea>`, or `<select>`. Receives `id`, `aria-describedby`, and
    * `aria-invalid` from the field; the caller supplies everything else
@@ -48,6 +52,7 @@ export function Field({
   label,
   hint,
   error,
+  hideLabel = false,
   children,
   className,
   ...rest
@@ -64,7 +69,10 @@ export function Field({
 
   return (
     <div className={`flex flex-col gap-1 ${className ?? ""}`.trim()} {...rest}>
-      <label htmlFor={id} className="text-sm font-medium text-[var(--color-text)]">
+      <label
+        htmlFor={id}
+        className={hideLabel ? "sr-only" : "text-sm font-medium text-[var(--color-text)]"}
+      >
         {label}
       </label>
       {hint ? (

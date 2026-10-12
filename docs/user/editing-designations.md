@@ -15,13 +15,18 @@ note.
 
 ## What you see
 
-- **RCPA Preferred** is the catalogue's own name for the test. Under the box you see its
+The terms are the first section of the form, **Terms**.
+
+- **RCPA Preferred** is the catalogue's own name for the test. Under the label you see its
   **length** in characters, updated as you type. The length is worked out by the catalogue.
   It is not stored and not typed, so it always matches the term it describes.
-- **Synonym 1, Synonym 2 and so on** are the entry's active synonyms, one box each.
-- **Add synonyms** is one box for new terms.
+- **Add synonyms** is one box for new terms, beside RCPA Preferred when the window is wide
+  enough. A line under it says what Save will add.
+- **Current synonyms** lists the entry's active synonyms under both boxes, one box each with
+  a **Remove** button beside it. A screen reader names the boxes **Synonym 1**,
+  **Synonym 2** and so on.
 - **Retired synonyms** lists terms the entry used to hold, each with a **Reinstate** button.
-  This list appears only when the entry has some.
+  It is in the column beside the form, and appears only when the entry has some.
 
 A retired term is history, not something the entry currently publishes.
 
@@ -61,8 +66,8 @@ count, so you can split it.
 
 ## Reinstating a retired term
 
-Choose **Reinstate** beside a term under **Retired synonyms**, write a changelog note and
-confirm. This saves at once, without **Save**.
+Choose **Reinstate** beside a term under **Retired synonyms**, in the column beside the
+form. Write a changelog note and confirm. This saves at once, without **Save**.
 
 The term is published again, and it is the same row as before. The entry's history still
 reads as one continuous record (created, retired, reinstated) rather than a retirement

@@ -370,6 +370,222 @@ describe("what the form shows", () => {
   });
 });
 
+describe("the layout (FR-36)", () => {
+  const ACTIVE_CODE = {
+    code: "26604007",
+    fsn: "Complete blood count (procedure)",
+    au_preferred_term: "Full blood count",
+    status: "active",
+    retirement_reason: null,
+    replaced_by_code: null,
+  };
+  const RETIRED_CODE = {
+    code: "1234567890123456789",
+    fsn: "Old blood count (procedure)",
+    au_preferred_term: null,
+    status: "retired",
+    retirement_reason: "Inactivated in the July release",
+    replaced_by_code: "26604007",
+  };
+  const WITH_HISTORY = {
+    ...ENTRY,
+    designations: [
+      { term: "FBC", status: "active", length: 3 },
+      { term: "Old note", status: "retired", length: 8 },
+    ],
+    bindings: [ACTIVE_CODE, RETIRED_CODE],
+  };
+  const HISTORY_ROUTES: Route[] = [
+    { ...READ_OK, body: WITH_HISTORY },
+    PROPERTIES_OK,
+    DISCIPLINE_OPTIONS_OK,
+    SPECIMEN_OPTIONS_OK,
+  ];
+
+  function sidebar() {
+    return within(form().getByRole("complementary", { name: "Entry details" }));
+  }
+
+  it("lists the fields in reading order, which is their tab order", async () => {
+    stubApi(HISTORY_ROUTES);
+    await renderLoaded();
+
+    const order = [
+      "RCPA Preferred",
+      "Add synonyms",
+      "Synonym 1",
+      "Replacement SNOMED CT code",
+      "Discipline",
+      "Usage guidance",
+      "Changelog note",
+    ].map((label) => form().getByLabelText(label));
+
+    for (let index = 1; index < order.length; index += 1) {
+      expect(
+        order[index - 1].compareDocumentPosition(order[index]) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
+  });
+
+  it("names the terms and the properties as groups, each under a level 3 heading", async () => {
+    stubApi(HISTORY_ROUTES);
+    await renderLoaded();
+
+    const terms = form().getByRole("group", { name: "Terms" });
+    expect(within(terms).getByLabelText("RCPA Preferred")).toBeVisible();
+    expect(within(terms).getByLabelText("Synonym 1")).toHaveValue("FBC");
+
+    const properties = form().getByRole("group", { name: "Properties" });
+    expect(within(properties).getByLabelText("Usage guidance")).toBeVisible();
+    expect(
+      within(properties).getByText(/Retired note \(deprecated, read only\)/),
+    ).toBeVisible();
+
+    for (const name of ["Terms", "SNOMED CT code", "Properties"]) {
+      expect(form().getByRole("heading", { level: 3, name })).toBeVisible();
+    }
+  });
+
+  it("puts the entry's details and what it has retired in the sidebar", async () => {
+    stubApi(HISTORY_ROUTES);
+    await renderLoaded();
+
+    expect(sidebar().getByText(BUSINESS_KEY)).toBeVisible();
+    expect(sidebar().getByText("Entry status")).toBeVisible();
+    expect(sidebar().getByText("Last changed")).toBeVisible();
+    expect(sidebar().getByRole("button", { name: "Reinstate Old note" })).toBeVisible();
+    const retiredCodes = sidebar().getByRole("heading", {
+      name: "Retired SNOMED CT codes",
+    });
+    expect(retiredCodes).toBeVisible();
+    expect(sidebar().getByText("Old blood count (procedure)")).toBeVisible();
+    expect(sidebar().getByText("Inactivated in the July release")).toBeVisible();
+  });
+
+  it("keeps every field in the form and every retired item out of it", async () => {
+    stubApi(HISTORY_ROUTES);
+    await renderLoaded();
+
+    const saveForm = form().getByRole("button", { name: "Save" }).closest("form");
+    for (const label of [
+      "RCPA Preferred",
+      "Add synonyms",
+      "Synonym 1",
+      "Replacement SNOMED CT code",
+      "Usage guidance",
+      "Changelog note",
+    ]) {
+      expect(form().getByLabelText(label).closest("form")).toBe(saveForm);
+    }
+    const reinstate = sidebar().getByRole("button", { name: "Reinstate Old note" });
+    expect(reinstate.closest("form")).toBeNull();
+    expect(sidebar().getByText("Old blood count (procedure)").closest("form")).toBeNull();
+  });
+
+  it("sends nothing when Reinstate is pressed until its dialog is confirmed", async () => {
+    const calls = stubApi(HISTORY_ROUTES);
+    const user = userEvent.setup();
+    await renderLoaded();
+
+    await user.type(form().getByLabelText("Usage guidance"), "Fasting sample.");
+    await fillNote(user, "Added usage guidance");
+    await user.click(sidebar().getByRole("button", { name: "Reinstate Old note" }));
+
+    expect(await screen.findByRole("dialog")).toBeVisible();
+    expect(writes(calls)).toEqual([]);
+  });
+
+  it("keeps the whole form, Save and Cancel inside one compact card", async () => {
+    stubApi(BASE_ROUTES);
+    await renderLoaded();
+
+    const card = form()
+      .getByRole("button", { name: "Save" })
+      .closest("form")?.parentElement;
+    expect(card).toHaveClass("p-4");
+    expect(within(card as HTMLElement).getByLabelText("RCPA Preferred")).toBeVisible();
+    expect(
+      within(card as HTMLElement).getByRole("link", { name: "Cancel" }),
+    ).toBeVisible();
+  });
+});
+
+describe("Cancel (FR-36)", () => {
+  function routesFor(status: string): Route[] {
+    return [
+      { ...READ_OK, body: { ...ENTRY, status } },
+      PROPERTIES_OK,
+      DISCIPLINE_OPTIONS_OK,
+      SPECIMEN_OPTIONS_OK,
+    ];
+  }
+
+  it("goes back to the public entry when the entry is active", async () => {
+    stubApi(routesFor("active"));
+    await renderLoaded();
+
+    expect(form().getByRole("link", { name: "Cancel" })).toHaveAttribute(
+      "href",
+      `/catalogue/${BUSINESS_KEY}`,
+    );
+  });
+
+  it.each(["draft", "deprecated", "withdrawn"])(
+    "goes to the admin list for a %s entry, because the public page 404s",
+    async (status) => {
+      stubApi(routesFor(status));
+      await renderLoaded();
+
+      expect(form().getByRole("link", { name: "Cancel" })).toHaveAttribute(
+        "href",
+        "/admin/catalogue",
+      );
+    },
+  );
+
+  it("saves nothing, even with unsaved changes", async () => {
+    const calls = stubApi([...BASE_ROUTES, amendOk()]);
+    const user = userEvent.setup();
+    await renderLoaded();
+
+    const term = form().getByLabelText("RCPA Preferred");
+    await user.clear(term);
+    await user.paste("Serum ferritin");
+    await user.type(form().getByLabelText("Usage guidance"), "Fasting sample.");
+    await fillNote(user, "Would have been saved");
+    await user.click(form().getByRole("link", { name: "Cancel" }));
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("region", { name: "Edit entry" }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(writes(calls)).toEqual([]);
+  });
+
+  it("is unavailable while a save runs, so a half-finished save is not left", async () => {
+    stubApi([...BASE_ROUTES, { ...amendOk(), neverSettles: true }]);
+    const user = userEvent.setup();
+    await renderLoaded();
+
+    const term = form().getByLabelText("RCPA Preferred");
+    await user.clear(term);
+    await user.paste("Serum ferritin");
+    await fillNote(user, "Correct the preferred term");
+    const cancel = form().getByRole("link", { name: "Cancel" });
+    expect(cancel).not.toHaveAttribute("aria-disabled");
+    await save(user);
+
+    await waitFor(() => expect(cancel).toHaveAttribute("aria-disabled", "true"));
+    expect(cancel).toHaveAttribute("href", `/catalogue/${BUSINESS_KEY}`);
+    await user.click(cancel);
+
+    expect(screen.getByRole("region", { name: "Edit entry" })).toBeInTheDocument();
+    expect(form().getByRole("heading", { level: 2, name: "Edit entry" })).toBeVisible();
+  });
+});
+
 describe("the live term length (FR-85)", () => {
   it("shows the length of the term on load", async () => {
     stubApi(BASE_ROUTES);

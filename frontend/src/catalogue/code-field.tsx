@@ -1,7 +1,8 @@
 import type { components } from "../api/schema.ts";
 import { Button } from "../components/button.tsx";
 import { CodeChip } from "../components/code-chip.tsx";
-import { EntryBindings } from "./entry-bindings.tsx";
+import { FieldGrid } from "../components/field-grid.tsx";
+import { FormSection } from "./form-section.tsx";
 import { ProcedurePicker } from "./procedure-picker.tsx";
 import type { CodeSelection } from "./use-code-selection.ts";
 
@@ -13,12 +14,14 @@ import type { CodeSelection } from "./use-code-selection.ts";
  * is not saved until the form's Save. Its FSN and AU preferred term come from
  * the terminology server, and nothing here lets the editor type either.
  *
- * Retired codes stay listed, read only, with their reason and any successor.
+ * Retired codes are listed beside the form, not in it, because nothing here
+ * changes them.
  */
 
 type Binding = components["schemas"]["Binding"];
 
 export const CODE_FIELD_ID = "entry-code-search";
+const CODE_HEADING_ID = "entry-code-heading";
 
 function statusText(active: boolean | null): string {
   if (active === null) {
@@ -98,41 +101,44 @@ export function CodeField({
   const active = bindings.find((binding) => binding.status === "active") ?? null;
 
   return (
-    <div className="flex flex-col gap-3">
-      <h3>SNOMED CT code</h3>
-      {active === null ? (
-        <p className="m-0">No SNOMED CT code is bound to this entry.</p>
-      ) : (
-        <dl className="m-0 grid grid-cols-[max-content_1fr] gap-x-6 gap-y-1">
-          <dt className="text-[var(--color-text-muted)]">Bound code</dt>
-          <dd className="m-0">
-            <CodeChip code={active.code} />
-          </dd>
-          <dt className="text-[var(--color-text-muted)]">Fully specified name</dt>
-          <dd className="m-0">{active.fsn}</dd>
-          <dt className="text-[var(--color-text-muted)]">AU preferred term</dt>
-          <dd className="m-0">{active.au_preferred_term ?? "not reported"}</dd>
-        </dl>
-      )}
-      {active !== null && (
-        <div>
-          <Button
-            type="button"
-            variant="danger"
-            aria-label={`Retire ${active.code} without a replacement`}
-            onClick={() => onRetire(active.code)}
-          >
-            Retire without a replacement
-          </Button>
+    <FormSection id={CODE_HEADING_ID} title="SNOMED CT code" divided group={false}>
+      <FieldGrid>
+        <div className="flex flex-col gap-2">
+          {active === null ? (
+            <p className="m-0">No SNOMED CT code is bound to this entry.</p>
+          ) : (
+            <>
+              <dl className="m-0 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
+                <dt className="text-[var(--color-text-muted)]">Bound code</dt>
+                <dd className="m-0">
+                  <CodeChip code={active.code} />
+                </dd>
+                <dt className="text-[var(--color-text-muted)]">Fully specified name</dt>
+                <dd className="m-0">{active.fsn}</dd>
+                <dt className="text-[var(--color-text-muted)]">AU preferred term</dt>
+                <dd className="m-0">{active.au_preferred_term ?? "not reported"}</dd>
+              </dl>
+              <div>
+                <Button
+                  type="button"
+                  variant="danger"
+                  aria-label={`Retire ${active.code} without a replacement`}
+                  onClick={() => onRetire(active.code)}
+                >
+                  Retire without a replacement
+                </Button>
+              </div>
+            </>
+          )}
         </div>
-      )}
 
-      <ProcedurePicker
-        id={CODE_FIELD_ID}
-        label={active === null ? "SNOMED CT code" : "Replacement SNOMED CT code"}
-        error={error}
-        onPick={onPick}
-      />
+        <ProcedurePicker
+          id={CODE_FIELD_ID}
+          label={active === null ? "SNOMED CT code" : "Replacement SNOMED CT code"}
+          error={error}
+          onPick={onPick}
+        />
+      </FieldGrid>
 
       {selection.status !== "none" && (
         <PickedConcept
@@ -141,8 +147,6 @@ export function CodeField({
           onClear={onClear}
         />
       )}
-
-      <EntryBindings bindings={bindings} />
-    </div>
+    </FormSection>
   );
 }
