@@ -1461,13 +1461,14 @@ classifies every column in its audit policy.
 A user's proposal to add a test, or later to change one. It is its own record and not a
 `catalogue_entry` with another status (FR-29), so a proposed value is never mistaken for
 catalogue content. Two routes write it today: `POST /api/v1/submissions` for a new test and
-`POST /api/v1/submissions/amendments` for an amendment (FR-35).
+`POST /api/v1/submissions/amendments` for an amendment (FR-35). Two routes read it: `GET /api/v1/submissions`
+and `GET /api/v1/submissions/{id}` (FR-42), described below.
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `UUID` | PK, `gen_random_uuid()` |
 | `kind` | `TEXT` | `NOT NULL`, `CHECK` in `new_test`, `amendment`. Amendments reuse the table, so they need no second one |
-| `state` | `TEXT` | `NOT NULL DEFAULT 'Submitted'`, `CHECK` in `Submitted`. The other FR-28 states arrive with the workflow |
+| `state` | `TEXT` | `NOT NULL DEFAULT 'Submitted'`, `CHECK` in `Submitted`, `Published in release`, `Rejected`, `Withdrawn`. The three closed states are the end of the workflow (FR-28). No route writes them yet, so only a test or a later workflow step stores one. The other FR-28 states arrive with the workflow |
 | `entry_id` | `UUID` | Nullable, FK to `catalogue_entry.id`, indexed. The entry an amendment proposes to change. `CHECK ((kind = 'amendment') = (entry_id IS NOT NULL))`, so an amendment has one and a new test has none (FR-35) |
 | `preferred_term` | `TEXT` | `NOT NULL`, `CHECK` not blank. Cleaned at entry like an entry's term (FR-63). On an amendment, a copy of the entry's preferred term when it was proposed |
 | `synonyms` | `JSONB` | `NOT NULL DEFAULT '[]'`, `CHECK` a JSON array. Each term is cleaned at entry. A term that folds to the same comparison key as an earlier one, or as `preferred_term`, is dropped, as `add_synonyms` drops it, so the list converts to designations without a duplicate |
@@ -1489,6 +1490,22 @@ catalogue content. Two routes write it today: `POST /api/v1/submissions` for a n
 `ix_submission_submitter_id` serves "a user's own submissions", `ix_submission_created_at`
 serves "newest first" and `ix_submission_entry_id` serves "the amendments proposed against one
 entry".
+
+**The read routes treat a submission as open unless its state is closed (FR-28, FR-42).**
+`nptc.db.models.submission.CLOSED_SUBMISSION_STATES` lists `Published in release`, `Rejected` and
+`Withdrawn`. `GET /api/v1/submissions` leaves those out when the caller names no `state`, and its
+statement says `state NOT IN (...)` over that tuple and never lists the open states, so a state added
+later is open until it is listed there. `mine=true` with no `state` lifts the default, so a submitter's
+own list holds their whole history. The list pages on `(created_at, id)`, newest first, using
+`ix_submission_created_at`, and one joined statement also reads the submitter and the amended entry's
+business key (`nptc.submissions.queries`).
+
+**Who sees the submitter (FR-42, NFR-20).** The submitter's id never reaches a response; the read
+returns a `UserRef`. A caller who holds `submitter_identity.view` (Reviewer, Administrator) gets
+`submitter.display_name` and `submitter.organisation`, which is this row's `organisation` copy, not the
+profile's value. Every other caller gets `submitter.username` only, and the response has no name or
+organisation key at all. A closed account has no username, so both fields read `Closed account`, and
+the organisation copy still shows to a caller who may see it.
 
 **An amendment names its entry by id (FR-35).** `entry_id` is a foreign key, not the business
 key, so the link does not depend on the key's text. `preferred_term` is required on every row,

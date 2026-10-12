@@ -262,6 +262,24 @@ the request through or returns a refusal.
   unused `override` argument. NFR-24's second layer, a per-user limit on authenticated actions,
   is separate.
 
+## Submitter identity (FR-42, NFR-20)
+
+`GET /api/v1/submissions` and `GET /api/v1/submissions/{id}` are gated on `submission.view`. A second
+permission, `submitter_identity.view`, decides one field group inside the response, so a handler
+reads it with `principal.has(...)` and never a role name (FR-44).
+
+- **With it** (Reviewer, Administrator): `submitter` carries `username`, `display_name` and
+  `organisation`.
+- **Without it** (Observer, Provisional, Member): `submitter` carries `username` alone, and the
+  response has no name or organisation key, not even a null one. Each response comes in two classes
+  and the route's `response_model` is their union, so the OpenAPI document states both shapes and a
+  field that is never set cannot leak by being serialised.
+- **A closed account** shows `Closed account` for the username and, to a caller with the
+  permission, for the display name. The organisation is the submission's own copy, so it still shows.
+
+The rule runs on the server for every request. A client that hides a field it was sent has not
+applied it (NFR-20).
+
 ## FR-80 and FR-81: provable without a single endpoint
 
 Both are worded per-endpoint. Since issue #41 `backend/src/nptc/api/` serves one real

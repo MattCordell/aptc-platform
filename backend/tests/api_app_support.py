@@ -164,6 +164,7 @@ class ApiTestApp:
         with_mfa: bool = True,
         replace_roles: bool = False,
         accept_terms: bool = True,
+        email: str | None = None,
     ) -> str:
         """Signs `subject` in through the real auth chain, grants `role`, and
         returns a token carrying the `acr` claim the realm maps to LoA-2
@@ -177,8 +178,13 @@ class ApiTestApp:
         `accept_terms` records acceptance of the app's current terms version, so a test of any
         write route gets past the terms gate (ADR-0043) without saying so. A test of the gate
         itself passes `False`. The row is inserted directly, not through `accept_terms`, so the
-        helper writes no audit event for a test to count."""
-        bootstrap = self.token(subject=subject)
+        helper writes no audit event for a test to count.
+
+        Every token carries the same verified email unless `email` says otherwise, and a second
+        subject with a verified email already on file is linked to that user (NFR-05). A test that
+        needs two distinct users passes a different `email` for each."""
+        identity_claims: dict[str, object] = {} if email is None else {"email": email}
+        bootstrap = self.token(subject=subject, extra_claims=identity_claims or None)
         self.get("/auth/me", token=bootstrap)
         # By `subject`, not "the newest `User` row": `created_at` is
         # server-side `now()`, so two users provisioned inside one transaction
@@ -202,7 +208,7 @@ class ApiTestApp:
         self.session.flush()
         if accept_terms:
             self.accept_current_terms(user.id)
-        extra_claims = {"acr": "2"} if with_mfa else {}
+        extra_claims = {**identity_claims, **({"acr": "2"} if with_mfa else {})}
         return self.token(subject=subject, extra_claims=extra_claims)
 
     @property

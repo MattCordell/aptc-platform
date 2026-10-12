@@ -287,6 +287,9 @@ def test_label_field_name_set_is_not_stale() -> None:
         # `null` for a closed (tombstoned) account, never a SNOMED/catalogue
         # label.
         "AuditActor": frozenset({"display_name"}),
+        # FR-42: the submitter's name, shown only to a caller who holds
+        # `submitter_identity.view` - identity data, never a label.
+        "IdentifiedSubmitter": frozenset({"display_name"}),
         # A coded property's offerable value (issue #247) - `display` here
         # is a value-set *option's* label, sourced from whichever code
         # system defined it (SNOMED CT or a local code system, the model's
