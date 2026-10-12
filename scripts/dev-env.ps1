@@ -18,18 +18,20 @@ granting a role and setting up an authenticator. In order, it:
      the nptc-frontend client for these few calls and switches off again.
   5. Grants the administrator role (scripts/grant_role.py inside the backend container).
 
-The password and the authenticator secret are generated on the first run and kept in
-deploy/.dev-user.json, which git ignores. Every later run reuses them. They are for this local
+The password and the authenticator secret are generated the first time a username is used and
+kept in deploy/.dev-user.json, which git ignores. The file holds one entry per username, and every
+later run reuses the entry. They are for this local
 stack only: Keycloak here is HTTP-only start-dev with open registration (deploy/compose.yml).
 
 Add the authenticator secret to an authenticator app once, or run this script with -Totp whenever
 a code is needed. The script prints the secret and a current code at the end of each run.
 
-Needs: Docker, deploy/.env copied from deploy/.env.example, and uv on PATH (for the seed step).
+Needs: Docker and deploy/.env copied from deploy/.env.example. uv must also be on PATH unless you
+pass -SkipSeed.
 
 Exit codes:
   0   ready
-  1   a prerequisite is missing: Docker, uv, or deploy/.env
+  1   a prerequisite is missing: Docker, uv (unless -SkipSeed), or deploy/.env
   20  the stack did not start or did not become reachable
   21  the seed failed
   22  the Keycloak user could not be created or the realm could not be reached
@@ -70,6 +72,8 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+$Username = $Username.ToLowerInvariant()
 
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $ComposeFile = Join-Path $RepoRoot 'deploy\compose.yml'
@@ -152,19 +156,49 @@ function Get-CurrentTotpStep {
     return [long][Math]::Floor([DateTimeOffset]::UtcNow.ToUnixTimeSeconds() / $TotpPeriod)
 }
 
+function Read-DevUserStates {
+    if (-not (Test-Path -LiteralPath $StateFile)) { return [pscustomobject]@{} }
+    return Get-Content -LiteralPath $StateFile -Raw | ConvertFrom-Json
+}
+
 function Get-DevUserState {
-    if (Test-Path -LiteralPath $StateFile) {
-        $state = Get-Content -LiteralPath $StateFile -Raw | ConvertFrom-Json
-        if ($state.username -eq $Username) { return $state }
-    }
+    $all = Read-DevUserStates
+    $known = $all.PSObject.Properties[$Username]
+    if ($known) { return $known.Value }
     $state = [pscustomobject]@{
         username = $Username
         userId = [guid]::NewGuid().ToString()
         password = (New-RandomText 20 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789') + '!9'
         totpSecret = New-RandomText 20 'abcdefghijklmnopqrstuvwxyz0123456789'
     }
-    $state | ConvertTo-Json | Set-Content -LiteralPath $StateFile -Encoding ASCII
+    $all | Add-Member -NotePropertyName $Username -NotePropertyValue $state
+    $all | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $StateFile -Encoding ASCII
     return $state
+}
+
+# Keycloak refuses a code it has already accepted in the same 30 s step, such as one just typed
+# into a browser, so a refused first attempt waits for the next step and tries once more.
+function Get-DevToken {
+    param([string]$KeycloakUrl, $State)
+    foreach ($attempt in 1..2) {
+        $step = Get-CurrentTotpStep
+        try {
+            $token = Invoke-RestMethod -Method Post -Uri "$KeycloakUrl/realms/$Realm/protocol/openid-connect/token" -Body @{
+                grant_type = 'password'
+                client_id = $FrontendClient
+                scope = 'openid'
+                username = $State.username
+                password = $State.password
+                totp = (Get-TotpCode $State.totpSecret $step)
+            }
+            return [pscustomobject]@{ Token = $token; Step = $step }
+        }
+        catch {
+            if ($attempt -eq 2 -or (Get-ErrorDetail $_) -notmatch 'invalid_grant') { throw }
+            Write-Host 'Keycloak refused the sign-in. Waiting for the next authenticator code to try once more.'
+            while ((Get-CurrentTotpStep) -eq $step) { Start-Sleep -Seconds 1 }
+        }
+    }
 }
 
 function Get-AdminHeaders {
@@ -189,21 +223,21 @@ function Set-DirectGrant {
 }
 
 if ($Totp) {
-    if (-not (Test-Path -LiteralPath $StateFile)) {
-        Stop-WithError 'no dev user yet. Run: powershell -File scripts/dev-env.ps1' $ExitPrerequisite
+    $existing = (Read-DevUserStates).PSObject.Properties[$Username]
+    if (-not $existing) {
+        Stop-WithError "no dev user '$Username' yet. Run: powershell -File scripts/dev-env.ps1" $ExitPrerequisite
     }
-    $existing = Get-Content -LiteralPath $StateFile -Raw | ConvertFrom-Json
     $step = Get-CurrentTotpStep
     $remaining = $TotpPeriod - ([DateTimeOffset]::UtcNow.ToUnixTimeSeconds() % $TotpPeriod)
-    Write-Host ("{0}  (valid for about {1} s)" -f (Get-TotpCode $existing.totpSecret $step), $remaining)
+    Write-Host ("{0}  (valid for about {1} s)" -f (Get-TotpCode $existing.Value.totpSecret $step), $remaining)
     exit 0
 }
 
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     Stop-WithError 'docker is not on PATH.' $ExitPrerequisite
 }
-if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
-    Stop-WithError 'uv is not on PATH. Install it or add it to PATH, then run this script again.' $ExitPrerequisite
+if (-not $SkipSeed -and -not (Get-Command uv -ErrorAction SilentlyContinue)) {
+    Stop-WithError 'uv is not on PATH. Install it or add it to PATH, or pass -SkipSeed.' $ExitPrerequisite
 }
 if (-not (Test-Path -LiteralPath $EnvFile)) {
     Stop-WithError 'deploy/.env is missing. Copy deploy/.env.example to deploy/.env and set the passwords.' $ExitPrerequisite
@@ -267,8 +301,8 @@ try {
                 username = $state.username
                 email = "$($state.username)@example.invalid"
                 emailVerified = $true
-                firstName = 'Test'
-                lastName = 'Matt'
+                firstName = 'Dev'
+                lastName = 'Administrator'
                 enabled = $true
                 credentials = @(
                     @{ type = 'password'; value = $state.password; temporary = $false },
@@ -287,16 +321,9 @@ try {
     try {
         Set-DirectGrant $keycloakUrl $headers $true
         $directGrantOn = $true
-        $usedStep = Get-CurrentTotpStep
-        $token = Invoke-RestMethod -Method Post -Uri "$keycloakUrl/realms/$Realm/protocol/openid-connect/token" -Body @{
-            grant_type = 'password'
-            client_id = $FrontendClient
-            scope = 'openid'
-            username = $state.username
-            password = $state.password
-            totp = (Get-TotpCode $state.totpSecret $usedStep)
-        }
-        $api = @{ Authorization = "Bearer $($token.access_token)" }
+        $signIn = Get-DevToken $keycloakUrl $state
+        $usedStep = $signIn.Step
+        $api = @{ Authorization = "Bearer $($signIn.Token.access_token)" }
         Invoke-RestMethod -Headers $api -Uri "$webUrl/api/v1/auth/me" | Out-Null
         $terms = Invoke-RestMethod -Headers $api -Uri "$webUrl/api/v1/auth/terms"
         if (-not $terms.accepted) {
@@ -305,12 +332,19 @@ try {
         }
     }
     catch {
-        Write-Host 'If Keycloak rejected the password, a user with this name was made by hand or by an older run.'
+        Write-Host "If Keycloak rejected the sign-in twice, '$($state.username)' probably exists with other credentials, made by hand or by a run that lost its saved entry."
         Write-Host "Pass another -Username, or delete '$($state.username)' in the Keycloak admin console and run this script again."
         Stop-WithError "the sign-in or terms acceptance failed: $(Get-ErrorDetail $_)" $ExitSignIn
     }
     finally {
-        if ($directGrantOn) { Set-DirectGrant $keycloakUrl $headers $false }
+        if ($directGrantOn) {
+            # The admin token fetched earlier lasts about a minute, so fetch a fresh one.
+            try { Set-DirectGrant $keycloakUrl (Get-AdminHeaders $keycloakUrl $settings) $false }
+            catch {
+                Write-Host "WARNING: could not switch the direct password grant off for ${FrontendClient}: $(Get-ErrorDetail $_)"
+                Write-Host 'It stays on until Keycloak restarts. Recreate it now: docker compose -f deploy/compose.yml up -d --force-recreate keycloak'
+            }
+        }
     }
 
     & docker compose -f $ComposeFile exec -T backend python scripts/grant_role.py --username $state.username --role administrator | Out-Host

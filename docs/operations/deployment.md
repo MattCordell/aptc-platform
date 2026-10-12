@@ -60,6 +60,9 @@ least-privilege `nptc_app_login` role and never receives `NPTC_MIGRATION_DATABAS
 The `nptc` realm has no users. The first person to sign in has no permissions until you
 grant a role.
 
+On a development stack, [one command](#start-a-ready-to-use-development-environment) does all of
+this. To do it by hand:
+
 1. Open the Keycloak admin console at <http://localhost:8080/admin> and sign in with
    `KEYCLOAK_ADMIN_USER` and `KEYCLOAK_ADMIN_PASSWORD` (realm `master`).
 2. Switch to the `nptc` realm. Open **Users**, choose **Add user**, then set a password on the
@@ -81,6 +84,33 @@ grant a role.
    set up an authenticator app, then returns you to the page. Until that step succeeds, the
    API hides the role: `GET /api/v1/auth/me` lists only `provisional`, although the database
    already holds the grant. See [`permissions.md`](../architecture/permissions.md).
+
+## Start a ready-to-use development environment
+
+To walk through a feature by hand, one command replaces starting the stack, seeding it, signing
+up a user, granting the role and setting up the authenticator. It automates the steps in
+[Create the first user and administrator](#create-the-first-user-and-administrator) and
+[Load sample data for evaluation](#load-sample-data-for-evaluation). Run it from the repository
+root with Docker available, and `uv` too unless you pass `-SkipSeed`:
+
+```powershell
+powershell -File scripts/dev-env.ps1
+```
+
+It builds and starts the stack, runs `dev-seed.ps1`, creates the Keycloak user `devadmin` with a
+password and an authenticator secret, signs that user in once through the API, accepts the terms
+and grants the `administrator` role. It prints the address, the password, the secret and a
+current six-digit code. The password and secret are generated on the first run and kept in
+`deploy/.dev-user.json`, which git ignores. The file keeps one entry per username, so `-Username`
+adds a second user without touching the first.
+
+- **Another run is safe.** It skips a catalogue that holds data and a user that exists. Add
+  `-SkipBuild` to reuse the images, or `-Reset` to delete the database first.
+- **Keycloak forgets the user on restart,** because the stack keeps no Keycloak volume. Run the
+  script again. The user keeps the same id, so the existing `app_user` record still matches.
+- **A fresh code:** `powershell -File scripts/dev-env.ps1 -Totp`. A code works once, so wait for the
+  next one if Keycloak rejects it.
+- **Local use only.** The credentials are for this HTTP-only development stack. Never reuse them.
 
 ## Seed the baseline catalogue
 
@@ -245,27 +275,3 @@ To run the API or web app on your own machine instead, see
 [`local-development.md`](local-development.md). To check the running web app in a real
 browser, see [`frontend-e2e-testing.md`](frontend-e2e-testing.md). Every setting is listed in
 [`configuration.md`](configuration.md).
-
-### Start a ready-to-use development environment
-
-To walk through a feature by hand, one command replaces starting the stack, seeding it, signing
-up a user, granting the role and setting up the authenticator. Run it from the repository root
-with `uv` and Docker available:
-
-```powershell
-powershell -File scripts/dev-env.ps1
-```
-
-It builds and starts the stack, runs `dev-seed.ps1`, creates the Keycloak user `devadmin` with a
-password and an authenticator secret, signs that user in once through the API, accepts the terms
-and grants the `administrator` role. It prints the address, the password, the secret and a
-current six-digit code. The password and secret are generated on the first run and kept in
-`deploy/.dev-user.json`, which git ignores.
-
-- **Another run is safe.** It skips a catalogue that holds data and a user that exists. Add
-  `-SkipBuild` to reuse the images, or `-Reset` to delete the database first.
-- **Keycloak forgets the user on restart,** because the stack keeps no Keycloak volume. Run the
-  script again. The user keeps the same id, so the existing `app_user` record still matches.
-- **A fresh code:** `powershell -File scripts/dev-env.ps1 -Totp`. A code works once, so wait for the
-  next one if Keycloak rejects it.
-- **Local use only.** The credentials are for this HTTP-only development stack. Never reuse them.
