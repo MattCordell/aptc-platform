@@ -168,8 +168,8 @@ class CodeHandler:
         except ValueError as exc:
             raise UnsupportedBindingError(
                 f"binding value_set_uri {binding.value_set_uri!r} with edition "
-                f"{binding.edition!r} does not name a recognised SNOMED edition - "
-                "this is a malformed PropertyDefinitionSpec, not a bad value"
+                f"{binding.edition!r} is not a SNOMED implicit ECL value set URI naming a "
+                "recognised edition - this is a malformed PropertyDefinitionSpec, not a bad value"
             ) from exc
         result = self._terminology.validate_code(
             code, edition=edition, value_set_url=binding.value_set_uri

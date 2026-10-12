@@ -808,6 +808,37 @@ describe("RepeatableValues (FR-23, FR-52)", () => {
       await waitFor(() => expect(items()[0]).toHaveTextContent("Recorded term"));
     });
 
+    it("tells two values with the same name apart by their codes", async () => {
+      const LOCAL = "https://nptc.example/code-system/subgroup";
+      stubValues(() => ({ body: { items: [], total: 0 } }));
+      render(
+        withProviders(
+          <Harness
+            control="concept_picker"
+            initial={[
+              slot("1", { system: SNOMED, code: "1", display: "Same name" }),
+              slot("2", { system: LOCAL, code: "2", display: "Same name" }),
+              slot("3", { system: SNOMED, code: "3", display: "Other name" }),
+            ]}
+            params={{ allowJustification: true }}
+          />,
+        ),
+      );
+
+      expect(
+        await screen.findByRole("button", { name: "Remove Same name (1)" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Remove Same name (2)" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Remove Other name" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByLabelText("Justification for Same name (2)"),
+      ).toBeInTheDocument();
+    });
+
     it("ignores a value already in the list, and says so", async () => {
       stubValues(() => ({ body: SHORT_LIST }));
       const user = userEvent.setup();

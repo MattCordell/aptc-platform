@@ -408,17 +408,44 @@ class _RecordingClient(StubTerminologyClient):
         return ValidationResult(code=code, result=True)
 
 
+_ECL = "?fhir_vs=ecl/%3C%3C123038009"
+
+
 @pytest.mark.req("FR-10")
 @pytest.mark.req("FR-48")
-def test_code_binding_check_asks_the_server_about_the_editions_module_not_its_label() -> None:
-    """The stored edition is the label "au"; the server rejects `http://snomed.info/sct/au` as an
-    invalid version, so the call must carry the AU module id."""
+@pytest.mark.req("FR-49")
+@pytest.mark.parametrize(
+    ("value_set_uri", "label", "expected_system_version"),
+    [
+        pytest.param(
+            f"http://snomed.info/sct{_ECL}",
+            "au",
+            "http://snomed.info/sct/32506021000036107",
+            id="bare-system-uses-the-label",
+        ),
+        pytest.param(
+            f"http://snomed.info/sct/900000000000207008{_ECL}",
+            "au",
+            "http://snomed.info/sct/900000000000207008",
+            id="module-qualified-international",
+        ),
+        pytest.param(
+            f"http://snomed.info/sct/32506021000036107/version/20260531{_ECL}",
+            "au",
+            "http://snomed.info/sct/32506021000036107/version/20260531",
+            id="pinned-version-is-kept",
+        ),
+    ],
+)
+def test_code_binding_check_asks_the_server_about_the_editions_module_not_its_label(
+    value_set_uri: str, label: str, expected_system_version: str
+) -> None:
+    """The stored edition is a label such as "au"; the server rejects
+    `http://snomed.info/sct/au` as an invalid version, so the call must carry the module id,
+    and a version the URI pins."""
     client = _RecordingClient()
     binding = BindingSpec(
-        binding_target="value_set",
-        value_set_uri=_AU_VALUE_SET_URI,
-        strength="required",
-        edition="au",
+        binding_target="value_set", value_set_uri=value_set_uri, strength="required", edition=label
     )
 
     issues = CodeHandler(terminology_client=client).validate(
@@ -426,9 +453,7 @@ def test_code_binding_check_asks_the_server_about_the_editions_module_not_its_la
     )
 
     assert issues == []
-    assert [edition.system_version_uri for edition in client.editions] == [
-        "http://snomed.info/sct/32506021000036107"
-    ]
+    assert [edition.system_version_uri for edition in client.editions] == [expected_system_version]
 
 
 @pytest.mark.req("FR-10")

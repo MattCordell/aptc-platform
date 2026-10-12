@@ -185,8 +185,15 @@ function SeveralValues({
     propertyKey,
     added.map((slot) => slot.value),
   );
-  const labelOf = (index: number): string =>
-    resolved[index] ?? plainLabel(added[index].value);
+  const names = added.map((slot, index) => resolved[index] ?? plainLabel(slot.value));
+  // Two coded values can share a name, which would leave their Remove buttons and
+  // justification fields with one accessible name. Those get their code added.
+  const labelOf = (index: number): string => {
+    const { value } = added[index];
+    return isCodedValue(value) && names.filter((name) => name === names[index]).length > 1
+      ? `${names[index]} (${value.code})`
+      : names[index];
+  };
   const allowJustification = params.allowJustification === true;
   const errorFor = (fieldId: string) =>
     errors.find((error) => error.fieldId === fieldId)?.message;
