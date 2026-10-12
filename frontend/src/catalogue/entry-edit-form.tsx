@@ -1,11 +1,14 @@
+import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 
 import { usePropertyDefinitions } from "../api/queries.ts";
 import type { components } from "../api/schema.ts";
 import { refusalDetail } from "../api/conflicts.ts";
+import { buttonClassName } from "../components/button-class-name.ts";
 import { Card } from "../components/card.tsx";
 import type { FormError } from "../components/error-summary.tsx";
 import { Field } from "../components/field.tsx";
+import { FieldGrid } from "../components/field-grid.tsx";
 import { Form } from "../components/form.tsx";
 import type { SubmitOutcome } from "../components/form.tsx";
 import { INPUT_CLASSES } from "../components/input-classes.ts";
@@ -79,6 +82,7 @@ import { useEntrySave } from "./use-entry-save.ts";
 const SPECIMEN_KEY = "specimen";
 const TERM_FIELD_ID = "entry-preferred-term";
 const NOTE_FIELD_ID = "entry-edit-note";
+const PROPERTIES_HEADING_ID = "entry-properties-heading";
 const TERM_CHANGE_ID = "preferred_term";
 const BINDING_CHANGE_ID = "binding";
 
@@ -577,179 +581,222 @@ export function EntryEditForm({ entry }: { entry: EntryDetail }) {
       <h2 id="entry-form-heading">Edit entry</h2>
       <LiveRegion message={message} politeness={politeness} />
 
-      <Card>
-        <dl className="m-0 grid grid-cols-[max-content_1fr] gap-x-6 gap-y-3">
-          <dt className="text-[var(--color-text-muted)]">Identifier</dt>
-          <dd className="m-0 font-mono">{entry.business_key}</dd>
-          <dt className="text-[var(--color-text-muted)]">Entry status</dt>
-          <dd className="m-0">
-            <StatusBadge
-              tone={statusToneFor(entry.status)}
-              label={statusLabelFor(entry.status)}
-            />
-          </dd>
-          <dt className="text-[var(--color-text-muted)]">Last changed</dt>
-          <dd className="m-0 tabular-nums">
-            {new Date(entry.updated_at).toLocaleString()}
-          </dd>
-        </dl>
-      </Card>
-
-      <Form
-        submitLabel="Save"
-        pendingLabel="Saving"
-        pending={entrySave.isPending}
-        errors={ownErrors}
-        formError={unexpected === null ? undefined : <RefusalNotice error={unexpected} />}
-        submitBlocked={blocked}
-        blockedReason={
-          hasChanges ? changelogNote.blockedReason : "There are no changes to save."
-        }
-        blockedFieldId={hasChanges ? changelogNote.fieldId : undefined}
-        onSubmitBlocked={() => {
-          changelogNote.markSubmitAttempted();
-          setOwnErrors(validateOwnFields());
-        }}
-        onSubmit={submit}
-      >
-        <Field
-          id={TERM_FIELD_ID}
-          label="RCPA Preferred"
-          hint={
-            <>
-              The catalogue&rsquo;s own preferred term for this entry. Length:{" "}
-              {liveLength} {liveLength === 1 ? "character" : "characters"}.
-              {serverLength !== null &&
-                ` The server counted ${serverLength} when you last saved.`}
-            </>
+      <Card compact>
+        <Form
+          submitLabel="Save"
+          pendingLabel="Saving"
+          pending={entrySave.isPending}
+          errors={ownErrors}
+          formError={
+            unexpected === null ? undefined : <RefusalNotice error={unexpected} />
           }
-          error={termErrors[0]?.message}
+          submitBlocked={blocked}
+          blockedReason={
+            hasChanges ? changelogNote.blockedReason : "There are no changes to save."
+          }
+          blockedFieldId={hasChanges ? changelogNote.fieldId : undefined}
+          onSubmitBlocked={() => {
+            changelogNote.markSubmitAttempted();
+            setOwnErrors(validateOwnFields());
+          }}
+          onSubmit={submit}
+          secondaryActions={
+            entry.status === "active" ? (
+              <Link
+                to="/catalogue/$businessKey"
+                params={{ businessKey: entry.business_key }}
+                className={buttonClassName("secondary")}
+              >
+                Cancel
+              </Link>
+            ) : (
+              <Link to="/admin/catalogue" className={buttonClassName("secondary")}>
+                Cancel
+              </Link>
+            )
+          }
         >
-          {(controlProps) => (
-            <input
-              {...controlProps}
-              className={INPUT_CLASSES}
-              type="text"
-              value={term}
-              onChange={(event) => {
-                setTerm(event.target.value);
-                clearOwnErrors((fieldId) => fieldId === TERM_FIELD_ID);
-                clearRefusal(TERM_CHANGE_ID);
+          <dl className="m-0 flex flex-wrap items-center gap-x-6 gap-y-1">
+            <div className="flex items-center gap-2">
+              <dt className="text-[var(--color-text-muted)]">Identifier</dt>
+              <dd className="m-0 font-mono">{entry.business_key}</dd>
+            </div>
+            <div className="flex items-center gap-2">
+              <dt className="text-[var(--color-text-muted)]">Entry status</dt>
+              <dd className="m-0">
+                <StatusBadge
+                  tone={statusToneFor(entry.status)}
+                  label={statusLabelFor(entry.status)}
+                />
+              </dd>
+            </div>
+            <div className="flex items-center gap-2">
+              <dt className="text-[var(--color-text-muted)]">Last changed</dt>
+              <dd className="m-0 tabular-nums">
+                {new Date(entry.updated_at).toLocaleString()}
+              </dd>
+            </div>
+          </dl>
+
+          <FieldGrid>
+            <Field
+              id={TERM_FIELD_ID}
+              label="RCPA Preferred"
+              hint={
+                <>
+                  The catalogue&rsquo;s own preferred term for this entry. Length:{" "}
+                  {liveLength} {liveLength === 1 ? "character" : "characters"}.
+                  {serverLength !== null &&
+                    ` The server counted ${serverLength} when you last saved.`}
+                </>
+              }
+              error={termErrors[0]?.message}
+            >
+              {(controlProps) => (
+                <input
+                  {...controlProps}
+                  className={INPUT_CLASSES}
+                  type="text"
+                  value={term}
+                  onChange={(event) => {
+                    setTerm(event.target.value);
+                    clearOwnErrors((fieldId) => fieldId === TERM_FIELD_ID);
+                    clearRefusal(TERM_CHANGE_ID);
+                  }}
+                />
+              )}
+            </Field>
+
+            <SynonymFields
+              rows={synonyms}
+              retiredTerms={retiredSynonyms(entry)}
+              onReinstate={(term) => setDialog({ kind: "reinstate", term })}
+              addText={addText}
+              rowErrors={synonymRowErrors}
+              addError={addError}
+              onRowsChange={(next) => {
+                const edited = next.filter(
+                  (row) => synonyms.find((old) => old.id === row.id) !== row,
+                );
+                const editedFieldIds = new Set(
+                  edited.map((row) => synonymFieldId(row.id)),
+                );
+                const editedChangeIds = new Set(
+                  edited.flatMap((row) => [
+                    amendChangeId(row.original),
+                    retireChangeId(row.original),
+                  ]),
+                );
+                setSynonyms(next);
+                clearOwnErrors((fieldId) => editedFieldIds.has(fieldId));
+                clearRefusalsWhere((id) => editedChangeIds.has(id));
+              }}
+              onAddTextChange={(text) => {
+                setAddText(text);
+                clearOwnErrors((fieldId) => fieldId === ADD_SYNONYMS_FIELD_ID);
+                clearRefusal(ADD_CHANGE_ID);
               }}
             />
+          </FieldGrid>
+
+          <CodeField
+            bindings={entry.bindings}
+            selection={selection}
+            error={codeError}
+            onPick={(code) => {
+              clearRefusal(BINDING_CHANGE_ID);
+              clearOwnErrors((fieldId) => fieldId === CODE_FIELD_ID);
+              if (code === activeCode) {
+                setOwnErrors((current) => [
+                  ...current,
+                  {
+                    fieldId: CODE_FIELD_ID,
+                    message: "That code is already bound to this entry.",
+                  },
+                ]);
+                return;
+              }
+              setPickedCode(code);
+            }}
+            onClear={() => {
+              setPickedCode(null);
+              clearOwnErrors((fieldId) => fieldId === CODE_FIELD_ID);
+              clearRefusal(BINDING_CHANGE_ID);
+            }}
+            onRetire={(code) => setDialog({ kind: "retire-binding", code })}
+          />
+
+          {definitions.isPending && <p className="m-0">Loading registry properties…</p>}
+          {definitions.isError && (
+            <p className="m-0">
+              {refusalDetail(definitions.error) ??
+                "Registry properties could not be loaded. You can still edit the preferred term."}
+            </p>
           )}
-        </Field>
-
-        <CodeField
-          bindings={entry.bindings}
-          selection={selection}
-          error={codeError}
-          onPick={(code) => {
-            clearRefusal(BINDING_CHANGE_ID);
-            clearOwnErrors((fieldId) => fieldId === CODE_FIELD_ID);
-            if (code === activeCode) {
-              setOwnErrors((current) => [
-                ...current,
-                {
-                  fieldId: CODE_FIELD_ID,
-                  message: "That code is already bound to this entry.",
-                },
-              ]);
-              return;
-            }
-            setPickedCode(code);
-          }}
-          onClear={() => {
-            setPickedCode(null);
-            clearOwnErrors((fieldId) => fieldId === CODE_FIELD_ID);
-            clearRefusal(BINDING_CHANGE_ID);
-          }}
-          onRetire={(code) => setDialog({ kind: "retire-binding", code })}
-        />
-
-        <SynonymFields
-          rows={synonyms}
-          retiredTerms={retiredSynonyms(entry)}
-          onReinstate={(term) => setDialog({ kind: "reinstate", term })}
-          addText={addText}
-          rowErrors={synonymRowErrors}
-          addError={addError}
-          onRowsChange={(next) => {
-            const edited = next.filter(
-              (row) => synonyms.find((old) => old.id === row.id) !== row,
-            );
-            const editedFieldIds = new Set(edited.map((row) => synonymFieldId(row.id)));
-            const editedChangeIds = new Set(
-              edited.flatMap((row) => [
-                amendChangeId(row.original),
-                retireChangeId(row.original),
-              ]),
-            );
-            setSynonyms(next);
-            clearOwnErrors((fieldId) => editedFieldIds.has(fieldId));
-            clearRefusalsWhere((id) => editedChangeIds.has(id));
-          }}
-          onAddTextChange={(text) => {
-            setAddText(text);
-            clearOwnErrors((fieldId) => fieldId === ADD_SYNONYMS_FIELD_ID);
-            clearRefusal(ADD_CHANGE_ID);
-          }}
-        />
-
-        <h3>Registry properties</h3>
-        {definitions.isPending && <p>Loading registry properties…</p>}
-        {definitions.isError && (
-          <p>
-            {refusalDetail(definitions.error) ??
-              "Registry properties could not be loaded. You can still edit the preferred term."}
-          </p>
-        )}
-        {rows.map((row) => {
-          const { definition } = row;
-          if (!row.editable) {
-            return (
-              <dl
-                key={definition.key}
-                className="m-0 grid grid-cols-[max-content_1fr] gap-x-6"
-              >
-                <dt>{definition.label} (deprecated, read only)</dt>
-                <dd className="m-0">
-                  {row.values.map((value) => formatPropertyValue(value.value)).join(", ")}
-                </dd>
-              </dl>
-            );
-          }
-          const changeId = `property:${definition.key}`;
-          return (
-            <div key={definition.key} className="flex flex-col gap-2">
-              {definition.key === SPECIMEN_KEY ? (
-                <p className="m-0 text-sm text-[var(--color-text-muted)]">
-                  To record that a test accepts any specimen, choose Specimen (123038009)
-                  on its own. A workbook import stores the same value as Any.
-                </p>
-              ) : null}
-              <RepeatableValues
-                propertyKey={definition.key}
-                label={definition.label}
-                cardinality={definition.cardinality as PropertyCardinality}
-                control={definition.form_control.control}
-                params={definition.form_control.params}
-                slots={slots[definition.key] ?? []}
-                onChange={(next) => {
-                  setSlots((current) => ({ ...current, [definition.key]: next }));
-                  clearRefusal(changeId);
-                }}
-                errors={refusals[changeId] ?? []}
-              />
+          {rows.length > 0 && (
+            <div
+              role="group"
+              aria-labelledby={PROPERTIES_HEADING_ID}
+              className="flex flex-col gap-2"
+            >
+              <h3 id={PROPERTIES_HEADING_ID} className="m-0">
+                Properties
+              </h3>
+              <FieldGrid>
+                {rows.map((row) => {
+                  const { definition } = row;
+                  if (!row.editable) {
+                    return (
+                      <dl
+                        key={definition.key}
+                        className="m-0 grid grid-cols-[max-content_1fr] gap-x-6"
+                      >
+                        <dt>{definition.label} (deprecated, read only)</dt>
+                        <dd className="m-0">
+                          {row.values
+                            .map((value) => formatPropertyValue(value.value))
+                            .join(", ")}
+                        </dd>
+                      </dl>
+                    );
+                  }
+                  const changeId = `property:${definition.key}`;
+                  return (
+                    <div key={definition.key} className="flex flex-col gap-2">
+                      {definition.key === SPECIMEN_KEY ? (
+                        <p className="m-0 text-sm text-[var(--color-text-muted)]">
+                          To record that a test accepts any specimen, choose Specimen
+                          (123038009) on its own. A workbook import stores the same value
+                          as Any.
+                        </p>
+                      ) : null}
+                      <RepeatableValues
+                        propertyKey={definition.key}
+                        label={definition.label}
+                        cardinality={definition.cardinality as PropertyCardinality}
+                        control={definition.form_control.control}
+                        params={definition.form_control.params}
+                        slots={slots[definition.key] ?? []}
+                        onChange={(next) => {
+                          setSlots((current) => ({ ...current, [definition.key]: next }));
+                          clearRefusal(changeId);
+                        }}
+                        errors={refusals[changeId] ?? []}
+                        compact
+                      />
+                    </div>
+                  );
+                })}
+              </FieldGrid>
             </div>
-          );
-        })}
-        {definitions.isSuccess && rows.length === 0 && (
-          <p>This entry has no registry properties.</p>
-        )}
+          )}
+          {definitions.isSuccess && rows.length === 0 && (
+            <p className="m-0">This entry has no registry properties.</p>
+          )}
 
-        <ChangelogNoteField id={NOTE_FIELD_ID} changelogNote={changelogNote} />
-      </Form>
+          <ChangelogNoteField id={NOTE_FIELD_ID} changelogNote={changelogNote} />
+        </Form>
+      </Card>
 
       {run !== null && (
         <SaveSummary

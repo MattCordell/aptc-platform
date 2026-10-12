@@ -7,11 +7,11 @@ import type { SynonymRow } from "./synonym-state.ts";
 /**
  * The entry's RCPA Synonyms, inside the edit form (FR-04, FR-36).
  *
- * Each active synonym is a text box. Remove marks a synonym for retirement
- * and the form's Save performs it, so one Save and one changelog note cover
- * every change. A retired synonym is not deleted: the platform keeps it and
- * its history. A separate box adds terms, and takes a cell pasted straight
- * from the legacy workbook, delimiters and all.
+ * One box adds terms, and takes a cell pasted straight from the legacy
+ * workbook, delimiters and all. Under it, each active synonym is a text box.
+ * Remove marks a synonym for retirement and the form's Save performs it, so
+ * one Save and one changelog note cover every change. A retired synonym is not
+ * deleted: the platform keeps it and its history.
  */
 
 export function SynonymFields({
@@ -42,12 +42,40 @@ export function SynonymFields({
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <h3>RCPA Synonyms</h3>
+    <div role="group" aria-label="RCPA Synonyms" className="flex flex-col gap-2">
+      <Field
+        id={ADD_SYNONYMS_FIELD_ID}
+        label="Add synonyms"
+        hint="Type one term, or paste a cell straight from the spreadsheet. Separate several with a semicolon."
+        error={addError}
+      >
+        {(controlProps) => (
+          <input
+            {...controlProps}
+            className={INPUT_CLASSES}
+            type="text"
+            value={addText}
+            onChange={(event) => onAddTextChange(event.target.value)}
+          />
+        )}
+      </Field>
+      {/* Not a live region: it changes on every keystroke, and a screen-reader
+          editor would be interrupted once per character. The result is announced
+          once, after the save. */}
+      <p className="m-0 text-sm text-[var(--color-text-muted)]">
+        {addText.trim().length === 0
+          ? "No new synonyms yet."
+          : terms.length === 0
+            ? "Nothing to add. A cell of only delimiters adds no terms."
+            : `Save will add ${terms.length} ${terms.length === 1 ? "term" : "terms"}: ${terms
+                .map((term) => `“${term}”`)
+                .join(", ")}`}
+      </p>
+
       {rows.length === 0 && <p className="m-0">This entry has no RCPA Synonyms.</p>}
       {rows.map((row, index) =>
         row.removed ? (
-          <div key={row.id} className="flex flex-wrap items-center gap-3">
+          <div key={row.id} className="flex flex-wrap items-center gap-2">
             <p className="m-0">
               <del>{row.original}</del> will be removed when you save. The term is kept as
               a retired synonym.
@@ -67,12 +95,12 @@ export function SynonymFields({
             </Button>
           </div>
         ) : (
-          <div key={row.id} className="flex flex-wrap items-end gap-3">
+          <div key={row.id} className="flex flex-wrap items-end gap-2">
             <Field
               id={synonymFieldId(row.id)}
               label={`Synonym ${index + 1}`}
               error={rowErrors[row.id]}
-              className="min-w-64 flex-1"
+              className="min-w-48 flex-1"
             >
               {(controlProps) => (
                 <input
@@ -98,10 +126,10 @@ export function SynonymFields({
 
       {retiredTerms.length > 0 && (
         <div>
-          <h4>Retired synonyms</h4>
+          <h3 className="m-0 text-base">Retired synonyms</h3>
           <ul className="m-0 flex list-none flex-col gap-2 p-0">
             {retiredTerms.map((term) => (
-              <li key={term} className="flex flex-wrap items-center gap-3">
+              <li key={term} className="flex flex-wrap items-center gap-2">
                 <span>{term}</span>
                 <Button
                   type="button"
@@ -116,35 +144,6 @@ export function SynonymFields({
           </ul>
         </div>
       )}
-
-      <Field
-        id={ADD_SYNONYMS_FIELD_ID}
-        label="Add synonyms"
-        hint="Type one term, or paste a cell straight from the spreadsheet. Separate several with a semicolon."
-        error={addError}
-      >
-        {(controlProps) => (
-          <input
-            {...controlProps}
-            className={INPUT_CLASSES}
-            type="text"
-            value={addText}
-            onChange={(event) => onAddTextChange(event.target.value)}
-          />
-        )}
-      </Field>
-      {/* Not a live region: it changes on every keystroke, and a screen-reader
-          editor would be interrupted once per character. The result is announced
-          once, after the save. */}
-      <p className="m-0">
-        {addText.trim().length === 0
-          ? "No new synonyms yet."
-          : terms.length === 0
-            ? "Nothing to add. A cell of only delimiters adds no terms."
-            : `Save will add ${terms.length} ${terms.length === 1 ? "term" : "terms"}: ${terms
-                .map((term) => `“${term}”`)
-                .join(", ")}`}
-      </p>
     </div>
   );
 }
