@@ -254,15 +254,27 @@ Push-Location $RepoRoot
 try {
     if ($Reset) {
         Write-Host '==> Delete the containers and the database'
-        & docker compose -f $ComposeFile down -v | Out-Host
+        & docker compose --progress plain -f $ComposeFile down -v | Out-Host
         if ($LASTEXITCODE -ne 0) { Stop-WithError "docker compose down failed (exit $LASTEXITCODE)" $ExitStack }
     }
 
     Write-Host '==> Start the stack'
-    $upArguments = @('compose', '-f', $ComposeFile, 'up', '-d')
+    # Plain progress: piping to Out-Host leaves Compose with no console, and its live display fails.
+    $upArguments = @('compose', '--progress', 'plain', '-f', $ComposeFile, 'up', '-d')
     if (-not $SkipBuild) { $upArguments += '--build' }
     & docker @upArguments | Out-Host
-    if ($LASTEXITCODE -ne 0) { Stop-WithError "docker compose up failed (exit $LASTEXITCODE)" $ExitStack }
+    if ($LASTEXITCODE -ne 0) {
+        # Keycloak can take over a minute to start, and Compose may stop waiting for it first. It
+        # then leaves backend and web unstarted, so wait for Keycloak and start the rest once more.
+        Write-Host 'Compose stopped waiting for a service. Waiting for Keycloak, then trying once more.'
+        $keycloakId = & docker compose -f $ComposeFile ps -q keycloak
+        foreach ($attempt in 1..36) {
+            if ($keycloakId -and (& docker inspect --format '{{.State.Health.Status}}' $keycloakId) -eq 'healthy') { break }
+            Start-Sleep -Seconds 5
+        }
+        & docker compose --progress plain -f $ComposeFile up -d | Out-Host
+        if ($LASTEXITCODE -ne 0) { Stop-WithError "docker compose up failed (exit $LASTEXITCODE)" $ExitStack }
+    }
 
     Write-Host '==> Wait for the web app and the realm'
     $ready = $false
