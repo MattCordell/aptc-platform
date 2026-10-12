@@ -17,7 +17,7 @@ import {
   slotFieldId,
 } from "./types.ts";
 import type { ControlKind, PropertyValueSlot } from "./types.ts";
-import { VALUE_LABELS, codeLabel } from "./value-labels.ts";
+import { VALUE_LABELS, selectedLabel } from "./value-labels.ts";
 
 type PropertyCardinality = components["schemas"]["PropertyCardinality"];
 
@@ -81,7 +81,7 @@ export function RepeatableValues(props: RepeatableValuesProps) {
 
 /** What a value reads as before the server has named it: a coded value's own recorded term. */
 function plainLabel(value: unknown): string {
-  return isCodedValue(value) ? codeLabel(value.code, value.display) : String(value);
+  return isCodedValue(value) ? selectedLabel(value.code, value.display) : String(value);
 }
 
 function JustificationField({

@@ -285,7 +285,7 @@ describe("what the form shows", () => {
 
     const added = within(listOf("Discipline")).getAllByRole("listitem");
     expect(added).toHaveLength(1);
-    await waitFor(() => expect(added[0]).toHaveTextContent("HAEM — Haematology"));
+    await waitFor(() => expect(added[0]).toHaveTextContent("Haematology"));
     expect(added[0]).not.toHaveTextContent("[object Object]");
   });
 
@@ -556,7 +556,7 @@ describe("saving", () => {
     await renderLoaded();
 
     await user.type(
-      form().getByLabelText(/^Justification for HAEM/),
+      form().getByLabelText(/^Justification for Haematology/),
       "Locally agreed substitute",
     );
     await fillNote(user, "Add a justification");
@@ -748,9 +748,9 @@ describe("a refused field", () => {
     // The refusal is also marked on the field, whose value is kept.
     const added = within(listOf("Discipline")).getAllByRole("listitem");
     expect(added).toHaveLength(2);
-    expect(added[0]).toHaveTextContent("HAEM");
+    expect(added[0]).toHaveTextContent("Haematology");
     expect(added[0]).not.toHaveTextContent("Not a recognised discipline code.");
-    expect(added[1]).toHaveTextContent("BIOC");
+    expect(added[1]).toHaveTextContent("Biochemistry");
     expect(added[1]).toHaveTextContent("Not a recognised discipline code.");
     // A refusal changed nothing, so the next request carries the version after the first save.
     expect(bodyOf(calls, USAGE_PATH)).toMatchObject({ expected_row_version: 5 });
@@ -1059,7 +1059,7 @@ describe("a field someone else changed", () => {
 
     // The term and the discipline were not touched here, so they now show the other editor's.
     expect(form().getByLabelText("RCPA Preferred")).toHaveValue("Ferritin (S)");
-    await waitFor(() => expect(listOf("Discipline")).toHaveTextContent("BIOC"));
+    await waitFor(() => expect(listOf("Discipline")).toHaveTextContent("Biochemistry"));
     // What this editor typed is kept.
     expect(form().getByLabelText("Usage guidance")).toHaveValue("Fasting sample.");
   });
@@ -1073,7 +1073,7 @@ describe("a field someone else changed", () => {
     await fillNote(user, "Record fasting guidance");
     await save(user);
     await screen.findByRole("heading", { name: "Ferritin (S)", level: 1 });
-    await waitFor(() => expect(listOf("Discipline")).toHaveTextContent("BIOC"));
+    await waitFor(() => expect(listOf("Discipline")).toHaveTextContent("Biochemistry"));
 
     await save(user);
 

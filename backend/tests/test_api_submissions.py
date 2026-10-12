@@ -53,7 +53,7 @@ from nptc_shared.terminology import (
     TerminologyStatusError,
     TerminologyTimeoutError,
 )
-from nptc_shared.terminology.models import Edition, ValidationResult
+from nptc_shared.terminology.models import ValidationResult
 
 
 def _load(name: str) -> Any:
@@ -81,7 +81,7 @@ _SNOMED = "http://snomed.info/sct"
 _SPECIMEN_ROOT = "123038009"
 _SERUM = "119364003"
 _SPECIMEN_VALUE_SET_URI = "http://snomed.info/sct?fhir_vs=ecl/%3C%3C123038009"
-_SPECIMEN_EDITION = Edition(module_id="au", label="au")
+_SPECIMEN_EDITION = SNOMED_CT_AU
 _UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 
 
