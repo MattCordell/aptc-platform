@@ -45,7 +45,8 @@ changelog note:
 - **Save and Cancel.** **Cancel** leaves the form without saving anything, even if you have
   typed changes. It takes you back to the entry's public page when the entry is active. For
   a draft, deprecated or withdrawn entry, which has no public page, it takes you to
-  **Administration → Catalogue**.
+  **Administration → Catalogue**. While a save is running, **Cancel** is unavailable, so you
+  always see the summary of what was saved.
 
 ## How the form saves
 

@@ -1345,3 +1345,33 @@ describe("a code error that describes the lookup", () => {
     );
   });
 });
+
+describe("the error summary", () => {
+  it("lists the problems in the order the fields appear on the page", async () => {
+    stubApi([entryRoute(), PROPERTIES_OK, PROCEDURES_OK, conceptRoute({ fsn: null })]);
+    const user = userEvent.setup();
+    await renderLoaded();
+
+    await user.type(form().getByLabelText("SNOMED CT code"), "micro");
+    await user.click(
+      await screen.findByRole("option", { name: new RegExp(CODE) }, { timeout: 2000 }),
+    );
+    await form().findByText(/did not return a name/, {}, { timeout: 2000 });
+    await user.clear(form().getByLabelText("Synonym 1"));
+    await user.click(form().getByLabelText("Add synonyms"));
+    await user.paste(
+      Array.from({ length: 101 }, (_, index) => `Term ${index}`).join(";"),
+    );
+    await fillNote(user, "Several problems at once");
+    await save(user);
+
+    const heading = await screen.findByRole("heading", { name: "There is a problem" });
+    const links = within(heading.parentElement as HTMLElement)
+      .getAllByRole("link")
+      .map((link) => link.getAttribute("href"));
+    expect(links).toHaveLength(3);
+    expect(links[0]).toBe("#entry-add-synonyms");
+    expect(links[1]).toMatch(/^#entry-synonym-/);
+    expect(links[2]).toBe("#entry-code-search");
+  });
+});

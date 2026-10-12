@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import type { MouseEvent } from "react";
 
 import { usePropertyDefinitions } from "../api/queries.ts";
 import type { components } from "../api/schema.ts";
@@ -392,9 +393,20 @@ export function EntryEditForm({ entry }: { entry: EntryDetail }) {
   }
 
   function validateOwnFields(): FormError[] {
+    // In the order the fields appear, so the error summary reads like the page.
     const found: FormError[] = [];
     if (normaliseForComparison(term) === "") {
       found.push({ fieldId: TERM_FIELD_ID, message: "Enter the preferred term." });
+    }
+    const tooMany = addTextError(addText);
+    if (tooMany !== null) {
+      found.push({ fieldId: ADD_SYNONYMS_FIELD_ID, message: tooMany });
+    }
+    for (const row of blankRows(synonyms)) {
+      found.push({
+        fieldId: synonymFieldId(row.id),
+        message: "Enter the synonym, or remove it.",
+      });
     }
     if (selection.status === "checking") {
       found.push({
@@ -403,16 +415,6 @@ export function EntryEditForm({ entry }: { entry: EntryDetail }) {
       });
     } else if (selection.status === "unresolved") {
       found.push({ fieldId: CODE_FIELD_ID, message: selection.message });
-    }
-    for (const row of blankRows(synonyms)) {
-      found.push({
-        fieldId: synonymFieldId(row.id),
-        message: "Enter the synonym, or remove it.",
-      });
-    }
-    const tooMany = addTextError(addText);
-    if (tooMany !== null) {
-      found.push({ fieldId: ADD_SYNONYMS_FIELD_ID, message: tooMany });
     }
     return found;
   }
@@ -571,6 +573,23 @@ export function EntryEditForm({ entry }: { entry: EntryDetail }) {
     }
   }
   const liveLength = termLength(term);
+  // A save is several requests in a row, so leaving mid-run would keep some
+  // changes and unmount the summary that says which. `aria-disabled`, not
+  // `Link`'s `disabled`, which drops the href and with it the tab stop.
+  const cancelProps = {
+    className: [
+      buttonClassName("secondary"),
+      entrySave.isPending ? "cursor-not-allowed opacity-50" : "",
+    ]
+      .filter(Boolean)
+      .join(" "),
+    "aria-disabled": entrySave.isPending || undefined,
+    onClick: (event: MouseEvent) => {
+      if (entrySave.isPending) {
+        event.preventDefault();
+      }
+    },
+  };
 
   return (
     <section aria-labelledby="entry-form-heading">
@@ -612,12 +631,12 @@ export function EntryEditForm({ entry }: { entry: EntryDetail }) {
                 <Link
                   to="/catalogue/$businessKey"
                   params={{ businessKey: entry.business_key }}
-                  className={buttonClassName("secondary")}
+                  {...cancelProps}
                 >
                   Cancel
                 </Link>
               ) : (
-                <Link to="/admin/catalogue" className={buttonClassName("secondary")}>
+                <Link to="/admin/catalogue" {...cancelProps}>
                   Cancel
                 </Link>
               )

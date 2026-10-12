@@ -563,6 +563,27 @@ describe("Cancel (FR-36)", () => {
     );
     expect(writes(calls)).toEqual([]);
   });
+
+  it("is unavailable while a save runs, so a half-finished save is not left", async () => {
+    stubApi([...BASE_ROUTES, { ...amendOk(), neverSettles: true }]);
+    const user = userEvent.setup();
+    await renderLoaded();
+
+    const term = form().getByLabelText("RCPA Preferred");
+    await user.clear(term);
+    await user.paste("Serum ferritin");
+    await fillNote(user, "Correct the preferred term");
+    const cancel = form().getByRole("link", { name: "Cancel" });
+    expect(cancel).not.toHaveAttribute("aria-disabled");
+    await save(user);
+
+    await waitFor(() => expect(cancel).toHaveAttribute("aria-disabled", "true"));
+    expect(cancel).toHaveAttribute("href", `/catalogue/${BUSINESS_KEY}`);
+    await user.click(cancel);
+
+    expect(screen.getByRole("region", { name: "Edit entry" })).toBeInTheDocument();
+    expect(form().getByRole("heading", { level: 2, name: "Edit entry" })).toBeVisible();
+  });
 });
 
 describe("the live term length (FR-85)", () => {
