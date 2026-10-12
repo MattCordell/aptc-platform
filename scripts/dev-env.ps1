@@ -340,7 +340,7 @@ try {
     Write-Host '==> Sign in once, accept the terms and grant the administrator role'
     $directGrantOn = $false
     $usedStep = $null
-    $platformUsername = $null
+    $me = $null
     try {
         Set-DirectGrant $keycloakUrl $headers $true
         $directGrantOn = $true
@@ -348,10 +348,6 @@ try {
         $usedStep = $signIn.Step
         $api = @{ Authorization = "Bearer $($signIn.Token.access_token)" }
         $me = Invoke-RestMethod -Headers $api -Uri "$webUrl/api/v1/auth/me"
-        if (-not $me.authenticated -or -not $me.user -or -not $me.user.username) {
-            throw 'the platform did not report a username for the signed-in user.'
-        }
-        $platformUsername = $me.user.username
         $terms = Invoke-RestMethod -Headers $api -Uri "$webUrl/api/v1/auth/terms"
         if (-not $terms.accepted) {
             Invoke-RestMethod -Method Post -Headers $api -ContentType 'application/json' `
@@ -373,6 +369,12 @@ try {
             }
         }
     }
+
+    # Outside the try above: Keycloak accepted the sign-in, so its credential hints would mislead.
+    if (-not $me.authenticated -or -not $me.user -or -not $me.user.username) {
+        Stop-WithError 'the platform did not report a username for the signed-in user.' $ExitSignIn
+    }
+    $platformUsername = $me.user.username
 
     & docker compose -f $ComposeFile exec -T backend python scripts/grant_role.py --username $platformUsername --role administrator | Out-Host
     if ($LASTEXITCODE -ne 0) { Stop-WithError "the role grant failed (exit $LASTEXITCODE)" $ExitSignIn }
