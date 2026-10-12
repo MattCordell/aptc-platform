@@ -263,6 +263,7 @@ function NewTestForm() {
                 <Field
                   id={FIELD_IDS.preferred_term}
                   label="Test name (required)"
+                  hint="The name people use for this test."
                   error={errorFor(FIELD_IDS.preferred_term)}
                 >
                   {(controlProps) => (

@@ -340,6 +340,15 @@ describe("SubmissionNewPage fields", () => {
     expect(box).toHaveAccessibleDescription("Press Enter or a semicolon to add a name.");
   });
 
+  it("describes the Test name box with a hint, so the first row of boxes lines up", async () => {
+    stubApi([ME, DEFINITIONS]);
+    await renderPage();
+
+    expect(screen.getByLabelText("Test name (required)")).toHaveAccessibleDescription(
+      "The name people use for this test.",
+    );
+  });
+
   it("drops the space after a typed semicolon from the text left in the box", async () => {
     stubApi([ME, DEFINITIONS]);
     await renderPage();
