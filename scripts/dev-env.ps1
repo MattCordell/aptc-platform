@@ -12,11 +12,13 @@ granting a role and setting up an authenticator. In order, it:
      left alone.
   3. Creates the dev user in Keycloak with a password and a TOTP authenticator secret. Keycloak
      runs without a volume, so a restart discards the user; running this script again recreates
-     the same user with the same id, so the existing app_user still matches.
+     it under a new Keycloak id, which the platform treats as a new person.
   4. Signs that user in once through the API, which creates the app_user row, and accepts the
      current terms of use. The sign-in uses a direct password grant that the script switches on for
      the nptc-frontend client for these few calls and switches off again.
-  5. Grants the administrator role (scripts/grant_role.py inside the backend container).
+  5. Grants the administrator role (scripts/grant_role.py inside the backend container) to the
+     username the platform reports for that sign-in. After a restart that is a suffixed name such
+     as devadmin-1a2b3c4d, because the plain name belongs to the earlier account.
 
 The password and the authenticator secret are generated the first time a username is used and
 kept in deploy/.dev-user.json, which git ignores. The file holds one entry per username, and every
@@ -167,7 +169,6 @@ function Get-DevUserState {
     if ($known) { return $known.Value }
     $state = [pscustomobject]@{
         username = $Username
-        userId = [guid]::NewGuid().ToString()
         password = (New-RandomText 20 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789') + '!9'
         totpSecret = New-RandomText 20 'abcdefghijklmnopqrstuvwxyz0123456789'
     }
@@ -319,7 +320,6 @@ try {
             $otpData = @{ subType = 'totp'; digits = 6; period = $TotpPeriod; algorithm = 'HmacSHA1' } | ConvertTo-Json -Compress
             $otpSecret = @{ value = $state.totpSecret } | ConvertTo-Json -Compress
             $user = @{
-                id = $state.userId
                 username = $state.username
                 email = "$($state.username)@example.invalid"
                 emailVerified = $true
@@ -340,13 +340,14 @@ try {
     Write-Host '==> Sign in once, accept the terms and grant the administrator role'
     $directGrantOn = $false
     $usedStep = $null
+    $me = $null
     try {
         Set-DirectGrant $keycloakUrl $headers $true
         $directGrantOn = $true
         $signIn = Get-DevToken $keycloakUrl $state
         $usedStep = $signIn.Step
         $api = @{ Authorization = "Bearer $($signIn.Token.access_token)" }
-        Invoke-RestMethod -Headers $api -Uri "$webUrl/api/v1/auth/me" | Out-Null
+        $me = Invoke-RestMethod -Headers $api -Uri "$webUrl/api/v1/auth/me"
         $terms = Invoke-RestMethod -Headers $api -Uri "$webUrl/api/v1/auth/terms"
         if (-not $terms.accepted) {
             Invoke-RestMethod -Method Post -Headers $api -ContentType 'application/json' `
@@ -369,7 +370,13 @@ try {
         }
     }
 
-    & docker compose -f $ComposeFile exec -T backend python scripts/grant_role.py --username $state.username --role administrator | Out-Host
+    # Outside the try above: Keycloak accepted the sign-in, so its credential hints would mislead.
+    if (-not $me.authenticated -or -not $me.user -or -not $me.user.username) {
+        Stop-WithError 'the platform did not report a username for the signed-in user.' $ExitSignIn
+    }
+    $platformUsername = $me.user.username
+
+    & docker compose -f $ComposeFile exec -T backend python scripts/grant_role.py --username $platformUsername --role administrator | Out-Host
     if ($LASTEXITCODE -ne 0) { Stop-WithError "the role grant failed (exit $LASTEXITCODE)" $ExitSignIn }
 
     # Keycloak refuses a code it has already accepted, so wait for the next one before printing it.
