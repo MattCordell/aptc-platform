@@ -107,7 +107,9 @@ adds a second user without touching the first.
 - **Another run is safe.** It skips a catalogue that holds data and a user that exists. Add
   `-SkipBuild` to reuse the images, or `-Reset` to delete the database first.
 - **Keycloak forgets the user on restart,** because the stack keeps no Keycloak volume. Run the
-  script again. The user keeps the same id, so the existing `app_user` record still matches.
+  script again. Keycloak gives the new user a new id, so the platform creates a second account
+  with a suffixed username, such as `devadmin-1a2b3c4d`, and the script grants `administrator`
+  to that one. Earlier accounts stay behind, unused. `-Reset` clears them.
 - **A fresh code:** `powershell -File scripts/dev-env.ps1 -Totp`. A code works once, so wait for the
   next one if Keycloak rejects it.
 - **Local use only.** The credentials are for this HTTP-only development stack. Never reuse them.
