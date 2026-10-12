@@ -792,6 +792,24 @@ describe("RepeatableValues (FR-23, FR-52)", () => {
       });
     });
 
+    it("shows the term recorded with a value when the server answers without it", async () => {
+      stubValues(() => ({ body: { items: [], total: 0 } }));
+      render(
+        withProviders(
+          <Harness
+            control="concept_picker"
+            initial={[
+              slot("1", { system: SNOMED, code: "122554006", display: "Recorded term" }),
+            ]}
+          />,
+        ),
+      );
+
+      await waitFor(() =>
+        expect(items()[0]).toHaveTextContent("122554006 — Recorded term"),
+      );
+    });
+
     it("ignores a value already in the list, and says so", async () => {
       stubValues(() => ({ body: SHORT_LIST }));
       const user = userEvent.setup();

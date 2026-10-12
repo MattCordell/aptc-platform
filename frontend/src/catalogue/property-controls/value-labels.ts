@@ -27,9 +27,10 @@ function useTextLabels(_propertyKey: string, values: readonly unknown[]) {
 }
 
 /**
- * Resolves by code, then keeps the answer that names the same system as the value, so a value the property's bound list no longer offers still
- * gets its name when the server knows one, and reads as its bare code when it
- * does not.
+ * Resolves by code, so a value the property's bound list no longer offers still
+ * gets its name when the server knows one. The answer must name the same system
+ * as the value. When it does not, the label falls back to the term recorded with
+ * the value, then to the bare code.
  *
  * One query per code, not one for the whole set: a set that gains or loses a
  * member is a new query with no data, which would turn every label already
@@ -51,9 +52,9 @@ function useCodeLabels(propertyKey: string, values: readonly unknown[]) {
     }
     const query = resolved[index];
     if (query?.data === undefined) {
-      return query?.isError ? own.code : null;
+      return query?.isError ? codeLabel(own.code, own.display) : null;
     }
-    return codeLabel(own.code, findCoded(query.data.items, own)?.display);
+    return codeLabel(own.code, findCoded(query.data.items, own)?.display ?? own.display);
   });
 }
 
