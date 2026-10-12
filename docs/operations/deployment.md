@@ -245,3 +245,27 @@ To run the API or web app on your own machine instead, see
 [`local-development.md`](local-development.md). To check the running web app in a real
 browser, see [`frontend-e2e-testing.md`](frontend-e2e-testing.md). Every setting is listed in
 [`configuration.md`](configuration.md).
+
+### Start a ready-to-use development environment
+
+To walk through a feature by hand, one command replaces starting the stack, seeding it, signing
+up a user, granting the role and setting up the authenticator. Run it from the repository root
+with `uv` and Docker available:
+
+```powershell
+powershell -File scripts/dev-env.ps1
+```
+
+It builds and starts the stack, runs `dev-seed.ps1`, creates the Keycloak user `devadmin` with a
+password and an authenticator secret, signs that user in once through the API, accepts the terms
+and grants the `administrator` role. It prints the address, the password, the secret and a
+current six-digit code. The password and secret are generated on the first run and kept in
+`deploy/.dev-user.json`, which git ignores.
+
+- **Another run is safe.** It skips a catalogue that holds data and a user that exists. Add
+  `-SkipBuild` to reuse the images, or `-Reset` to delete the database first.
+- **Keycloak forgets the user on restart,** because the stack keeps no Keycloak volume. Run the
+  script again. The user keeps the same id, so the existing `app_user` record still matches.
+- **A fresh code:** `powershell -File scripts/dev-env.ps1 -Totp`. A code works once, so wait for the
+  next one if Keycloak rejects it.
+- **Local use only.** The credentials are for this HTTP-only development stack. Never reuse them.
