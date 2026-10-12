@@ -260,17 +260,25 @@ try {
 
     Write-Host '==> Start the stack'
     # Plain progress: piping to Out-Host leaves Compose with no console, and its live display fails.
-    $upArguments = @('compose', '--progress', 'plain', '-f', $ComposeFile, 'up', '-d')
-    if (-not $SkipBuild) { $upArguments += '--build' }
-    & docker @upArguments | Out-Host
+    if (-not $SkipBuild) {
+        & docker compose --progress plain -f $ComposeFile build | Out-Host
+        if ($LASTEXITCODE -ne 0) { Stop-WithError "docker compose build failed (exit $LASTEXITCODE)" $ExitStack }
+    }
+    & docker compose --progress plain -f $ComposeFile up -d | Out-Host
     if ($LASTEXITCODE -ne 0) {
-        # Keycloak can take over a minute to start, and Compose may stop waiting for it first. It
-        # then leaves backend and web unstarted, so wait for Keycloak and start the rest once more.
-        Write-Host 'Compose stopped waiting for a service. Waiting for Keycloak, then trying once more.'
+        $upExit = $LASTEXITCODE
+        # Compose can stop waiting for a slow Keycloak and leave backend and web unstarted. Build is
+        # a separate step above, so starting again cannot hide a failed build.
         $keycloakId = & docker compose -f $ComposeFile ps -q keycloak
+        if (-not $keycloakId) { Stop-WithError "docker compose up failed (exit $upExit)" $ExitStack }
+        Write-Host 'Compose stopped waiting for a service. Waiting for Keycloak, then trying once more.'
+        $keycloakHealthy = $false
         foreach ($attempt in 1..36) {
-            if ($keycloakId -and (& docker inspect --format '{{.State.Health.Status}}' $keycloakId) -eq 'healthy') { break }
+            if ((& docker inspect --format '{{.State.Health.Status}}' $keycloakId) -eq 'healthy') { $keycloakHealthy = $true; break }
             Start-Sleep -Seconds 5
+        }
+        if (-not $keycloakHealthy) {
+            Stop-WithError 'Keycloak did not become healthy within 3 minutes. See: docker compose -f deploy/compose.yml logs keycloak' $ExitStack
         }
         & docker compose --progress plain -f $ComposeFile up -d | Out-Host
         if ($LASTEXITCODE -ne 0) { Stop-WithError "docker compose up failed (exit $LASTEXITCODE)" $ExitStack }
