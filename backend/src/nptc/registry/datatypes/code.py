@@ -28,7 +28,8 @@ from nptc.registry.handlers import (
     ValueExpression,
 )
 from nptc_shared.sctid import has_valid_check_digit, has_valid_format
-from nptc_shared.terminology import SNOMED_SYSTEM, Edition, TerminologyClient
+from nptc_shared.terminology import SNOMED_SYSTEM, TerminologyClient
+from nptc_shared.terminology.snomed import edition_from_implicit_value_set_url
 
 _SUPPORTED_OPS = frozenset({FilterOp.EQUALS, FilterOp.IN})
 _REQUIRED_KEYS = frozenset({"system", "code"})
@@ -158,7 +159,18 @@ class CodeHandler:
                 "got None - this is a malformed PropertyDefinitionSpec, not "
                 "a bad value"
             )
-        edition = Edition(module_id=binding.edition, label=binding.edition)
+        # The stored `edition` is a label such as "au", not a module id. The server needs the
+        # module-qualified system version, so the edition comes from the value set URI.
+        try:
+            edition = edition_from_implicit_value_set_url(
+                binding.value_set_uri, label=binding.edition
+            )
+        except ValueError as exc:
+            raise UnsupportedBindingError(
+                f"binding value_set_uri {binding.value_set_uri!r} with edition "
+                f"{binding.edition!r} does not name a recognised SNOMED edition - "
+                "this is a malformed PropertyDefinitionSpec, not a bad value"
+            ) from exc
         result = self._terminology.validate_code(
             code, edition=edition, value_set_url=binding.value_set_uri
         )

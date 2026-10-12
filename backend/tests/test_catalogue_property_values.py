@@ -47,11 +47,11 @@ from nptc.registry.datatypes import build_builtin_handlers
 from nptc.registry.definitions import DeprecatedPropertyWriteError
 from nptc.registry.handlers import DatatypeRegistry, HandlerDeps
 from nptc.registry.schema import MalformedConstraintsError
-from nptc_shared.terminology.models import Edition, ValidationResult
+from nptc_shared.terminology.models import SNOMED_CT_AU, ValidationResult
 from nptc_shared.terminology.stub import StubTerminologyClient
 
 _SPECIMEN_VALUE_SET_URI = "http://snomed.info/sct?fhir_vs=ecl/%3C%3C123038009"
-_SPECIMEN_EDITION = Edition(module_id="au", label="au")
+_SPECIMEN_EDITION = SNOMED_CT_AU
 _SPECIMEN_SYSTEM = "http://example.org/specimen-test"
 
 
@@ -578,8 +578,8 @@ def test_discipline_rejects_a_code_absent_from_the_local_system(app_session: Ses
 
 # --- FR-10: binding strength (required / extensible / example) --------------
 
-_VS_URI = "http://example.org/vs"
-_VS_EDITION = Edition(module_id="test", label="test")
+_VS_URI = "http://snomed.info/sct?fhir_vs=ecl/%3C%3C123038009"
+_VS_EDITION = SNOMED_CT_AU
 _VS_SYSTEM = "http://example.org/coded-test"
 _OUT_OF_SET_CODE = "out-of-set"
 
@@ -596,7 +596,7 @@ def _new_coded_property(session: Session, *, key: str, strength: str) -> Propert
         binding_target="value_set",
         value_set_uri=_VS_URI,
         strength=strength,
-        edition="test",
+        edition="au",
         filterable=False,
         origin=PropertyOrigin.ADMIN,
         display_order=0,
@@ -861,7 +861,7 @@ def test_a_malformed_constraints_document_is_rejected_before_any_value_is_judged
         binding_target="value_set",
         value_set_uri=_VS_URI,
         strength="required",
-        edition="test",
+        edition="au",
         filterable=False,
         origin=PropertyOrigin.ADMIN,
         display_order=0,

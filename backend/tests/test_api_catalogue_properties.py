@@ -27,7 +27,7 @@ from nptc.catalogue.entries import create_entry
 from nptc.db.models.audit import AuditEvent
 from nptc.db.models.catalogue_entry import CatalogueEntry
 from nptc.db.models.property_value import PropertyValue
-from nptc_shared.terminology.models import Edition, ValidationResult
+from nptc_shared.terminology.models import SNOMED_CT_AU, ValidationResult
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -49,7 +49,7 @@ latest_audit_event = _load("audit_support").latest_audit_event
 
 _REASON = "Created for issue #248 property-value write route test."
 _SPECIMEN_VALUE_SET_URI = "http://snomed.info/sct?fhir_vs=ecl/%3C%3C123038009"
-_SPECIMEN_EDITION = Edition(module_id="au", label="au")
+_SPECIMEN_EDITION = SNOMED_CT_AU
 _SPECIMEN_SYSTEM = "http://example.org/specimen-test"
 
 
