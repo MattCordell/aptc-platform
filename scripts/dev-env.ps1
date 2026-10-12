@@ -7,7 +7,7 @@ signed-up administrator who has accepted the terms and has two-factor sign-in co
 One command replaces the manual sequence of starting the stack, seeding it, registering a user,
 granting a role and setting up an authenticator. In order, it:
 
-  1. Builds and starts the stack: docker compose -f deploy/compose.yml up -d --build
+  1. Builds the images, then starts the stack: docker compose -f deploy/compose.yml build, then up -d
   2. Seeds the sample catalogue (scripts/dev-seed.ps1). A catalogue that already holds data is
      left alone.
   3. Creates the dev user in Keycloak with a password and a TOTP authenticator secret. Keycloak
@@ -254,15 +254,37 @@ Push-Location $RepoRoot
 try {
     if ($Reset) {
         Write-Host '==> Delete the containers and the database'
-        & docker compose -f $ComposeFile down -v | Out-Host
+        & docker compose --progress plain -f $ComposeFile down -v | Out-Host
         if ($LASTEXITCODE -ne 0) { Stop-WithError "docker compose down failed (exit $LASTEXITCODE)" $ExitStack }
     }
 
     Write-Host '==> Start the stack'
-    $upArguments = @('compose', '-f', $ComposeFile, 'up', '-d')
-    if (-not $SkipBuild) { $upArguments += '--build' }
-    & docker @upArguments | Out-Host
-    if ($LASTEXITCODE -ne 0) { Stop-WithError "docker compose up failed (exit $LASTEXITCODE)" $ExitStack }
+    # Plain progress: piping to Out-Host leaves Compose with no console, and its live display fails.
+    if (-not $SkipBuild) {
+        & docker compose --progress plain -f $ComposeFile build | Out-Host
+        if ($LASTEXITCODE -ne 0) { Stop-WithError "docker compose build failed (exit $LASTEXITCODE)" $ExitStack }
+    }
+    & docker compose --progress plain -f $ComposeFile up -d | Out-Host
+    if ($LASTEXITCODE -ne 0) {
+        $upExit = $LASTEXITCODE
+        # Compose can stop waiting for a slow Keycloak and leave backend and web unstarted. Build is
+        # a separate step above, so starting again cannot hide a failed build.
+        $keycloakId = & docker compose -f $ComposeFile ps -q keycloak
+        if (-not $keycloakId) { Stop-WithError "docker compose up failed (exit $upExit)" $ExitStack }
+        Write-Host 'Compose stopped waiting for a service. Waiting for Keycloak, then trying once more.'
+        $keycloakState = ''
+        foreach ($attempt in 1..36) {
+            $keycloakState = & docker inspect --format '{{.State.Status}} {{.State.Health.Status}}' $keycloakId
+            if ($keycloakState -eq 'running healthy' -or $keycloakState -notlike 'running *') { break }
+            Start-Sleep -Seconds 5
+        }
+        if ($keycloakState -ne 'running healthy') {
+            $why = if ($keycloakState -like 'running *') { 'did not become healthy within 3 minutes' } else { 'is not running' }
+            Stop-WithError "Keycloak $why (state: $keycloakState). See: docker compose -f deploy/compose.yml logs keycloak" $ExitStack
+        }
+        & docker compose --progress plain -f $ComposeFile up -d | Out-Host
+        if ($LASTEXITCODE -ne 0) { Stop-WithError "docker compose up failed (exit $LASTEXITCODE)" $ExitStack }
+    }
 
     Write-Host '==> Wait for the web app and the realm'
     $ready = $false
