@@ -313,3 +313,13 @@ GRANT_SUBMISSION_UPDATE_SQL = (
     "GRANT UPDATE (state, updated_at, row_version) ON TABLE submission TO nptc_app;"
 )
 REVOKE_SUBMISSION_DELETE_SQL = "REVOKE DELETE, TRUNCATE ON TABLE submission FROM nptc_app;"
+
+#: FR-32: who registered interest, and when, is never edited or removed. Revoking sets `revoked_at`
+#: and nothing else, so it is the one updatable column.
+GRANT_SUBMISSION_INTEREST_SQL = "GRANT SELECT, INSERT ON TABLE submission_interest TO nptc_app;"
+GRANT_SUBMISSION_INTEREST_UPDATE_SQL = (
+    "GRANT UPDATE (revoked_at) ON TABLE submission_interest TO nptc_app;"
+)
+REVOKE_SUBMISSION_INTEREST_DELETE_SQL = (
+    "REVOKE DELETE, TRUNCATE ON TABLE submission_interest FROM nptc_app;"
+)
