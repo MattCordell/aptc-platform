@@ -13,7 +13,8 @@ export const COLLECTION_NOTICE = {
   title: "How we use your details",
   collect:
     "We collect the details you enter on the registration form to create your account and to attribute your contributions to the catalogue.",
-  visible: "Catalogue reviewers and platform administrators can see your identity and your interest records.",
+  visible:
+    "Catalogue reviewers and platform administrators can see your identity and your interest records.",
   retention:
     "How long we keep your details is still being settled. The privacy policy will state it.",
   organisation:

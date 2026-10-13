@@ -858,7 +858,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Show who registered interest in a submission
+         * @description The live records and the organisations behind them, for any submission, closed ones
+         *     included. Revoked records are left out of both.
+         */
+        get: operations["show_submission_interest_api_v1_submissions__submission_id__interest_get"];
         /**
          * Register interest in a submission
          * @description Idempotent: a caller who already holds interest gets the same answer and nothing is
@@ -1636,6 +1641,110 @@ export interface components {
          */
         ControlKind: "text" | "textarea" | "number" | "uri" | "concept_picker";
         /**
+         * CountedIdentifiedSubmissionPage
+         * @description `SubmissionPage` for a caller with both `submitter_identity.view` and
+         *     `interest.identities.view`.
+         */
+        CountedIdentifiedSubmissionPage: {
+            /** Items */
+            items: components["schemas"]["CountedIdentifiedSubmissionSummary"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /**
+         * CountedIdentifiedSubmissionSummary
+         * @description `IdentifiedSubmissionSummary` with `distinct_organisation_count`.
+         */
+        CountedIdentifiedSubmissionSummary: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** State */
+            state: string;
+            /** Entry Business Key */
+            entry_business_key: string | null;
+            /** Preferred Term */
+            preferred_term: string;
+            /** Snomed Code */
+            snomed_code: string | null;
+            /** Snomed Fsn */
+            snomed_fsn: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Is Own */
+            is_own: boolean;
+            /** Has Registered Interest */
+            has_registered_interest: boolean;
+            /** Interest Count */
+            interest_count: number | null;
+            /** Label Provenance */
+            label_provenance: {
+                [key: string]: components["schemas"]["LabelProvenance"];
+            };
+            submitter: components["schemas"]["IdentifiedSubmitter"];
+            /** Distinct Organisation Count */
+            distinct_organisation_count: number;
+        };
+        /**
+         * CountedSubmissionPage
+         * @description `SubmissionPage` for a caller with `interest.identities.view` alone.
+         */
+        CountedSubmissionPage: {
+            /** Items */
+            items: components["schemas"]["CountedSubmissionSummary"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /**
+         * CountedSubmissionSummary
+         * @description `SubmissionSummary` for a caller with `interest.identities.view`: it adds the number of named
+         *     organisations among the live interest records (FR-33).
+         */
+        CountedSubmissionSummary: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** State */
+            state: string;
+            /** Entry Business Key */
+            entry_business_key: string | null;
+            /** Preferred Term */
+            preferred_term: string;
+            /** Snomed Code */
+            snomed_code: string | null;
+            /** Snomed Fsn */
+            snomed_fsn: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Is Own */
+            is_own: boolean;
+            /** Has Registered Interest */
+            has_registered_interest: boolean;
+            /** Interest Count */
+            interest_count: number | null;
+            /** Label Provenance */
+            label_provenance: {
+                [key: string]: components["schemas"]["LabelProvenance"];
+            };
+            submitter: components["schemas"]["PlainSubmitter"];
+            /** Distinct Organisation Count */
+            distinct_organisation_count: number;
+        };
+        /**
          * CreateAmendmentRequest
          * @description The body of `POST /submissions/amendments`.
          *
@@ -2310,6 +2419,56 @@ export interface components {
             display_name: string;
             /** Organisation */
             organisation: string | null;
+        };
+        /**
+         * InterestIdentitiesResponse
+         * @description `interest_count` is the number of live records. `distinct_organisation_count` is the number
+         *     of named organisations in `distinct_organisations`, so the group with no organisation is not
+         *     counted. `records` is newest first.
+         */
+        InterestIdentitiesResponse: {
+            /** Interest Count */
+            interest_count: number;
+            /** Distinct Organisation Count */
+            distinct_organisation_count: number;
+            /** Distinct Organisations */
+            distinct_organisations: components["schemas"]["InterestOrganisation"][];
+            /** Records */
+            records: components["schemas"]["InterestPerson"][];
+        };
+        /**
+         * InterestOrganisation
+         * @description One organisation represented, and how many live records name it. Spellings that differ only
+         *     by letter case or surrounding space are one organisation, shown in its most common spelling.
+         *     `organisation` is null for the one group of records that named none, and `label` then reads
+         *     "No organisation given".
+         */
+        InterestOrganisation: {
+            /** Organisation */
+            organisation: string | null;
+            /** Label */
+            label: string;
+            /** Count */
+            count: number;
+        };
+        /**
+         * InterestPerson
+         * @description One live registration. `username` and `display_name` are the placeholder for a closed
+         *     account. `organisation` is the copy recorded at registration, which can differ from the person's
+         *     profile now, and is null when none was given. `registered_at` is when interest was registered.
+         */
+        InterestPerson: {
+            /** Username */
+            username: string;
+            /** Display Name */
+            display_name: string;
+            /** Organisation */
+            organisation: string | null;
+            /**
+             * Registered At
+             * Format: date-time
+             */
+            registered_at: string;
         };
         /**
          * InterestResponse
@@ -6007,7 +6166,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SubmissionPage"] | components["schemas"]["IdentifiedSubmissionPage"];
+                    "application/json": components["schemas"]["SubmissionPage"] | components["schemas"]["IdentifiedSubmissionPage"] | components["schemas"]["CountedSubmissionPage"] | components["schemas"]["CountedIdentifiedSubmissionPage"];
                 };
             };
             /** @description No credential, or one that could not be verified. */
@@ -6347,6 +6506,75 @@ export interface operations {
                 };
             };
             /** @description The caller is authenticated but does not hold `submission.view`, or has not accepted the current terms of use (the body then carries a `code` that says so). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No submission has the identifier. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The identifier is not a UUID. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description An address exceeded its request budget (FR-22): an anonymous caller its anonymous budget, or a caller whose credentials the API kept rejecting its budget for rejected credentials. Wait for the number of seconds in `Retry-After`, then try again. A valid credential is never counted. The body's `bulk_artefacts` names where to fetch the whole catalogue instead. */
+            429: {
+                headers: {
+                    /** @description Whole seconds until the caller's request budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateLimitedResponse"];
+                };
+            };
+        };
+    };
+    show_submission_interest_api_v1_submissions__submission_id__interest_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterestIdentitiesResponse"];
+                };
+            };
+            /** @description No credential, or one that could not be verified. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The caller is authenticated but does not hold `interest.identities.view`, or has not accepted the current terms of use (the body then carries a `code` that says so). */
             403: {
                 headers: {
                     [name: string]: unknown;
