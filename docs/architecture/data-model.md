@@ -1611,8 +1611,25 @@ own submission.
 **The count.** A submission's `interest_count` is its live rows, from every user.
 `GET /api/v1/submissions` and `GET /api/v1/submissions/{id}` carry it with `has_registered_interest`,
 and read a page's counts in one grouped statement (`nptc.submissions.interest.interest_summaries`).
-The count is null for a caller without `interest.view_counts`. Who registered is not served here: that
-is a Reviewer and Administrator view (FR-34, FR-33) and arrives with its own route.
+The count is null for a caller without `interest.view_counts`. Who registered is not served here.
+
+**The identities** are `GET /api/v1/submissions/{id}/interest`, gated on `interest.identities.view`
+(Reviewer and Administrator, FR-34, FR-33). It returns the live records (display name, username, the
+organisation copy and the registration time, newest first) and `distinct_organisations`, each
+organisation represented with its count (`nptc.submissions.interest_identities`). A closed submission's
+live records are returned too. A closed account's person reads `Closed account` and the record still
+counts under its organisation copy. The route is a read, so it emits no audit event.
+
+**Organisations group on the trimmed, lower-cased copy**, so `Royal Perth Hospital` and
+` royal perth hospital` are one group. The group's label is its most common trimmed spelling, with a
+tie going to the one that sorts first by code point. A blank copy and a missing one are one group
+with a null `organisation` and the label `No organisation given`; it is listed last. The grouping does
+not depend on registration trimming what it stores.
+
+**`distinct_organisation_count` on the list.** `GET /api/v1/submissions` adds it to each item for a
+caller with `interest.identities.view`, and leaves the key out for everyone else, not null. It counts
+named organisations only, so it equals the number of named groups in the endpoint above, and a
+page's counts come from one grouped statement.
 
 **The organisation is a copy, and closure keeps it.** Closing an account clears the profile
 (NFR-17); the record's `user_id` and `organisation` stay and the record keeps counting. The audit policy

@@ -4588,6 +4588,12 @@
                     },
                     {
                       "$ref": "#/components/schemas/IdentifiedSubmissionPage"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CountedSubmissionPage"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CountedIdentifiedSubmissionPage"
                     }
                   ],
                   "title": "Response List Submissions Api V1 Submissions Get"
@@ -5202,6 +5208,101 @@
           },
           "409": {
             "description": "The submission is the caller's own, so they cannot register interest in it, or it is closed (`Published in release`, `Rejected` or `Withdrawn`), so its interest can no longer be registered or revoked. `detail` says which. Nothing was changed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The identifier is not a UUID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/HTTPValidationError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "An address exceeded its request budget (FR-22): an anonymous caller its anonymous budget, or a caller whose credentials the API kept rejecting its budget for rejected credentials. Wait for the number of seconds in `Retry-After`, then try again. A valid credential is never counted. The body's `bulk_artefacts` names where to fetch the whole catalogue instead.",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds until the caller's request budget is available again.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimitedResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "submissions"
+        ],
+        "summary": "Show who registered interest in a submission",
+        "description": "The live records and the organisations behind them, for any submission, closed ones\nincluded. Revoked records are left out of both.",
+        "operationId": "show_submission_interest_api_v1_submissions__submission_id__interest_get",
+        "parameters": [
+          {
+            "name": "submission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Submission Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterestIdentitiesResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No credential, or one that could not be verified.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but does not hold `interest.identities.view`, or has not accepted the current terms of use (the body then carries a `code` that says so).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No submission has the identifier.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7079,6 +7180,286 @@
         "title": "ControlKind",
         "description": "Named after the interaction, never after a datatype (ADR-0013 SS3)."
       },
+      "CountedIdentifiedSubmissionPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CountedIdentifiedSubmissionSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "CountedIdentifiedSubmissionPage",
+        "description": "`SubmissionPage` for a caller with both `submitter_identity.view` and\n`interest.identities.view`."
+      },
+      "CountedIdentifiedSubmissionSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "entry_business_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entry Business Key"
+          },
+          "preferred_term": {
+            "type": "string",
+            "title": "Preferred Term"
+          },
+          "snomed_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snomed Code"
+          },
+          "snomed_fsn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snomed Fsn"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "is_own": {
+            "type": "boolean",
+            "title": "Is Own"
+          },
+          "has_registered_interest": {
+            "type": "boolean",
+            "title": "Has Registered Interest"
+          },
+          "interest_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interest Count"
+          },
+          "label_provenance": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/LabelProvenance"
+            },
+            "type": "object",
+            "title": "Label Provenance"
+          },
+          "submitter": {
+            "$ref": "#/components/schemas/IdentifiedSubmitter"
+          },
+          "distinct_organisation_count": {
+            "type": "integer",
+            "title": "Distinct Organisation Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "state",
+          "entry_business_key",
+          "preferred_term",
+          "snomed_code",
+          "snomed_fsn",
+          "created_at",
+          "is_own",
+          "has_registered_interest",
+          "interest_count",
+          "label_provenance",
+          "submitter",
+          "distinct_organisation_count"
+        ],
+        "title": "CountedIdentifiedSubmissionSummary",
+        "description": "`IdentifiedSubmissionSummary` with `distinct_organisation_count`."
+      },
+      "CountedSubmissionPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CountedSubmissionSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "CountedSubmissionPage",
+        "description": "`SubmissionPage` for a caller with `interest.identities.view` alone."
+      },
+      "CountedSubmissionSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "entry_business_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entry Business Key"
+          },
+          "preferred_term": {
+            "type": "string",
+            "title": "Preferred Term"
+          },
+          "snomed_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snomed Code"
+          },
+          "snomed_fsn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snomed Fsn"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "is_own": {
+            "type": "boolean",
+            "title": "Is Own"
+          },
+          "has_registered_interest": {
+            "type": "boolean",
+            "title": "Has Registered Interest"
+          },
+          "interest_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interest Count"
+          },
+          "label_provenance": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/LabelProvenance"
+            },
+            "type": "object",
+            "title": "Label Provenance"
+          },
+          "submitter": {
+            "$ref": "#/components/schemas/PlainSubmitter"
+          },
+          "distinct_organisation_count": {
+            "type": "integer",
+            "title": "Distinct Organisation Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "state",
+          "entry_business_key",
+          "preferred_term",
+          "snomed_code",
+          "snomed_fsn",
+          "created_at",
+          "is_own",
+          "has_registered_interest",
+          "interest_count",
+          "label_provenance",
+          "submitter",
+          "distinct_organisation_count"
+        ],
+        "title": "CountedSubmissionSummary",
+        "description": "`SubmissionSummary` for a caller with `interest.identities.view`: it adds the number of named\norganisations among the live interest records (FR-33)."
+      },
       "CreateAmendmentRequest": {
         "properties": {
           "entry_business_key": {
@@ -8510,6 +8891,109 @@
         ],
         "title": "IdentifiedSubmitter",
         "description": "The submitter as a caller with `submitter_identity.view` sees them. `organisation` is the\ncopy the submitter sent with this submission, which can differ from their profile, and is null\nwhen they sent none. A closed account's `username` and `display_name` are the placeholder."
+      },
+      "InterestIdentitiesResponse": {
+        "properties": {
+          "interest_count": {
+            "type": "integer",
+            "title": "Interest Count"
+          },
+          "distinct_organisation_count": {
+            "type": "integer",
+            "title": "Distinct Organisation Count"
+          },
+          "distinct_organisations": {
+            "items": {
+              "$ref": "#/components/schemas/InterestOrganisation"
+            },
+            "type": "array",
+            "title": "Distinct Organisations"
+          },
+          "records": {
+            "items": {
+              "$ref": "#/components/schemas/InterestPerson"
+            },
+            "type": "array",
+            "title": "Records"
+          }
+        },
+        "type": "object",
+        "required": [
+          "interest_count",
+          "distinct_organisation_count",
+          "distinct_organisations",
+          "records"
+        ],
+        "title": "InterestIdentitiesResponse",
+        "description": "`interest_count` is the number of live records. `distinct_organisation_count` is the number\nof named organisations in `distinct_organisations`, so the group with no organisation is not\ncounted. `records` is newest first."
+      },
+      "InterestOrganisation": {
+        "properties": {
+          "organisation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organisation"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "organisation",
+          "label",
+          "count"
+        ],
+        "title": "InterestOrganisation",
+        "description": "One organisation represented, and how many live records name it. Spellings that differ only\nby letter case or surrounding space are one organisation, shown in its most common spelling.\n`organisation` is null for the one group of records that named none, and `label` then reads\n\"No organisation given\"."
+      },
+      "InterestPerson": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "organisation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organisation"
+          },
+          "registered_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Registered At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "display_name",
+          "organisation",
+          "registered_at"
+        ],
+        "title": "InterestPerson",
+        "description": "One live registration. `username` and `display_name` are the placeholder for a closed\naccount. `organisation` is the copy recorded at registration, which can differ from the person's\nprofile now, and is null when none was given. `registered_at` is when interest was registered."
       },
       "InterestResponse": {
         "properties": {

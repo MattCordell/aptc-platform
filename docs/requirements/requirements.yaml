@@ -231,14 +231,14 @@
   priority: SHOULD
   phase: p2
   title: "The Reviewer and Administrator view of an interest count MUST show the distinct organisations represented, not only the headcount"
-  status: planned
-  notes: ""
+  status: implemented
+  notes: "GET /api/v1/submissions/{id}/interest, gated on interest.identities.view, returns the live records and distinct_organisations, each organisation with its count (backend/src/nptc/submissions/interest_identities.py, backend/src/nptc/api/routers/submission_interest.py). Organisations that differ only by letter case or surrounding space are one group, and records with no organisation are one group with a null organisation and a label. GET /api/v1/submissions adds distinct_organisation_count to each item for the same callers. The screens that show it are still to build (FR-34). Tests: backend/tests/test_api_submissions_interest_identities.py."
 - id: "FR-34"
   priority: MUST
   phase: p2
   title: "Interest counts are visible to all authenticated users"
   status: in-progress
-  notes: "The count half is built. GET /api/v1/submissions and GET /api/v1/submissions/{id} carry interest_count, the live records from every user, and has_registered_interest, for the caller; the count is null for a caller without interest.view_counts, which every signed-in role holds (backend/src/nptc/api/routers/submissions_read.py). Provisional and Observer cannot register interest, tested on both routes. Still to build: the identities of those who registered, visible only to Reviewers and Administrators, and the screens that show the counts. Tests: backend/tests/test_api_submissions_interest.py."
+  notes: "The count half is built. GET /api/v1/submissions and GET /api/v1/submissions/{id} carry interest_count, the live records from every user, and has_registered_interest, for the caller; the count is null for a caller without interest.view_counts, which every signed-in role holds (backend/src/nptc/api/routers/submissions_read.py). Provisional and Observer cannot register interest, tested on both routes. The identities of those who registered are served by GET /api/v1/submissions/{id}/interest, visible only to Reviewers and Administrators, and are tested for Member, Observer and Provisional (403) in backend/tests/test_api_submissions_interest_identities.py. Still to build: the screens that show the counts and the identities. Tests: backend/tests/test_api_submissions_interest.py."
 - id: "FR-35"
   priority: MUST
   phase: p2
