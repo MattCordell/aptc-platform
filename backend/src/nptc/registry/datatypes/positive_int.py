@@ -43,6 +43,9 @@ class PositiveIntHandler:
     def constraints_schema(self) -> Mapping[str, Any]:
         return {"type": "object", "additionalProperties": False}
 
+    def validate_definition(self, spec: PropertyDefinitionSpec) -> None:
+        return None
+
     def validate(self, value: Any, spec: PropertyDefinitionSpec) -> Sequence[ValidationIssue]:
         if isinstance(value, bool) or not isinstance(value, int):
             return [ValidationIssue(code="wrong-type", message="value must be an integer")]

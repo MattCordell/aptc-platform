@@ -38,6 +38,7 @@ from nptc.registry.definitions import (
     DefinitionAudience,
     DeprecatedPropertyWriteError,
     PropertyAlreadyDeprecatedError,
+    PropertyBindingInvalidError,
     PropertyConstraintsInvalidError,
     PropertyDatatypeUnknownError,
     PropertyDefinitionKeyExistsError,
@@ -158,6 +159,86 @@ def test_create_definition_refuses_constraints_invalid_for_the_datatype(
             cardinality="0..1",
             constraints={"maxLength": "not-an-integer"},
         )
+
+
+_ECL_QUERY = "?fhir_vs=ecl/%3C%3C123038009"
+
+
+def _coded(value_set_uri: str) -> dict[str, object]:
+    return {
+        "datatype": "code",
+        "binding_target": "value_set",
+        "value_set_uri": value_set_uri,
+        "strength": "required",
+        "edition": "au",
+    }
+
+
+@pytest.mark.req("FR-10")
+@pytest.mark.integration
+def test_create_definition_refuses_a_value_set_uri_the_platform_cannot_expand(
+    app_session: Session,
+) -> None:
+    """The principal failure mode: a `refset/` URI would save and then fail at first use."""
+    key = _new_key()
+    before = _audit_event_count(app_session)
+
+    with pytest.raises(PropertyBindingInvalidError):
+        _create(app_session, key=key, **_coded("http://snomed.info/sct?fhir_vs=refset/723264001"))
+
+    app_session.flush()
+    assert _audit_event_count(app_session) == before
+    stored = app_session.execute(
+        select(func.count()).select_from(PropertyDefinition).where(PropertyDefinition.key == key)
+    ).scalar_one()
+    assert stored == 0
+
+
+@pytest.mark.req("FR-10")
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "value_set_uri",
+    [
+        pytest.param(f"http://snomed.info/sct{_ECL_QUERY}", id="bare-system"),
+        pytest.param(f"http://snomed.info/sct/32506021000036107{_ECL_QUERY}", id="module"),
+        pytest.param(
+            f"http://snomed.info/sct/32506021000036107/version/20260531{_ECL_QUERY}",
+            id="version-pinned",
+        ),
+    ],
+)
+def test_create_definition_accepts_an_implicit_ecl_value_set_uri(
+    app_session: Session, value_set_uri: str
+) -> None:
+    definition = _create(app_session, **_coded(value_set_uri))
+    app_session.flush()
+
+    assert definition.value_set_uri == value_set_uri
+
+
+@pytest.mark.req("FR-10")
+@pytest.mark.integration
+def test_amend_definition_does_not_recheck_a_binding_the_amendment_leaves_alone(
+    app_session: Session, registry: DatatypeRegistry
+) -> None:
+    """A definition saved before the check existed must stay editable, because no amendable
+    field can repair its URI."""
+    definition = _create(app_session, **_coded(f"http://snomed.info/sct{_ECL_QUERY}"))
+    app_session.flush()
+    definition.value_set_uri = "http://snomed.info/sct?fhir_vs=refset/723264001"
+    app_session.flush()
+
+    amended = amend_definition(
+        app_session,
+        AuditContext.system(),
+        registry=registry,
+        definition=definition,
+        expected_row_version=definition.row_version,
+        reason=_REASON,
+        label="Renamed",
+    )
+
+    assert amended.label == "Renamed"
 
 
 # --- amend_definition (FR-12: key immutability) -------------------------

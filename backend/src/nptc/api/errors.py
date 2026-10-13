@@ -104,6 +104,7 @@ from nptc.exports.semantic_tag import EmptyDisplayTermError, NotAServedFSNError
 from nptc.registry.definitions import (
     DeprecatedPropertyWriteError,
     PropertyAlreadyDeprecatedError,
+    PropertyBindingInvalidError,
     PropertyConstraintsInvalidError,
     PropertyDatatypeUnknownError,
     PropertyDefinitionDeleteRefusedError,
@@ -591,6 +592,13 @@ _DETAIL_PROPERTY_DATATYPE_UNKNOWN = "This is not a recognised property datatype.
 _DETAIL_PROPERTY_CONSTRAINTS_INVALID = (
     "The constraints given for this property are not valid for its datatype."
 )
+#: Fixed text that does not echo the caller's URI (NFR-26).
+_DETAIL_PROPERTY_BINDING_INVALID = (
+    "value_set_uri is not a value set URI this platform can expand. Use a SNOMED CT implicit ECL "
+    "URI, such as http://snomed.info/sct?fhir_vs=ecl/<ECL>, optionally module-qualified "
+    "(http://snomed.info/sct/<moduleId>) and version-pinned (/version/<version>). Other forms, "
+    "including fhir_vs=refset/, fhir_vs=isa/ and explicit ValueSet URLs, are not yet supported."
+)
 _DETAIL_CONCEPT_NOT_FOUND = "No concept was found for this code in the AU edition."
 #: Deliberately not `str(exc)`, and names no URL, variable or upstream host
 #: (NFR-26). The error-mapping table is in docs/architecture/terminology-client.md.
@@ -945,6 +953,9 @@ _REFUSALS: Final[dict[type[Exception], _Refusal]] = {
     ),
     PropertyConstraintsInvalidError: _Refusal(
         _DETAIL_PROPERTY_CONSTRAINTS_INVALID, "property write refused, invalid constraints: %s"
+    ),
+    PropertyBindingInvalidError: _Refusal(
+        _DETAIL_PROPERTY_BINDING_INVALID, "property write refused, invalid binding: %s"
     ),
     # The read-path twin of `PropertyDatatypeUnknownError`. That one is a
     # caller-supplied `datatype` that does not resolve, a 422 on a write.

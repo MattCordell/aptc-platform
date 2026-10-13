@@ -248,6 +248,70 @@ def test_create_property_with_constraints_invalid_for_the_datatype_is_422(
     assert response.status_code == 422, response.text
 
 
+_ECL_QUERY = "?fhir_vs=ecl/%3C%3C123038009"
+
+
+def _coded_body(value_set_uri: str) -> dict[str, object]:
+    return {
+        "datatype": "code",
+        "binding_target": "value_set",
+        "value_set_uri": value_set_uri,
+        "strength": "required",
+        "edition": "au",
+    }
+
+
+@pytest.mark.req("FR-10")
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "value_set_uri",
+    [
+        pytest.param("http://snomed.info/sct?fhir_vs=refset/723264001", id="refset"),
+        pytest.param("http://snomed.info/sct?fhir_vs=isa/123038009", id="isa"),
+        pytest.param("http://example.org/ValueSet/specimen", id="explicit-value-set"),
+    ],
+)
+def test_create_coded_property_with_an_unexpandable_value_set_uri_is_422_and_stores_nothing(
+    api: ApiTestApp, value_set_uri: str
+) -> None:
+    token = api.admin_token(subject="sub-create-bad-value-set")
+    key = _unique_key("bad_value_set")
+    before = _audit_event_count(api)
+
+    response = _create(api, token, key, **_coded_body(value_set_uri))
+
+    assert response.status_code == 422, response.text
+    detail = response.json()["detail"]
+    assert "value_set_uri" in detail
+    assert "fhir_vs=ecl/" in detail
+    assert value_set_uri not in detail
+    assert _audit_event_count(api) == before
+    assert api.get(f"/registry/properties/{key}", token=token).status_code == 404
+
+
+@pytest.mark.req("FR-10")
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "value_set_uri",
+    [
+        pytest.param(f"http://snomed.info/sct{_ECL_QUERY}", id="bare-system"),
+        pytest.param(f"http://snomed.info/sct/32506021000036107{_ECL_QUERY}", id="module"),
+        pytest.param(
+            f"http://snomed.info/sct/32506021000036107/version/20260531{_ECL_QUERY}",
+            id="version-pinned",
+        ),
+    ],
+)
+def test_create_coded_property_with_an_implicit_ecl_value_set_uri_is_201(
+    api: ApiTestApp, value_set_uri: str
+) -> None:
+    token = api.admin_token(subject="sub-create-good-value-set")
+
+    response = _create(api, token, _unique_key("good_value_set"), **_coded_body(value_set_uri))
+
+    assert response.status_code == 201, response.text
+
+
 @pytest.mark.req("FR-11")
 @pytest.mark.req("NFR-08")
 @pytest.mark.integration
@@ -344,6 +408,9 @@ def test_list_properties_returns_a_synthetic_datatypes_own_form_control(api: Api
 
         datatype = "synthetic_colour"
         uses_binding = False
+
+        def validate_definition(self, spec: PropertyDefinitionSpec) -> None:
+            return None
 
         def json_schema_fragment(self, spec: PropertyDefinitionSpec) -> dict[str, object]:
             return {"type": "string"}

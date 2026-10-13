@@ -46,6 +46,9 @@ class StringHandler:
             "additionalProperties": False,
         }
 
+    def validate_definition(self, spec: PropertyDefinitionSpec) -> None:
+        return None
+
     def validate(self, value: Any, spec: PropertyDefinitionSpec) -> Sequence[ValidationIssue]:
         if not isinstance(value, str):
             return [ValidationIssue(code="wrong-type", message="value must be a string")]

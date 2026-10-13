@@ -42,7 +42,9 @@ not evidence of implementation (ADR-0002's distinction, as ADR-0012 restated it)
 
 ## Decision
 
-**1. The contract is a `typing.Protocol` with eleven members.** Four are FR-77's own sentence
+**1. The contract is a `typing.Protocol` with twelve members.** (Issue #573 added the twelfth,
+`validate_definition()`: a local hook that refuses a binding the handler could not service when a
+definition is created. The count below is the original eleven.) Four are FR-77's own sentence
 (`json_schema_fragment`, `validate`, `form_control`, `serialise`); seven are forced by the
 seams ADR-0012 left open - the `datatype` identity property, `constraints_schema()` for the
 `constraints`-interior schema, `index_shape()`, `supported_filter_ops()` and `filter_clause()`

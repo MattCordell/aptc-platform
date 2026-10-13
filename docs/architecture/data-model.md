@@ -1023,6 +1023,20 @@ no binding column at all. The create form reads it rather than comparing a datat
 outside `^[a-z][a-z0-9_]{0,62}$`, into a 4xx: they surface as a 500, so the create form
 checks them before sending.
 
+**A binding the platform cannot service is refused when the definition is created (FR-10).**
+`validate_definition()`, the twelfth `DatatypeHandler` member, is the hook. It is local and
+makes no terminology call, so create works when the terminology server is down. For a
+`value_set` binding, the `code` handler accepts only a `value_set_uri` of the SNOMED CT implicit
+ECL form: `http://snomed.info/sct[/<moduleId>[/version/<version>]]?fhir_vs=ecl/<ECL>`. It
+accepts a bare-system URI only when `edition` names a known edition, such as `au`. The picker
+(`GET /registry/properties/{key}/values`) and the value check both read the ECL and the edition
+out of the URI, and `TerminologyClient.expand` takes ECL, so any other form (`fhir_vs=refset/`,
+`fhir_vs=isa/`, or an explicit `ValueSet` URL) would fail on first use. `POST /registry/properties`
+answers 422 (`PropertyBindingInvalidError`) with a fixed message that names `value_set_uri`
+and the supported form. Binding to an explicit `ValueSet` is not yet supported.
+`PATCH /registry/properties/{key}` cannot change a binding field, so `amend_definition` checks
+the binding only if a change touches one; a definition saved before this check stays editable.
+
 `property_value` is one row per value, with **`(entry_id, property_key, ordinal)` as the
 primary key** (not a surrogate id plus a separate `UNIQUE`) - `ordinal` `NOT NULL`,
 `CHECK (ordinal >= 0)`, zero-based - plus `value JSONB NOT NULL` and `justification`

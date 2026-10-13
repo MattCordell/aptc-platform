@@ -158,8 +158,9 @@ def jsonb_root_as_text(column: ColumnElement[Any]) -> ColumnElement[Any]:
 
 
 class DatatypeHandler(Protocol):
-    """Eleven members. Four are FR-77's own sentence (`json_schema_fragment`, `validate`,
-    `form_control`, `serialise`); six are forced by the seams ADR-0012 left open; one is `uses_binding`."""
+    """Twelve members. Four are FR-77's own sentence (`json_schema_fragment`, `validate`,
+    `form_control`, `serialise`); six are forced by the seams ADR-0012 left open; two are binding
+    hooks."""
 
     @property
     def datatype(self) -> str: ...
@@ -175,6 +176,10 @@ class DatatypeHandler(Protocol):
     def constraints_schema(self) -> Mapping[str, Any]:
         """Validates the *interior* of the `constraints` JSONB column, which ADR-0012 reserved
         but did not define."""
+        ...
+
+    def validate_definition(self, spec: PropertyDefinitionSpec) -> None:
+        """Raises `UnsupportedBindingError`. Local: no terminology call."""
         ...
 
     def validate(self, value: Any, spec: PropertyDefinitionSpec) -> Sequence[ValidationIssue]:
@@ -224,9 +229,8 @@ class UnsupportedFilterOpError(ValueError):
 
 
 class UnsupportedBindingError(ValueError):
-    """Raised by `CodeHandler.validate()` for a misconfigured `local_code_system` binding: the
-    handler has no `LocalCodeLookup`, or the binding's `local_code_system_key` is `None`. A loud
-    refusal, never a silent pass (ADR-0013 open question 1)."""
+    """Raised by `CodeHandler` for a misconfigured binding (no `LocalCodeLookup`, a `None`
+    `local_code_system_key`, an unexpandable `value_set_uri`), never a silent pass (ADR-0013 Q1)."""
 
 
 # --- the registry and its construction ------------------------------------
