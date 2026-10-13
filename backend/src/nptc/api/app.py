@@ -33,6 +33,7 @@ from nptc.api.routers import (
     catalogue_entries,
     catalogue_properties,
     registry,
+    submission_interest,
     submissions,
     submissions_read,
     terminology,
@@ -159,6 +160,8 @@ def create_app(
     # A user's proposal for a new test (FR-23). Gated on submission.create, so Observer is refused.
     app.include_router(submissions.router, prefix=API_PREFIX)
     app.include_router(submissions_read.router, prefix=API_PREFIX)
+    # Register and revoke interest in a submission (FR-32). Gated on interest.register.
+    app.include_router(submission_interest.router, prefix=API_PREFIX)
     # Live SCTID resolution during form completion (FR-26). Its own prefix and
     # tag, not under /catalogue; see its docstring.
     app.include_router(terminology.router, prefix=API_PREFIX)

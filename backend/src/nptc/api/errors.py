@@ -119,10 +119,12 @@ from nptc.submissions.errors import (
     AmendmentEntryNotActiveError,
     AmendmentRefusal,
     AmendmentRefusedError,
+    ClosedSubmissionInterestError,
     CodeRefusal,
     FreeTextField,
     FreeTextRefusedError,
     MalformedSubmissionCursorError,
+    OwnSubmissionInterestError,
     SubmissionCodeRefusedError,
     SubmissionCodeUnavailableError,
     SubmissionCodeUpstreamError,
@@ -421,6 +423,13 @@ _DETAIL_VERSION_CONFLICT = (
 )
 _DETAIL_NOT_FOUND = "No catalogue entry was found for the given identifier."
 _DETAIL_SUBMISSION_NOT_FOUND = "No submission was found for the given identifier."
+_DETAIL_OWN_SUBMISSION_INTEREST = (
+    "You cannot register interest in your own submission. Interest shows how many other "
+    "people want the test."
+)
+_DETAIL_CLOSED_SUBMISSION_INTEREST = (
+    "This submission is closed, so interest in it can no longer be registered or revoked."
+)
 _DETAIL_SUBMISSION_CURSOR = (
     "This page cursor is not one this API issued. Pass a `next_cursor` value back "
     "unmodified, or start again from the first page."
@@ -796,6 +805,12 @@ _REFUSALS: Final[dict[type[Exception], _Refusal]] = {
     SubmissionNotFoundError: _Refusal(_DETAIL_SUBMISSION_NOT_FOUND, "submission not found: %s"),
     MalformedSubmissionCursorError: _Refusal(
         _DETAIL_SUBMISSION_CURSOR, "submission cursor refused: %s", _name
+    ),
+    OwnSubmissionInterestError: _Refusal(
+        _DETAIL_OWN_SUBMISSION_INTEREST, "own-submission interest refused: %s"
+    ),
+    ClosedSubmissionInterestError: _Refusal(
+        _DETAIL_CLOSED_SUBMISSION_INTEREST, "closed-submission interest refused: %s"
     ),
     # Not logged: a blank search box on a public, unauthenticated endpoint is
     # the most ordinary client mistake there is, and logging it invites

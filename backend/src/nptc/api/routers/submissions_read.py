@@ -26,6 +26,12 @@ are served to every holder of `submission.view`. A submitter can type their own 
 and the server does not search for it. Withholding `notes` would hide the supporting detail from
 every caller who may read a submission.
 
+**Interest rides on every item and on the detail (FR-34).** `has_registered_interest` says whether
+the caller holds a live record, and `interest_count` is the number of live records from every user,
+null for a caller without `Permission.INTEREST_VIEW_COUNTS`. The counts for a page come from one
+grouped statement, so a page costs the same however long it is. The identities behind a count are
+not here.
+
 **No audit event.** A read changes nothing (NFR-08).
 """
 
@@ -55,6 +61,7 @@ from nptc.auth.permissions import Permission
 from nptc.db.models.submission import SubmissionKind, SubmissionState
 from nptc.settings import ApiSettings
 from nptc.submissions import queries
+from nptc.submissions.interest import InterestSummary, interest_summaries
 from nptc.submissions.queries import SubmissionRecord
 
 router = APIRouter(prefix="/submissions", tags=["submissions"])
@@ -132,7 +139,9 @@ class _SummaryFields(BaseModel):
     """What a list item and a detail share. `snomed_fsn` is the label the terminology server
     returned for `snomed_code` (FR-82), and `label_provenance` says which designation each label
     is (FR-98). `entry_business_key` is the entry an amendment proposes to change, and null for a
-    new test. `is_own` is true when the caller made the submission."""
+    new test. `is_own` is true when the caller made the submission. `has_registered_interest` is
+    true when the caller holds live interest in it, and `interest_count` is how many users do, null
+    when the caller may not see counts (FR-34)."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -145,6 +154,8 @@ class _SummaryFields(BaseModel):
     snomed_fsn: str | None
     created_at: datetime
     is_own: bool
+    has_registered_interest: bool
+    interest_count: int | None
     label_provenance: dict[str, LabelProvenance]
 
 
@@ -213,7 +224,13 @@ def _provenance(settings: ApiSettings) -> dict[str, LabelProvenance]:
     }
 
 
-def _summary_fields(record: SubmissionRecord, settings: ApiSettings) -> dict[str, Any]:
+def _summary_fields(
+    record: SubmissionRecord,
+    settings: ApiSettings,
+    interest: InterestSummary,
+    *,
+    counts_visible: bool,
+) -> dict[str, Any]:
     submission = record.submission
     return {
         "id": submission.id,
@@ -225,14 +242,22 @@ def _summary_fields(record: SubmissionRecord, settings: ApiSettings) -> dict[str
         "snomed_fsn": submission.snomed_fsn,
         "created_at": submission.created_at,
         "is_own": record.is_own,
+        "has_registered_interest": interest.registered,
+        "interest_count": interest.count if counts_visible else None,
         "label_provenance": _provenance(settings),
     }
 
 
-def _detail_fields(record: SubmissionRecord, settings: ApiSettings) -> dict[str, Any]:
+def _detail_fields(
+    record: SubmissionRecord,
+    settings: ApiSettings,
+    interest: InterestSummary,
+    *,
+    counts_visible: bool,
+) -> dict[str, Any]:
     submission = record.submission
     return {
-        **_summary_fields(record, settings),
+        **_summary_fields(record, settings, interest, counts_visible=counts_visible),
         "synonyms": list(submission.synonyms),
         "property_values": {
             key: [
@@ -313,11 +338,21 @@ def list_submissions(
         mine=mine,
         kind=kind.value if kind else None,
     )
+    interest = interest_summaries(
+        session, [record.submission.id for record in page.records], viewer_id=principal.user_id
+    )
+    counts_visible = principal.has(Permission.INTEREST_VIEW_COUNTS)
     if principal.has(Permission.SUBMITTER_IDENTITY_VIEW):
         return IdentifiedSubmissionPage(
             items=[
                 IdentifiedSubmissionSummary(
-                    **_summary_fields(record, settings), submitter=_identified_submitter(record)
+                    **_summary_fields(
+                        record,
+                        settings,
+                        interest[record.submission.id],
+                        counts_visible=counts_visible,
+                    ),
+                    submitter=_identified_submitter(record),
                 )
                 for record in page.records
             ],
@@ -326,7 +361,10 @@ def list_submissions(
     return SubmissionPage(
         items=[
             SubmissionSummary(
-                **_summary_fields(record, settings), submitter=_plain_submitter(record)
+                **_summary_fields(
+                    record, settings, interest[record.submission.id], counts_visible=counts_visible
+                ),
+                submitter=_plain_submitter(record),
             )
             for record in page.records
         ],
@@ -355,8 +393,11 @@ def get_submission(
     """One submission in any state, with the content the submitter sent. The submitter appears as
     on the list: a username only, unless the caller holds `submitter_identity.view`."""
     record = queries.get_submission(session, submission_id, viewer_id=principal.user_id)
+    interest = interest_summaries(session, [submission_id], viewer_id=principal.user_id)[
+        submission_id
+    ]
+    counts_visible = principal.has(Permission.INTEREST_VIEW_COUNTS)
+    fields = _detail_fields(record, settings, interest, counts_visible=counts_visible)
     if principal.has(Permission.SUBMITTER_IDENTITY_VIEW):
-        return IdentifiedSubmissionDetail(
-            **_detail_fields(record, settings), submitter=_identified_submitter(record)
-        )
-    return SubmissionDetail(**_detail_fields(record, settings), submitter=_plain_submitter(record))
+        return IdentifiedSubmissionDetail(**fields, submitter=_identified_submitter(record))
+    return SubmissionDetail(**fields, submitter=_plain_submitter(record))

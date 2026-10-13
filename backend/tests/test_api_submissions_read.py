@@ -169,7 +169,7 @@ def test_the_default_list_is_one_statement_that_excludes_closed_states_by_name(
     token, member = _sign_in(api, Role.MEMBER)
     rows = [_add(api, member), _add(api, member, kind=SubmissionKind.AMENDMENT), _add(api, member)]
 
-    with capture_statements(app_db, lambda statement, _: "FROM submission" in statement) as seen:
+    with capture_statements(app_db, lambda statement, _: "FROM submission " in statement) as seen:
         items = _listed(api, token)
 
     assert len(_ids(items, *rows)) == len(rows)

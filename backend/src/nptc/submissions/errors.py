@@ -1,4 +1,4 @@
-"""Refusals specific to creating and reading a submission (FR-26, FR-35, FR-42)."""
+"""Refusals specific to a submission: creating, reading and interest (FR-26, FR-32, FR-35, FR-42)."""
 
 from __future__ import annotations
 
@@ -14,10 +14,12 @@ __all__ = [
     "AmendmentEntryNotActiveError",
     "AmendmentRefusal",
     "AmendmentRefusedError",
+    "ClosedSubmissionInterestError",
     "CodeRefusal",
     "FreeTextField",
     "FreeTextRefusedError",
     "MalformedSubmissionCursorError",
+    "OwnSubmissionInterestError",
     "SubmissionCodeRefusedError",
     "SubmissionCodeUnavailableError",
     "SubmissionCodeUpstreamError",
@@ -136,3 +138,22 @@ class MalformedSubmissionCursorError(ValueError):
     """An `after` cursor this API did not issue; the first page would restart a paging loop."""
 
     http_status: ClassVar[int] = 422
+
+
+class OwnSubmissionInterestError(Exception):
+    """A submitter tried to register interest in their own submission (FR-32). Interest counts
+    other people's backing."""
+
+    http_status: ClassVar[int] = 409
+
+
+class ClosedSubmissionInterestError(Exception):
+    """The submission is closed, so its interest no longer changes (FR-32): a registration would
+    back a proposal that is over, and a revocation would move the count that stood at closure. The
+    message holds no caller text."""
+
+    http_status: ClassVar[int] = 409
+
+    def __init__(self, state: str) -> None:
+        self.state = state
+        super().__init__(f"interest refused, submission is {state}")

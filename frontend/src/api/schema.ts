@@ -851,6 +851,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/submissions/{submission_id}/interest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Register interest in a submission
+         * @description Idempotent: a caller who already holds interest gets the same answer and nothing is
+         *     written. The organisation recorded with the interest is the caller's profile value now.
+         */
+        put: operations["register_submission_interest_api_v1_submissions__submission_id__interest_put"];
+        post?: never;
+        /**
+         * Revoke interest in a submission
+         * @description Idempotent: a caller with no live interest gets the same answer and nothing is written. The
+         *     revoked record is kept, with its organisation, and no longer counts.
+         */
+        delete: operations["revoke_submission_interest_api_v1_submissions__submission_id__interest_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/terminology/concepts/{code}": {
         parameters: {
             query?: never;
@@ -2199,6 +2225,10 @@ export interface components {
             created_at: string;
             /** Is Own */
             is_own: boolean;
+            /** Has Registered Interest */
+            has_registered_interest: boolean;
+            /** Interest Count */
+            interest_count: number | null;
             /** Label Provenance */
             label_provenance: {
                 [key: string]: components["schemas"]["LabelProvenance"];
@@ -2257,6 +2287,10 @@ export interface components {
             created_at: string;
             /** Is Own */
             is_own: boolean;
+            /** Has Registered Interest */
+            has_registered_interest: boolean;
+            /** Interest Count */
+            interest_count: number | null;
             /** Label Provenance */
             label_provenance: {
                 [key: string]: components["schemas"]["LabelProvenance"];
@@ -2276,6 +2310,18 @@ export interface components {
             display_name: string;
             /** Organisation */
             organisation: string | null;
+        };
+        /**
+         * InterestResponse
+         * @description Where the caller's interest in the submission now stands. `has_registered_interest` is true
+         *     when the caller holds a live record. `interest_count` is the number of live records from every
+         *     user, null when the caller may not see counts.
+         */
+        InterestResponse: {
+            /** Has Registered Interest */
+            has_registered_interest: boolean;
+            /** Interest Count */
+            interest_count: number | null;
         };
         /**
          * LabelProvenance
@@ -2876,6 +2922,10 @@ export interface components {
             created_at: string;
             /** Is Own */
             is_own: boolean;
+            /** Has Registered Interest */
+            has_registered_interest: boolean;
+            /** Interest Count */
+            interest_count: number | null;
             /** Label Provenance */
             label_provenance: {
                 [key: string]: components["schemas"]["LabelProvenance"];
@@ -3054,6 +3104,10 @@ export interface components {
             created_at: string;
             /** Is Own */
             is_own: boolean;
+            /** Has Registered Interest */
+            has_registered_interest: boolean;
+            /** Interest Count */
+            interest_count: number | null;
             /** Label Provenance */
             label_provenance: {
                 [key: string]: components["schemas"]["LabelProvenance"];
@@ -6303,6 +6357,162 @@ export interface operations {
             };
             /** @description No submission has the identifier. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The identifier is not a UUID. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description An address exceeded its request budget (FR-22): an anonymous caller its anonymous budget, or a caller whose credentials the API kept rejecting its budget for rejected credentials. Wait for the number of seconds in `Retry-After`, then try again. A valid credential is never counted. The body's `bulk_artefacts` names where to fetch the whole catalogue instead. */
+            429: {
+                headers: {
+                    /** @description Whole seconds until the caller's request budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateLimitedResponse"];
+                };
+            };
+        };
+    };
+    register_submission_interest_api_v1_submissions__submission_id__interest_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterestResponse"];
+                };
+            };
+            /** @description No credential, or one that could not be verified. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The caller is authenticated but does not hold `interest.register`, or has not accepted the current terms of use (the body then carries a `code` that says so). The current terms of use have not been accepted. The body carries `code: terms_acceptance_required`. Accept them with `POST /auth/terms/acceptance` and try again. Never carries `WWW-Authenticate`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"] | components["schemas"]["TermsAcceptanceRequiredResponse"];
+                };
+            };
+            /** @description No submission has the identifier. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The submission is the caller's own, so they cannot register interest in it, or it is closed (`Published in release`, `Rejected` or `Withdrawn`), so its interest can no longer be registered or revoked. `detail` says which. Nothing was changed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The identifier is not a UUID. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description An address exceeded its request budget (FR-22): an anonymous caller its anonymous budget, or a caller whose credentials the API kept rejecting its budget for rejected credentials. Wait for the number of seconds in `Retry-After`, then try again. A valid credential is never counted. The body's `bulk_artefacts` names where to fetch the whole catalogue instead. */
+            429: {
+                headers: {
+                    /** @description Whole seconds until the caller's request budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateLimitedResponse"];
+                };
+            };
+        };
+    };
+    revoke_submission_interest_api_v1_submissions__submission_id__interest_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterestResponse"];
+                };
+            };
+            /** @description No credential, or one that could not be verified. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The caller is authenticated but does not hold `interest.register`, or has not accepted the current terms of use (the body then carries a `code` that says so). The current terms of use have not been accepted. The body carries `code: terms_acceptance_required`. Accept them with `POST /auth/terms/acceptance` and try again. Never carries `WWW-Authenticate`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"] | components["schemas"]["TermsAcceptanceRequiredResponse"];
+                };
+            };
+            /** @description No submission has the identifier. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The submission is the caller's own, so they cannot register interest in it, or it is closed (`Published in release`, `Rejected` or `Withdrawn`), so its interest can no longer be registered or revoked. `detail` says which. Nothing was changed. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

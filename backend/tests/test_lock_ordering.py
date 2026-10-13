@@ -597,15 +597,19 @@ def test_guard_scans_the_submissions_package() -> None:
 
 @pytest.mark.req("NFR-08")
 def test_the_only_exempt_submissions_writers_are_the_two_named_with_a_reason() -> None:
-    """The scan reaches the package, so a new writer there fails the lock-first rule unless it is
-    named, with a reason, in `_EXEMPT_FUNCTIONS`."""
+    """The scan reaches the package, so a new writer there is held to the lock-first rule unless it
+    is named, with a reason, in `_EXEMPT_FUNCTIONS`. The two interest writers take the lock first
+    and are not exempt, so they are the whole of what the rule checks there."""
     exempt_here = {key for key in _EXEMPT_FUNCTIONS if key[0].startswith("submissions.")}
     assert exempt_here == {
         ("submissions.new_test", "create_new_test_submission"),
         ("submissions.amendment", "create_amendment_submission"),
     }
     unexempted = {key for key in _derive_required_functions() if key[0].startswith("submissions.")}
-    assert unexempted == set()
+    assert unexempted == {
+        ("submissions.interest", "register_interest"),
+        ("submissions.interest", "revoke_interest"),
+    }
 
 
 @pytest.mark.req("NFR-08")
