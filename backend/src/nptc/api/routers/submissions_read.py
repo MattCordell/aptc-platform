@@ -32,6 +32,13 @@ null for a caller without `Permission.INTEREST_VIEW_COUNTS`. The counts for a pa
 grouped statement, so a page costs the same however long it is. The identities behind a count are
 not here.
 
+**`distinct_organisation_count` is for a caller with `Permission.INTEREST_IDENTITIES_VIEW`**
+(FR-33). It is the number of named organisations among the live records, and the key is absent from
+the response for anyone else, not null, so a client never receives a figure it must hide. That is a
+second axis of response classes beside the identity one, four item and page classes in all, chosen
+by `_PAGES`. It is on the list only. The same grouped-statement rule applies, and the people are on
+`GET /submissions/{id}/interest`.
+
 **No audit event.** A read changes nothing (NFR-08).
 """
 
@@ -62,6 +69,7 @@ from nptc.db.models.submission import SubmissionKind, SubmissionState
 from nptc.settings import ApiSettings
 from nptc.submissions import queries
 from nptc.submissions.interest import InterestSummary, interest_summaries
+from nptc.submissions.interest_identities import distinct_organisation_counts
 from nptc.submissions.queries import SubmissionRecord
 
 router = APIRouter(prefix="/submissions", tags=["submissions"])
@@ -189,6 +197,19 @@ class IdentifiedSubmissionDetail(_DetailFields):
     submitter: IdentifiedSubmitter
 
 
+class CountedSubmissionSummary(SubmissionSummary):
+    """`SubmissionSummary` for a caller with `interest.identities.view`: it adds the number of named
+    organisations among the live interest records (FR-33)."""
+
+    distinct_organisation_count: int
+
+
+class CountedIdentifiedSubmissionSummary(IdentifiedSubmissionSummary):
+    """`IdentifiedSubmissionSummary` with `distinct_organisation_count`."""
+
+    distinct_organisation_count: int
+
+
 class SubmissionPage(BaseModel):
     """One page, newest first. A `null` `next_cursor` means there is no following page."""
 
@@ -206,6 +227,40 @@ class IdentifiedSubmissionPage(BaseModel):
     items: list[IdentifiedSubmissionSummary]
     next_cursor: str | None
 
+
+class CountedSubmissionPage(BaseModel):
+    """`SubmissionPage` for a caller with `interest.identities.view` alone."""
+
+    model_config = ConfigDict(frozen=True)
+
+    items: list[CountedSubmissionSummary]
+    next_cursor: str | None
+
+
+class CountedIdentifiedSubmissionPage(BaseModel):
+    """`SubmissionPage` for a caller with both `submitter_identity.view` and
+    `interest.identities.view`."""
+
+    model_config = ConfigDict(frozen=True)
+
+    items: list[CountedIdentifiedSubmissionSummary]
+    next_cursor: str | None
+
+
+#: The item and page classes for a caller: whether they may see submitter identities, and whether
+#: they may see the organisation count. A caller without a permission gets a class with no such key.
+_PageClass = (
+    type[SubmissionPage]
+    | type[IdentifiedSubmissionPage]
+    | type[CountedSubmissionPage]
+    | type[CountedIdentifiedSubmissionPage]
+)
+_PAGES: Final[dict[tuple[bool, bool], tuple[type[BaseModel], _PageClass]]] = {
+    (False, False): (SubmissionSummary, SubmissionPage),
+    (True, False): (IdentifiedSubmissionSummary, IdentifiedSubmissionPage),
+    (False, True): (CountedSubmissionSummary, CountedSubmissionPage),
+    (True, True): (CountedIdentifiedSubmissionSummary, CountedIdentifiedSubmissionPage),
+}
 
 _STATE_PARAMETER = Query(
     description=(
@@ -274,6 +329,15 @@ def _detail_fields(
     }
 
 
+def _organisation_counts(
+    session: SessionDep, principal: CurrentPrincipal, submission_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, int] | None:
+    """`None` for a caller without `interest.identities.view`: no figure is looked up for them."""
+    if not principal.has(Permission.INTEREST_IDENTITIES_VIEW):
+        return None
+    return distinct_organisation_counts(session, submission_ids)
+
+
 def _username(record: SubmissionRecord) -> str:
     return record.submitter.username or CLOSED_ACCOUNT_PLACEHOLDER
 
@@ -294,7 +358,12 @@ def _identified_submitter(record: SubmissionRecord) -> IdentifiedSubmitter:
 @router.get(
     "",
     summary="List submissions",
-    response_model=SubmissionPage | IdentifiedSubmissionPage,
+    response_model=(
+        SubmissionPage
+        | IdentifiedSubmissionPage
+        | CountedSubmissionPage
+        | CountedIdentifiedSubmissionPage
+    ),
     responses={
         401: _RESPONSE_401,
         403: _RESPONSE_403,
@@ -322,7 +391,12 @@ def list_submissions(
             description="The `next_cursor` of the previous page, passed back unmodified.",
         ),
     ] = None,
-) -> SubmissionPage | IdentifiedSubmissionPage:
+) -> (
+    SubmissionPage
+    | IdentifiedSubmissionPage
+    | CountedSubmissionPage
+    | CountedIdentifiedSubmissionPage
+):
     """Newest first, paged by cursor. Pass the response's `next_cursor` back as `after` for the
     following page. There is no `offset` and no total, on purpose (ADR-0024).
 
@@ -342,34 +416,26 @@ def list_submissions(
         session, [record.submission.id for record in page.records], viewer_id=principal.user_id
     )
     counts_visible = principal.has(Permission.INTEREST_VIEW_COUNTS)
-    if principal.has(Permission.SUBMITTER_IDENTITY_VIEW):
-        return IdentifiedSubmissionPage(
-            items=[
-                IdentifiedSubmissionSummary(
-                    **_summary_fields(
-                        record,
-                        settings,
-                        interest[record.submission.id],
-                        counts_visible=counts_visible,
-                    ),
-                    submitter=_identified_submitter(record),
-                )
-                for record in page.records
-            ],
-            next_cursor=page.next_cursor,
-        )
-    return SubmissionPage(
-        items=[
-            SubmissionSummary(
-                **_summary_fields(
-                    record, settings, interest[record.submission.id], counts_visible=counts_visible
-                ),
-                submitter=_plain_submitter(record),
-            )
-            for record in page.records
-        ],
-        next_cursor=page.next_cursor,
+    identified = principal.has(Permission.SUBMITTER_IDENTITY_VIEW)
+    organisations = _organisation_counts(
+        session, principal, [record.submission.id for record in page.records]
     )
+    summary_class, page_class = _PAGES[(identified, organisations is not None)]
+    items = [
+        summary_class(
+            **_summary_fields(
+                record, settings, interest[record.submission.id], counts_visible=counts_visible
+            ),
+            **(
+                {"distinct_organisation_count": organisations[record.submission.id]}
+                if organisations is not None
+                else {}
+            ),
+            submitter=(_identified_submitter if identified else _plain_submitter)(record),
+        )
+        for record in page.records
+    ]
+    return page_class(items=items, next_cursor=page.next_cursor)
 
 
 @router.get(

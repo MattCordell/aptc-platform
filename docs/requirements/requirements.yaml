@@ -231,14 +231,14 @@
   priority: SHOULD
   phase: p2
   title: "The Reviewer and Administrator view of an interest count MUST show the distinct organisations represented, not only the headcount"
-  status: planned
-  notes: ""
+  status: implemented
+  notes: "GET /api/v1/submissions/{id}/interest, gated on interest.identities.view, returns the live records and distinct_organisations, each organisation with its count (backend/src/nptc/submissions/interest_identities.py, backend/src/nptc/api/routers/submission_interest.py). Organisations that differ only by letter case or surrounding space are one group, and records with no organisation are one group with a null organisation and a label. GET /api/v1/submissions adds distinct_organisation_count to each item for the same callers. The screens that show it are still to build (FR-34). Tests: backend/tests/test_api_submissions_interest_identities.py."
 - id: "FR-34"
   priority: MUST
   phase: p2
   title: "Interest counts are visible to all authenticated users"
   status: in-progress
-  notes: "The count half is built. GET /api/v1/submissions and GET /api/v1/submissions/{id} carry interest_count, the live records from every user, and has_registered_interest, for the caller; the count is null for a caller without interest.view_counts, which every signed-in role holds (backend/src/nptc/api/routers/submissions_read.py). Provisional and Observer cannot register interest, tested on both routes. Still to build: the identities of those who registered, visible only to Reviewers and Administrators, and the screens that show the counts. Tests: backend/tests/test_api_submissions_interest.py."
+  notes: "The count half is built. GET /api/v1/submissions and GET /api/v1/submissions/{id} carry interest_count, the live records from every user, and has_registered_interest, for the caller; the count is null for a caller without interest.view_counts, which every signed-in role holds (backend/src/nptc/api/routers/submissions_read.py). Provisional and Observer cannot register interest, tested on both routes. The identities of those who registered are served by GET /api/v1/submissions/{id}/interest, visible only to Reviewers and Administrators, and are tested for Member, Observer and Provisional (403) in backend/tests/test_api_submissions_interest_identities.py. Still to build: the screens that show the counts and the identities. Tests: backend/tests/test_api_submissions_interest.py."
 - id: "FR-35"
   priority: MUST
   phase: p2
@@ -723,7 +723,7 @@
   phase: p1
   title: "A privacy policy and a collection notice are presented at registration"
   status: in-progress
-  notes: "Issue #432 puts the collection notice and the links to the privacy policy and the terms on Keycloak's registration page (ADR-0043); backend/tests/test_keycloak_pkce_login.py asserts them against the pinned image. The SPA's acceptance gate (issue #435) repeats the same notice. Issue #546 adds one sentence to both copies: the organisation recorded on a submission stays with it after the account closes, and backend/tests/test_auth_account_closure.py::test_a_submission_keeps_its_organisation_after_the_account_closes proves it: closing the account clears the profile's organisation and leaves the submission's unchanged. The requirement stays in-progress because the policy text does not exist yet (issue #64, with the retention period pending OI-15) and the notice's own wording awaits the maintainer's review."
+  notes: "Issue #432 puts the collection notice and the links to the privacy policy and the terms on Keycloak's registration page (ADR-0043); backend/tests/test_keycloak_pkce_login.py asserts them against the pinned image. The SPA's acceptance gate (issue #435) repeats the same notice. Issue #546 adds one sentence to both copies: the organisation recorded on a submission stays with it after the account closes, and backend/tests/test_auth_account_closure.py::test_a_submission_keeps_its_organisation_after_the_account_closes proves it: closing the account clears the profile's organisation and leaves the submission's unchanged. The requirement stays in-progress because the policy text does not exist yet (issue #64, with the retention period pending OI-15) and the notice's own wording awaits the maintainer's review. The visibility sentence in both copies names reviewers as well as administrators, matching the permission matrix at PRD 4.7 (FR-34)."
 - id: "NFR-15"
   priority: MUST
   phase: p1
