@@ -10,9 +10,42 @@ from nptc_shared.terminology.snomed import (
     ecl_set_of,
     edition_from_implicit_value_set_url,
     implicit_value_set_url,
+    resolve_implicit_value_set_url,
     semantic_tag,
     strip_semantic_tag,
 )
+
+
+@pytest.mark.req("FR-10")
+def test_resolve_implicit_value_set_url_returns_the_ecl_and_edition() -> None:
+    pinned = SNOMED_CT_AU.pinned_to("20260531")
+
+    assert resolve_implicit_value_set_url(implicit_value_set_url("<<71388002", pinned)) == (
+        "<<71388002",
+        pinned,
+    )
+    assert resolve_implicit_value_set_url(
+        "http://snomed.info/sct?fhir_vs=ecl/122192001", label="au"
+    ) == (
+        "122192001",
+        SNOMED_CT_AU,
+    )
+
+
+@pytest.mark.req("FR-10")
+@pytest.mark.parametrize(
+    ("uri", "label"),
+    [
+        pytest.param("http://snomed.info/sct?fhir_vs=refset/723264001", "au", id="refset"),
+        pytest.param("http://snomed.info/sct?fhir_vs=ecl/", "au", id="empty-ecl"),
+        pytest.param("http://snomed.info/sct?fhir_vs=ecl/122192001", None, id="bare-no-label"),
+    ],
+)
+def test_resolve_implicit_value_set_url_raises_for_a_uri_it_cannot_expand(
+    uri: str, label: str | None
+) -> None:
+    with pytest.raises(ValueError):
+        resolve_implicit_value_set_url(uri, label=label)
 
 
 def test_implicit_value_set_url_unpinned_edition_has_no_version_segment() -> None:

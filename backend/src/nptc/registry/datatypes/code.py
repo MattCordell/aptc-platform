@@ -30,10 +30,7 @@ from nptc.registry.handlers import (
 )
 from nptc_shared.sctid import has_valid_check_digit, has_valid_format
 from nptc_shared.terminology import SNOMED_SYSTEM, Edition, TerminologyClient
-from nptc_shared.terminology.snomed import (
-    ecl_from_implicit_value_set_url,
-    edition_from_implicit_value_set_url,
-)
+from nptc_shared.terminology.snomed import resolve_implicit_value_set_url
 
 _SUPPORTED_OPS = frozenset({FilterOp.EQUALS, FilterOp.IN})
 _REQUIRED_KEYS = frozenset({"system", "code"})
@@ -46,8 +43,7 @@ def _edition_for_value_set(value_set_uri: str, binding: BindingSpec) -> Edition:
     the module-qualified system version. Shared by `validate_definition` and `_validate_binding`
     so a definition accepted when saved is never refused at the first value write."""
     try:
-        ecl_from_implicit_value_set_url(value_set_uri)
-        return edition_from_implicit_value_set_url(value_set_uri, label=binding.edition)
+        return resolve_implicit_value_set_url(value_set_uri, label=binding.edition)[1]
     except ValueError as exc:
         raise UnsupportedBindingError(
             f"binding value_set_uri {value_set_uri!r} with edition {binding.edition!r} is not a "
