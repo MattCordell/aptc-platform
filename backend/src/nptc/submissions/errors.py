@@ -142,16 +142,15 @@ class MalformedSubmissionCursorError(ValueError):
 
 class OwnSubmissionInterestError(Exception):
     """A submitter tried to register interest in their own submission (FR-32). Interest counts
-    other people's backing, so the submitter's own would inflate it."""
+    other people's backing."""
 
     http_status: ClassVar[int] = 409
 
 
 class SubmissionClosedError(Exception):
-    """The submission is in a closed state, so its interest records no longer change (FR-32). A
-    registration would count for a proposal that is over, and a revocation would shift the count
-    that stood when it closed. The state is carried so a log can name it; the message holds no
-    caller text."""
+    """The submission is closed, so its interest no longer changes (FR-32): a registration would
+    back a proposal that is over, and a revocation would move the count that stood at closure. The
+    message holds no caller text."""
 
     http_status: ClassVar[int] = 409
 
