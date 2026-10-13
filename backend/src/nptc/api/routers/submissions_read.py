@@ -34,8 +34,9 @@ not here.
 
 **`distinct_organisation_count` is for a caller with `Permission.INTEREST_IDENTITIES_VIEW`** (FR-33).
 It is the number of named organisations among the live records, and the key is absent from the
-response for anyone else, not null, so a client never receives a figure it must hide. It is on the
-list only. The same grouped-statement rule applies, and the people are on
+response for anyone else, not null, so a client never receives a figure it must hide. That is a
+second axis of response classes beside the identity one, four item and page classes in all, chosen
+by `_PAGES`. It is on the list only. The same grouped-statement rule applies, and the people are on
 `GET /submissions/{id}/interest`.
 
 **No audit event.** A read changes nothing (NFR-08).
@@ -48,7 +49,7 @@ from datetime import datetime
 from typing import Annotated, Any, Final
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel, ConfigDict, SerializerFunctionWrapHandler, model_serializer
+from pydantic import BaseModel, ConfigDict
 
 from nptc.api.dependencies import (
     ApiSettingsDep,
@@ -166,21 +167,6 @@ class _SummaryFields(BaseModel):
     label_provenance: dict[str, LabelProvenance]
 
 
-class _OrganisationCountFields(_SummaryFields):
-    """A list item, with `distinct_organisation_count` for a caller with `interest.identities.view`:
-    the number of named organisations among the live interest records. The key is left out of the
-    response when the caller may not see it."""
-
-    distinct_organisation_count: int | None = None
-
-    @model_serializer(mode="wrap")
-    def _omit_unseen_count(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
-        data: dict[str, Any] = handler(self)
-        if self.distinct_organisation_count is None:
-            data.pop("distinct_organisation_count", None)
-        return data
-
-
 class _DetailFields(_SummaryFields):
     """The full submitted content. The three `reference_*` fields describe one check and are all
     present or all absent. `duplicate_confirmed_at` is when a submitter confirmed a match was a
@@ -195,11 +181,11 @@ class _DetailFields(_SummaryFields):
     duplicate_confirmed_at: datetime | None
 
 
-class SubmissionSummary(_OrganisationCountFields):
+class SubmissionSummary(_SummaryFields):
     submitter: PlainSubmitter
 
 
-class IdentifiedSubmissionSummary(_OrganisationCountFields):
+class IdentifiedSubmissionSummary(_SummaryFields):
     submitter: IdentifiedSubmitter
 
 
@@ -209,6 +195,19 @@ class SubmissionDetail(_DetailFields):
 
 class IdentifiedSubmissionDetail(_DetailFields):
     submitter: IdentifiedSubmitter
+
+
+class CountedSubmissionSummary(SubmissionSummary):
+    """`SubmissionSummary` for a caller with `interest.identities.view`: it adds the number of named
+    organisations among the live interest records (FR-33)."""
+
+    distinct_organisation_count: int
+
+
+class CountedIdentifiedSubmissionSummary(IdentifiedSubmissionSummary):
+    """`IdentifiedSubmissionSummary` with `distinct_organisation_count`."""
+
+    distinct_organisation_count: int
 
 
 class SubmissionPage(BaseModel):
@@ -228,6 +227,34 @@ class IdentifiedSubmissionPage(BaseModel):
     items: list[IdentifiedSubmissionSummary]
     next_cursor: str | None
 
+
+class CountedSubmissionPage(BaseModel):
+    """`SubmissionPage` for a caller with `interest.identities.view` alone."""
+
+    model_config = ConfigDict(frozen=True)
+
+    items: list[CountedSubmissionSummary]
+    next_cursor: str | None
+
+
+class CountedIdentifiedSubmissionPage(BaseModel):
+    """`SubmissionPage` for a caller with both `submitter_identity.view` and
+    `interest.identities.view`."""
+
+    model_config = ConfigDict(frozen=True)
+
+    items: list[CountedIdentifiedSubmissionSummary]
+    next_cursor: str | None
+
+
+#: The item and page classes for a caller: whether they may see submitter identities, and whether
+#: they may see the organisation count. A caller without a permission gets a class with no such key.
+_PAGES: Final[dict[tuple[bool, bool], tuple[type[BaseModel], type[BaseModel]]]] = {
+    (False, False): (SubmissionSummary, SubmissionPage),
+    (True, False): (IdentifiedSubmissionSummary, IdentifiedSubmissionPage),
+    (False, True): (CountedSubmissionSummary, CountedSubmissionPage),
+    (True, True): (CountedIdentifiedSubmissionSummary, CountedIdentifiedSubmissionPage),
+}
 
 _STATE_PARAMETER = Query(
     description=(
@@ -298,11 +325,10 @@ def _detail_fields(
 
 def _organisation_counts(
     session: SessionDep, principal: CurrentPrincipal, submission_ids: list[uuid.UUID]
-) -> dict[uuid.UUID, int]:
-    """Empty for a caller without `interest.identities.view`, so no figure is looked up for them and
-    every item's field stays unset."""
+) -> dict[uuid.UUID, int] | None:
+    """`None` for a caller without `interest.identities.view`: no figure is looked up for them."""
     if not principal.has(Permission.INTEREST_IDENTITIES_VIEW):
-        return {}
+        return None
     return distinct_organisation_counts(session, submission_ids)
 
 
@@ -326,7 +352,12 @@ def _identified_submitter(record: SubmissionRecord) -> IdentifiedSubmitter:
 @router.get(
     "",
     summary="List submissions",
-    response_model=SubmissionPage | IdentifiedSubmissionPage,
+    response_model=(
+        SubmissionPage
+        | IdentifiedSubmissionPage
+        | CountedSubmissionPage
+        | CountedIdentifiedSubmissionPage
+    ),
     responses={
         401: _RESPONSE_401,
         403: _RESPONSE_403,
@@ -354,7 +385,7 @@ def list_submissions(
             description="The `next_cursor` of the previous page, passed back unmodified.",
         ),
     ] = None,
-) -> SubmissionPage | IdentifiedSubmissionPage:
+) -> BaseModel:
     """Newest first, paged by cursor. Pass the response's `next_cursor` back as `after` for the
     following page. There is no `offset` and no total, on purpose (ADR-0024).
 
@@ -374,39 +405,26 @@ def list_submissions(
         session, [record.submission.id for record in page.records], viewer_id=principal.user_id
     )
     counts_visible = principal.has(Permission.INTEREST_VIEW_COUNTS)
+    identified = principal.has(Permission.SUBMITTER_IDENTITY_VIEW)
     organisations = _organisation_counts(
-        session, principal, [r.submission.id for r in page.records]
+        session, principal, [record.submission.id for record in page.records]
     )
-    if principal.has(Permission.SUBMITTER_IDENTITY_VIEW):
-        return IdentifiedSubmissionPage(
-            items=[
-                IdentifiedSubmissionSummary(
-                    **_summary_fields(
-                        record,
-                        settings,
-                        interest[record.submission.id],
-                        counts_visible=counts_visible,
-                    ),
-                    distinct_organisation_count=organisations.get(record.submission.id),
-                    submitter=_identified_submitter(record),
-                )
-                for record in page.records
-            ],
-            next_cursor=page.next_cursor,
+    summary_class, page_class = _PAGES[(identified, organisations is not None)]
+    items = [
+        summary_class(
+            **_summary_fields(
+                record, settings, interest[record.submission.id], counts_visible=counts_visible
+            ),
+            **(
+                {"distinct_organisation_count": organisations[record.submission.id]}
+                if organisations is not None
+                else {}
+            ),
+            submitter=(_identified_submitter if identified else _plain_submitter)(record),
         )
-    return SubmissionPage(
-        items=[
-            SubmissionSummary(
-                **_summary_fields(
-                    record, settings, interest[record.submission.id], counts_visible=counts_visible
-                ),
-                distinct_organisation_count=organisations.get(record.submission.id),
-                submitter=_plain_submitter(record),
-            )
-            for record in page.records
-        ],
-        next_cursor=page.next_cursor,
-    )
+        for record in page.records
+    ]
+    return page_class(items=items, next_cursor=page.next_cursor)
 
 
 @router.get(
