@@ -169,6 +169,10 @@ COVERED_WRITE_ROUTES = frozenset(
         # The duplicate check (FR-25). It writes nothing but is a POST, so it sits under the terms
         # gate too. Negative-auth coverage lives in `test_api_submissions.py`.
         RouteKey(method="POST", path="/submissions/duplicate-check"),
+        # Register and revoke interest (FR-32). Both need `interest.register`, which Provisional
+        # and Observer lack. Negative-auth coverage lives in `test_api_submissions_interest.py`.
+        RouteKey(method="PUT", path="/submissions/{submission_id}/interest"),
+        RouteKey(method="DELETE", path="/submissions/{submission_id}/interest"),
         # issue #249: the entry's own core-column write route - status.
         # Negative-auth coverage lives in
         # `test_api_catalogue_entries.py`.
