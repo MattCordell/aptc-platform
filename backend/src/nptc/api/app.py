@@ -34,6 +34,7 @@ from nptc.api.routers import (
     catalogue_properties,
     registry,
     submission_interest,
+    submission_transitions,
     submissions,
     submissions_read,
     terminology,
@@ -162,6 +163,8 @@ def create_app(
     app.include_router(submissions_read.router, prefix=API_PREFIX)
     # Register and revoke interest in a submission (FR-32). Gated on interest.register.
     app.include_router(submission_interest.router, prefix=API_PREFIX)
+    # A submitter withdraws their own submission (FR-28). Gated on submission.withdraw.own.
+    app.include_router(submission_transitions.router, prefix=API_PREFIX)
     # Live SCTID resolution during form completion (FR-26). Its own prefix and
     # tag, not under /catalogue; see its docstring.
     app.include_router(terminology.router, prefix=API_PREFIX)

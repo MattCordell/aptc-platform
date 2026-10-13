@@ -882,6 +882,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/submissions/{submission_id}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw your own submission
+         * @description Moves a `Submitted` or `Triage` submission to `Withdrawn`, with the reason, in one
+         *     transaction with its transition row and audit event.
+         */
+        post: operations["withdraw_submission_api_v1_submissions__submission_id__withdraw_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/terminology/concepts/{code}": {
         parameters: {
             query?: never;
@@ -2342,6 +2363,8 @@ export interface components {
             label_provenance: {
                 [key: string]: components["schemas"]["LabelProvenance"];
             };
+            /** Row Version */
+            row_version: number;
             /** Synonyms */
             synonyms: string[];
             /** Property Values */
@@ -3089,6 +3112,8 @@ export interface components {
             label_provenance: {
                 [key: string]: components["schemas"]["LabelProvenance"];
             };
+            /** Row Version */
+            row_version: number;
             /** Synonyms */
             synonyms: string[];
             /** Property Values */
@@ -3129,7 +3154,7 @@ export interface components {
              * Field
              * @enum {string}
              */
-            field: "preferred_term" | "synonyms" | "snomed_code" | "reference_url" | "notes" | "organisation";
+            field: "preferred_term" | "synonyms" | "snomed_code" | "reference_url" | "notes" | "organisation" | "reason";
         };
         /**
          * SubmissionKind
@@ -3236,7 +3261,7 @@ export interface components {
          * SubmissionState
          * @enum {string}
          */
-        SubmissionState: "Submitted" | "Published in release" | "Rejected" | "Withdrawn";
+        SubmissionState: "Submitted" | "Triage" | "Published in release" | "Rejected" | "Withdrawn";
         /** SubmissionSummary */
         SubmissionSummary: {
             /**
@@ -3272,6 +3297,35 @@ export interface components {
                 [key: string]: components["schemas"]["LabelProvenance"];
             };
             submitter: components["schemas"]["PlainSubmitter"];
+        };
+        /**
+         * SubmissionTransitionResponse
+         * @description Where the submission now stands: its `state` and the `row_version` to send with the next
+         *     change.
+         */
+        SubmissionTransitionResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** State */
+            state: string;
+            /** Row Version */
+            row_version: number;
+        };
+        /**
+         * SubmissionVersionConflictResponse
+         * @description The 409 for a change of a submission's state sent with a stale `expected_row_version`
+         *     (FR-28). `current_row_version` is the value to send next, once the caller has reloaded.
+         */
+        SubmissionVersionConflictResponse: {
+            /** Detail */
+            detail: string;
+            /** Expected Row Version */
+            expected_row_version: number;
+            /** Current Row Version */
+            current_row_version: number;
         };
         /**
          * SubmittedPropertyValue
@@ -3396,6 +3450,18 @@ export interface components {
             changed_by: string | null;
             /** Changed At */
             changed_at: string | null;
+        };
+        /**
+         * WithdrawRequest
+         * @description `reason` is required and is kept with the withdrawal. `expected_row_version` is the
+         *     `row_version` the caller read on the submission, so a withdrawal never lands on a submission
+         *     that changed after the caller looked at it.
+         */
+        WithdrawRequest: {
+            /** Reason */
+            reason: string;
+            /** Expected Row Version */
+            expected_row_version: number;
         };
         /**
          * TermsAcceptanceRequiredResponse
@@ -6755,6 +6821,88 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description An address exceeded its request budget (FR-22): an anonymous caller its anonymous budget, or a caller whose credentials the API kept rejecting its budget for rejected credentials. Wait for the number of seconds in `Retry-After`, then try again. A valid credential is never counted. The body's `bulk_artefacts` names where to fetch the whole catalogue instead. */
+            429: {
+                headers: {
+                    /** @description Whole seconds until the caller's request budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateLimitedResponse"];
+                };
+            };
+        };
+    };
+    withdraw_submission_api_v1_submissions__submission_id__withdraw_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WithdrawRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionTransitionResponse"];
+                };
+            };
+            /** @description No credential, or one that could not be verified. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The caller does not hold `submission.withdraw.own`, or is not the submitter of this submission, or has not accepted the current terms of use (the body then carries a `code` that says so). The current terms of use have not been accepted. The body carries `code: terms_acceptance_required`. Accept them with `POST /auth/terms/acceptance` and try again. Never carries `WWW-Authenticate`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"] | components["schemas"]["TermsAcceptanceRequiredResponse"];
+                };
+            };
+            /** @description No submission has the identifier. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The submission cannot be withdrawn from its current state: only a submission that is `Submitted` or in `Triage` can be, so a closed one is refused and a second withdrawal is too. Or `expected_row_version` is not the current one, because someone else changed the submission after it was read; the body then carries `current_row_version`. Nothing was changed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionVersionConflictResponse"] | components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `reason` is blank, or carries an invisible character such as a zero-width space (`field` is `reason`). An identifier that is not a UUID, a `reason` over the size bound or a field the request should not carry fails validation before the route runs. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionFieldRefusalResponse"];
                 };
             };
             /** @description An address exceeded its request budget (FR-22): an anonymous caller its anonymous budget, or a caller whose credentials the API kept rejecting its budget for rejected credentials. Wait for the number of seconds in `Retry-After`, then try again. A valid credential is never counted. The body's `bulk_artefacts` names where to fetch the whole catalogue instead. */

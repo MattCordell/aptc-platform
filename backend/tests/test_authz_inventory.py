@@ -173,6 +173,10 @@ COVERED_WRITE_ROUTES = frozenset(
         # and Observer lack. Negative-auth coverage lives in `test_api_submissions_interest.py`.
         RouteKey(method="PUT", path="/submissions/{submission_id}/interest"),
         RouteKey(method="DELETE", path="/submissions/{submission_id}/interest"),
+        # Withdraw (FR-28). Needs `submission.withdraw.own`, which Observer lacks, and the service
+        # refuses anyone but the submitter. Negative-auth coverage lives in
+        # `test_api_submissions_withdraw.py`.
+        RouteKey(method="POST", path="/submissions/{submission_id}/withdraw"),
         # issue #249: the entry's own core-column write route - status.
         # Negative-auth coverage lives in
         # `test_api_catalogue_entries.py`.

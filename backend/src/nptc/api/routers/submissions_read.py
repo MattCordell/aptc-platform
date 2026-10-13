@@ -170,8 +170,10 @@ class _SummaryFields(BaseModel):
 class _DetailFields(_SummaryFields):
     """The full submitted content. The three `reference_*` fields describe one check and are all
     present or all absent. `duplicate_confirmed_at` is when a submitter confirmed a match was a
-    different test (FR-25), and null otherwise."""
+    different test (FR-25), and null otherwise. `row_version` is the value a change of state sends
+    back as `expected_row_version`."""
 
+    row_version: int
     synonyms: list[str]
     property_values: dict[str, list[SubmittedPropertyValue]]
     notes: str | None
@@ -313,6 +315,7 @@ def _detail_fields(
     submission = record.submission
     return {
         **_summary_fields(record, settings, interest, counts_visible=counts_visible),
+        "row_version": submission.row_version,
         "synonyms": list(submission.synonyms),
         "property_values": {
             key: [

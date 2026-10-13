@@ -5347,6 +5347,134 @@
         }
       }
     },
+    "/api/v1/submissions/{submission_id}/withdraw": {
+      "post": {
+        "tags": [
+          "submissions"
+        ],
+        "summary": "Withdraw your own submission",
+        "description": "Moves a `Submitted` or `Triage` submission to `Withdrawn`, with the reason, in one\ntransaction with its transition row and audit event.",
+        "operationId": "withdraw_submission_api_v1_submissions__submission_id__withdraw_post",
+        "parameters": [
+          {
+            "name": "submission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Submission Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WithdrawRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmissionTransitionResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No credential, or one that could not be verified.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller does not hold `submission.withdraw.own`, or is not the submitter of this submission, or has not accepted the current terms of use (the body then carries a `code` that says so). The current terms of use have not been accepted. The body carries `code: terms_acceptance_required`. Accept them with `POST /auth/terms/acceptance` and try again. Never carries `WWW-Authenticate`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/TermsAcceptanceRequiredResponse"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No submission has the identifier.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The submission cannot be withdrawn from its current state: only a submission that is `Submitted` or in `Triage` can be, so a closed one is refused and a second withdrawal is too. Or `expected_row_version` is not the current one, because someone else changed the submission after it was read; the body then carries `current_row_version`. Nothing was changed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SubmissionVersionConflictResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    }
+                  ],
+                  "title": "Response 409 Withdraw Submission Api V1 Submissions  Submission Id  Withdraw Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`reason` is blank, or carries an invisible character such as a zero-width space (`field` is `reason`). An identifier that is not a UUID, a `reason` over the size bound or a field the request should not carry fails validation before the route runs.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmissionFieldRefusalResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "An address exceeded its request budget (FR-22): an anonymous caller its anonymous budget, or a caller whose credentials the API kept rejecting its budget for rejected credentials. Wait for the number of seconds in `Retry-After`, then try again. A valid credential is never counted. The body's `bulk_artefacts` names where to fetch the whole catalogue instead.",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds until the caller's request budget is available again.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimitedResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/terminology/concepts/{code}": {
       "get": {
         "tags": [
@@ -8624,6 +8752,10 @@
             "type": "object",
             "title": "Label Provenance"
           },
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
           "synonyms": {
             "items": {
               "type": "string"
@@ -8716,6 +8848,7 @@
           "has_registered_interest",
           "interest_count",
           "label_provenance",
+          "row_version",
           "synonyms",
           "property_values",
           "notes",
@@ -10188,6 +10321,10 @@
             "type": "object",
             "title": "Label Provenance"
           },
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
           "synonyms": {
             "items": {
               "type": "string"
@@ -10280,6 +10417,7 @@
           "has_registered_interest",
           "interest_count",
           "label_provenance",
+          "row_version",
           "synonyms",
           "property_values",
           "notes",
@@ -10327,7 +10465,8 @@
               "snomed_code",
               "reference_url",
               "notes",
-              "organisation"
+              "organisation",
+              "reason"
             ],
             "title": "Field"
           }
@@ -10608,6 +10747,7 @@
         "type": "string",
         "enum": [
           "Submitted",
+          "Triage",
           "Published in release",
           "Rejected",
           "Withdrawn"
@@ -10718,6 +10858,55 @@
           "submitter"
         ],
         "title": "SubmissionSummary"
+      },
+      "SubmissionTransitionResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "state",
+          "row_version"
+        ],
+        "title": "SubmissionTransitionResponse",
+        "description": "Where the submission now stands: its `state` and the `row_version` to send with the next\nchange."
+      },
+      "SubmissionVersionConflictResponse": {
+        "properties": {
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "expected_row_version": {
+            "type": "integer",
+            "title": "Expected Row Version"
+          },
+          "current_row_version": {
+            "type": "integer",
+            "title": "Current Row Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "detail",
+          "expected_row_version",
+          "current_row_version"
+        ],
+        "title": "SubmissionVersionConflictResponse",
+        "description": "The 409 for a change of a submission's state sent with a stale `expected_row_version`\n(FR-28). `current_row_version` is the value to send next, once the caller has reloaded."
       },
       "SubmittedPropertyValue": {
         "properties": {
@@ -10978,6 +11167,28 @@
         ],
         "title": "VersionConflictResponse",
         "description": "FR-38's 409 body: a stale `expected_row_version` on an entry-level\nwrite.\n\nFR-38's rationale rejects silent last-write-wins \"because it produces an\naudit trail that records a change that was immediately and invisibly\ndiscarded\", so the refusal has to let the caller *reconcile* rather than\nretry blind. `conflicts` is empty where the caller's submitted values do\nnot themselves overlap what moved - still a refusal, because the version\nis the contract regardless - which is why `current_row_version` and\n`changed_by`/`changed_at` are populated even then.\n\n`changed_by` is a display name, never the actor's internal id\n(NFR-04/NFR-26), and is `null` for a system-initiated change or an\naccount since pseudonymised on closure (NFR-17)."
+      },
+      "WithdrawRequest": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Reason"
+          },
+          "expected_row_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Row Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reason",
+          "expected_row_version"
+        ],
+        "title": "WithdrawRequest",
+        "description": "`reason` is required and is kept with the withdrawal. `expected_row_version` is the\n`row_version` the caller read on the submission, so a withdrawal never lands on a submission\nthat changed after the caller looked at it."
       },
       "TermsAcceptanceRequiredResponse": {
         "description": "The 403 for a contribution from a user who has not accepted the current terms (NFR-45).\n\nIt carries no `WWW-Authenticate` header: RFC 9470 defines that for authentication strength,\nand terms acceptance is not an authentication matter (ADR-0043).",
