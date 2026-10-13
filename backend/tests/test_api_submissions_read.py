@@ -20,6 +20,7 @@ from typing import Any
 import pytest
 from sqlalchemy import select
 from sqlalchemy.engine import Connection
+from sqlalchemy.orm import Session
 
 from nptc.audit.writer import AuditContext
 from nptc.auth.identity import close_account
@@ -33,6 +34,7 @@ from nptc.db.models.submission import (
 )
 from nptc.db.models.user import User, UserStatus
 from nptc.db.models.user_identity import UserIdentity
+from nptc.submissions.queries import list_submissions
 
 
 def _load(name: str) -> Any:
@@ -513,3 +515,31 @@ def test_a_caller_without_the_view_permission_gets_403_on_both_routes(api: ApiTe
 
     assert api.get(_PATH, token=token).status_code == 403
     assert api.get(f"{_PATH}/{submission.id}", token=token).status_code == 403
+
+
+@pytest.mark.req("FR-42")
+@pytest.mark.integration
+def test_mine_with_no_viewer_returns_nothing_rather_than_another_users_rows(
+    app_session: Session,
+) -> None:
+    """Every holder of `submission.view` has a user row, so the route never passes no viewer. If it
+    ever did, `mine` must fail closed: an empty page, never someone else's submissions."""
+    user = User(username=f"mine-none-{uuid.uuid4().hex[:8]}", display_name="Mine None")
+    app_session.add(user)
+    app_session.flush()
+    app_session.add(
+        Submission(
+            kind=SubmissionKind.NEW_TEST.value,
+            preferred_term=f"Read submission {uuid.uuid4()}",
+            submitter_id=user.id,
+            reference_url="https://example.org/evidence",
+            reference_checked_at=datetime.now(UTC),
+            reference_status=200,
+        )
+    )
+    app_session.flush()
+
+    page = list_submissions(app_session, viewer_id=None, limit=200, mine=True)
+
+    assert page.records == ()
+    assert page.next_cursor is None

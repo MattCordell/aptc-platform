@@ -21,6 +21,11 @@ organisation copy, because that copy is the submission's own and outlives the ac
 release`, `Rejected`, `Withdrawn`) is left out. A caller names any states they want, closed ones
 included. `mine` with no `state` returns the caller's own submissions in every state.
 
+**The rule covers the identity fields, not the submitter's free text.** `notes` and `reference_url`
+are served to every holder of `submission.view`. A submitter can type their own name into `notes`,
+and the server does not search for it. Withholding `notes` would hide the supporting detail from
+every caller who may read a submission.
+
 **No audit event.** A read changes nothing (NFR-08).
 """
 

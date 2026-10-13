@@ -277,6 +277,10 @@ reads it with `principal.has(...)` and never a role name (FR-44).
 - **A closed account** shows `Closed account` for the username and, to a caller with the
   permission, for the display name. The organisation is the submission's own copy, so it still shows.
 
+The rule covers these identity fields only. The submission's `notes` and `reference_url` reach every
+holder of `submission.view`, and a submitter can type their own name into `notes`; the server does not
+search free text for one.
+
 The rule runs on the server for every request. A client that hides a field it was sent has not
 applied it (NFR-20).
 
