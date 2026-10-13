@@ -4327,14 +4327,14 @@
         "summary": "Submit a new test for the catalogue",
         "operationId": "create_submission_api_v1_submissions_post",
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CreateSubmissionRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -4415,7 +4415,7 @@
                 "description": "Whole seconds until the caller can try again. Always present on a request budget refusal, and on a quota refusal only when `limit` is `hourly` or `concurrent`.",
                 "schema": {
                   "type": "integer",
-                  "minimum": 1.0
+                  "minimum": 1
                 }
               }
             },
@@ -4477,6 +4477,177 @@
                     }
                   ],
                   "title": "Response 503 Create Submission Api V1 Submissions Post"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "submissions"
+        ],
+        "summary": "List submissions",
+        "description": "Newest first, paged by cursor. Pass the response's `next_cursor` back as `after` for the\nfollowing page. There is no `offset` and no total, on purpose (ADR-0024).\n\nA caller with `submitter_identity.view` gets each submitter's display name and the\nsubmission's organisation. Every other caller gets the username only.",
+        "operationId": "list_submissions_api_v1_submissions_get",
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SubmissionState"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Keep only submissions in these states. Repeat the parameter to name more than one. Omitted, the list holds every open submission: all states except `Published in release`, `Rejected` and `Withdrawn`. With `mine=true` and no `state`, every state is listed.",
+              "title": "State"
+            },
+            "description": "Keep only submissions in these states. Repeat the parameter to name more than one. Omitted, the list holds every open submission: all states except `Published in release`, `Rejected` and `Withdrawn`. With `mine=true` and no `state`, every state is listed."
+          },
+          {
+            "name": "mine",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Send `true` to keep only the caller's own submissions, in any state.",
+              "default": false,
+              "title": "Mine"
+            },
+            "description": "Send `true` to keep only the caller's own submissions, in any state."
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SubmissionKind"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Keep only new tests or only amendments.",
+              "title": "Kind"
+            },
+            "description": "Keep only new tests or only amendments."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "description": "Maximum submissions in a page.",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Maximum submissions in a page."
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The `next_cursor` of the previous page, passed back unmodified.",
+              "title": "After"
+            },
+            "description": "The `next_cursor` of the previous page, passed back unmodified."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SubmissionPage"
+                    },
+                    {
+                      "$ref": "#/components/schemas/IdentifiedSubmissionPage"
+                    }
+                  ],
+                  "title": "Response List Submissions Api V1 Submissions Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No credential, or one that could not be verified.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but does not hold `submission.view`, or has not accepted the current terms of use (the body then carries a `code` that says so).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A `state` or `kind` that is not one of the listed values, a `limit` outside 1 to 200, or an `after` cursor this API did not issue.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/HTTPValidationError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    }
+                  ],
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "An address exceeded its request budget (FR-22): an anonymous caller its anonymous budget, or a caller whose credentials the API kept rejecting its budget for rejected credentials. Wait for the number of seconds in `Retry-After`, then try again. A valid credential is never counted. The body's `bulk_artefacts` names where to fetch the whole catalogue instead.",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds until the caller's request budget is available again.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimitedResponse"
                 }
               }
             }
@@ -4710,6 +4881,111 @@
           },
           "422": {
             "description": "The request is not acceptable: a term that cannot be cleaned, a SNOMED CT code that is malformed or fails its check digit, a missing `preferred_term`, an unrecognised field, or a part of the request over its size bound. A refusal of a term or the code carries `field`, as on the create route.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/HTTPValidationError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "An address exceeded its request budget (FR-22): an anonymous caller its anonymous budget, or a caller whose credentials the API kept rejecting its budget for rejected credentials. Wait for the number of seconds in `Retry-After`, then try again. A valid credential is never counted. The body's `bulk_artefacts` names where to fetch the whole catalogue instead.",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds until the caller's request budget is available again.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimitedResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/submissions/{submission_id}": {
+      "get": {
+        "tags": [
+          "submissions"
+        ],
+        "summary": "Show one submission",
+        "description": "One submission in any state, with the content the submitter sent. The submitter appears as\non the list: a username only, unless the caller holds `submitter_identity.view`.",
+        "operationId": "get_submission_api_v1_submissions__submission_id__get",
+        "parameters": [
+          {
+            "name": "submission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Submission Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SubmissionDetail"
+                    },
+                    {
+                      "$ref": "#/components/schemas/IdentifiedSubmissionDetail"
+                    }
+                  ],
+                  "title": "Response Get Submission Api V1 Submissions  Submission Id  Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No credential, or one that could not be verified.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but does not hold `submission.view`, or has not accepted the current terms of use (the body then carries a `code` that says so).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No submission has the identifier.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The identifier is not a UUID.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7658,6 +7934,323 @@
         ],
         "title": "HistoryPage"
       },
+      "IdentifiedSubmissionDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "entry_business_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entry Business Key"
+          },
+          "preferred_term": {
+            "type": "string",
+            "title": "Preferred Term"
+          },
+          "snomed_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snomed Code"
+          },
+          "snomed_fsn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snomed Fsn"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "is_own": {
+            "type": "boolean",
+            "title": "Is Own"
+          },
+          "label_provenance": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/LabelProvenance"
+            },
+            "type": "object",
+            "title": "Label Provenance"
+          },
+          "synonyms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Synonyms"
+          },
+          "property_values": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/SubmittedPropertyValue"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Property Values"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "reference_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Url"
+          },
+          "reference_checked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Checked At"
+          },
+          "reference_status": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Status"
+          },
+          "duplicate_confirmed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duplicate Confirmed At"
+          },
+          "submitter": {
+            "$ref": "#/components/schemas/IdentifiedSubmitter"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "state",
+          "entry_business_key",
+          "preferred_term",
+          "snomed_code",
+          "snomed_fsn",
+          "created_at",
+          "is_own",
+          "label_provenance",
+          "synonyms",
+          "property_values",
+          "notes",
+          "reference_url",
+          "reference_checked_at",
+          "reference_status",
+          "duplicate_confirmed_at",
+          "submitter"
+        ],
+        "title": "IdentifiedSubmissionDetail"
+      },
+      "IdentifiedSubmissionPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/IdentifiedSubmissionSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "IdentifiedSubmissionPage",
+        "description": "`SubmissionPage` for a caller with `submitter_identity.view`."
+      },
+      "IdentifiedSubmissionSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "entry_business_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entry Business Key"
+          },
+          "preferred_term": {
+            "type": "string",
+            "title": "Preferred Term"
+          },
+          "snomed_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snomed Code"
+          },
+          "snomed_fsn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snomed Fsn"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "is_own": {
+            "type": "boolean",
+            "title": "Is Own"
+          },
+          "label_provenance": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/LabelProvenance"
+            },
+            "type": "object",
+            "title": "Label Provenance"
+          },
+          "submitter": {
+            "$ref": "#/components/schemas/IdentifiedSubmitter"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "state",
+          "entry_business_key",
+          "preferred_term",
+          "snomed_code",
+          "snomed_fsn",
+          "created_at",
+          "is_own",
+          "label_provenance",
+          "submitter"
+        ],
+        "title": "IdentifiedSubmissionSummary"
+      },
+      "IdentifiedSubmitter": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "organisation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organisation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "display_name",
+          "organisation"
+        ],
+        "title": "IdentifiedSubmitter",
+        "description": "The submitter as a caller with `submitter_identity.view` sees them. `organisation` is the\ncopy the submitter sent with this submission, which can differ from their profile, and is null\nwhen they sent none. A closed account's `username` and `display_name` are the placeholder."
+      },
       "LabelProvenance": {
         "properties": {
           "designation": {
@@ -7794,6 +8387,20 @@
         ],
         "title": "PatchEntryRequest",
         "description": "The body of `PATCH /catalogue/entries/{business_key}`. Unknown fields are refused, so a\nclient that still sends the retired `specimen_unconstrained` fails loudly (ADR-0044)."
+      },
+      "PlainSubmitter": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "title": "Username"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username"
+        ],
+        "title": "PlainSubmitter",
+        "description": "The submitter as a caller without `submitter_identity.view` sees them: a username only."
       },
       "ProcedureMatch": {
         "properties": {
@@ -8728,6 +9335,175 @@
         "title": "SnomedSynonyms",
         "description": "The active binding's SNOMED CT synonyms, as the terminology server serves them today.\n\nNever stored, so never part of `row_version` or the audit trail. `terms` excludes the FSN\nand the binding's AU preferred term, and is not limited to en-AU: no FHIR operation\nseparates the AU-acceptable synonyms, so US spellings can appear (see\n`nptc.terminology.synonyms`). `status` is `unavailable` when the server could not answer;\n`terms` is then empty, which is not the same as `available` with no terms. A code missing\nfrom the current AU edition is `available` with no terms."
       },
+      "SubmissionDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "entry_business_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entry Business Key"
+          },
+          "preferred_term": {
+            "type": "string",
+            "title": "Preferred Term"
+          },
+          "snomed_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snomed Code"
+          },
+          "snomed_fsn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snomed Fsn"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "is_own": {
+            "type": "boolean",
+            "title": "Is Own"
+          },
+          "label_provenance": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/LabelProvenance"
+            },
+            "type": "object",
+            "title": "Label Provenance"
+          },
+          "synonyms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Synonyms"
+          },
+          "property_values": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/SubmittedPropertyValue"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Property Values"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "reference_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Url"
+          },
+          "reference_checked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Checked At"
+          },
+          "reference_status": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Status"
+          },
+          "duplicate_confirmed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duplicate Confirmed At"
+          },
+          "submitter": {
+            "$ref": "#/components/schemas/PlainSubmitter"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "state",
+          "entry_business_key",
+          "preferred_term",
+          "snomed_code",
+          "snomed_fsn",
+          "created_at",
+          "is_own",
+          "label_provenance",
+          "synonyms",
+          "property_values",
+          "notes",
+          "reference_url",
+          "reference_checked_at",
+          "reference_status",
+          "duplicate_confirmed_at",
+          "submitter"
+        ],
+        "title": "SubmissionDetail"
+      },
       "SubmissionDuplicatesResponse": {
         "properties": {
           "detail": {
@@ -8776,6 +9552,43 @@
         ],
         "title": "SubmissionFieldRefusalResponse",
         "description": "A refusal of one field of a submission, with the field named so a form can mark it without\nreading `detail`. `field` is one of the request's own field names."
+      },
+      "SubmissionKind": {
+        "type": "string",
+        "enum": [
+          "new_test",
+          "amendment"
+        ],
+        "title": "SubmissionKind"
+      },
+      "SubmissionPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SubmissionSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "SubmissionPage",
+        "description": "One page, newest first. A `null` `next_cursor` means there is no following page."
       },
       "SubmissionPropertyValueRequest": {
         "properties": {
@@ -9003,6 +9816,104 @@
         ],
         "title": "SubmissionResponse",
         "description": "The stored submission.\n\n`snomed_fsn` is the label the terminology server returned for `snomed_code`, never anything\nthe caller sent (FR-82). `label_provenance` states which designation each label field is\n(FR-98): the suggested term is offered as the catalogue's preferred term, and the synonyms as\nsynonyms. `entry_business_key` is the entry an amendment proposes to change, and null for a new\ntest; an amendment's `preferred_term` is a copy of that entry's term when it was proposed. The\nthree `reference_*` fields describe one check and are all present or all absent; a new test\nalways has them. `duplicate_confirmed_at` is when the server saved a submission whose\nrequest carried `confirm_not_duplicate` and that matched something (FR-25), and is null\notherwise."
+      },
+      "SubmissionState": {
+        "type": "string",
+        "enum": [
+          "Submitted",
+          "Published in release",
+          "Rejected",
+          "Withdrawn"
+        ],
+        "title": "SubmissionState"
+      },
+      "SubmissionSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "entry_business_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entry Business Key"
+          },
+          "preferred_term": {
+            "type": "string",
+            "title": "Preferred Term"
+          },
+          "snomed_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snomed Code"
+          },
+          "snomed_fsn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snomed Fsn"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "is_own": {
+            "type": "boolean",
+            "title": "Is Own"
+          },
+          "label_provenance": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/LabelProvenance"
+            },
+            "type": "object",
+            "title": "Label Provenance"
+          },
+          "submitter": {
+            "$ref": "#/components/schemas/PlainSubmitter"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "state",
+          "entry_business_key",
+          "preferred_term",
+          "snomed_code",
+          "snomed_fsn",
+          "created_at",
+          "is_own",
+          "label_provenance",
+          "submitter"
+        ],
+        "title": "SubmissionSummary"
       },
       "SubmittedPropertyValue": {
         "properties": {

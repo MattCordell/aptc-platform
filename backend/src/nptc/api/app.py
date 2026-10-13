@@ -34,6 +34,7 @@ from nptc.api.routers import (
     catalogue_properties,
     registry,
     submissions,
+    submissions_read,
     terminology,
 )
 from nptc.api.terms_gate import declare_terms_refusal, require_current_terms
@@ -157,6 +158,7 @@ def create_app(
     app.include_router(registry.router, prefix=API_PREFIX)
     # A user's proposal for a new test (FR-23). Gated on submission.create, so Observer is refused.
     app.include_router(submissions.router, prefix=API_PREFIX)
+    app.include_router(submissions_read.router, prefix=API_PREFIX)
     # Live SCTID resolution during form completion (FR-26). Its own prefix and
     # tag, not under /catalogue; see its docstring.
     app.include_router(terminology.router, prefix=API_PREFIX)

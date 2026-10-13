@@ -122,10 +122,12 @@ from nptc.submissions.errors import (
     CodeRefusal,
     FreeTextField,
     FreeTextRefusedError,
+    MalformedSubmissionCursorError,
     SubmissionCodeRefusedError,
     SubmissionCodeUnavailableError,
     SubmissionCodeUpstreamError,
     SubmissionDuplicatesFoundError,
+    SubmissionNotFoundError,
 )
 from nptc.submissions.reference_check import (
     ReferenceCheckFailedError,
@@ -418,6 +420,11 @@ _DETAIL_VERSION_CONFLICT = (
     "conflicting changes and try again."
 )
 _DETAIL_NOT_FOUND = "No catalogue entry was found for the given identifier."
+_DETAIL_SUBMISSION_NOT_FOUND = "No submission was found for the given identifier."
+_DETAIL_SUBMISSION_CURSOR = (
+    "This page cursor is not one this API issued. Pass a `next_cursor` value back "
+    "unmodified, or start again from the first page."
+)
 #: FR-17: one shared 404 sentence for both an unregistered `system_token`/URI
 #: and a registered one with no matching published entry (see
 #: `nptc.catalogue.code_systems`'s module docstring). Sourced from the registry
@@ -786,6 +793,10 @@ _REFUSALS: Final[dict[type[Exception], _Refusal]] = {
     ),
     EntryNotFoundError: _Refusal(_DETAIL_NOT_FOUND, "entry not found: %s"),
     CodeLookupNotFoundError: _Refusal(_DETAIL_CODE_LOOKUP_NOT_FOUND, "code lookup not found: %s"),
+    SubmissionNotFoundError: _Refusal(_DETAIL_SUBMISSION_NOT_FOUND, "submission not found: %s"),
+    MalformedSubmissionCursorError: _Refusal(
+        _DETAIL_SUBMISSION_CURSOR, "submission cursor refused: %s", _name
+    ),
     # Not logged: a blank search box on a public, unauthenticated endpoint is
     # the most ordinary client mistake there is, and logging it invites
     # filling the log with someone else's traffic.

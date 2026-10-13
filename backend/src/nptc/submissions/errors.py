@@ -1,4 +1,4 @@
-"""Refusals specific to creating a submission (FR-26, FR-35)."""
+"""Refusals specific to creating and reading a submission (FR-26, FR-35, FR-42)."""
 
 from __future__ import annotations
 
@@ -17,10 +17,12 @@ __all__ = [
     "CodeRefusal",
     "FreeTextField",
     "FreeTextRefusedError",
+    "MalformedSubmissionCursorError",
     "SubmissionCodeRefusedError",
     "SubmissionCodeUnavailableError",
     "SubmissionCodeUpstreamError",
     "SubmissionDuplicatesFoundError",
+    "SubmissionNotFoundError",
 ]
 
 
@@ -122,3 +124,15 @@ class AmendmentRefusedError(ValueError):
     def __init__(self, reason: AmendmentRefusal) -> None:
         self.reason = reason
         super().__init__(f"amendment refused: {reason.value}")
+
+
+class SubmissionNotFoundError(LookupError):
+    """No submission has the identifier. The message names none, so a log line never carries one."""
+
+    http_status: ClassVar[int] = 404
+
+
+class MalformedSubmissionCursorError(ValueError):
+    """An `after` cursor this API did not issue; the first page would restart a paging loop."""
+
+    http_status: ClassVar[int] = 422

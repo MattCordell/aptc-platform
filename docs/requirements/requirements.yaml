@@ -202,7 +202,7 @@
   phase: p2
   title: "Submissions progress through the following states"
   status: planned
-  notes: ""
+  notes: "Only the read side of the state set exists. Migration 0031 lets submission.state hold Submitted, Published in release, Rejected and Withdrawn, and GET /api/v1/submissions treats Published in release, Rejected and Withdrawn as closed (nptc.db.models.submission.CLOSED_SUBMISSION_STATES): with no state filter it lists every other state, so a state added later is open without a change, and a caller can name any state, closed ones included. No route moves a submission between states yet, so the workflow itself is unbuilt. Tests: backend/tests/test_api_submissions_read.py, test_migration_submission_states.py."
 - id: "FR-29"
   priority: MUST
   phase: p2
@@ -286,7 +286,7 @@
   phase: p2
   title: "Registration captures real name, organisation and chosen username"
   status: planned
-  notes: ""
+  notes: "Only the display rule for a submission's submitter is built; capturing the real name, organisation and chosen username at registration is not. GET /api/v1/submissions and GET /api/v1/submissions/{id} (backend/src/nptc/api/routers/submissions_read.py, backend/src/nptc/submissions/queries.py) show the submitter's display name and the submission's organisation copy only to a caller holding submitter_identity.view (Reviewer, Administrator). Every other caller gets the username alone, with no name or organisation key in the response. A closed account shows the placeholder 'Closed account'. Tests: backend/tests/test_api_submissions_read.py."
 - id: "FR-43"
   priority: MUST
   phase: p2
@@ -759,7 +759,7 @@
   phase: p1
   title: "Every request authorised server-side against the internal user record"
   status: in-progress
-  notes: "Issue #44 (ADR-0019): nptc.auth.principal.principal_for derives every Principal's permissions from user_role grants read via the session (never from a token claim - the realm declares no roles, ADR-0014), and nptc.auth.authorisation.require_permission/may_act_on are the only sanctioned checks (backend/tests/test_authorisation_guard.py's AST guard). Issue #142 wires this into a real request pipeline for the first time: all seven routes now served (GET /auth/me plus six under /catalogue) resolve a Principal server-side and, for the catalogue routes, check permission_dep(Permission.CATALOGUE_BROWSE) - a permission, never a role name (FR-44). Stays in-progress: every route that exists is authorised server-side, but the authenticated and write surfaces (#143, #149/#150) have not landed, so 'every request' is a claim about a surface that is still mostly unbuilt. Issue #426: the site header shows every navigation link to every visitor, admin included, and its user menu only offers links, so the browser still decides nothing about access."
+  notes: "Issue #44 (ADR-0019): nptc.auth.principal.principal_for derives every Principal's permissions from user_role grants read via the session (never from a token claim - the realm declares no roles, ADR-0014), and nptc.auth.authorisation.require_permission/may_act_on are the only sanctioned checks (backend/tests/test_authorisation_guard.py's AST guard). Issue #142 wires this into a real request pipeline for the first time: all seven routes now served (GET /auth/me plus six under /catalogue) resolve a Principal server-side and, for the catalogue routes, check permission_dep(Permission.CATALOGUE_BROWSE) - a permission, never a role name (FR-44). Stays in-progress: every route that exists is authorised server-side, but the authenticated and write surfaces (#143, #149/#150) have not landed, so 'every request' is a claim about a surface that is still mostly unbuilt. Issue #426: the site header shows every navigation link to every visitor, admin included, and its user menu only offers links, so the browser still decides nothing about access. GET /api/v1/submissions and GET /api/v1/submissions/{id} are gated on submission.view, and the submitter's name and organisation are left out of the response, not hidden by the client, for a caller without submitter_identity.view (backend/tests/test_api_submissions_read.py)."
 - id: "NFR-21"
   priority: MUST
   phase: p5

@@ -656,6 +656,18 @@ The downgrade drops the column, which discards the link of every stored amendmen
 but an amendment without its entry cannot be applied, and the older check no longer rejects one.
 Delete or finish any amendments first, and take a backup if any have been made.
 
+## `0031_submission_states.py`
+
+Widens the `submission.state` check from `Submitted` alone to `Submitted`, `Published in release`,
+`Rejected` and `Withdrawn` (FR-28). Widening a check cannot invalidate a stored row, so the upgrade
+needs no data step and runs at once.
+
+The API at this revision serves `GET /api/v1/submissions` and `GET /api/v1/submissions/{id}`
+(FR-42). No route writes a closed state yet.
+
+The downgrade narrows the check again, and it refuses to run while any row holds one of the three
+closed states, because the narrower check would reject that row. Move or delete those rows first.
+
 ## Testcontainers and Docker
 
 `uv run pytest` from the repository root now needs a **running** Docker daemon, not merely

@@ -778,7 +778,15 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List submissions
+         * @description Newest first, paged by cursor. Pass the response's `next_cursor` back as `after` for the
+         *     following page. There is no `offset` and no total, on purpose (ADR-0024).
+         *
+         *     A caller with `submitter_identity.view` gets each submitter's display name and the
+         *     submission's organisation. Every other caller gets the username only.
+         */
+        get: operations["list_submissions_api_v1_submissions_get"];
         put?: never;
         /** Submit a new test for the catalogue */
         post: operations["create_submission_api_v1_submissions_post"];
@@ -816,6 +824,27 @@ export interface paths {
         put?: never;
         /** Check a submission for duplicates before sending it */
         post: operations["check_submission_duplicates_api_v1_submissions_duplicate_check_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/submissions/{submission_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Show one submission
+         * @description One submission in any state, with the content the submitter sent. The submitter appears as
+         *     on the list: a username only, unless the caller holds `submitter_identity.view`.
+         */
+        get: operations["get_submission_api_v1_submissions__submission_id__get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2144,6 +2173,110 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
+        /** IdentifiedSubmissionDetail */
+        IdentifiedSubmissionDetail: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** State */
+            state: string;
+            /** Entry Business Key */
+            entry_business_key: string | null;
+            /** Preferred Term */
+            preferred_term: string;
+            /** Snomed Code */
+            snomed_code: string | null;
+            /** Snomed Fsn */
+            snomed_fsn: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Is Own */
+            is_own: boolean;
+            /** Label Provenance */
+            label_provenance: {
+                [key: string]: components["schemas"]["LabelProvenance"];
+            };
+            /** Synonyms */
+            synonyms: string[];
+            /** Property Values */
+            property_values: {
+                [key: string]: components["schemas"]["SubmittedPropertyValue"][];
+            };
+            /** Notes */
+            notes: string | null;
+            /** Reference Url */
+            reference_url: string | null;
+            /** Reference Checked At */
+            reference_checked_at: string | null;
+            /** Reference Status */
+            reference_status: number | null;
+            /** Duplicate Confirmed At */
+            duplicate_confirmed_at: string | null;
+            submitter: components["schemas"]["IdentifiedSubmitter"];
+        };
+        /**
+         * IdentifiedSubmissionPage
+         * @description `SubmissionPage` for a caller with `submitter_identity.view`.
+         */
+        IdentifiedSubmissionPage: {
+            /** Items */
+            items: components["schemas"]["IdentifiedSubmissionSummary"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** IdentifiedSubmissionSummary */
+        IdentifiedSubmissionSummary: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** State */
+            state: string;
+            /** Entry Business Key */
+            entry_business_key: string | null;
+            /** Preferred Term */
+            preferred_term: string;
+            /** Snomed Code */
+            snomed_code: string | null;
+            /** Snomed Fsn */
+            snomed_fsn: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Is Own */
+            is_own: boolean;
+            /** Label Provenance */
+            label_provenance: {
+                [key: string]: components["schemas"]["LabelProvenance"];
+            };
+            submitter: components["schemas"]["IdentifiedSubmitter"];
+        };
+        /**
+         * IdentifiedSubmitter
+         * @description The submitter as a caller with `submitter_identity.view` sees them. `organisation` is the
+         *     copy the submitter sent with this submission, which can differ from their profile, and is null
+         *     when they sent none. A closed account's `username` and `display_name` are the placeholder.
+         */
+        IdentifiedSubmitter: {
+            /** Username */
+            username: string;
+            /** Display Name */
+            display_name: string;
+            /** Organisation */
+            organisation: string | null;
+        };
         /**
          * LabelProvenance
          * @description One field's provenance declaration: which designation it is, and -
@@ -2245,6 +2378,14 @@ export interface components {
             reason: string;
             /** Expected Row Version */
             expected_row_version: number;
+        };
+        /**
+         * PlainSubmitter
+         * @description The submitter as a caller without `submitter_identity.view` sees them: a username only.
+         */
+        PlainSubmitter: {
+            /** Username */
+            username: string;
         };
         /** ProcedureMatch */
         ProcedureMatch: {
@@ -2709,6 +2850,54 @@ export interface components {
             terms: string[];
             label_provenance: components["schemas"]["LabelProvenance"];
         };
+        /** SubmissionDetail */
+        SubmissionDetail: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** State */
+            state: string;
+            /** Entry Business Key */
+            entry_business_key: string | null;
+            /** Preferred Term */
+            preferred_term: string;
+            /** Snomed Code */
+            snomed_code: string | null;
+            /** Snomed Fsn */
+            snomed_fsn: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Is Own */
+            is_own: boolean;
+            /** Label Provenance */
+            label_provenance: {
+                [key: string]: components["schemas"]["LabelProvenance"];
+            };
+            /** Synonyms */
+            synonyms: string[];
+            /** Property Values */
+            property_values: {
+                [key: string]: components["schemas"]["SubmittedPropertyValue"][];
+            };
+            /** Notes */
+            notes: string | null;
+            /** Reference Url */
+            reference_url: string | null;
+            /** Reference Checked At */
+            reference_checked_at: string | null;
+            /** Reference Status */
+            reference_status: number | null;
+            /** Duplicate Confirmed At */
+            duplicate_confirmed_at: string | null;
+            submitter: components["schemas"]["PlainSubmitter"];
+        };
         /**
          * SubmissionDuplicatesResponse
          * @description FR-25's 409 body: the matches the submitter must confirm before the submission is saved.
@@ -2732,6 +2921,21 @@ export interface components {
              * @enum {string}
              */
             field: "preferred_term" | "synonyms" | "snomed_code" | "reference_url" | "notes" | "organisation";
+        };
+        /**
+         * SubmissionKind
+         * @enum {string}
+         */
+        SubmissionKind: "new_test" | "amendment";
+        /**
+         * SubmissionPage
+         * @description One page, newest first. A `null` `next_cursor` means there is no following page.
+         */
+        SubmissionPage: {
+            /** Items */
+            items: components["schemas"]["SubmissionSummary"][];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /**
          * SubmissionPropertyValueRequest
@@ -2818,6 +3022,43 @@ export interface components {
             label_provenance: {
                 [key: string]: components["schemas"]["LabelProvenance"];
             };
+        };
+        /**
+         * SubmissionState
+         * @enum {string}
+         */
+        SubmissionState: "Submitted" | "Published in release" | "Rejected" | "Withdrawn";
+        /** SubmissionSummary */
+        SubmissionSummary: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** State */
+            state: string;
+            /** Entry Business Key */
+            entry_business_key: string | null;
+            /** Preferred Term */
+            preferred_term: string;
+            /** Snomed Code */
+            snomed_code: string | null;
+            /** Snomed Fsn */
+            snomed_fsn: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Is Own */
+            is_own: boolean;
+            /** Label Provenance */
+            label_provenance: {
+                [key: string]: components["schemas"]["LabelProvenance"];
+            };
+            submitter: components["schemas"]["PlainSubmitter"];
         };
         /**
          * SubmittedPropertyValue
@@ -5686,6 +5927,75 @@ export interface operations {
             };
         };
     };
+    list_submissions_api_v1_submissions_get: {
+        parameters: {
+            query?: {
+                /** @description Keep only submissions in these states. Repeat the parameter to name more than one. Omitted, the list holds every open submission: all states except `Published in release`, `Rejected` and `Withdrawn`. With `mine=true` and no `state`, every state is listed. */
+                state?: components["schemas"]["SubmissionState"][] | null;
+                /** @description Send `true` to keep only the caller's own submissions, in any state. */
+                mine?: boolean;
+                /** @description Keep only new tests or only amendments. */
+                kind?: components["schemas"]["SubmissionKind"] | null;
+                /** @description Maximum submissions in a page. */
+                limit?: number;
+                /** @description The `next_cursor` of the previous page, passed back unmodified. */
+                after?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionPage"] | components["schemas"]["IdentifiedSubmissionPage"];
+                };
+            };
+            /** @description No credential, or one that could not be verified. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The caller is authenticated but does not hold `submission.view`, or has not accepted the current terms of use (the body then carries a `code` that says so). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A `state` or `kind` that is not one of the listed values, a `limit` outside 1 to 200, or an `after` cursor this API did not issue. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description An address exceeded its request budget (FR-22): an anonymous caller its anonymous budget, or a caller whose credentials the API kept rejecting its budget for rejected credentials. Wait for the number of seconds in `Retry-After`, then try again. A valid credential is never counted. The body's `bulk_artefacts` names where to fetch the whole catalogue instead. */
+            429: {
+                headers: {
+                    /** @description Whole seconds until the caller's request budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateLimitedResponse"];
+                };
+            };
+        };
+    };
     create_submission_api_v1_submissions_post: {
         parameters: {
             query?: never;
@@ -5932,6 +6242,75 @@ export interface operations {
                 };
             };
             /** @description The request is not acceptable: a term that cannot be cleaned, a SNOMED CT code that is malformed or fails its check digit, a missing `preferred_term`, an unrecognised field, or a part of the request over its size bound. A refusal of a term or the code carries `field`, as on the create route. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description An address exceeded its request budget (FR-22): an anonymous caller its anonymous budget, or a caller whose credentials the API kept rejecting its budget for rejected credentials. Wait for the number of seconds in `Retry-After`, then try again. A valid credential is never counted. The body's `bulk_artefacts` names where to fetch the whole catalogue instead. */
+            429: {
+                headers: {
+                    /** @description Whole seconds until the caller's request budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateLimitedResponse"];
+                };
+            };
+        };
+    };
+    get_submission_api_v1_submissions__submission_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionDetail"] | components["schemas"]["IdentifiedSubmissionDetail"];
+                };
+            };
+            /** @description No credential, or one that could not be verified. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The caller is authenticated but does not hold `submission.view`, or has not accepted the current terms of use (the body then carries a `code` that says so). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No submission has the identifier. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The identifier is not a UUID. */
             422: {
                 headers: {
                     [name: string]: unknown;

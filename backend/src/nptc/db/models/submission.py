@@ -66,19 +66,26 @@ class SubmissionKind(StrEnum):
 
 class SubmissionState(StrEnum):
     SUBMITTED = "Submitted"
+    PUBLISHED_IN_RELEASE = "Published in release"
+    REJECTED = "Rejected"
+    WITHDRAWN = "Withdrawn"
 
 
 #: The states in which a submission no longer counts as an open proposal. "Open" is every other
 #: state, so a state added later is open until it is listed here. The three are the end of the
 #: submission workflow (FR-28): published, refused or taken back by the submitter. Plain strings,
-#: because `SubmissionState` does not yet name them and the `state` check allows only `Submitted`.
-CLOSED_SUBMISSION_STATES: Final[tuple[str, ...]] = ("Published in release", "Rejected", "Withdrawn")
+#: so the duplicate check can bind them as SQL parameters without importing the enum.
+CLOSED_SUBMISSION_STATES: Final[tuple[str, ...]] = (
+    SubmissionState.PUBLISHED_IN_RELEASE.value,
+    SubmissionState.REJECTED.value,
+    SubmissionState.WITHDRAWN.value,
+)
 
 
 #: Plain literals, never built from the `StrEnum`s above: `test_sql_parameterisation.py`'s AST guard
 #: forbids SQL built from runtime data.
 _KIND_CHECK_SQL = "kind IN ('new_test','amendment')"
-_STATE_CHECK_SQL = "state IN ('Submitted')"
+_STATE_CHECK_SQL = "state IN ('Submitted','Published in release','Rejected','Withdrawn')"
 _PREFERRED_TERM_NOT_BLANK_SQL = "length(btrim(preferred_term)) > 0"
 _SYNONYMS_IS_ARRAY_SQL = "jsonb_typeof(synonyms) = 'array'"
 _PROPERTY_VALUES_IS_OBJECT_SQL = "jsonb_typeof(property_values) = 'object'"
