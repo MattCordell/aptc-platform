@@ -274,13 +274,13 @@ try {
         if (-not $keycloakId) { Stop-WithError "docker compose up failed (exit $upExit)" $ExitStack }
         Write-Host 'Compose stopped waiting for a service. Waiting for Keycloak, then trying once more.'
         $keycloakState = ''
-        foreach ($attempt in 1..36) {
+        foreach ($attempt in 1..60) {
             $keycloakState = & docker inspect --format '{{.State.Status}} {{.State.Health.Status}}' $keycloakId
             if ($keycloakState -eq 'running healthy' -or $keycloakState -notlike 'running *') { break }
             Start-Sleep -Seconds 5
         }
         if ($keycloakState -ne 'running healthy') {
-            $why = if ($keycloakState -like 'running *') { 'did not become healthy within 3 minutes' } else { 'is not running' }
+            $why = if ($keycloakState -like 'running *') { 'did not become healthy within 5 minutes' } else { 'is not running' }
             Stop-WithError "Keycloak $why (state: $keycloakState). See: docker compose -f deploy/compose.yml logs keycloak" $ExitStack
         }
         & docker compose --progress plain -f $ComposeFile up -d | Out-Host

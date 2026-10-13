@@ -43,6 +43,8 @@ least-privilege `nptc_app_login` role and never receives `NPTC_MIGRATION_DATABAS
    ```
 
    The first run downloads base images and builds two images, so allow several minutes.
+   Keycloak rebuilds itself on every start, which takes 2 to 4 minutes on a slow or busy
+   machine. The command waits up to about 5 minutes for it before it gives up.
 
 4. Check that it is ready:
 
@@ -265,6 +267,7 @@ A check that runs out of time tells the submitter the link took too long to answ
 |---|---|
 | Submitting a new test fails with "this service cannot reach the internet", and the `backend` log has "no outbound internet access" | `backend` cannot open a connection to the terminology server's host, so it cannot tell a mistyped link from a blocked network. Allow outbound ports 80 and 443, or fix `NPTC_TX_BASE_URL`. See [Outbound internet access](#outbound-internet-access). |
 | `required variable NPTC_APP_DB_PASSWORD is missing a value` (or `NPTC_INDEXER_DB_PASSWORD`) | Your `deploy/.env` predates this variable. Add it from `deploy/.env.example`. |
+| `up -d` exits with `dependency failed to start: container ... keycloak ... is unhealthy`, and `backend` and `web` never start | Keycloak took longer than the 5-minute wait. Run `docker compose -f deploy/compose.yml logs keycloak`. If it is still starting, wait for it to finish, then run `up -d` again. |
 | `migrate` exits with an error | Run `docker compose -f deploy/compose.yml logs migrate`. The last line names the failure type. A wrong database password is the usual cause after you edit `POSTGRES_PASSWORD` on an existing volume. |
 | `backend` never becomes healthy | Run `docker compose -f deploy/compose.yml logs backend`. A settings error names the variable. |
 | Keycloak shows "Invalid parameter: redirect_uri" | `NPTC_FRONTEND_BASE_URL` does not match the address in your browser. Fix it, then recreate `keycloak`. |

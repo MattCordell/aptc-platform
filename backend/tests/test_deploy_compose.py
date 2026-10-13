@@ -160,6 +160,19 @@ def test_startup_order_is_postgres_then_migrate_then_backend_then_web() -> None:
     assert services["web"]["depends_on"]["backend"]["condition"] == "service_healthy"
 
 
+def _seconds(duration: str) -> int:
+    return int(duration.removesuffix("s"))
+
+
+@pytest.mark.req("NFR-41")
+def test_keycloak_health_window_outlasts_a_four_minute_cold_start() -> None:
+    health = _services()["keycloak"]["healthcheck"]
+
+    window = _seconds(health["start_period"]) + health["retries"] * _seconds(health["interval"])
+
+    assert window >= 240
+
+
 @pytest.mark.req("NFR-41")
 def test_migrate_applies_migrations_before_provisioning_the_login() -> None:
     migrate = _services()["migrate"]
