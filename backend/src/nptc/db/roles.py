@@ -323,3 +323,9 @@ GRANT_SUBMISSION_INTEREST_UPDATE_SQL = (
 REVOKE_SUBMISSION_INTEREST_DELETE_SQL = (
     "REVOKE DELETE, TRUNCATE ON TABLE submission_interest FROM nptc_app;"
 )
+
+#: FR-28, NFR-08: a transition is a fact about a past moment, so it is never edited or removed.
+GRANT_SUBMISSION_TRANSITION_SQL = "GRANT SELECT, INSERT ON TABLE submission_transition TO nptc_app;"
+REVOKE_SUBMISSION_TRANSITION_WRITE_SQL = (
+    "REVOKE UPDATE, DELETE, TRUNCATE ON TABLE submission_transition FROM nptc_app;"
+)
