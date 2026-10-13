@@ -31,7 +31,7 @@ from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import DateTime, func, select
 from sqlalchemy.orm import Session
 
 from nptc.audit.diffing import ChangeKind
@@ -177,4 +177,4 @@ def _clock_now(session: Session) -> datetime:
     """The database clock now, read after the lock is held. `now()` would be the transaction's first
     statement, which can precede the commit of a record this revocation can already see, and the
     `revoked_after_created` check would refuse the revocation."""
-    return session.execute(select(func.clock_timestamp())).scalar_one()
+    return session.execute(select(func.clock_timestamp(type_=DateTime(timezone=True)))).scalar_one()
