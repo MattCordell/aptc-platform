@@ -76,6 +76,7 @@ and/or `data-model.md`, so it gets no section of its own below.
 | [`0030_submission_amendment_entry.py`](../../backend/migrations/versions/0030_submission_amendment_entry.py) | `submission.entry_id`, its foreign key and index, and a check tying it to `kind` (see [`data-model.md`](../architecture/data-model.md#submission-fr-23-fr-27-fr-28-fr-29-nfr-08)) | See [below](#0030_submission_amendment_entrypy) - one nullable column, and the downgrade discards the link of every stored amendment |
 | [`0031_submission_states.py`](../../backend/migrations/versions/0031_submission_states.py) | Widens the `submission.state` check to the three closed states (see [`data-model.md`](../architecture/data-model.md#submission-fr-23-fr-27-fr-28-fr-29-nfr-08)) | See [below](#0031_submission_statespy) - no data step, and the downgrade refuses while a closed state is stored |
 | [`0032_submission_interest.py`](../../backend/migrations/versions/0032_submission_interest.py) | `submission_interest` (see [`data-model.md`](../architecture/data-model.md#submission_interest-fr-32-fr-34-nfr-08-nfr-17)) | See [below](#0032_submission_interestpy) - an empty table on upgrade, and the downgrade discards every registered interest |
+| [`0033_submission_transition.py`](../../backend/migrations/versions/0033_submission_transition.py) | Adds `Triage` to the `submission.state` check, and `submission_transition` (see [`data-model.md`](../architecture/data-model.md#submission_transition-fr-28-nfr-08)) | See [below](#0033_submission_transitionpy) - an empty table on upgrade, and the downgrade refuses while a submission is in `Triage` |
 
 ## Provisioning the app role's login
 
@@ -683,6 +684,21 @@ The grants are in the migration. The app role may insert and read a record and u
 
 The downgrade drops the table, which discards every registered interest, live or revoked, with the
 organisation copy each holds. Take a backup first if any have been made.
+
+## `0033_submission_transition.py`
+
+Adds `Triage` to the `submission.state` check and creates `submission_transition` (FR-28, NFR-08 - see
+[`data-model.md`](../architecture/data-model.md#submission_transition-fr-28-nfr-08)). Widening a check
+cannot invalidate a stored row, and the new table starts empty, so the upgrade is instant and needs no
+data step. The API at this revision serves `POST /api/v1/submissions/{id}/withdraw`, and
+`GET /api/v1/submissions/{id}` returns `row_version`.
+
+The grants are in the migration. The app role may insert and read a transition and may not update or
+delete one.
+
+The downgrade refuses to run while any submission is in `Triage`, because the narrower check would
+reject that row. Move those submissions first. It then drops `submission_transition`, which discards
+every recorded transition, with the reason each holds. Take a backup first if any have been made.
 
 ## Testcontainers and Docker
 
