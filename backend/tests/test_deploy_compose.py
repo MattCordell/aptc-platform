@@ -160,8 +160,14 @@ def test_startup_order_is_postgres_then_migrate_then_backend_then_web() -> None:
     assert services["web"]["depends_on"]["backend"]["condition"] == "service_healthy"
 
 
+_DURATION_RE = re.compile(r"(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?")
+
+
 def _seconds(duration: str) -> int:
-    return int(duration.removesuffix("s"))
+    match = _DURATION_RE.fullmatch(duration)
+    assert match and duration, f"expected a duration such as 1m30s, got {duration!r}"
+    hours, minutes, seconds = (int(part or 0) for part in match.groups())
+    return hours * 3600 + minutes * 60 + seconds
 
 
 @pytest.mark.req("NFR-41")
