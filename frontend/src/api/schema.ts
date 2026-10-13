@@ -5529,7 +5529,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description A field failed validation, the request body named a `key` field, or an explicit `null` was given for a field that is otherwise omittable. Two distinct body shapes occur here: a typed domain error (`ErrorResponse`) or a pydantic validation failure (FastAPI's own `HTTPValidationError`). */
+            /** @description A field failed validation, the request body named a `key` field, an explicit `null` was given for a field that is otherwise omittable, or a coded property's `value_set_uri` is not a SNOMED CT implicit ECL URI. Two distinct body shapes occur here: a typed domain error (`ErrorResponse`) or a pydantic validation failure (FastAPI's own `HTTPValidationError`). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -5758,7 +5758,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description A field failed validation, the request body named a `key` field, or an explicit `null` was given for a field that is otherwise omittable. Two distinct body shapes occur here: a typed domain error (`ErrorResponse`) or a pydantic validation failure (FastAPI's own `HTTPValidationError`). */
+            /** @description A field failed validation, the request body named a `key` field, an explicit `null` was given for a field that is otherwise omittable, or a coded property's `value_set_uri` is not a SNOMED CT implicit ECL URI. Two distinct body shapes occur here: a typed domain error (`ErrorResponse`) or a pydantic validation failure (FastAPI's own `HTTPValidationError`). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -5849,7 +5849,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description A field failed validation, the request body named a `key` field, or an explicit `null` was given for a field that is otherwise omittable. Two distinct body shapes occur here: a typed domain error (`ErrorResponse`) or a pydantic validation failure (FastAPI's own `HTTPValidationError`). */
+            /** @description A field failed validation, the request body named a `key` field, an explicit `null` was given for a field that is otherwise omittable, or a coded property's `value_set_uri` is not a SNOMED CT implicit ECL URI. Two distinct body shapes occur here: a typed domain error (`ErrorResponse`) or a pydantic validation failure (FastAPI's own `HTTPValidationError`). */
             422: {
                 headers: {
                     [name: string]: unknown;

@@ -58,6 +58,7 @@ from nptc_shared.terminology.snomed import (
     ecl_set_of,
     edition_from_implicit_value_set_url,
     implicit_value_set_url,
+    resolve_implicit_value_set_url,
     semantic_tag,
     strip_semantic_tag,
 )
@@ -116,6 +117,7 @@ __all__ = [
     "edition_from_implicit_value_set_url",
     "implicit_value_set_url",
     "is_concept_absence",
+    "resolve_implicit_value_set_url",
     "semantic_tag",
     "strip_semantic_tag",
 ]

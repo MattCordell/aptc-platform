@@ -25,6 +25,7 @@ __all__ = [
     "DefinitionAudience",
     "DeprecatedPropertyWriteError",
     "PropertyAlreadyDeprecatedError",
+    "PropertyBindingInvalidError",
     "PropertyConstraintsInvalidError",
     "PropertyDatatypeUnknownError",
     "PropertyDefinitionDeleteRefusedError",
@@ -122,6 +123,12 @@ class PropertyConstraintsInvalidError(Exception):
 
     Wraps `nptc.registry.schema.MalformedConstraintsError`, a plain `ValueError`
     from a leaf module with no HTTP concept, so that it gains an `http_status`."""
+
+    http_status: ClassVar[int] = 422
+
+
+class PropertyBindingInvalidError(Exception):
+    """Raised when a handler could not service a definition's binding (FR-10)."""
 
     http_status: ClassVar[int] = 422
 

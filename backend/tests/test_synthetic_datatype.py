@@ -58,6 +58,9 @@ class DurationHandler:
     datatype = "duration"
     uses_binding = False
 
+    def validate_definition(self, spec: PropertyDefinitionSpec) -> None:
+        return None
+
     def json_schema_fragment(self, spec: PropertyDefinitionSpec) -> Mapping[str, Any]:
         return {"type": "string", "pattern": _DURATION_RE.pattern}
 

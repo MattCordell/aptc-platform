@@ -15,6 +15,7 @@ from typing import cast as type_cast
 from sqlalchemy import ColumnElement, false, or_
 
 from nptc.registry.handlers import (
+    BindingSpec,
     ControlKind,
     FilterOp,
     FormControlDescriptor,
@@ -28,11 +29,27 @@ from nptc.registry.handlers import (
     ValueExpression,
 )
 from nptc_shared.sctid import has_valid_check_digit, has_valid_format
-from nptc_shared.terminology import SNOMED_SYSTEM, TerminologyClient
-from nptc_shared.terminology.snomed import edition_from_implicit_value_set_url
+from nptc_shared.terminology import SNOMED_SYSTEM, Edition, TerminologyClient
+from nptc_shared.terminology.snomed import resolve_implicit_value_set_url
 
 _SUPPORTED_OPS = frozenset({FilterOp.EQUALS, FilterOp.IN})
 _REQUIRED_KEYS = frozenset({"system", "code"})
+
+
+def _edition_for_value_set(value_set_uri: str, binding: BindingSpec) -> Edition:
+    """The edition a `value_set` binding resolves against, or `UnsupportedBindingError` when the
+    URI is not one the platform can expand. The server expands ECL only, so that is the one form
+    accepted; the stored `edition` is a label such as "au", not a module id, and the server needs
+    the module-qualified system version. Shared by `validate_definition` and `_validate_binding`
+    so a definition accepted when saved is never refused at the first value write."""
+    try:
+        return resolve_implicit_value_set_url(value_set_uri, label=binding.edition)[1]
+    except ValueError as exc:
+        raise UnsupportedBindingError(
+            f"binding value_set_uri {value_set_uri!r} with edition {binding.edition!r} is not a "
+            "SNOMED implicit ECL value set URI naming a recognised edition - this is a malformed "
+            "PropertyDefinitionSpec, not a bad value"
+        ) from exc
 
 
 class CodeHandler:
@@ -74,6 +91,14 @@ class CodeHandler:
             "properties": {"forbidden_codes": {"type": "array", "items": {"type": "string"}}},
             "additionalProperties": False,
         }
+
+    def validate_definition(self, spec: PropertyDefinitionSpec) -> None:
+        binding = spec.binding
+        if binding is None or binding.binding_target != "value_set":
+            return
+        if binding.value_set_uri is None:
+            raise UnsupportedBindingError("binding_target 'value_set' requires a value_set_uri")
+        _edition_for_value_set(binding.value_set_uri, binding)
 
     def validate(self, value: Any, spec: PropertyDefinitionSpec) -> Sequence[ValidationIssue]:
         if not isinstance(value, Mapping):
@@ -159,18 +184,7 @@ class CodeHandler:
                 "got None - this is a malformed PropertyDefinitionSpec, not "
                 "a bad value"
             )
-        # The stored `edition` is a label such as "au", not a module id. The server needs the
-        # module-qualified system version, so the edition comes from the value set URI.
-        try:
-            edition = edition_from_implicit_value_set_url(
-                binding.value_set_uri, label=binding.edition
-            )
-        except ValueError as exc:
-            raise UnsupportedBindingError(
-                f"binding value_set_uri {binding.value_set_uri!r} with edition "
-                f"{binding.edition!r} is not a SNOMED implicit ECL value set URI naming a "
-                "recognised edition - this is a malformed PropertyDefinitionSpec, not a bad value"
-            ) from exc
+        edition = _edition_for_value_set(binding.value_set_uri, binding)
         result = self._terminology.validate_code(
             code, edition=edition, value_set_url=binding.value_set_uri
         )

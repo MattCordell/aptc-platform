@@ -40,6 +40,9 @@ class _StubHandler:
     def constraints_schema(self) -> Mapping[str, Any]:
         return {}
 
+    def validate_definition(self, spec: PropertyDefinitionSpec) -> None:
+        return None
+
     def validate(self, value: Any, spec: PropertyDefinitionSpec) -> Sequence[ValidationIssue]:
         return []
 

@@ -12,11 +12,14 @@
 `PropertyDefinitionKeyExistsError`. Any other `IntegrityError` propagates, because it is a defect in
 the write, not a race.
 
-**`datatype` and `constraints` are validated against the resolved handler before a row is written.**
-`create_definition` and `amend_definition` take a `DatatypeRegistry` for this. An unrecognised
-`datatype` raises `PropertyDatatypeUnknownError` (422). `constraints` that do not conform to the
-handler's `constraints_schema()` raise `PropertyConstraintsInvalidError` (422). Both happen before
-`session.add` or `setattr`.
+**`datatype`, `constraints` and the binding are validated against the resolved handler before a row
+is written.** `create_definition` and `amend_definition` take a `DatatypeRegistry` for this. An
+unrecognised `datatype` raises `PropertyDatatypeUnknownError` (422). `constraints` that do not
+conform to the handler's `constraints_schema()` raise `PropertyConstraintsInvalidError` (422). A
+binding the handler's `validate_definition()` refuses, such as a `value_set_uri` the platform
+cannot expand, raises `PropertyBindingInvalidError` (422; FR-10). All happen before `session.add`
+or `setattr`. `amend_definition` checks the binding only when the amendment touches a binding
+field.
 
 **`key` immutability is enforced in layers, deliberately.** `amend_definition` never assigns `.key`.
 It raises `PropertyKeyImmutableError` itself, before touching any other attribute, so
@@ -48,6 +51,7 @@ from nptc.db.property_specs import spec_for
 from nptc.registry.definitions import (
     DefinitionAudience,
     PropertyAlreadyDeprecatedError,
+    PropertyBindingInvalidError,
     PropertyConstraintsInvalidError,
     PropertyDatatypeUnknownError,
     PropertyDefinitionKeyExistsError,
@@ -55,7 +59,7 @@ from nptc.registry.definitions import (
     PropertyReactivationRefusedError,
     SystemPropertyDeprecationRefusedError,
 )
-from nptc.registry.handlers import DatatypeRegistry, UnknownDatatypeError
+from nptc.registry.handlers import DatatypeRegistry, UnknownDatatypeError, UnsupportedBindingError
 from nptc.registry.schema import MalformedConstraintsError, validate_constraints
 
 __all__ = [
@@ -89,11 +93,14 @@ _AMENDABLE_FIELDS = frozenset(
 )
 
 
-def _validate_registry_shape(registry: DatatypeRegistry, definition: PropertyDefinition) -> None:
+def _validate_registry_shape(
+    registry: DatatypeRegistry, definition: PropertyDefinition, *, check_binding: bool = True
+) -> None:
     """Resolves `definition.datatype` against `registry` and validates `definition.constraints`
-    against that handler's `constraints_schema()`. Called before `definition` is written, so a bad
-    `datatype` or `constraints` is a 422 at request time, not a broken row that fails at the first
-    value write.
+    against that handler's `constraints_schema()`, then the binding through the handler's
+    `validate_definition()` unless `check_binding` is false. Called before `definition` is written,
+    so a bad `datatype`, `constraints` or binding is a 422 at request time, not a broken row that
+    fails at the first use.
     """
     try:
         handler = registry.get(definition.datatype)
@@ -104,7 +111,19 @@ def _validate_registry_shape(registry: DatatypeRegistry, definition: PropertyDef
         validate_constraints(spec, handler)
     except MalformedConstraintsError as error:
         raise PropertyConstraintsInvalidError(str(error)) from error
+    if not check_binding:
+        return
+    try:
+        handler.validate_definition(spec)
+    except UnsupportedBindingError as error:
+        raise PropertyBindingInvalidError(str(error)) from error
 
+
+#: The columns of FR-10's binding. None is in `_AMENDABLE_FIELDS` today, so `amend_definition`
+#: skips the binding check until one is.
+_BINDING_FIELDS = frozenset(
+    {"binding_target", "value_set_uri", "strength", "edition", "local_code_system_key"}
+)
 
 #: Every field `_merged_for_validation` overlays onto a copy of `definition`: every mapped field the
 #: transient copy needs, because `PropertyDefinition.__init__` needs a value for each, not only
@@ -305,7 +324,13 @@ def amend_definition(
             )
         )
 
-    _validate_registry_shape(registry, _merged_for_validation(definition, changes))
+    # A definition already stored with a bad binding must not block an unrelated edit, so the
+    # binding is checked only when the amendment touches it.
+    _validate_registry_shape(
+        registry,
+        _merged_for_validation(definition, changes),
+        check_binding=not changes.keys().isdisjoint(_BINDING_FIELDS),
+    )
 
     for field, value in changes.items():
         setattr(definition, field, value)

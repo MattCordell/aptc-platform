@@ -39,6 +39,9 @@ class DecimalHandler:
     def constraints_schema(self) -> Mapping[str, Any]:
         return {"type": "object", "additionalProperties": False}
 
+    def validate_definition(self, spec: PropertyDefinitionSpec) -> None:
+        return None
+
     def validate(self, value: Any, spec: PropertyDefinitionSpec) -> Sequence[ValidationIssue]:
         # `decimal.Decimal` registers as `numbers.Number`, not
         # `numbers.Real` - checked explicitly, since a JSONB/Numeric

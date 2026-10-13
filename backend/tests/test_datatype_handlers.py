@@ -472,6 +472,68 @@ def test_code_binding_with_an_unrecognised_edition_raises_loudly() -> None:
         )
 
 
+def _value_set_binding(value_set_uri: str | None, label: str = "au") -> BindingSpec:
+    return BindingSpec(
+        binding_target="value_set", value_set_uri=value_set_uri, strength="required", edition=label
+    )
+
+
+@pytest.mark.req("FR-10")
+@pytest.mark.parametrize(
+    ("value_set_uri", "label"),
+    [
+        pytest.param("http://snomed.info/sct?fhir_vs=refset/723264001", "au", id="refset"),
+        pytest.param("http://snomed.info/sct?fhir_vs=isa/123038009", "au", id="isa"),
+        pytest.param("http://example.org/ValueSet/specimen", "au", id="explicit-value-set"),
+        pytest.param(f"http://example.org/sct{_ECL}", "au", id="non-snomed-host"),
+        pytest.param("http://snomed.info/sct", "au", id="no-fhir-vs-parameter"),
+        pytest.param("http://snomed.info/sct?fhir_vs=ecl/", "au", id="empty-ecl"),
+        pytest.param(f"http://snomed.info/sct/99999999999999999{_ECL}", "au", id="unknown-module"),
+        pytest.param(f"http://snomed.info/sct{_ECL}", "", id="bare-system-without-a-label"),
+        pytest.param(f"http://snomed.info/sct{_ECL}", "xx", id="bare-system-unknown-label"),
+    ],
+)
+def test_code_validate_definition_refuses_a_value_set_uri_the_platform_cannot_expand(
+    value_set_uri: str, label: str
+) -> None:
+    spec = _spec("code", binding=_value_set_binding(value_set_uri, label))
+
+    with pytest.raises(UnsupportedBindingError):
+        CodeHandler(terminology_client=StubTerminologyClient()).validate_definition(spec)
+
+
+@pytest.mark.req("FR-10")
+@pytest.mark.parametrize(
+    "value_set_uri",
+    [
+        pytest.param(f"http://snomed.info/sct{_ECL}", id="bare-system"),
+        pytest.param(f"http://snomed.info/sct/32506021000036107{_ECL}", id="module-qualified"),
+        pytest.param(
+            f"http://snomed.info/sct/32506021000036107/version/20260531{_ECL}", id="version-pinned"
+        ),
+    ],
+)
+def test_code_validate_definition_accepts_the_implicit_ecl_shapes(value_set_uri: str) -> None:
+    spec = _spec("code", binding=_value_set_binding(value_set_uri))
+
+    CodeHandler(terminology_client=StubTerminologyClient()).validate_definition(spec)
+
+
+@pytest.mark.req("FR-10")
+def test_code_validate_definition_leaves_a_local_code_system_binding_alone() -> None:
+    binding = BindingSpec(
+        binding_target="local_code_system",
+        value_set_uri=None,
+        strength="required",
+        edition="local",
+        local_code_system_key="discipline",
+    )
+
+    CodeHandler(terminology_client=StubTerminologyClient()).validate_definition(
+        _spec("code", binding=binding)
+    )
+
+
 @pytest.mark.req("FR-10")
 def test_code_binding_check_surfaces_a_not_in_value_set_result() -> None:
     """FR-10's live binding check, through a StubTerminologyClient - no

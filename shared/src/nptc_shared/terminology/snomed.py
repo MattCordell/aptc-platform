@@ -123,6 +123,13 @@ def edition_from_implicit_value_set_url(
     raise ValueError(f"{uri!r} names an unrecognised SNOMED module id {module_id!r}")
 
 
+def resolve_implicit_value_set_url(uri: str, *, label: str | None = None) -> tuple[str, Edition]:
+    """The `(ecl, edition)` a URI encodes, or `ValueError`: the one "can we expand it" test."""
+    return ecl_from_implicit_value_set_url(uri), edition_from_implicit_value_set_url(
+        uri, label=label
+    )
+
+
 def ecl_set_of(codes: Iterable[str]) -> str:
     """The ECL enumerating exactly ``codes`` and nothing else: ``a OR b OR c``.
 

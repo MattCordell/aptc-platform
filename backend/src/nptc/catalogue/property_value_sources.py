@@ -51,11 +51,7 @@ from nptc.db.property_specs import spec_for
 from nptc.terminology.concepts import classify_terminology_error
 from nptc_shared.sctid import has_valid_format
 from nptc_shared.terminology import TerminologyClient, TerminologyConfigError, TerminologyError
-from nptc_shared.terminology.snomed import (
-    ecl_from_implicit_value_set_url,
-    ecl_set_of,
-    edition_from_implicit_value_set_url,
-)
+from nptc_shared.terminology.snomed import ecl_set_of, resolve_implicit_value_set_url
 
 __all__ = [
     "PropertyNotCodeTypeError",
@@ -138,12 +134,9 @@ def _value_set_page(
     # URI is module-qualified, so a pinned version is never silently dropped;
     # `edition_label` (the stored `binding.edition`) is only the fallback for
     # the PRD S6.6 bare-system URI, which names no module (see
-    # `edition_from_implicit_value_set_url`). Both parses fail the same way,
-    # for a pair that is not this builder's own output, so they share one
-    # `except`.
+    # `edition_from_implicit_value_set_url`).
     try:
-        ecl = ecl_from_implicit_value_set_url(value_set_uri)
-        edition = edition_from_implicit_value_set_url(value_set_uri, label=edition_label)
+        ecl, edition = resolve_implicit_value_set_url(value_set_uri, label=edition_label)
     except ValueError as exc:
         raise PropertyValueSourceMisconfiguredError(
             f"property {key!r}'s stored value_set_uri/edition could not be interpreted as a "
@@ -288,7 +281,7 @@ def _resolve_value_set_values(
     # Only the edition is needed, not the bound ECL: this resolution is
     # deliberately not scoped to the property's current value set.
     try:
-        edition = edition_from_implicit_value_set_url(value_set_uri, label=edition_label)
+        _, edition = resolve_implicit_value_set_url(value_set_uri, label=edition_label)
     except ValueError as exc:
         raise PropertyValueSourceMisconfiguredError(
             f"property {key!r}'s stored value_set_uri/edition could not be interpreted as a "
