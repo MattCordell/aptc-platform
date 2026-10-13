@@ -1620,8 +1620,9 @@ organisation represented with its count (`nptc.submissions.interest_identities`)
 live records are returned too. A closed account's person reads `Closed account` and the record still
 counts under its organisation copy. The route is a read, so it emits no audit event.
 
-**Organisations group on the trimmed, lower-cased copy**, so `Royal Perth Hospital` and
-` royal perth hospital` are one group. The group's label is its most common trimmed spelling, with a
+**Organisations group on the trimmed, lower-cased copy** (spaces, tabs and line breaks trimmed), so
+`Royal Perth Hospital` and `royal perth hospital` typed with a stray leading space are one group. The
+group's label is its most common trimmed spelling, with a
 tie going to the one that sorts first by code point. A blank copy and a missing one are one group
 with a null `organisation` and the label `No organisation given`; it is listed last. The grouping does
 not depend on registration trimming what it stores.
