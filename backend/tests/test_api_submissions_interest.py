@@ -20,8 +20,10 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.engine import Connection
 
+from nptc.api.dependencies import current_principal
 from nptc.api.terms_gate import TERMS_ACCEPTANCE_REQUIRED_CODE
-from nptc.auth.permissions import Role
+from nptc.auth.permissions import Permission, Role
+from nptc.auth.principal import Principal
 from nptc.db.models.audit import AuditEvent
 from nptc.db.models.submission import CLOSED_SUBMISSION_STATES, Submission, SubmissionKind
 from nptc.db.models.submission_interest import SubmissionInterest
@@ -405,3 +407,128 @@ def test_a_user_who_has_not_accepted_the_current_terms_is_refused(api: ApiTestAp
     accepted = _put(api, token, submission.id)
 
     assert accepted.status_code == 200, accepted.text
+
+
+# --- the list and the detail carry interest (FR-34) ----------------------------------------
+
+
+def _listed_item(api: ApiTestApp, token: str, submission: Submission) -> dict[str, Any]:
+    """The list item for `submission`, read from its submitter's own list so the page is small and
+    holds only rows this test made."""
+    response = api.get("/submissions", token=token, params={"mine": "true", "limit": 200})
+    assert response.status_code == 200, response.text
+    [item] = [item for item in response.json()["items"] if item["id"] == str(submission.id)]
+    assert isinstance(item, dict)
+    return item
+
+
+@pytest.mark.req("FR-34")
+@pytest.mark.integration
+def test_the_detail_and_the_list_carry_the_count_and_the_callers_own_flag(
+    api: ApiTestApp,
+) -> None:
+    submitter_token, submitter = _sign_in(api, Role.MEMBER)
+    registrant_token, _ = _sign_in(api, Role.MEMBER)
+    other_token, _ = _sign_in(api, Role.REVIEWER)
+    submission = _submission(api, submitter)
+    _put(api, registrant_token, submission.id)
+    _put(api, other_token, submission.id)
+    _delete(api, other_token, submission.id)
+
+    as_registrant = api.get(f"/submissions/{submission.id}", token=registrant_token).json()
+    as_submitter = api.get(f"/submissions/{submission.id}", token=submitter_token).json()
+    listed = _listed_item(api, submitter_token, submission)
+
+    assert (as_registrant["interest_count"], as_registrant["has_registered_interest"]) == (1, True)
+    assert (as_submitter["interest_count"], as_submitter["has_registered_interest"]) == (1, False)
+    assert (listed["interest_count"], listed["has_registered_interest"]) == (1, False)
+
+
+@pytest.mark.req("FR-34")
+@pytest.mark.integration
+def test_a_submission_nobody_backed_reports_zero_and_false(api: ApiTestApp) -> None:
+    token, member = _sign_in(api, Role.MEMBER)
+    submission = _submission(api, member)
+
+    detail = api.get(f"/submissions/{submission.id}", token=token).json()
+
+    assert (detail["interest_count"], detail["has_registered_interest"]) == (0, False)
+
+
+@pytest.mark.req("FR-34")
+@pytest.mark.integration
+def test_a_closed_submission_still_reports_the_interest_that_stood_at_closure(
+    api: ApiTestApp,
+) -> None:
+    token, _ = _sign_in(api, Role.MEMBER)
+    submission = _submission(api, _sign_in(api, Role.MEMBER)[1])
+    _put(api, token, submission.id)
+    submission.state = CLOSED_SUBMISSION_STATES[0]
+    api.session.flush()
+
+    detail = api.get(f"/submissions/{submission.id}", token=token).json()
+
+    assert (detail["interest_count"], detail["has_registered_interest"]) == (1, True)
+
+
+@pytest.mark.req("FR-34")
+@pytest.mark.integration
+@pytest.mark.parametrize("role", [Role.OBSERVER, Role.PROVISIONAL, *_REGISTRANT_ROLES])
+def test_every_signed_in_role_sees_the_count_and_none_sees_who(api: ApiTestApp, role: Role) -> None:
+    registrant_token, registrant = _sign_in(api, Role.MEMBER)
+    token, _ = _sign_in(api, role)
+    submission = _submission(api, _sign_in(api, Role.MEMBER)[1])
+    _put(api, registrant_token, submission.id)
+
+    detail = api.get(f"/submissions/{submission.id}", token=token)
+
+    assert detail.status_code == 200, detail.text
+    assert detail.json()["interest_count"] == 1
+    assert detail.json()["has_registered_interest"] is False
+    assert str(registrant.id) not in detail.text
+
+
+@pytest.mark.req("FR-34")
+@pytest.mark.integration
+def test_a_caller_without_the_view_counts_permission_gets_no_count(api: ApiTestApp) -> None:
+    """No role lacks `interest.view_counts` today, so the gate is exercised with a principal that
+    holds `submission.view` alone. The flag is the caller's own, so it stays."""
+    token, viewer = _sign_in(api, Role.MEMBER)
+    submission = _submission(api, _sign_in(api, Role.MEMBER)[1])
+    _put(api, token, submission.id)
+
+    api.app.dependency_overrides[current_principal] = lambda: Principal(
+        user_id=viewer.id,
+        user_ref=None,
+        status=viewer.status,
+        roles=frozenset({Role.MEMBER}),
+        permissions=frozenset({Permission.SUBMISSION_VIEW}),
+        mfa_satisfied=True,
+        mfa_suppressed_roles=frozenset(),
+    )
+    try:
+        detail = api.get(f"/submissions/{submission.id}", token=token)
+    finally:
+        del api.app.dependency_overrides[current_principal]
+
+    assert detail.status_code == 200, detail.text
+    assert detail.json()["interest_count"] is None
+    assert detail.json()["has_registered_interest"] is True
+
+
+@pytest.mark.req("FR-34")
+@pytest.mark.integration
+def test_a_page_of_submissions_costs_one_interest_statement(
+    api: ApiTestApp, app_db: Connection, capture_statements: Any
+) -> None:
+    token, member = _sign_in(api, Role.MEMBER)
+    submissions = [_submission(api, member) for _ in range(5)]
+    _put(api, _sign_in(api, Role.REVIEWER)[0], submissions[0].id)
+
+    with capture_statements(
+        app_db, lambda statement, _: "submission_interest" in statement
+    ) as seen:
+        response = api.get("/submissions", token=token, params={"mine": "true", "limit": 200})
+
+    assert response.status_code == 200, response.text
+    assert len(seen) == 1
