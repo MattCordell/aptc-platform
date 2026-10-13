@@ -40,8 +40,8 @@ from nptc.audit.writer import AuditContext, acquire_append_lock
 from nptc.db.models.submission import CLOSED_SUBMISSION_STATES, Submission
 from nptc.db.models.submission_interest import SubmissionInterest
 from nptc.submissions.errors import (
+    ClosedSubmissionInterestError,
     OwnSubmissionInterestError,
-    SubmissionClosedError,
     SubmissionNotFoundError,
 )
 
@@ -67,7 +67,7 @@ def register_interest(
     written nothing, when the caller already holds a live record.
 
     Raises `SubmissionNotFoundError` for an unknown submission, `OwnSubmissionInterestError` when the
-    caller submitted it, and `SubmissionClosedError` when it is in a closed state.
+    caller submitted it, and `ClosedSubmissionInterestError` when it is in a closed state.
     """
     acquire_append_lock(session)
     user_id = _actor(ctx)
@@ -96,7 +96,7 @@ def revoke_interest(session: Session, ctx: AuditContext, *, submission_id: uuid.
     """Ends `ctx.actor_user_id`'s live interest and appends its audit event. Returns `False`,
     having written nothing, when the caller holds none.
 
-    Raises `SubmissionNotFoundError` for an unknown submission and `SubmissionClosedError` when it
+    Raises `SubmissionNotFoundError` for an unknown submission and `ClosedSubmissionInterestError` when it
     is in a closed state.
     """
     acquire_append_lock(session)
@@ -106,7 +106,7 @@ def revoke_interest(session: Session, ctx: AuditContext, *, submission_id: uuid.
     interest = _live_interest(session, submission_id, user_id)
     if interest is None:
         return False
-    interest.revoked_at = _database_now(session)
+    interest.revoked_at = _clock_now(session)
     record_change(
         session,
         ctx,
@@ -158,7 +158,7 @@ def _submission(session: Session, submission_id: uuid.UUID) -> Submission:
 
 def _refuse_if_closed(submission: Submission) -> None:
     if submission.state in CLOSED_SUBMISSION_STATES:
-        raise SubmissionClosedError(submission.state)
+        raise ClosedSubmissionInterestError(submission.state)
 
 
 def _live_interest(
@@ -173,7 +173,8 @@ def _live_interest(
     ).scalar_one_or_none()
 
 
-def _database_now(session: Session) -> datetime:
-    """The transaction's start time, which is what `created_at` takes, so a record is never revoked
-    before it was created because the application server's clock differs from the database's."""
-    return session.execute(select(func.now())).scalar_one()
+def _clock_now(session: Session) -> datetime:
+    """The database clock now, read after the lock is held. `now()` would be the transaction's first
+    statement, which can precede the commit of a record this revocation can already see, and the
+    `revoked_after_created` check would refuse the revocation."""
+    return session.execute(select(func.clock_timestamp())).scalar_one()

@@ -25,8 +25,8 @@ from nptc.db.models.submission import CLOSED_SUBMISSION_STATES, Submission, Subm
 from nptc.db.models.submission_interest import SubmissionInterest
 from nptc.db.models.user import User
 from nptc.submissions.errors import (
+    ClosedSubmissionInterestError,
     OwnSubmissionInterestError,
-    SubmissionClosedError,
     SubmissionNotFoundError,
 )
 from nptc.submissions.interest import (
@@ -198,7 +198,7 @@ def test_registering_in_a_closed_submission_is_refused(app_session: Session, sta
     member = _user(app_session)
     submission = _submission(app_session, _user(app_session), state=state)
 
-    with pytest.raises(SubmissionClosedError) as raised:
+    with pytest.raises(ClosedSubmissionInterestError) as raised:
         _register(app_session, member, submission)
 
     assert raised.value.state == state
@@ -299,7 +299,7 @@ def test_revoking_in_a_closed_submission_is_refused_and_the_count_stays(
     submission.state = state
     app_session.flush()
 
-    with pytest.raises(SubmissionClosedError):
+    with pytest.raises(ClosedSubmissionInterestError):
         _revoke(app_session, member, submission)
 
     assert len(_live(app_session, submission, member)) == 1
@@ -507,3 +507,39 @@ def test_two_concurrent_registrations_by_one_user_leave_one_live_record(
             )
         ).scalar_one()
     assert live == 1
+
+
+@pytest.mark.req("FR-32")
+@pytest.mark.integration
+def test_a_revocation_that_started_before_a_registration_committed_still_succeeds(
+    racing_pair: tuple[uuid.UUID, uuid.UUID], app_engine: Engine
+) -> None:
+    """A transaction's `now()` is the time of its first statement, which in a request is the
+    principal lookup, before the lock is taken. A revocation that began earlier than a registration
+    that then committed first must still be stamped later than that registration's `created_at`,
+    or the `revoked_after_created` check fails and the caller gets a 500."""
+    submission_id, member_id = racing_pair
+    revoking = Session(app_engine)
+    try:
+        revoking.execute(select(1))
+        with Session(app_engine) as registering:
+            assert register_interest(
+                registering,
+                _context(member_id),
+                submission_id=submission_id,
+                profile_organisation=_PROFILE_ORGANISATION,
+            )
+            registering.commit()
+
+        assert revoke_interest(revoking, _context(member_id), submission_id=submission_id)
+        revoking.commit()
+    finally:
+        revoking.close()
+
+    with Session(app_engine) as check:
+        revoked_at = check.execute(
+            select(SubmissionInterest.revoked_at).where(
+                SubmissionInterest.submission_id == submission_id
+            )
+        ).scalar_one()
+    assert revoked_at is not None

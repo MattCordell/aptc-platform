@@ -14,12 +14,12 @@ __all__ = [
     "AmendmentEntryNotActiveError",
     "AmendmentRefusal",
     "AmendmentRefusedError",
+    "ClosedSubmissionInterestError",
     "CodeRefusal",
     "FreeTextField",
     "FreeTextRefusedError",
     "MalformedSubmissionCursorError",
     "OwnSubmissionInterestError",
-    "SubmissionClosedError",
     "SubmissionCodeRefusedError",
     "SubmissionCodeUnavailableError",
     "SubmissionCodeUpstreamError",
@@ -147,7 +147,7 @@ class OwnSubmissionInterestError(Exception):
     http_status: ClassVar[int] = 409
 
 
-class SubmissionClosedError(Exception):
+class ClosedSubmissionInterestError(Exception):
     """The submission is closed, so its interest no longer changes (FR-32): a registration would
     back a proposal that is over, and a revocation would move the count that stood at closure. The
     message holds no caller text."""

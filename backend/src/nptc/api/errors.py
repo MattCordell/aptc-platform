@@ -119,12 +119,12 @@ from nptc.submissions.errors import (
     AmendmentEntryNotActiveError,
     AmendmentRefusal,
     AmendmentRefusedError,
+    ClosedSubmissionInterestError,
     CodeRefusal,
     FreeTextField,
     FreeTextRefusedError,
     MalformedSubmissionCursorError,
     OwnSubmissionInterestError,
-    SubmissionClosedError,
     SubmissionCodeRefusedError,
     SubmissionCodeUnavailableError,
     SubmissionCodeUpstreamError,
@@ -427,7 +427,7 @@ _DETAIL_OWN_SUBMISSION_INTEREST = (
     "You cannot register interest in your own submission. Interest shows how many other "
     "people want the test."
 )
-_DETAIL_SUBMISSION_CLOSED = (
+_DETAIL_CLOSED_SUBMISSION_INTEREST = (
     "This submission is closed, so interest in it can no longer be registered or revoked."
 )
 _DETAIL_SUBMISSION_CURSOR = (
@@ -809,8 +809,8 @@ _REFUSALS: Final[dict[type[Exception], _Refusal]] = {
     OwnSubmissionInterestError: _Refusal(
         _DETAIL_OWN_SUBMISSION_INTEREST, "own-submission interest refused: %s"
     ),
-    SubmissionClosedError: _Refusal(
-        _DETAIL_SUBMISSION_CLOSED, "closed-submission interest refused: %s"
+    ClosedSubmissionInterestError: _Refusal(
+        _DETAIL_CLOSED_SUBMISSION_INTEREST, "closed-submission interest refused: %s"
     ),
     # Not logged: a blank search box on a public, unauthenticated endpoint is
     # the most ordinary client mistake there is, and logging it invites
