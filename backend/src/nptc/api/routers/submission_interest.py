@@ -20,11 +20,17 @@ count that stood at closure stays what it was.
 
 **`interest_count` follows `Permission.INTEREST_VIEW_COUNTS`** (FR-34). It is null for a caller
 without it. Every role that may register also holds it, so today it is always a number here.
+
+**`GET /submissions/{id}/interest` names the people** (FR-33, FR-34). `Permission.INTEREST_IDENTITIES_VIEW`
+gates it, so a caller without it gets a 403 before the submission is looked up. It is a read, so it
+writes nothing and emits no audit event (NFR-08). A closed account's person reads
+`CLOSED_ACCOUNT_PLACEHOLDER`, and its record still counts under the organisation it registered with.
 """
 
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 from typing import Any, Final
 
 from fastapi import APIRouter, Depends
@@ -33,12 +39,15 @@ from pydantic import BaseModel, ConfigDict
 from nptc.api.dependencies import AuditContextDep, CurrentPrincipal, permission_dep
 from nptc.api.routers.auth import ErrorResponse
 from nptc.api.routers.submissions import SessionDep
+from nptc.api.routers.submissions_read import CLOSED_ACCOUNT_PLACEHOLDER
 from nptc.auth.permissions import Permission
 from nptc.submissions.interest import interest_summaries, register_interest, revoke_interest
+from nptc.submissions.interest_identities import InterestIdentities, list_interest_identities
 
 router = APIRouter(prefix="/submissions", tags=["submissions"])
 
 _REGISTER = Depends(permission_dep(Permission.INTEREST_REGISTER))
+_IDENTITIES = Depends(permission_dep(Permission.INTEREST_IDENTITIES_VIEW))
 
 _RESPONSE_401: Final[dict[str, Any]] = {
     "model": ErrorResponse,
@@ -70,6 +79,13 @@ _RESPONSE_422: Final[dict[str, Any]] = {
             "schema": {"anyOf": [{"$ref": "#/components/schemas/HTTPValidationError"}]}
         }
     },
+}
+_RESPONSE_403_IDENTITIES: Final[dict[str, Any]] = {
+    "model": ErrorResponse,
+    "description": (
+        "The caller is authenticated but does not hold `interest.identities.view`, or has not "
+        "accepted the current terms of use (the body then carries a `code` that says so)."
+    ),
 }
 _RESPONSES: Final[dict[int | str, dict[str, Any]]] = {
     401: _RESPONSE_401,
@@ -144,3 +160,84 @@ def revoke_submission_interest(
     revoked record is kept, with its organisation, and no longer counts."""
     revoke_interest(session, ctx, submission_id=submission_id)
     return _standing(session, principal, submission_id)
+
+
+class InterestPerson(BaseModel):
+    """One live registration. `username` and `display_name` are the placeholder for a closed
+    account. `organisation` is the copy recorded at registration, which can differ from the person's
+    profile now, and is null when none was given. `registered_at` is when interest was registered."""
+
+    model_config = ConfigDict(frozen=True)
+
+    username: str
+    display_name: str
+    organisation: str | None
+    registered_at: datetime
+
+
+class InterestOrganisation(BaseModel):
+    """One organisation represented, and how many live records name it. Spellings that differ only
+    by letter case or surrounding space are one organisation, shown in its most common spelling.
+    `organisation` is null for the one group of records that named none, and `label` then reads
+    "No organisation given"."""
+
+    model_config = ConfigDict(frozen=True)
+
+    organisation: str | None
+    label: str
+    count: int
+
+
+class InterestIdentitiesResponse(BaseModel):
+    """`interest_count` is the number of live records. `distinct_organisation_count` is the number
+    of named organisations in `distinct_organisations`, so the group with no organisation is not
+    counted. `records` is newest first."""
+
+    model_config = ConfigDict(frozen=True)
+
+    interest_count: int
+    distinct_organisation_count: int
+    distinct_organisations: list[InterestOrganisation]
+    records: list[InterestPerson]
+
+
+def _identities_response(identities: InterestIdentities) -> InterestIdentitiesResponse:
+    return InterestIdentitiesResponse(
+        interest_count=len(identities.records),
+        distinct_organisation_count=identities.distinct_organisation_count,
+        distinct_organisations=[
+            InterestOrganisation(
+                organisation=group.organisation, label=group.label, count=group.count
+            )
+            for group in identities.organisations
+        ],
+        records=[
+            InterestPerson(
+                username=record.person.username or CLOSED_ACCOUNT_PLACEHOLDER,
+                display_name=record.person.display_name or CLOSED_ACCOUNT_PLACEHOLDER,
+                organisation=record.organisation,
+                registered_at=record.registered_at,
+            )
+            for record in identities.records
+        ],
+    )
+
+
+@router.get(
+    "/{submission_id}/interest",
+    summary="Show who registered interest in a submission",
+    response_model=InterestIdentitiesResponse,
+    responses={
+        401: _RESPONSE_401,
+        403: _RESPONSE_403_IDENTITIES,
+        404: _RESPONSE_404,
+        422: _RESPONSE_422,
+    },
+    dependencies=[_IDENTITIES],
+)
+def show_submission_interest(
+    submission_id: uuid.UUID, session: SessionDep
+) -> InterestIdentitiesResponse:
+    """The live records and the organisations behind them, for any submission, closed ones
+    included. Revoked records are left out of both."""
+    return _identities_response(list_interest_identities(session, submission_id))

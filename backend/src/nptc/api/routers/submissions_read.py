@@ -32,6 +32,12 @@ null for a caller without `Permission.INTEREST_VIEW_COUNTS`. The counts for a pa
 grouped statement, so a page costs the same however long it is. The identities behind a count are
 not here.
 
+**`distinct_organisation_count` is for a caller with `Permission.INTEREST_IDENTITIES_VIEW`** (FR-33).
+It is the number of named organisations among the live records, and the key is absent from the
+response for anyone else, not null, so a client never receives a figure it must hide. It is on the
+list only. The same grouped-statement rule applies, and the people are on
+`GET /submissions/{id}/interest`.
+
 **No audit event.** A read changes nothing (NFR-08).
 """
 
@@ -42,7 +48,7 @@ from datetime import datetime
 from typing import Annotated, Any, Final
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, SerializerFunctionWrapHandler, model_serializer
 
 from nptc.api.dependencies import (
     ApiSettingsDep,
@@ -62,6 +68,7 @@ from nptc.db.models.submission import SubmissionKind, SubmissionState
 from nptc.settings import ApiSettings
 from nptc.submissions import queries
 from nptc.submissions.interest import InterestSummary, interest_summaries
+from nptc.submissions.interest_identities import distinct_organisation_counts
 from nptc.submissions.queries import SubmissionRecord
 
 router = APIRouter(prefix="/submissions", tags=["submissions"])
@@ -159,6 +166,21 @@ class _SummaryFields(BaseModel):
     label_provenance: dict[str, LabelProvenance]
 
 
+class _OrganisationCountFields(_SummaryFields):
+    """A list item, with `distinct_organisation_count` for a caller with `interest.identities.view`:
+    the number of named organisations among the live interest records. The key is left out of the
+    response when the caller may not see it."""
+
+    distinct_organisation_count: int | None = None
+
+    @model_serializer(mode="wrap")
+    def _omit_unseen_count(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        data: dict[str, Any] = handler(self)
+        if self.distinct_organisation_count is None:
+            data.pop("distinct_organisation_count", None)
+        return data
+
+
 class _DetailFields(_SummaryFields):
     """The full submitted content. The three `reference_*` fields describe one check and are all
     present or all absent. `duplicate_confirmed_at` is when a submitter confirmed a match was a
@@ -173,11 +195,11 @@ class _DetailFields(_SummaryFields):
     duplicate_confirmed_at: datetime | None
 
 
-class SubmissionSummary(_SummaryFields):
+class SubmissionSummary(_OrganisationCountFields):
     submitter: PlainSubmitter
 
 
-class IdentifiedSubmissionSummary(_SummaryFields):
+class IdentifiedSubmissionSummary(_OrganisationCountFields):
     submitter: IdentifiedSubmitter
 
 
@@ -274,6 +296,16 @@ def _detail_fields(
     }
 
 
+def _organisation_counts(
+    session: SessionDep, principal: CurrentPrincipal, submission_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, int]:
+    """Empty for a caller without `interest.identities.view`, so no figure is looked up for them and
+    every item's field stays unset."""
+    if not principal.has(Permission.INTEREST_IDENTITIES_VIEW):
+        return {}
+    return distinct_organisation_counts(session, submission_ids)
+
+
 def _username(record: SubmissionRecord) -> str:
     return record.submitter.username or CLOSED_ACCOUNT_PLACEHOLDER
 
@@ -342,6 +374,9 @@ def list_submissions(
         session, [record.submission.id for record in page.records], viewer_id=principal.user_id
     )
     counts_visible = principal.has(Permission.INTEREST_VIEW_COUNTS)
+    organisations = _organisation_counts(
+        session, principal, [r.submission.id for r in page.records]
+    )
     if principal.has(Permission.SUBMITTER_IDENTITY_VIEW):
         return IdentifiedSubmissionPage(
             items=[
@@ -352,6 +387,7 @@ def list_submissions(
                         interest[record.submission.id],
                         counts_visible=counts_visible,
                     ),
+                    distinct_organisation_count=organisations.get(record.submission.id),
                     submitter=_identified_submitter(record),
                 )
                 for record in page.records
@@ -364,6 +400,7 @@ def list_submissions(
                 **_summary_fields(
                     record, settings, interest[record.submission.id], counts_visible=counts_visible
                 ),
+                distinct_organisation_count=organisations.get(record.submission.id),
                 submitter=_plain_submitter(record),
             )
             for record in page.records
