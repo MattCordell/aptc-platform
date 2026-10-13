@@ -1462,7 +1462,8 @@ A user's proposal to add a test, or later to change one. It is its own record an
 `catalogue_entry` with another status (FR-29), so a proposed value is never mistaken for
 catalogue content. Two routes write it today: `POST /api/v1/submissions` for a new test and
 `POST /api/v1/submissions/amendments` for an amendment (FR-35). Two routes read it: `GET /api/v1/submissions`
-and `GET /api/v1/submissions/{id}` (FR-42), described below.
+and `GET /api/v1/submissions/{id}` (FR-42), described below. Both also carry the interest in each
+submission, held in [`submission_interest`](#submission_interest-fr-32-fr-34-nfr-08-nfr-17).
 
 | Column | Type | Notes |
 |---|---|---|
@@ -1561,6 +1562,54 @@ event instead. Its entity is the `app_user` the limit applied to, its `before` i
 holds `limit` (`lifetime` or `hourly`), `maximum`, `count` and `submission_kind`, never anything the user
 typed. The quota counts every `submission` row of the user, using `ix_submission_submitter_id`; the
 hourly window reads `created_at`.
+
+## `submission_interest` (FR-32, FR-34, NFR-08, NFR-17)
+
+A user's registered interest in a submission. It is demand evidence for reviewers, not a vote (FR-32),
+so one user holds at most one live record per submission. `PUT /api/v1/submissions/{id}/interest`
+registers and `DELETE` revokes. Both are idempotent, and a repeat writes nothing.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `UUID` | PK, `gen_random_uuid()` |
+| `submission_id` | `UUID` | `NOT NULL`, FK to `submission.id` |
+| `user_id` | `UUID` | `NOT NULL`, FK to `app_user.id`. The internal id, which account closure keeps (NFR-17) |
+| `organisation` | `TEXT` | Nullable. A copy of the registrant's profile organisation when they registered |
+| `created_at` | `TIMESTAMPTZ` | `NOT NULL`, `now()` |
+| `revoked_at` | `TIMESTAMPTZ` | Nullable. Null while the record is live. `CHECK (revoked_at IS NULL OR revoked_at >= created_at)` |
+
+**One row per registration episode.** `uq_submission_interest_live` is a unique index on
+`(submission_id, user_id)` where `revoked_at IS NULL`, so a pair has one live row. Revoking sets
+`revoked_at` and registering again inserts a new row with a fresh organisation copy. The history stays
+whole, and no column but `revoked_at` ever changes. Reusing one row would overwrite its organisation
+copy or keep a stale one. The same index serves the count for one submission and the caller's own flag
+across a page, through its leading `submission_id`.
+
+**The lock decides, and the index backs it up.** Both writers take the audit append lock first, so two
+concurrent registrations by one user run one after the other and the second finds the first's record
+and writes nothing. The unique index only catches a writer that skipped the lock.
+
+**A closed submission's interest is frozen.** Registering and revoking are both refused once
+`submission.state` is in `CLOSED_SUBMISSION_STATES`, so the count that stood at closure does not
+move. Live records on a closed submission keep counting. A submitter cannot register interest in their
+own submission.
+
+**The count.** A submission's `interest_count` is its live rows, from every user.
+`GET /api/v1/submissions` and `GET /api/v1/submissions/{id}` carry it with `has_registered_interest`,
+and read a page's counts in one grouped statement (`nptc.submissions.interest.interest_summaries`).
+The count is null for a caller without `interest.view_counts`. Who registered is not served here: that
+is a Reviewer and Administrator view (FR-34, FR-33) and arrives with its own route.
+
+**The organisation is a copy, and closure keeps it.** Closing an account clears the profile
+(NFR-17); the record's `user_id` and `organisation` stay and the record keeps counting. The audit policy
+withholds `organisation`, as it does on `submission` and `app_user` (NFR-26).
+
+**What happened is fixed by privilege.** `nptc_app` holds `SELECT, INSERT` and a column-level `UPDATE`
+on `revoked_at` only. It holds no `DELETE` or `TRUNCATE`.
+
+Registering emits a `submission_interest.registered` audit event and revoking emits a
+`submission_interest.revoked` event, each carrying `submission_id`, `user_id` and `revoked_at`, and
+naming `organisation` in `_redacted` (NFR-08). A call that changes nothing emits no event.
 
 ## Extensions
 

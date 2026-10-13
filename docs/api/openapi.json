@@ -5020,6 +5020,232 @@
         }
       }
     },
+    "/api/v1/submissions/{submission_id}/interest": {
+      "put": {
+        "tags": [
+          "submissions"
+        ],
+        "summary": "Register interest in a submission",
+        "description": "Idempotent: a caller who already holds interest gets the same answer and nothing is\nwritten. The organisation recorded with the interest is the caller's profile value now.",
+        "operationId": "register_submission_interest_api_v1_submissions__submission_id__interest_put",
+        "parameters": [
+          {
+            "name": "submission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Submission Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterestResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No credential, or one that could not be verified.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but does not hold `interest.register`, or has not accepted the current terms of use (the body then carries a `code` that says so). The current terms of use have not been accepted. The body carries `code: terms_acceptance_required`. Accept them with `POST /auth/terms/acceptance` and try again. Never carries `WWW-Authenticate`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/TermsAcceptanceRequiredResponse"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No submission has the identifier.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The submission is the caller's own, so they cannot register interest in it, or it is closed (`Published in release`, `Rejected` or `Withdrawn`), so its interest can no longer be registered or revoked. `detail` says which. Nothing was changed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The identifier is not a UUID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/HTTPValidationError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "An address exceeded its request budget (FR-22): an anonymous caller its anonymous budget, or a caller whose credentials the API kept rejecting its budget for rejected credentials. Wait for the number of seconds in `Retry-After`, then try again. A valid credential is never counted. The body's `bulk_artefacts` names where to fetch the whole catalogue instead.",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds until the caller's request budget is available again.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimitedResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "submissions"
+        ],
+        "summary": "Revoke interest in a submission",
+        "description": "Idempotent: a caller with no live interest gets the same answer and nothing is written. The\nrevoked record is kept, with its organisation, and no longer counts.",
+        "operationId": "revoke_submission_interest_api_v1_submissions__submission_id__interest_delete",
+        "parameters": [
+          {
+            "name": "submission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Submission Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InterestResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No credential, or one that could not be verified.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but does not hold `interest.register`, or has not accepted the current terms of use (the body then carries a `code` that says so). The current terms of use have not been accepted. The body carries `code: terms_acceptance_required`. Accept them with `POST /auth/terms/acceptance` and try again. Never carries `WWW-Authenticate`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/TermsAcceptanceRequiredResponse"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No submission has the identifier.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The submission is the caller's own, so they cannot register interest in it, or it is closed (`Published in release`, `Rejected` or `Withdrawn`), so its interest can no longer be registered or revoked. `detail` says which. Nothing was changed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The identifier is not a UUID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/HTTPValidationError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "An address exceeded its request budget (FR-22): an anonymous caller its anonymous budget, or a caller whose credentials the API kept rejecting its budget for rejected credentials. Wait for the number of seconds in `Retry-After`, then try again. A valid credential is never counted. The body's `bulk_artefacts` names where to fetch the whole catalogue instead.",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds until the caller's request budget is available again.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimitedResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/terminology/concepts/{code}": {
       "get": {
         "tags": [
@@ -7995,6 +8221,21 @@
             "type": "boolean",
             "title": "Is Own"
           },
+          "has_registered_interest": {
+            "type": "boolean",
+            "title": "Has Registered Interest"
+          },
+          "interest_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interest Count"
+          },
           "label_provenance": {
             "additionalProperties": {
               "$ref": "#/components/schemas/LabelProvenance"
@@ -8091,6 +8332,8 @@
           "snomed_fsn",
           "created_at",
           "is_own",
+          "has_registered_interest",
+          "interest_count",
           "label_provenance",
           "synonyms",
           "property_values",
@@ -8193,6 +8436,21 @@
             "type": "boolean",
             "title": "Is Own"
           },
+          "has_registered_interest": {
+            "type": "boolean",
+            "title": "Has Registered Interest"
+          },
+          "interest_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interest Count"
+          },
           "label_provenance": {
             "additionalProperties": {
               "$ref": "#/components/schemas/LabelProvenance"
@@ -8215,6 +8473,8 @@
           "snomed_fsn",
           "created_at",
           "is_own",
+          "has_registered_interest",
+          "interest_count",
           "label_provenance",
           "submitter"
         ],
@@ -8250,6 +8510,32 @@
         ],
         "title": "IdentifiedSubmitter",
         "description": "The submitter as a caller with `submitter_identity.view` sees them. `organisation` is the\ncopy the submitter sent with this submission, which can differ from their profile, and is null\nwhen they sent none. A closed account's `username` and `display_name` are the placeholder."
+      },
+      "InterestResponse": {
+        "properties": {
+          "has_registered_interest": {
+            "type": "boolean",
+            "title": "Has Registered Interest"
+          },
+          "interest_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interest Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "has_registered_interest",
+          "interest_count"
+        ],
+        "title": "InterestResponse",
+        "description": "Where the caller's interest in the submission now stands. `has_registered_interest` is true\nwhen the caller holds a live record. `interest_count` is the number of live records from every\nuser, null when the caller may not see counts."
       },
       "LabelProvenance": {
         "properties": {
@@ -9396,6 +9682,21 @@
             "type": "boolean",
             "title": "Is Own"
           },
+          "has_registered_interest": {
+            "type": "boolean",
+            "title": "Has Registered Interest"
+          },
+          "interest_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interest Count"
+          },
           "label_provenance": {
             "additionalProperties": {
               "$ref": "#/components/schemas/LabelProvenance"
@@ -9492,6 +9793,8 @@
           "snomed_fsn",
           "created_at",
           "is_own",
+          "has_registered_interest",
+          "interest_count",
           "label_provenance",
           "synonyms",
           "property_values",
@@ -9888,6 +10191,21 @@
             "type": "boolean",
             "title": "Is Own"
           },
+          "has_registered_interest": {
+            "type": "boolean",
+            "title": "Has Registered Interest"
+          },
+          "interest_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interest Count"
+          },
           "label_provenance": {
             "additionalProperties": {
               "$ref": "#/components/schemas/LabelProvenance"
@@ -9910,6 +10228,8 @@
           "snomed_fsn",
           "created_at",
           "is_own",
+          "has_registered_interest",
+          "interest_count",
           "label_provenance",
           "submitter"
         ],

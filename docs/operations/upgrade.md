@@ -74,6 +74,8 @@ and/or `data-model.md`, so it gets no section of its own below.
 | [`0028_submission_reference.py`](../../backend/migrations/versions/0028_submission_reference.py) | `submission.reference_url`, `reference_checked_at` and `reference_status` (see [`data-model.md`](../architecture/data-model.md#submission-fr-23-fr-27-fr-28-fr-29-nfr-08)) | See [below](#0028_submission_referencepy) - three nullable columns, and the downgrade discards every stored reference |
 | [`0029_submission_duplicate_confirmation.py`](../../backend/migrations/versions/0029_submission_duplicate_confirmation.py) | `submission.duplicate_confirmed_at` and `duplicate_matches` (see [`data-model.md`](../architecture/data-model.md#submission-fr-23-fr-27-fr-28-fr-29-nfr-08)) | See [below](#0029_submission_duplicate_confirmationpy) - two columns, and the downgrade discards every stored confirmation |
 | [`0030_submission_amendment_entry.py`](../../backend/migrations/versions/0030_submission_amendment_entry.py) | `submission.entry_id`, its foreign key and index, and a check tying it to `kind` (see [`data-model.md`](../architecture/data-model.md#submission-fr-23-fr-27-fr-28-fr-29-nfr-08)) | See [below](#0030_submission_amendment_entrypy) - one nullable column, and the downgrade discards the link of every stored amendment |
+| [`0031_submission_states.py`](../../backend/migrations/versions/0031_submission_states.py) | Widens the `submission.state` check to the three closed states (see [`data-model.md`](../architecture/data-model.md#submission-fr-23-fr-27-fr-28-fr-29-nfr-08)) | See [below](#0031_submission_statespy) - no data step, and the downgrade refuses while a closed state is stored |
+| [`0032_submission_interest.py`](../../backend/migrations/versions/0032_submission_interest.py) | `submission_interest` (see [`data-model.md`](../architecture/data-model.md#submission_interest-fr-32-fr-34-nfr-08-nfr-17)) | See [below](#0032_submission_interestpy) - an empty table on upgrade, and the downgrade discards every registered interest |
 
 ## Provisioning the app role's login
 
@@ -667,6 +669,20 @@ The API at this revision serves `GET /api/v1/submissions` and `GET /api/v1/submi
 
 The downgrade narrows the check again, and it refuses to run while any row holds one of the three
 closed states, because the narrower check would reject that row. Move or delete those rows first.
+
+## `0032_submission_interest.py`
+
+Adds `submission_interest` (FR-32, FR-34 - see
+[`data-model.md`](../architecture/data-model.md#submission_interest-fr-32-fr-34-nfr-08-nfr-17)). It
+creates an empty table and its partial unique index, so the upgrade itself is instant and needs no
+data step. The API at this revision serves `PUT` and `DELETE /api/v1/submissions/{id}/interest`, and
+the submission list and detail carry `interest_count` and `has_registered_interest`.
+
+The grants are in the migration. The app role may insert and read a record and update only its
+`revoked_at`. It may not delete one.
+
+The downgrade drops the table, which discards every registered interest, live or revoked, with the
+organisation copy each holds. Take a backup first if any have been made.
 
 ## Testcontainers and Docker
 
