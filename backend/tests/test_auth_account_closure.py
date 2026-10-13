@@ -22,8 +22,10 @@ from nptc.auth.grants import grant_role_unchecked, roles_for_user
 from nptc.auth.identity import close_account
 from nptc.auth.permissions import Role
 from nptc.db.models.submission import Submission, SubmissionKind, SubmissionState
+from nptc.db.models.submission_interest import SubmissionInterest
 from nptc.db.models.user import User, UserStatus
 from nptc.db.models.user_identity import UserIdentity
+from nptc.submissions.interest import interest_summaries, register_interest
 
 # A fixed, valid-shape (64 lowercase hex) placeholder pair for prev_hash/
 # entry_hash - this test is about the byte-for-byte-unchanged assertion
@@ -136,6 +138,56 @@ def test_a_submission_keeps_its_organisation_after_the_account_closes(app_db: Co
     assert closed.organisation is None
     assert kept is not None
     assert kept.organisation == "Example Pathology"
+
+
+@pytest.mark.req("FR-32")
+@pytest.mark.req("NFR-17")
+@pytest.mark.integration
+def test_an_interest_keeps_its_organisation_and_user_and_still_counts_after_the_account_closes(
+    app_db: Connection,
+) -> None:
+    session = Session(bind=app_db)
+    submitter = _create_active_user(session, "gina")
+    member = _create_active_user(session, "hugo")
+    submission = Submission(
+        kind=SubmissionKind.NEW_TEST.value,
+        state=SubmissionState.SUBMITTED.value,
+        preferred_term="Serum potassium",
+        reference_url="https://example.org/evidence",
+        reference_checked_at=datetime.now(UTC),
+        reference_status=200,
+        submitter_id=submitter.id,
+        organisation="Example Pathology",
+    )
+    session.add(submission)
+    session.flush()
+    register_interest(
+        session,
+        AuditContext(
+            actor_user_id=member.id, actor_ip=None, user_agent=None, correlation_id=uuid.uuid4()
+        ),
+        submission_id=submission.id,
+        profile_organisation=member.organisation,
+    )
+    session.flush()
+
+    close_account(session, member.id, AuditContext.system())
+    session.flush()
+    session.expire_all()
+
+    closed = session.get(User, member.id)
+    kept = session.execute(
+        text("SELECT id FROM submission_interest WHERE submission_id = :s"), {"s": submission.id}
+    ).scalar_one()
+    interest = session.get(SubmissionInterest, kept)
+    assert closed is not None
+    assert closed.status == UserStatus.CLOSED
+    assert closed.organisation is None
+    assert interest is not None
+    assert interest.user_id == member.id
+    assert interest.organisation == "RCPA-QAP"
+    assert interest.revoked_at is None
+    assert interest_summaries(session, [submission.id], viewer_id=None)[submission.id].count == 1
 
 
 @pytest.mark.req("NFR-17")
