@@ -20,9 +20,11 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.engine import Connection
 
+from nptc.api.dependencies import current_principal
 from nptc.audit.writer import AuditContext
 from nptc.auth.identity import close_account
-from nptc.auth.permissions import Role
+from nptc.auth.permissions import Permission, Role
+from nptc.auth.principal import Principal
 from nptc.db.models.audit import AuditEvent
 from nptc.db.models.submission import CLOSED_SUBMISSION_STATES, Submission, SubmissionKind
 from nptc.db.models.submission_interest import SubmissionInterest
@@ -497,3 +499,43 @@ def test_the_detail_does_not_carry_the_organisation_count(api: ApiTestApp) -> No
 
     assert response.status_code == 200
     assert "distinct_organisation_count" not in response.json()
+
+
+@pytest.mark.req("FR-33")
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    ("extra", "has_count", "has_name"),
+    [
+        (Permission.INTEREST_IDENTITIES_VIEW, True, False),
+        (Permission.SUBMITTER_IDENTITY_VIEW, False, True),
+    ],
+)
+def test_each_permission_alone_chooses_its_own_part_of_the_list_item(
+    api: ApiTestApp, extra: Permission, has_count: bool, has_name: bool
+) -> None:
+    """The two permissions are independent, though every role holds both or neither today, so a
+    caller is built directly. Whichever class the response model picks, a key the caller may see
+    must survive it, and one they may not see must be absent."""
+    submission = _submission(api)
+    _register(api, submission, "Lab A")
+    _register(api, submission, "Lab B")
+    token, viewer = _sign_in(api, Role.MEMBER)
+
+    api.app.dependency_overrides[current_principal] = lambda: Principal(
+        user_id=viewer.id,
+        user_ref=None,
+        status=viewer.status,
+        roles=frozenset({Role.MEMBER}),
+        permissions=frozenset({Permission.SUBMISSION_VIEW, extra}),
+        mfa_satisfied=True,
+        mfa_suppressed_roles=frozenset(),
+    )
+    try:
+        item = _listed_item(api, token, submission)
+    finally:
+        del api.app.dependency_overrides[current_principal]
+
+    assert ("distinct_organisation_count" in item) is has_count
+    assert ("display_name" in item["submitter"]) is has_name
+    if has_count:
+        assert item["distinct_organisation_count"] == 2

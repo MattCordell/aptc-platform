@@ -966,7 +966,7 @@ Every submission, interest record and audit event references `user.id`. Adding a
 
 The platform collects real names, organisations and email addresses. That is personal information, and the obligation attaches regardless of the platform's proof-of-concept status. Neither the source notes nor the TSWG Terms of Reference address it.
 
-**NFR-14 (MUST):** A privacy policy and a collection notice are presented at registration, stating what is collected, why, who can see it (specifically: that administrators can see identities and interest records), how long it is retained, and how to seek access or correction. This is APP 1 and APP 5 under the *Privacy Act 1988* (Cth).
+**NFR-14 (MUST):** A privacy policy and a collection notice are presented at registration, stating what is collected, why, who can see it (specifically: that reviewers and administrators can see identities and interest records), how long it is retained, and how to seek access or correction. This is APP 1 and APP 5 under the *Privacy Act 1988* (Cth).
 
 **NFR-15 (MUST):** Collect only what is necessary. Name and organisation are justified because attribution of standards contributions is a legitimate governance requirement. Anything beyond name, organisation, username and email requires a stated justification before it is added.
 

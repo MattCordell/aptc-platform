@@ -32,9 +32,9 @@ null for a caller without `Permission.INTEREST_VIEW_COUNTS`. The counts for a pa
 grouped statement, so a page costs the same however long it is. The identities behind a count are
 not here.
 
-**`distinct_organisation_count` is for a caller with `Permission.INTEREST_IDENTITIES_VIEW`** (FR-33).
-It is the number of named organisations among the live records, and the key is absent from the
-response for anyone else, not null, so a client never receives a figure it must hide. That is a
+**`distinct_organisation_count` is for a caller with `Permission.INTEREST_IDENTITIES_VIEW`**
+(FR-33). It is the number of named organisations among the live records, and the key is absent from
+the response for anyone else, not null, so a client never receives a figure it must hide. That is a
 second axis of response classes beside the identity one, four item and page classes in all, chosen
 by `_PAGES`. It is on the list only. The same grouped-statement rule applies, and the people are on
 `GET /submissions/{id}/interest`.
@@ -249,7 +249,13 @@ class CountedIdentifiedSubmissionPage(BaseModel):
 
 #: The item and page classes for a caller: whether they may see submitter identities, and whether
 #: they may see the organisation count. A caller without a permission gets a class with no such key.
-_PAGES: Final[dict[tuple[bool, bool], tuple[type[BaseModel], type[BaseModel]]]] = {
+_PageClass = (
+    type[SubmissionPage]
+    | type[IdentifiedSubmissionPage]
+    | type[CountedSubmissionPage]
+    | type[CountedIdentifiedSubmissionPage]
+)
+_PAGES: Final[dict[tuple[bool, bool], tuple[type[BaseModel], _PageClass]]] = {
     (False, False): (SubmissionSummary, SubmissionPage),
     (True, False): (IdentifiedSubmissionSummary, IdentifiedSubmissionPage),
     (False, True): (CountedSubmissionSummary, CountedSubmissionPage),
@@ -385,7 +391,12 @@ def list_submissions(
             description="The `next_cursor` of the previous page, passed back unmodified.",
         ),
     ] = None,
-) -> BaseModel:
+) -> (
+    SubmissionPage
+    | IdentifiedSubmissionPage
+    | CountedSubmissionPage
+    | CountedIdentifiedSubmissionPage
+):
     """Newest first, paged by cursor. Pass the response's `next_cursor` back as `after` for the
     following page. There is no `offset` and no total, on purpose (ADR-0024).
 

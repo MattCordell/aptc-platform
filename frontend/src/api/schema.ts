@@ -2455,7 +2455,7 @@ export interface components {
          * InterestPerson
          * @description One live registration. `username` and `display_name` are the placeholder for a closed
          *     account. `organisation` is the copy recorded at registration, which can differ from the person's
-         *     profile now, and is null when none was given. `registered_at` is when interest was registered.
+         *     profile now, and is null when none was given. `registered_at` is when the person registered.
          */
         InterestPerson: {
             /** Username */

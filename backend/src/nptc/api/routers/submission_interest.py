@@ -21,10 +21,11 @@ count that stood at closure stays what it was.
 **`interest_count` follows `Permission.INTEREST_VIEW_COUNTS`** (FR-34). It is null for a caller
 without it. Every role that may register also holds it, so today it is always a number here.
 
-**`GET /submissions/{id}/interest` names the people** (FR-33, FR-34). `Permission.INTEREST_IDENTITIES_VIEW`
-gates it, so a caller without it gets a 403 before the submission is looked up. It is a read, so it
-writes nothing and emits no audit event (NFR-08). A closed account's person reads
-`CLOSED_ACCOUNT_PLACEHOLDER`, and its record still counts under the organisation it registered with.
+**`GET /submissions/{id}/interest` names the people** (FR-33, FR-34).
+`Permission.INTEREST_IDENTITIES_VIEW` gates it, so a caller without it gets a 403 before the
+submission is looked up. It is a read, so it writes nothing and emits no audit event (NFR-08). A
+closed account's person reads `CLOSED_ACCOUNT_PLACEHOLDER`, and its record still counts under the
+organisation it registered with.
 """
 
 from __future__ import annotations
@@ -165,7 +166,7 @@ def revoke_submission_interest(
 class InterestPerson(BaseModel):
     """One live registration. `username` and `display_name` are the placeholder for a closed
     account. `organisation` is the copy recorded at registration, which can differ from the person's
-    profile now, and is null when none was given. `registered_at` is when interest was registered."""
+    profile now, and is null when none was given. `registered_at` is when the person registered."""
 
     model_config = ConfigDict(frozen=True)
 

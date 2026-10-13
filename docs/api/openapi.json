@@ -8993,7 +8993,7 @@
           "registered_at"
         ],
         "title": "InterestPerson",
-        "description": "One live registration. `username` and `display_name` are the placeholder for a closed\naccount. `organisation` is the copy recorded at registration, which can differ from the person's\nprofile now, and is null when none was given. `registered_at` is when interest was registered."
+        "description": "One live registration. `username` and `display_name` are the placeholder for a closed\naccount. `organisation` is the copy recorded at registration, which can differ from the person's\nprofile now, and is null when none was given. `registered_at` is when the person registered."
       },
       "InterestResponse": {
         "properties": {

@@ -5,11 +5,12 @@ A count alone can mislead, because fifteen registrations from one laboratory say
 from fifteen, so the identities and the distinct organisations sit beside the count.
 
 **One organisation is one organisation whatever its case or surrounding space.** Records are grouped
-on the trimmed, lower-cased copy (spaces, tabs and line breaks trimmed), so `Royal Perth Hospital` and ` royal perth hospital` count once.
-The group's label is its most common trimmed spelling, with a tie going to the one that sorts first
-by code point (`"C"` collation, so a capital letter wins over its lower-case twin and the answer
-never depends on the database's locale or on row order). A blank copy and a missing one are the same group, kept
-apart from every named organisation by a null `organisation` beside a `label`. The grouping holds
+on the trimmed, lower-cased copy (spaces, tabs and line breaks trimmed), so `Royal Perth Hospital`
+and ` royal perth hospital` count once. The group's label is its most common trimmed spelling, with
+a tie going to the one that sorts first by code point (`"C"` collation, so a capital letter wins
+over its lower-case twin and the answer never depends on the database's locale or on row order). A
+blank copy and a missing one are the same group, kept apart from every named organisation by a null
+`organisation` beside a `label`. The grouping holds
 whether or not the registration route trims what it stores.
 
 **Both counts read one definition.** `ORGANISATION_KEY` is the grouping expression for the endpoint
