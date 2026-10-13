@@ -5,7 +5,7 @@ A count alone can mislead, because fifteen registrations from one laboratory say
 from fifteen, so the identities and the distinct organisations sit beside the count.
 
 **One organisation is one organisation whatever its case or surrounding space.** Records are grouped
-on the trimmed, lower-cased copy, so `Royal Perth Hospital` and ` royal perth hospital` count once.
+on the trimmed, lower-cased copy (spaces, tabs and line breaks trimmed), so `Royal Perth Hospital` and ` royal perth hospital` count once.
 The group's label is its most common trimmed spelling, with a tie going to the one that sorts first
 by code point (`"C"` collation, so a capital letter wins over its lower-case twin and the answer
 never depends on the database's locale or on row order). A blank copy and a missing one are the same group, kept
@@ -51,11 +51,13 @@ __all__ = [
 #: that name is told apart by `OrganisationGroup.organisation`, which is null only for this group.
 NO_ORGANISATION_LABEL: Final = "No organisation given"
 
+#: What counts as surrounding space. `btrim` alone trims the space character only.
+_SPACE: Final = " \t\r\n"
+_TRIMMED: Final[ColumnElement[str]] = func.btrim(SubmissionInterest.organisation, _SPACE)
+
 #: The grouping key of an organisation copy. `NULLIF` turns a blank into null, so blank and missing
 #: land in one group, and `count(DISTINCT ...)` skips it.
-ORGANISATION_KEY: Final[ColumnElement[str]] = func.nullif(
-    func.lower(func.btrim(SubmissionInterest.organisation)), ""
-)
+ORGANISATION_KEY: Final[ColumnElement[str]] = func.nullif(func.lower(_TRIMMED), "")
 
 _LIVE = SubmissionInterest.revoked_at.is_(None)
 
@@ -113,7 +115,7 @@ def list_interest_identities(session: Session, submission_id: uuid.UUID) -> Inte
 
 
 def _groups(session: Session, submission_id: uuid.UUID) -> tuple[OrganisationGroup, ...]:
-    spelling = func.mode().within_group(collate(func.btrim(SubmissionInterest.organisation), "C"))
+    spelling = func.mode().within_group(collate(_TRIMMED, "C"))
     rows = session.execute(
         select(ORGANISATION_KEY, spelling, func.count())
         .where(SubmissionInterest.submission_id == submission_id, _LIVE)

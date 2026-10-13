@@ -232,6 +232,20 @@ def test_spellings_that_differ_by_case_or_space_are_one_organisation(api: ApiTes
 
 @pytest.mark.req("FR-33")
 @pytest.mark.integration
+def test_tabs_and_line_breaks_around_an_organisation_are_trimmed_too(api: ApiTestApp) -> None:
+    submission = _submission(api)
+    _register(api, submission, "\tLab A\n")
+    _register(api, submission, "Lab A")
+    _register(api, submission, "\t\r\n ")
+    token, _ = _sign_in(api, Role.REVIEWER)
+
+    body = _identities(api, token, submission.id).json()
+
+    assert _groups(body) == {"Lab A": 2, None: 1}
+
+
+@pytest.mark.req("FR-33")
+@pytest.mark.integration
 def test_a_tie_between_spellings_goes_to_the_one_that_sorts_first(api: ApiTestApp) -> None:
     submission = _submission(api)
     _register(api, submission, "pathology north")
