@@ -124,6 +124,7 @@ from nptc.submissions.errors import (
     CodeRefusal,
     FreeTextField,
     FreeTextRefusedError,
+    IllegalSubmissionTransitionError,
     MalformedSubmissionCursorError,
     OwnSubmissionInterestError,
     SubmissionCodeRefusedError,
@@ -131,6 +132,8 @@ from nptc.submissions.errors import (
     SubmissionCodeUpstreamError,
     SubmissionDuplicatesFoundError,
     SubmissionNotFoundError,
+    SubmissionVersionConflictError,
+    TransitionReasonRequiredError,
 )
 from nptc.submissions.reference_check import (
     ReferenceCheckFailedError,
@@ -340,7 +343,7 @@ class PropertyValidationResponse(BaseModel):
 
 
 SubmissionField = Literal[
-    "preferred_term", "synonyms", "snomed_code", "reference_url", "notes", "organisation"
+    "preferred_term", "synonyms", "snomed_code", "reference_url", "notes", "organisation", "reason"
 ]
 
 
@@ -352,6 +355,17 @@ class SubmissionFieldRefusalResponse(BaseModel):
 
     detail: str
     field: SubmissionField
+
+
+class SubmissionVersionConflictResponse(BaseModel):
+    """The 409 for a change of a submission's state sent with a stale `expected_row_version`
+    (FR-28). `current_row_version` is the value to send next, once the caller has reloaded."""
+
+    model_config = ConfigDict(frozen=True)
+
+    detail: str
+    expected_row_version: int
+    current_row_version: int
 
 
 def _field_refusal(
@@ -459,7 +473,20 @@ _DETAIL_FREE_TEXT_REFUSED: Final[dict[FreeTextField, str]] = {
         "The organisation contains an invisible character, such as a zero-width space or a "
         "text-direction override. Remove it and send the request again."
     ),
+    FreeTextField.REASON: (
+        "The reason contains an invisible character, such as a zero-width space or a "
+        "text-direction override. Remove it and send the request again."
+    ),
 }
+_DETAIL_TRANSITION_REASON_REQUIRED = (
+    "A reason is required. Say why you are changing the submission."
+)
+_DETAIL_ILLEGAL_SUBMISSION_TRANSITION = (
+    "This change is not allowed for the submission's current state."
+)
+_DETAIL_SUBMISSION_VERSION_CONFLICT = (
+    "This submission was changed by someone else since you loaded it. Reload it and try again."
+)
 _DETAIL_ALREADY_RETIRED = "This designation has already been retired."
 #: Shared by two addressing conventions: add, amend and retire address a
 #: designation by its currently-*active* term, reinstate by its currently-
@@ -819,6 +846,9 @@ _REFUSALS: Final[dict[type[Exception], _Refusal]] = {
     ),
     ClosedSubmissionInterestError: _Refusal(
         _DETAIL_CLOSED_SUBMISSION_INTEREST, "closed-submission interest refused: %s"
+    ),
+    IllegalSubmissionTransitionError: _Refusal(
+        _DETAIL_ILLEGAL_SUBMISSION_TRANSITION, "submission transition refused: %s"
     ),
     # Not logged: a blank search box on a public, unauthenticated endpoint is
     # the most ordinary client mistake there is, and logging it invites
@@ -1195,6 +1225,25 @@ def register_exception_handlers(app: FastAPI, auth_settings: AuthSettings) -> No
     ) -> JSONResponse:
         _logger.error("terminology lookup refused, unusable response: %s", exc)
         return _field_refusal(exc.http_status, _DETAIL_TERMINOLOGY_UPSTREAM, "snomed_code")
+
+    @app.exception_handler(TransitionReasonRequiredError)
+    async def _handle_transition_reason_required(
+        _request: Request, exc: TransitionReasonRequiredError
+    ) -> JSONResponse:
+        _logger.info("transition reason refused: blank")
+        return _field_refusal(exc.http_status, _DETAIL_TRANSITION_REASON_REQUIRED, "reason")
+
+    @app.exception_handler(SubmissionVersionConflictError)
+    async def _handle_submission_version_conflict(
+        _request: Request, exc: SubmissionVersionConflictError
+    ) -> JSONResponse:
+        _logger.info("stale submission row_version refused: %s", exc)
+        body = SubmissionVersionConflictResponse(
+            detail=_DETAIL_SUBMISSION_VERSION_CONFLICT,
+            expected_row_version=exc.expected_row_version,
+            current_row_version=exc.current_row_version,
+        )
+        return JSONResponse(status_code=exc.http_status, content=body.model_dump(mode="json"))
 
     @app.exception_handler(SubmissionTermRefusedError)
     async def _handle_submission_term_refused(
