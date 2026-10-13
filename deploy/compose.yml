@@ -79,9 +79,14 @@ services:
           exec 4<>/dev/tcp/localhost/8080 &&
           echo -e 'GET /realms/nptc/.well-known/openid-configuration HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&4 &&
           grep -qE '^HTTP/1\.1 200' <&4
+      # The window is start_period + retries x interval = 330 s. start-dev
+      # repeats Quarkus augmentation (about 2 minutes), the schema setup and
+      # the realm import on every start, and that took over 180 s on a busy
+      # machine; a shorter window makes `up -d` give up and leave backend and
+      # web unstarted. A fast start still passes at the first good probe.
       interval: 10s
       timeout: 5s
-      retries: 15
+      retries: 30
       start_period: 30s
     networks:
       - nptc
