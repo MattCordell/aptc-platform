@@ -25,7 +25,7 @@ from nptc.auth.errors import (
 )
 from nptc.auth.jwks import SigningKeys
 from nptc.settings import AuthSettings
-from nptc_shared.text import find_invisible_characters, normalise_for_comparison
+from nptc_shared.text import clean_text
 
 #: The realm's signature algorithm, stated explicitly: this line kills
 #: `alg: none` and an RS256-signed token replayed as HS256 against the RSA
@@ -42,15 +42,13 @@ _EXPECTED_TYP = "Bearer"
 
 
 def _organisation_from(value: object) -> str | None:
-    """The organisation claim as text safe to store, or `None`. The claim is the person's own
-    free text, so it gets the invisible-character check FR-63 puts on every free-text field; a
-    value that fails it, or runs too long, is dropped rather than repaired (FR-42)."""
+    """The organisation claim as text safe to store, or `None`. It gets the same check as a
+    submission's free text (FR-63), but a value that fails it, or runs too long, is dropped
+    rather than refused, so a sign-in never fails on it (FR-42)."""
     if not isinstance(value, str):
         return None
-    organisation = normalise_for_comparison(value)
-    if not organisation or len(organisation) > MAX_ORGANISATION_LENGTH:
-        return None
-    if find_invisible_characters(organisation):
+    organisation, refused = clean_text(value)
+    if refused or not organisation or len(organisation) > MAX_ORGANISATION_LENGTH:
         return None
     return organisation
 

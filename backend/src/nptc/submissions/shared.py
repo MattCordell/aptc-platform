@@ -24,7 +24,7 @@ from nptc.terminology.errors import (
 )
 from nptc_shared.sctid import InvalidSCTIDError
 from nptc_shared.terminology import TerminologyClient
-from nptc_shared.text import find_invisible_characters, normalise_for_comparison
+from nptc_shared.text import clean_text
 
 __all__ = ["clean_free_text", "resolve_code"]
 
@@ -37,13 +37,8 @@ def clean_free_text(text: str | None, *, field: FreeTextField, multiline: bool) 
     character, except the formatting a multi-line note may carry."""
     if text is None:
         return None
-    normalised = normalise_for_comparison(text)
     allowed = _NOTE_FORMATTING if multiline else frozenset()
-    refused = tuple(
-        found.codepoint
-        for found in find_invisible_characters(normalised)
-        if normalised[found.offset] not in allowed
-    )
+    normalised, refused = clean_text(text, allowed_invisible=allowed)
     if refused:
         raise FreeTextRefusedError(field, refused)
     return normalised or None

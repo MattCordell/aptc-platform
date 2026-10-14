@@ -290,11 +290,16 @@ def test_username_cannot_be_an_email_address(realm: dict[str, Any]) -> None:
 
 @pytest.mark.req("FR-42")
 def test_organisation_length_matches_the_submission_limit(realm: dict[str, Any]) -> None:
-    from nptc.auth.claims import MAX_ORGANISATION_LENGTH
+    from nptc.api.routers.submissions import CreateAmendmentRequest, CreateSubmissionRequest
 
-    length = _user_profile(realm)["organisation"]["validations"]["length"]
+    realm_limit = _user_profile(realm)["organisation"]["validations"]["length"]["max"]
 
-    assert length["max"] == MAX_ORGANISATION_LENGTH
+    for request in (CreateSubmissionRequest, CreateAmendmentRequest):
+        limits = [
+            getattr(meta, "max_length", None)
+            for meta in request.model_fields["organisation"].metadata
+        ]
+        assert limits == [realm_limit], request.__name__
 
 
 @pytest.mark.req("FR-42")

@@ -33,6 +33,8 @@ from nptc.auth.errors import (
 )
 from nptc.auth.jwks import SigningKeys
 from nptc.auth.tokens import TokenVerifier
+from nptc.submissions.errors import FreeTextField, FreeTextRefusedError
+from nptc.submissions.shared import clean_free_text
 
 _support_spec = importlib.util.spec_from_file_location(
     "_test_auth_token_verification_support", Path(__file__).parent / "auth_jwt_support.py"
@@ -303,3 +305,34 @@ def test_an_unusable_organisation_claim_is_dropped(stub, signing_key, verifier, 
     token = mint_token(signing_key, kid="key-1", issuer=stub.issuer_url, extra_claims=extra)
 
     assert verifier.verify(token).organisation is None
+
+
+@pytest.mark.req("FR-42")
+@pytest.mark.parametrize(
+    "value",
+    [
+        "Example" + chr(0x200B) + "Pathology",
+        "Example" + chr(0x202E) + "Pathology",
+        "Example" + chr(0x0007) + "Pathology",
+        "Example" + chr(0x000A) + "Pathology",
+        "Example Pathology",
+        "Example" + chr(0x00A0) + "Pathology",
+    ],
+    ids=["zero-width-space", "bidi-override", "bell", "line-break", "clean", "non-breaking-space"],
+)
+def test_the_organisation_claim_is_judged_like_a_submission_organisation(
+    stub, signing_key, verifier, value
+) -> None:
+    """The profile organisation is copied onto a submission without a second check, so the two
+    must agree on what is clean."""
+    token = mint_token(
+        signing_key, kid="key-1", issuer=stub.issuer_url, extra_claims={"organisation": value}
+    )
+    try:
+        expected: str | None = clean_free_text(
+            value, field=FreeTextField.ORGANISATION, multiline=False
+        )
+    except FreeTextRefusedError:
+        expected = None
+
+    assert verifier.verify(token).organisation == expected
