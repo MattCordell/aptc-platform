@@ -43,7 +43,8 @@
 the submission screens: [Submitting a new test](submitting-a-new-test.md), [Proposing a change
 to an entry](proposing-an-amendment.md), [Finding submissions](finding-submissions.md) and
 [Reading a submission, registering interest and withdrawing](reading-a-submission.md).
-Observers can read submissions and see interest counts. Anonymous use is self-explanatory
+Observers can read submissions and see interest counts. A Provisional user can read
+submissions and withdraw their own, but cannot register interest. Anonymous use is self-explanatory
 from the public catalogue itself.
 
 Populated as the corresponding UI lands — see the documentation-impact table in

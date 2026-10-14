@@ -6,7 +6,8 @@ shipped so far. The other authenticated roles (Provisional, Member) have the sub
 entry](proposing-an-amendment.md), [Finding submissions](finding-submissions.md) and
 [Reading a submission, registering interest and withdrawing](reading-a-submission.md). See
 the PRD's permission matrix (§4.7) for what they will eventually reach. An Observer can read
-submissions and see interest counts, but cannot register interest.
+submissions and see interest counts, but cannot register interest. A Provisional user can
+read submissions and withdraw their own, but cannot register interest.
 Anonymous use is self-explanatory from the public catalogue itself: browsing,
 searching and viewing what has already been published needs no account and no role
 beyond it.
@@ -26,8 +27,9 @@ shipped:
 - **[Searching the audit log](searching-the-audit-log.md)** — finding who changed what and
   when, and exporting a filtered view. No other role can read the audit log.
 - **[Seeing who registered interest](reading-a-submission.md#see-who-registered-interest)** —
-  on a submission's page, with the organisations they gave. An Administrator cannot withdraw a
-  submission yet, even their own.
+  on a submission's page, with the organisations they gave.
+
+An Administrator cannot withdraw a submission yet, even their own.
 
 ### Reaching each screen
 
