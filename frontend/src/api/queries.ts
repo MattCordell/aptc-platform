@@ -1427,7 +1427,8 @@ type InterestResponse = components["schemas"]["InterestResponse"];
  * count while a refetch runs. The list's Interest column reads the same fact,
  * so its pages are marked stale. A refusal (409 for the caller's own or a
  * closed submission, 403 without `interest.register`) is thrown as an
- * `ApiError` and nothing is cached.
+ * `ApiError`, and the detail is re-read because the page that offered the
+ * action was stale.
  */
 function useInterestMutation(
   submissionId: string,
@@ -1451,6 +1452,8 @@ function useInterestMutation(
       );
       return queryClient.invalidateQueries({ queryKey: SUBMISSIONS_LIST_KEY });
     },
+    onError: () =>
+      queryClient.invalidateQueries({ queryKey: submissionDetailKey(submissionId) }),
   });
 }
 
