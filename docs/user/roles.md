@@ -72,8 +72,13 @@ wrong" section for what a missing permission looks like from inside a screen).
 
 A working group member with editorial authority over the submission pipeline described in
 the PRD, but **not** over the published catalogue — the screens for the submission
-pipeline itself (proposing, reviewing and approving amendments) have not shipped yet. On
-the screens that have, a Reviewer has two capabilities:
+pipeline itself (reviewing and approving submissions) have not shipped yet.
+
+A Reviewer can use every submission screen a Member can: [submit a new
+test](submitting-a-new-test.md), [propose a change to an entry](proposing-an-amendment.md),
+[find submissions](finding-submissions.md), and [register interest or withdraw your own
+submission](reading-a-submission.md). On the screens that have shipped, a Reviewer also has
+two capabilities that a Member lacks:
 
 - **[Seeing who registered interest](reading-a-submission.md#see-who-registered-interest)**
   on a submission's page, with the organisations they gave.
