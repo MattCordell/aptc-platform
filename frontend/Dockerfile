@@ -32,7 +32,7 @@ ENV VITE_OIDC_ISSUER=$VITE_OIDC_ISSUER \
     VITE_API_BASE_URL=$VITE_API_BASE_URL
 RUN pnpm --filter nptc-frontend build
 
-FROM caddy:2.11.4-alpine AS runtime
+FROM caddy:2.11.7-alpine AS runtime
 # The base image declares /data and /config as root-owned volumes, so Caddy's
 # state goes to a directory this user owns. The official binary carries the
 # capability to bind port 80 without root.
