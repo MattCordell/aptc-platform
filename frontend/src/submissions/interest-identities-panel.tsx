@@ -45,7 +45,14 @@ function Breakdown({ identities }: { identities: Identities }) {
       <h3 className="m-0 text-base">Organisations</h3>
       <ul className="m-0 flex list-none flex-col gap-1 p-0 text-sm">
         {identities.distinct_organisations.map((organisation) => (
-          <li key={organisation.label} className="flex justify-between gap-2">
+          <li
+            key={
+              organisation.organisation === null
+                ? "none"
+                : `named:${organisation.organisation}`
+            }
+            className="flex justify-between gap-2"
+          >
             <span className="min-w-0">{organisation.label}</span>
             <span className="tabular-nums">{organisation.count}</span>
           </li>

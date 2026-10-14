@@ -1,9 +1,10 @@
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, type QueryClient } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createQueryClient } from "../api/query-client.ts";
+import { useSession } from "../api/queries.ts";
 import { AuthContext, type AuthContextValue } from "../auth/session.ts";
 import { expectNoA11yViolations } from "../test/a11y.ts";
 import { stubApi, type Route } from "../test/stub-api.ts";
@@ -62,23 +63,37 @@ function submission(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function renderWithdraw(props: ReturnType<typeof submission>) {
-  return render(
-    <QueryClientProvider client={createQueryClient()}>
+/** Renders once the session has landed. The components under test read the same
+ * query, so they have rendered with it by then, and an assertion that something
+ * is absent cannot pass merely because the session was still loading. */
+function SessionProbe() {
+  const session = useSession();
+  return session.data === undefined ? null : <span data-testid="session-ready" hidden />;
+}
+
+function tree(client: QueryClient, props: ReturnType<typeof submission>) {
+  return (
+    <QueryClientProvider client={client}>
       <AuthContext.Provider value={AUTH}>
+        <SessionProbe />
         <WithdrawSubmission submission={props} />
       </AuthContext.Provider>
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
 }
 
-async function settled(calls: ReturnType<typeof stubApi>) {
-  await waitFor(() =>
-    expect(calls.some((call) => call.path === "/api/v1/auth/me")).toBe(true),
-  );
-  // The button is absent until the session answers, so wait for the answer to
-  // land before asserting that nothing rendered.
-  await new Promise((resolve) => setTimeout(resolve, 50));
+function renderWithdraw(props: ReturnType<typeof submission>) {
+  const client = createQueryClient();
+  const view = render(tree(client, props));
+  return {
+    ...view,
+    showAnother: (next: ReturnType<typeof submission>) =>
+      view.rerender(tree(client, next)),
+  };
+}
+
+async function settled() {
+  await screen.findByTestId("session-ready");
 }
 
 async function openDialog() {
@@ -109,10 +124,10 @@ describe("WithdrawSubmission visibility", () => {
   it.each([["Published in release"], ["Rejected"], ["Withdrawn"]])(
     "is absent in the %s state",
     async (state) => {
-      const calls = stubApi([SUBMITTER]);
+      stubApi([SUBMITTER]);
       const { container } = renderWithdraw(submission({ state }));
 
-      await settled(calls);
+      await settled();
       expect(screen.queryByRole("button")).toBeNull();
       expect(screen.queryByRole("heading")).toBeNull();
       await expectNoA11yViolations(container);
@@ -120,19 +135,19 @@ describe("WithdrawSubmission visibility", () => {
   );
 
   it("is absent for another Member, who is not the submitter", async () => {
-    const calls = stubApi([SUBMITTER]);
+    stubApi([SUBMITTER]);
     const { container } = renderWithdraw(submission({ is_own: false }));
 
-    await settled(calls);
+    await settled();
     expect(screen.queryByRole("button")).toBeNull();
     await expectNoA11yViolations(container);
   });
 
   it("is absent without submission.withdraw.own, even for the submitter", async () => {
-    const calls = stubApi([session(["interest.register"])]);
+    stubApi([session(["interest.register"])]);
     const { container } = renderWithdraw(submission());
 
-    await settled(calls);
+    await settled();
     expect(screen.queryByRole("button")).toBeNull();
     await expectNoA11yViolations(container);
   });
@@ -232,7 +247,7 @@ describe("WithdrawSubmission dialog", () => {
     );
 
     expect(
-      await within(dialog).findAllByText(/Reload the page to see the latest version/),
+      await within(dialog).findAllByText(/The page now shows the latest version/),
     ).not.toHaveLength(0);
     expect(screen.getByRole("dialog")).toBeVisible();
     await expectNoA11yViolations(container);
@@ -262,7 +277,7 @@ describe("WithdrawSubmission dialog", () => {
     expect(
       await within(dialog).findAllByText("This submission is already closed."),
     ).not.toHaveLength(0);
-    expect(within(dialog).queryByText(/Reload the page/)).toBeNull();
+    expect(within(dialog).queryByText(/changed since you opened it/)).toBeNull();
   });
 
   it("marks the reason when the server refuses it", async () => {
@@ -299,6 +314,33 @@ describe("WithdrawSubmission dialog", () => {
       "true",
     );
     await expectNoA11yViolations(container);
+  });
+
+  it("does not carry a confirmation over to another submission", async () => {
+    stubApi([
+      SUBMITTER,
+      {
+        method: "POST",
+        path: WITHDRAW,
+        status: 200,
+        body: { id: ID, state: "Withdrawn", row_version: 4 },
+      },
+    ]);
+    const { showAnother } = renderWithdraw(submission());
+    const dialog = await openDialog();
+    await userEvent.type(
+      within(dialog).getByRole("textbox", { name: /Reason/ }),
+      "Sent in error.",
+    );
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Confirm withdrawal" }),
+    );
+    await screen.findByText("You withdrew this submission.");
+
+    showAnother(submission({ id: "6f1d2c3e-0000-4000-8000-000000000032" }));
+
+    expect(screen.queryByText("You withdrew this submission.")).toBeNull();
+    expect(screen.getByRole("button", { name: "Withdraw submission" })).toBeVisible();
   });
 
   it("closes without sending when the user cancels", async () => {

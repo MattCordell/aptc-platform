@@ -1,9 +1,10 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createQueryClient } from "../api/query-client.ts";
+import { useSession } from "../api/queries.ts";
 import { AuthContext, type AuthContextValue } from "../auth/session.ts";
 import { expectNoA11yViolations } from "../test/a11y.ts";
 import { stubApi, type Route } from "../test/stub-api.ts";
@@ -85,23 +86,27 @@ const IDENTITIES: Route = {
   },
 };
 
+/** Renders once the session has landed. The components under test read the same
+ * query, so they have rendered with it by then, and an assertion that something
+ * is absent cannot pass merely because the session was still loading. */
+function SessionProbe() {
+  const session = useSession();
+  return session.data === undefined ? null : <span data-testid="session-ready" hidden />;
+}
+
 function renderPanel() {
   return render(
     <QueryClientProvider client={createQueryClient()}>
       <AuthContext.Provider value={AUTH}>
+        <SessionProbe />
         <InterestIdentitiesPanel submissionId={ID} />
       </AuthContext.Provider>
     </QueryClientProvider>,
   );
 }
 
-async function settled(calls: ReturnType<typeof stubApi>) {
-  await waitFor(() =>
-    expect(calls.some((call) => call.path === "/api/v1/auth/me")).toBe(true),
-  );
-  // The panel is absent until the session answers, so wait for the answer to
-  // land before asserting that nothing rendered and nothing was requested.
-  await new Promise((resolve) => setTimeout(resolve, 50));
+async function settled() {
+  await screen.findByTestId("session-ready");
 }
 
 afterEach(() => {
@@ -141,6 +146,52 @@ describe("InterestIdentitiesPanel", () => {
     expect(screen.getByText("(u-closed)")).toBeVisible();
     // Once in the organisation list and once on the person with none.
     expect(screen.getAllByText("No organisation given")).toHaveLength(2);
+  });
+
+  it("keys an organisation named like the missing-organisation label apart from that group", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    stubApi([
+      REVIEWER,
+      {
+        method: "GET",
+        path: INTEREST,
+        status: 200,
+        body: {
+          interest_count: 2,
+          distinct_organisation_count: 1,
+          distinct_organisations: [
+            {
+              organisation: "No organisation given",
+              label: "No organisation given",
+              count: 1,
+            },
+            { organisation: null, label: "No organisation given", count: 1 },
+          ],
+          records: [
+            {
+              username: "u-a",
+              display_name: "A Person",
+              organisation: "No organisation given",
+              registered_at: "2026-09-02T12:00:00Z",
+            },
+            {
+              username: "u-b",
+              display_name: "B Person",
+              organisation: null,
+              registered_at: "2026-09-01T12:00:00Z",
+            },
+          ],
+        },
+      },
+    ]);
+    renderPanel();
+
+    await screen.findByText("2 people from 1 organisation.");
+    const duplicateKeyWarnings = errors.mock.calls.filter((args) =>
+      String(args[0]).includes("same key"),
+    );
+    errors.mockRestore();
+    expect(duplicateKeyWarnings).toHaveLength(0);
   });
 
   it("does not say '0 organisations' when no one gave one", async () => {
@@ -205,7 +256,7 @@ describe("InterestIdentitiesPanel", () => {
     const calls = stubApi([session(permissions), IDENTITIES]);
     const { container } = renderPanel();
 
-    await settled(calls);
+    await settled();
     expect(screen.queryByRole("heading")).toBeNull();
     expect(calls.some((call) => call.path === INTEREST)).toBe(false);
     await expectNoA11yViolations(container);

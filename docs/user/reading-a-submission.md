@@ -127,10 +127,12 @@ button and reloads the submission. The button then disappears or changes to matc
 
 If you try to withdraw and the platform refuses, the box stays open and shows why:
 
-- **The submission changed since you opened it.** The message tells you to reload the page.
-  The page has already read the new version, so you can then try again.
-- **The submission is already closed.** The platform's own sentence appears. Choose **Cancel**.
-  The button has gone because the page now shows the closed state.
+- **The submission changed since you opened it.** The page reads the new version at once,
+  and the box tells you so. Check what the page now shows, then choose **Confirm withdrawal**
+  again. Your reason stays in the box.
+- **The submission is already closed.** The platform's own sentence appears, and **Confirm
+  withdrawal** no longer works. Choose **Cancel**. The button has gone because the page now
+  shows the closed state.
 - **The reason is not accepted.** The Reason field is marked with the platform's explanation,
   for example when the reason holds a character that cannot be shown.
 

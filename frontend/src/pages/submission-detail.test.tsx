@@ -415,7 +415,7 @@ describe("submission detail withdraw (FR-28)", () => {
 
     await waitFor(() => expect(detailReads(calls)).toBeGreaterThan(1));
     expect(
-      await within(dialog).findAllByText(/Reload the page to see the latest version/),
+      await within(dialog).findAllByText(/The page now shows the latest version/),
     ).not.toHaveLength(0);
     expect(screen.getByRole("dialog")).toBeVisible();
   });
@@ -466,7 +466,7 @@ describe("submission detail withdraw (FR-28)", () => {
     await userEvent.click(
       within(dialog).getByRole("button", { name: "Confirm withdrawal" }),
     );
-    await within(dialog).findAllByText(/Reload the page to see the latest version/);
+    await within(dialog).findAllByText(/The page now shows the latest version/);
     await waitFor(() => expect(detailReads(calls)).toBeGreaterThan(1));
 
     await userEvent.click(
@@ -480,6 +480,65 @@ describe("submission detail withdraw (FR-28)", () => {
         (call) => (call.body as { expected_row_version: number }).expected_row_version,
       ),
     ).toEqual([1, 2]);
+  });
+
+  it("offers no second attempt once the re-read shows the submission closed", async () => {
+    let refused = false;
+    const calls = stubApi(
+      [
+        SUBMITTER,
+        DEFINITIONS,
+        detail({ is_own: true }),
+        {
+          method: "POST",
+          path: WITHDRAW,
+          status: 409,
+          body: { detail: "This submission is closed." },
+        },
+      ],
+      {
+        vary: (call) => {
+          if (call.method === "POST" && call.path === WITHDRAW) {
+            refused = true;
+            return null;
+          }
+          return refused && call.method === "GET" && call.path === DETAIL
+            ? detail({ is_own: true, state: "Rejected", row_version: 2 })
+            : null;
+        },
+      },
+    );
+    await renderRoute(`/submissions/${ID}`, SIGNED_IN);
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Withdraw submission" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.type(
+      within(dialog).getByRole("textbox", { name: /Reason/ }),
+      "Sent in error.",
+    );
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Confirm withdrawal" }),
+    );
+
+    await waitFor(() => expect(detailReads(calls)).toBeGreaterThan(1));
+    await waitFor(() =>
+      expect(
+        within(dialog).getByRole("button", { name: "Confirm withdrawal" }),
+      ).toHaveAttribute("aria-disabled", "true"),
+    );
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Confirm withdrawal" }),
+    );
+
+    expect(
+      await within(dialog).findAllByText(
+        /This submission is no longer open, so it cannot be withdrawn./,
+      ),
+    ).not.toHaveLength(0);
+    expect(calls.filter((call) => call.method === "POST")).toHaveLength(1);
+    expect(screen.getByRole("dialog")).toBeVisible();
   });
 
   it("offers no button to another Member", async () => {

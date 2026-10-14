@@ -28,7 +28,9 @@ const WITHDRAW_PERMISSION = "submission.withdraw.own";
 const REASON_FIELD_ID = "withdraw-reason";
 
 const STALE_VERSION =
-  "This submission was changed since you opened it. Reload the page to see the latest version, then try again.";
+  "This submission changed since you opened it. The page now shows the latest version. Check it, then confirm again.";
+
+const CLOSED = "This submission is no longer open, so it cannot be withdrawn.";
 
 const FALLBACK_REFUSAL =
   "The submission could not be withdrawn. Try again, or contact an administrator if the problem persists.";
@@ -66,6 +68,8 @@ function WithdrawDialog({
         submitLabel="Confirm withdrawal"
         pendingLabel="Withdrawing"
         pending={withdraw.isPending}
+        submitBlocked={!isOpenSubmissionState(submission.state)}
+        blockedReason={CLOSED}
         errors={fieldErrors}
         formError={refusal === null ? undefined : refusalSentence(refusal)}
         errorSummaryHeadingLevel={3}
@@ -125,6 +129,12 @@ function WithdrawDialog({
  * opened the dialog no longer exists to take focus back.
  */
 export function WithdrawSubmission({ submission }: { submission: Withdrawable }) {
+  // Keyed by id so the open dialog and the confirmation never carry over when
+  // the route shows another submission.
+  return <WithdrawPanel key={submission.id} submission={submission} />;
+}
+
+function WithdrawPanel({ submission }: { submission: Withdrawable }) {
   const session = useSession();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [withdrawn, setWithdrawn] = useState(false);
