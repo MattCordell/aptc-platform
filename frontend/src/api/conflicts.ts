@@ -104,13 +104,20 @@ export function asPropertyValidationError(error: unknown): PropertyValidationBod
 export type DuplicatesBody = components["schemas"]["SubmissionDuplicatesResponse"];
 export type DuplicateMatch = components["schemas"]["DuplicateMatchItem"];
 export type QuotaBody = components["schemas"]["SubmissionQuotaResponse"];
-export type SubmissionFieldRefusal =
-  components["schemas"]["SubmissionFieldRefusalResponse"];
-export type SubmissionField = SubmissionFieldRefusal["field"];
+type SubmissionFieldRefusalBody = components["schemas"]["SubmissionFieldRefusalResponse"];
 
 /**
- * A `Record`, so a field the server starts to name is a type error here until
- * this list knows it, not a refusal the form silently drops.
+ * The fields of the new-test and amendment forms. `reason` belongs to the
+ * withdraw request, which has no form yet, so it is left out here.
+ */
+export type SubmissionField = Exclude<SubmissionFieldRefusalBody["field"], "reason">;
+export type SubmissionFieldRefusal = Omit<SubmissionFieldRefusalBody, "field"> & {
+  field: SubmissionField;
+};
+
+/**
+ * A `Record`, so a form field the server starts to name is a type error here
+ * until this list knows it, not a refusal the form silently drops.
  */
 const SUBMISSION_FIELDS: Record<SubmissionField, true> = {
   preferred_term: true,

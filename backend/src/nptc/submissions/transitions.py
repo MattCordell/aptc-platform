@@ -125,7 +125,7 @@ def transition_submission(
     if permitted is None:
         raise IllegalSubmissionTransitionError(from_state.value, to_state.value)
     if not any(_met(requirement, principal, submission) for requirement in permitted.requirements):
-        raise PermissionDeniedError(_permissions_needed(permitted))
+        raise PermissionDeniedError(_refusal_message(permitted, principal))
     if submission.row_version != expected_row_version:
         raise SubmissionVersionConflictError(
             expected_row_version=expected_row_version, current_row_version=submission.row_version
@@ -186,6 +186,11 @@ def _met(requirement: TransitionRequirement, principal: Principal, submission: S
     )
 
 
-def _permissions_needed(permitted: PermittedTransition) -> str:
+def _refusal_message(permitted: PermittedTransition, principal: Principal) -> str:
+    """Names the real cause for the log: a caller who holds a permission of the move and fails only
+    the submitter test is told apart from one who lacks every permission."""
+    held = [r for r in permitted.requirements if principal.has(r.permission)]
+    if held:
+        return f"permission {held[0].permission.value!r} is held, but only the submitter may use it"
     names = " or ".join(repr(r.permission.value) for r in permitted.requirements)
     return f"permission {names} is required for this move"

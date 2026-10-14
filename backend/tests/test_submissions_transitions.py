@@ -266,7 +266,7 @@ def test_another_member_cannot_withdraw_someone_elses_submission(app_session: Se
     other = _user(app_session)
     submission = _submission(app_session, submitter)
 
-    with pytest.raises(PermissionDeniedError):
+    with pytest.raises(PermissionDeniedError, match="only the submitter may use it"):
         _withdraw(app_session, submitter, submission, actor=other)
 
     _assert_nothing_written(app_session, submission.id, "Submitted")
@@ -284,7 +284,7 @@ def test_a_role_without_the_own_permission_cannot_withdraw_even_its_own(
     submission = _submission(app_session, submitter)
     assert Permission.SUBMISSION_WITHDRAW_OWN not in permissions_for_roles(frozenset({role}))
 
-    with pytest.raises(PermissionDeniedError):
+    with pytest.raises(PermissionDeniedError, match="is required for this move"):
         _withdraw(app_session, submitter, submission, roles=(role,))
 
     _assert_nothing_written(app_session, submission.id, "Submitted")
