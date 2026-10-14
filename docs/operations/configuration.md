@@ -149,6 +149,12 @@ single `--force-recreate` command above works on any Compose v2 and says what it
 listed the `acr` client scope issues tokens with no `acr` claim, so no Administrator can
 complete MFA step-up. Recreate the container as above to pick up the scope.
 
+**Adding the registration profile to an existing realm.** A realm imported before the realm
+file declared a user profile asks for no organisation and does not refuse an `@` in a
+username, and its tokens carry no `organisation` claim. Recreate the container as above to
+pick up the profile. Keycloak keeps no data between recreations here, so no stored user needs
+migrating.
+
 **The login theme is selected here and mounted separately.** The realm file sets
 `"loginTheme": "nptc"`, and `deploy/compose.yml` mounts `deploy/keycloak/themes/nptc` read-only
 at `/opt/keycloak/themes/nptc`. The two must agree: a realm that names a theme no mount
