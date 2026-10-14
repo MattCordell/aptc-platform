@@ -64,7 +64,7 @@ const LOAD_FAILURE =
   "The submissions could not be loaded. Try again in a moment, or change the filter.";
 
 const TAB_CLASSES =
-  "inline-block border-b-2 border-transparent px-3 py-2 text-sm font-medium text-[var(--color-text)] hover:underline aria-[current=page]:border-[var(--color-accent)] aria-[current=page]:text-[var(--color-accent-hover)]";
+  "inline-block border-b-2 border-transparent px-3 py-2 text-sm font-medium text-[var(--color-text)] hover:underline aria-[current=page]:border-[var(--color-accent)] aria-[current=page]:text-[var(--color-accent-hover)] aria-[current=page]:underline aria-[current=page]:decoration-2 aria-[current=page]:underline-offset-4";
 
 const MUTED = "text-[var(--color-text-muted)]";
 
@@ -96,21 +96,24 @@ function KindCell({ row }: { row: Row }) {
   if (row.kind === "new_test") {
     return "New test";
   }
-  if (row.kind === "amendment" && row.entry_business_key !== null) {
-    return (
-      <>
-        Amendment to{" "}
-        <Link
-          to="/catalogue/$businessKey"
-          params={{ businessKey: row.entry_business_key }}
-          className="text-[var(--color-accent)] hover:underline"
-        >
-          {row.entry_business_key}
-        </Link>
-      </>
-    );
+  if (row.kind !== "amendment") {
+    return row.kind;
   }
-  return row.kind;
+  if (row.entry_business_key === null) {
+    return "Amendment";
+  }
+  return (
+    <>
+      Amendment to{" "}
+      <Link
+        to="/catalogue/$businessKey"
+        params={{ businessKey: row.entry_business_key }}
+        className="text-[var(--color-accent)] hover:underline"
+      >
+        {row.entry_business_key}
+      </Link>
+    </>
+  );
 }
 
 function SubmitterCell({ row }: { row: Row }) {

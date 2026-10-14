@@ -120,6 +120,16 @@ describe("All submissions view (FR-28, FR-34)", () => {
     expect(within(row).getByText("Withdrawn")).toBeVisible();
   });
 
+  it("shows a kind it does not know as the server sent it", async () => {
+    stubApi([
+      listRoute([summary({ id: OWN_ID, preferred_term: "Odd one", kind: "merge" })]),
+    ]);
+    await renderRoute("/submissions", SIGNED_IN);
+
+    const row = await screen.findByRole("row", { name: /Odd one/ });
+    expect(within(row).getByText("merge")).toBeVisible();
+  });
+
   it("sends a bare request: no state, no mine", async () => {
     const calls = stubApi([listRoute([NEW_TEST_ROW])]);
     await renderRoute("/submissions", SIGNED_IN);
