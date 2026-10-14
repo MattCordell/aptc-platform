@@ -30,6 +30,8 @@
   **Create submission** on the Submissions page.
 - [Proposing a change to an entry](proposing-an-amendment.md) — issue #548. The same form in
   amendment mode, opened from **Propose a change** on an active entry's page.
+- [Finding submissions](finding-submissions.md) — issue #588. The list at `/submissions`:
+  All and My submissions, the state filter and paging.
 - [Reading the preferred-term length distribution report](reading-the-length-distribution-report.md)
   — issue #152, API-only; there is no admin screen for this report yet.
 
