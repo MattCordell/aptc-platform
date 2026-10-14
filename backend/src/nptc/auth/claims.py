@@ -16,8 +16,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-#: The longest organisation the realm's registration form accepts and `app_user.organisation`
-#: keeps; a longer claim is not stored.
 MAX_ORGANISATION_LENGTH = 500
 
 
@@ -37,6 +35,5 @@ class OidcIdentityClaims:
     #: The Unix timestamp of the authentication event. Recorded only: no
     #: maximum age is enforced.
     auth_time: int | None = None
-    #: The organisation the person entered at registration (FR-42), already normalised by
-    #: `nptc.auth.tokens`. `None` when the token carries none or the value was unusable.
+    #: Already normalised by `nptc.auth.tokens`; `None` when absent or unusable (FR-42).
     organisation: str | None = None
