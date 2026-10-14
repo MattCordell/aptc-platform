@@ -35,6 +35,7 @@ def _claims(
     email_verified: bool = False,
     preferred_username: str | None = None,
     display_name: str | None = None,
+    organisation: str | None = None,
 ) -> OidcIdentityClaims:
     return OidcIdentityClaims(
         issuer=issuer,
@@ -43,6 +44,7 @@ def _claims(
         email_verified=email_verified,
         preferred_username=preferred_username,
         display_name=display_name,
+        organisation=organisation,
     )
 
 
@@ -615,3 +617,40 @@ def test_closed_account_subject_does_not_resolve_to_the_tombstoned_user(app_db: 
     assert again.outcome == LinkOutcome.CREATED
     assert again.user is not None
     assert again.user.id != original_id
+
+
+@pytest.mark.req("FR-42")
+@pytest.mark.integration
+def test_first_registration_stores_the_organisation_claim(app_db: Connection) -> None:
+    session = Session(bind=app_db)
+    claims = _claims(
+        issuer=_UNTRUSTED,
+        subject="sub-organisation-create",
+        preferred_username="orla",
+        display_name="Orla Example",
+        organisation="Example Pathology Service",
+    )
+
+    created = resolve_user_for_claims(
+        session, claims, trusted_issuers=_TRUSTED, audit=AuditContext.system()
+    )
+
+    assert created.user is not None
+    assert created.user.organisation == "Example Pathology Service"
+
+
+@pytest.mark.req("FR-42")
+@pytest.mark.integration
+def test_first_registration_without_an_organisation_claim_still_succeeds(
+    app_db: Connection,
+) -> None:
+    session = Session(bind=app_db)
+    claims = _claims(issuer=_UNTRUSTED, subject="sub-organisation-absent", display_name="Ana")
+
+    created = resolve_user_for_claims(
+        session, claims, trusted_issuers=_TRUSTED, audit=AuditContext.system()
+    )
+
+    assert created.outcome == LinkOutcome.CREATED
+    assert created.user is not None
+    assert created.user.organisation is None

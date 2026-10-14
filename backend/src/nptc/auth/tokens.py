@@ -14,7 +14,7 @@ from dataclasses import dataclass
 import httpx
 import jwt
 
-from nptc.auth.claims import OidcIdentityClaims
+from nptc.auth.claims import MAX_ORGANISATION_LENGTH, OidcIdentityClaims
 from nptc.auth.discovery import resolve_jwks_url
 from nptc.auth.errors import (
     TokenAudienceError,
@@ -25,6 +25,7 @@ from nptc.auth.errors import (
 )
 from nptc.auth.jwks import SigningKeys
 from nptc.settings import AuthSettings
+from nptc_shared.text import find_invisible_characters, normalise_for_comparison
 
 #: The realm's signature algorithm, stated explicitly: this line kills
 #: `alg: none` and an RS256-signed token replayed as HS256 against the RSA
@@ -38,6 +39,20 @@ _REQUIRED_CLAIMS = ["iss", "sub", "aud", "exp", "iat"]
 #: never the unverified header (ADR-0016). A replayed ID token would also fail
 #: the audience check, but refusing it by kind names the mistake.
 _EXPECTED_TYP = "Bearer"
+
+
+def _organisation_from(value: object) -> str | None:
+    """The organisation claim as text safe to store, or `None`. The claim is the person's own
+    free text, so it gets the invisible-character check FR-63 puts on every free-text field; a
+    value that fails it, or runs too long, is dropped rather than repaired (FR-42)."""
+    if not isinstance(value, str):
+        return None
+    organisation = normalise_for_comparison(value)
+    if not organisation or len(organisation) > MAX_ORGANISATION_LENGTH:
+        return None
+    if find_invisible_characters(organisation):
+        return None
+    return organisation
 
 
 @dataclass(frozen=True)
@@ -130,6 +145,7 @@ class TokenVerifier:
         preferred_username = preferred_username if isinstance(preferred_username, str) else None
         display_name = payload.get("name")
         display_name = display_name if isinstance(display_name, str) else None
+        organisation = _organisation_from(payload.get("organisation"))
         # NFR-06: `acr`/`auth_time` are authentication facts, not the
         # authorisation claims ADR-0014 closed the door on (see
         # nptc.auth.claims).
@@ -149,4 +165,5 @@ class TokenVerifier:
             display_name=display_name,
             acr=acr,
             auth_time=auth_time,
+            organisation=organisation,
         )
