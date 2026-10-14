@@ -33,7 +33,7 @@ export function SubmissionKind({
       <Link
         to="/catalogue/$businessKey"
         params={{ businessKey: entryBusinessKey }}
-        className="text-[var(--color-accent)] hover:underline"
+        className="text-[var(--color-accent)] underline"
       >
         {entryBusinessKey}
       </Link>

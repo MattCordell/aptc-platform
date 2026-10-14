@@ -20,14 +20,17 @@ The heading is the submission's term. The main column shows what the submitter s
 - **SNOMED CT code**: the proposed code and its fully specified name, as the terminology
   server returned it. It reads "None proposed" when there is no code.
 - **Proposed properties**: each property the submitter filled in, with its value and any
-  justification. This section is absent when the submission has none.
+  justification. This section is absent when the submission has none. Each property shows its
+  label. An Observer may not read the property registry, so an Observer sees the property's
+  key instead, for example `assay_method`.
 - **Notes**: any free text the submitter added.
 - **Supporting reference**: the link the submitter gave. Below it, the page says when the
   server checked the link and which HTTP status the page answered with. It says so plainly
   when there is no reference, or when the link has not been checked.
 
-The reference link opens the submitter's own page. The platform has checked that the page
-answered, not that it supports the proposal.
+The reference link opens the submitter's own page. The check shows that the page answered,
+not that it supports the proposal. Some sites refuse automated visits and answer with status
+401 or 403. The platform accepts those two answers, so you may see one of them.
 
 ## A change to an existing test
 

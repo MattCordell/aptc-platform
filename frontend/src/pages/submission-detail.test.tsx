@@ -118,6 +118,25 @@ describe("submission detail content (FR-26, FR-27, FR-28, FR-34)", () => {
     await expectNoA11yViolations(container);
   });
 
+  it("shows each property under its key when the caller may not read the registry", async () => {
+    await open([
+      me([]),
+      { method: "GET", path: PROPERTIES, status: 403, body: { detail: "no" } },
+      detail(),
+    ]);
+
+    expect(await screen.findByText("assay_method")).toBeVisible();
+    expect(screen.getByText("Immunoassay")).toBeVisible();
+    expect(screen.queryByText("Assay method")).toBeNull();
+  });
+
+  it("does not ask for the property definitions when there is no value to label", async () => {
+    const { calls } = await open([me([]), detail({ property_values: {} })]);
+
+    await screen.findByRole("heading", { level: 1, name: "Ferritin level" });
+    expect(calls.some((call) => call.path === PROPERTIES)).toBe(false);
+  });
+
   it("keeps a leading-zero code as the string it was sent (FR-06)", async () => {
     await open([MEMBER, DEFINITIONS, detail({ snomed_code: "0000012345" })]);
 
@@ -174,10 +193,11 @@ describe("submission detail content (FR-26, FR-27, FR-28, FR-34)", () => {
         /The heading shows the entry.s term when this change was proposed/,
       ),
     ).toBeVisible();
-    expect(screen.getByRole("link", { name: "NPTC-000247" })).toHaveAttribute(
-      "href",
-      "/catalogue/NPTC-000247",
-    );
+    const entryLink = screen.getByRole("link", { name: "NPTC-000247" });
+    expect(entryLink).toHaveAttribute("href", "/catalogue/NPTC-000247");
+    // The link sits inside a sentence, so colour alone cannot tell it apart
+    // (axe `link-in-text-block`, which jsdom cannot evaluate).
+    expect(entryLink).toHaveClass("underline");
     expect(screen.queryByRole("heading", { name: "Proposed properties" })).toBeNull();
     expect(screen.getByText("None proposed")).toBeVisible();
     await expectNoA11yViolations(container);

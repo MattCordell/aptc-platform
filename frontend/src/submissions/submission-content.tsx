@@ -34,10 +34,28 @@ function PropertyValueView({ item }: { item: SubmittedValue }) {
 
 /**
  * The submitted property values, labelled with the registry's own labels. A key
- * the registry no longer lists shows as its key. Each value is read by its
- * shape (`describePropertyValue`), never by the property's datatype (FR-77).
+ * the registry no longer lists shows as its key, and so does every key for a
+ * caller who may not read the registry (an Observer holds `submission.view`
+ * but not `registry.read`). Each value is read by its shape
+ * (`describePropertyValue`), never by the property's datatype (FR-77).
  */
 function PropertyValues({ values }: { values: SubmissionDetail["property_values"] }) {
+  const keys = Object.keys(values).filter((key) => values[key].length > 0);
+  if (keys.length === 0) {
+    return null;
+  }
+  return <LabelledPropertyValues values={values} keys={keys} />;
+}
+
+/** Split from `PropertyValues` so the definitions are asked for only when
+ * there is a value to label. */
+function LabelledPropertyValues({
+  values,
+  keys,
+}: {
+  values: SubmissionDetail["property_values"];
+  keys: string[];
+}) {
   const definitions = useSubmissionPropertyDefinitions();
   const labels = new Map(
     (definitions.data?.items ?? []).map((definition) => [
@@ -45,10 +63,6 @@ function PropertyValues({ values }: { values: SubmissionDetail["property_values"
       definition.label,
     ]),
   );
-  const keys = Object.keys(values).filter((key) => values[key].length > 0);
-  if (keys.length === 0) {
-    return null;
-  }
   return (
     <EntrySection title="Proposed properties">
       <dl className="m-0 grid grid-cols-1 gap-y-1">
