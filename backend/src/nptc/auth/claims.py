@@ -16,6 +16,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+MAX_ORGANISATION_LENGTH = 500
+
 
 @dataclass(frozen=True)
 class OidcIdentityClaims:
@@ -33,3 +35,5 @@ class OidcIdentityClaims:
     #: The Unix timestamp of the authentication event. Recorded only: no
     #: maximum age is enforced.
     auth_time: int | None = None
+    #: Already normalised by `nptc.auth.tokens`; `None` when absent or unusable (FR-42).
+    organisation: str | None = None

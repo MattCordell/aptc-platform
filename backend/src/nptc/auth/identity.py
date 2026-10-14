@@ -160,7 +160,7 @@ def _create_user(
                 user = User(
                     username=username,
                     display_name=display_name or username,
-                    organisation=None,
+                    organisation=claims.organisation,
                 )
                 session.add(user)
                 session.flush()
@@ -224,6 +224,9 @@ def _resolve_existing(
         existing.email != claims.email or existing.email_verified != claims.email_verified
     )
     name_changed = claims.display_name is not None and user.display_name != claims.display_name
+    organisation_changed = (
+        claims.organisation is not None and user.organisation != claims.organisation
+    )
     existing.email = claims.email
     existing.email_verified = claims.email_verified
     if identity_changed:
@@ -240,12 +243,22 @@ def _resolve_existing(
     # before: append_audit_event flushes the session, and a flush discards
     # the attribute history diff_instance needs, so this event's own diff
     # would be empty (AuditNoOpError). close_account follows the same order.
+    # The organisation follows the same rule, one event per changed field.
     if name_changed:
         user.display_name = claims.display_name
         record_change(
             session,
             audit,
             action="user.renamed",
+            instance=user,
+            kind=ChangeKind.UPDATED,
+        )
+    if organisation_changed:
+        user.organisation = claims.organisation
+        record_change(
+            session,
+            audit,
+            action="user.organisation_changed",
             instance=user,
             kind=ChangeKind.UPDATED,
         )

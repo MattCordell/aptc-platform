@@ -12,6 +12,7 @@ from __future__ import annotations
 import pytest
 
 from nptc_shared.text import (
+    clean_text,
     escape_invisible,
     find_invisible_characters,
     has_surrounding_whitespace,
@@ -194,3 +195,21 @@ def test_normalise_for_comparison_does_not_collapse_a_non_normalisable_invisible
     the way a non-breaking space is."""
     result = normalise_for_comparison(f"Microscopy (acid fast{ZWSP}bacilli)")
     assert ZWSP in result
+
+
+def test_clean_text_normalises_and_reports_nothing_for_clean_text() -> None:
+    assert clean_text("  Example" + NBSP + "Pathology ") == ("Example Pathology", ())
+
+
+@pytest.mark.parametrize("invisible", [ZWSP, BOM, LINE_SEPARATOR], ids=["zwsp", "bom", "line-sep"])
+def test_clean_text_reports_an_invisible_character_it_cannot_repair(invisible: str) -> None:
+    text, refused = clean_text("a" + invisible + "b")
+
+    assert text == "a" + invisible + "b"
+    assert refused == (f"U+{ord(invisible):04X}",)
+
+
+def test_clean_text_excuses_only_the_characters_the_caller_allows() -> None:
+    _text, refused = clean_text("a" + chr(10) + "b" + ZWSP, allowed_invisible=frozenset({chr(10)}))
+
+    assert refused == ("U+200B",)

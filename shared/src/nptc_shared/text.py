@@ -123,3 +123,17 @@ def normalise_for_comparison(text: str) -> str:
     composed = unicodedata.normalize("NFC", text)
     collapsed = "".join(" " if is_normalisable_space(ch) else ch for ch in composed)
     return collapsed.strip()
+
+
+def clean_text(
+    text: str, *, allowed_invisible: frozenset[str] = frozenset()
+) -> tuple[str, tuple[str, ...]]:
+    """``text`` normalised, and the codepoints of the invisible characters left in it that
+    ``allowed_invisible`` does not excuse (FR-63). Submissions and the profile organisation share it."""
+    normalised = normalise_for_comparison(text)
+    refused = tuple(
+        found.codepoint
+        for found in find_invisible_characters(normalised)
+        if normalised[found.offset] not in allowed_invisible
+    )
+    return normalised, refused

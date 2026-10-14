@@ -259,6 +259,86 @@ def test_frontend_client_carries_the_api_audience_mapper(realm: dict[str, Any]) 
     assert mapper["config"]["access.token.claim"] == "true"
 
 
+def _user_profile(realm: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    components = realm["components"]["org.keycloak.userprofile.UserProfileProvider"]
+    assert len(components) == 1
+    config = json.loads(components[0]["config"]["kc.user.profile.config"][0])
+    return {attribute["name"]: attribute for attribute in config["attributes"]}
+
+
+@pytest.mark.req("FR-42")
+@pytest.mark.parametrize("name", ["username", "email", "firstName", "lastName", "organisation"])
+def test_registration_form_declares_every_identity_attribute(
+    realm: dict[str, Any], name: str
+) -> None:
+    """A registration without one of these is refused. `username` is always required by
+    Keycloak, so it carries no `required` block; the others must name the `user` role, which
+    is what makes the registration form enforce them."""
+    attribute = _user_profile(realm)[name]
+
+    if name != "username":
+        assert attribute["required"] == {"roles": ["user"]}
+
+
+@pytest.mark.req("FR-42")
+def test_username_cannot_be_an_email_address(realm: dict[str, Any]) -> None:
+    pattern = _user_profile(realm)["username"]["validations"]["pattern"]
+
+    assert re.fullmatch(pattern["pattern"], "dr_example")
+    assert not re.fullmatch(pattern["pattern"], "someone@example.org")
+
+
+@pytest.mark.req("FR-42")
+def test_organisation_length_matches_the_submission_limit(realm: dict[str, Any]) -> None:
+    from nptc.api.routers.submissions import CreateAmendmentRequest, CreateSubmissionRequest
+
+    realm_limit = _user_profile(realm)["organisation"]["validations"]["length"]["max"]
+
+    for request in (CreateSubmissionRequest, CreateAmendmentRequest):
+        limits = [
+            getattr(meta, "max_length", None)
+            for meta in request.model_fields["organisation"].metadata
+        ]
+        assert limits == [realm_limit], request.__name__
+
+
+@pytest.mark.req("FR-42")
+def test_frontend_client_puts_the_organisation_in_the_access_token(
+    realm: dict[str, Any],
+) -> None:
+    mappers = [
+        m
+        for m in _client(realm, "nptc-frontend")["protocolMappers"]
+        if m["config"].get("claim.name") == "organisation"
+    ]
+
+    assert len(mappers) == 1
+    config = mappers[0]["config"]
+    assert mappers[0]["protocolMapper"] == "oidc-usermodel-attribute-mapper"
+    assert config["user.attribute"] == "organisation"
+    assert config["access.token.claim"] == "true"
+    assert config["id.token.claim"] == "false"
+
+
+@pytest.mark.req("FR-42")
+def test_every_profile_message_key_exists_in_the_login_theme(realm: dict[str, Any]) -> None:
+    messages = (
+        DEPLOY_DIR
+        / "keycloak"
+        / "themes"
+        / "nptc"
+        / "login"
+        / "messages"
+        / "messages_en.properties"
+    ).read_text(encoding="utf-8")
+    organisation = _user_profile(realm)["organisation"]
+    username_pattern = _user_profile(realm)["username"]["validations"]["pattern"]
+
+    assert organisation["displayName"] == "${nptcOrganisation}"
+    assert re.search(r"^nptcOrganisation=.+", messages, re.MULTILINE)
+    assert re.search(rf"^{username_pattern['error-message']}=.+", messages, re.MULTILINE)
+
+
 @pytest.mark.req("NFR-03")
 def test_api_client_is_audience_only(realm: dict[str, Any]) -> None:
     api = _client(realm, "nptc-api")

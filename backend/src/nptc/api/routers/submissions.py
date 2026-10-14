@@ -103,6 +103,7 @@ from nptc.api.labels import (
 from nptc.api.rate_limit import RateLimitedResponse
 from nptc.api.routers.auth import ErrorResponse
 from nptc.auth.authorisation import resolve_quota
+from nptc.auth.claims import MAX_ORGANISATION_LENGTH
 from nptc.auth.permissions import Permission
 from nptc.catalogue.entries import BUSINESS_KEY_PATTERN
 from nptc.catalogue.property_values import PropertyValueInput
@@ -321,7 +322,6 @@ _PROPOSE_AMENDMENT = Depends(permission_dep(Permission.AMENDMENT_PROPOSE))
 _MAX_TERM_LENGTH: Final = 500
 _MAX_SYNONYMS: Final = 100
 _MAX_NOTES_LENGTH: Final = 10_000
-_MAX_ORGANISATION_LENGTH: Final = 500
 _MAX_JUSTIFICATION_LENGTH: Final = 2_000
 _MAX_VALUE_JSON_LENGTH: Final = 10_000
 _MAX_PROPERTY_KEY_LENGTH: Final = 100
@@ -374,7 +374,7 @@ class CreateSubmissionRequest(BaseModel):
         Annotated[list[SubmissionPropertyValueRequest], Field(max_length=_MAX_VALUES_PER_PROPERTY)],
     ] = Field(default_factory=dict, max_length=_MAX_PROPERTIES)
     notes: str | None = Field(default=None, max_length=_MAX_NOTES_LENGTH)
-    organisation: str | None = Field(default=None, max_length=_MAX_ORGANISATION_LENGTH)
+    organisation: str | None = Field(default=None, max_length=MAX_ORGANISATION_LENGTH)
     confirm_not_duplicate: bool = Field(
         default=False,
         description=(
@@ -408,7 +408,7 @@ class CreateAmendmentRequest(BaseModel):
     snomed_code: str | None = Field(default=None, max_length=_MAX_SCTID_LENGTH)
     reference_url: str | None = Field(default=None, max_length=MAX_URL_LENGTH)
     notes: str | None = Field(default=None, max_length=_MAX_NOTES_LENGTH)
-    organisation: str | None = Field(default=None, max_length=_MAX_ORGANISATION_LENGTH)
+    organisation: str | None = Field(default=None, max_length=MAX_ORGANISATION_LENGTH)
 
 
 class DuplicateCheckRequest(BaseModel):

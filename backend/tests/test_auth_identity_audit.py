@@ -39,6 +39,7 @@ def _claims(
     email_verified: bool = False,
     preferred_username: str | None = None,
     display_name: str | None = None,
+    organisation: str | None = None,
 ) -> OidcIdentityClaims:
     return OidcIdentityClaims(
         issuer=issuer,
@@ -47,6 +48,7 @@ def _claims(
         email_verified=email_verified,
         preferred_username=preferred_username,
         display_name=display_name,
+        organisation=organisation,
     )
 
 
@@ -573,3 +575,124 @@ def test_a_repeat_login_that_changes_both_email_and_display_name_emits_both_even
 
     renamed_events = _events_for_action(session, user_id, "user.renamed")
     assert len(renamed_events) == 1
+
+
+@pytest.mark.req("FR-42")
+@pytest.mark.integration
+def test_a_repeat_login_with_a_new_organisation_updates_it_and_emits_one_event(
+    app_db: Connection,
+) -> None:
+    session = Session(bind=app_db)
+    first_claims = _claims(
+        issuer=_UNTRUSTED,
+        subject="sub-repeat-organisation",
+        preferred_username="mona",
+        display_name="Mona",
+        organisation="Old Laboratory",
+    )
+    second_claims = _claims(
+        issuer=_UNTRUSTED,
+        subject="sub-repeat-organisation",
+        preferred_username="mona",
+        display_name="Mona",
+        organisation="New Laboratory",
+    )
+
+    first = resolve_user_for_claims(
+        session, first_claims, trusted_issuers=_TRUSTED, audit=AuditContext.system()
+    )
+    session.flush()
+    assert first.user is not None
+    user_id = first.user.id
+
+    second = resolve_user_for_claims(
+        session, second_claims, trusted_issuers=_TRUSTED, audit=AuditContext.system()
+    )
+    session.flush()
+    assert second.user is not None
+    assert second.user.organisation == "New Laboratory"
+
+    events = _events_for_action(session, user_id, "user.organisation_changed")
+    assert len(events) == 1
+    assert events[0]["before"] == {"_redacted": ["organisation"]}
+    assert events[0]["after"] == {"_redacted": ["organisation"]}
+    full_row_text = str(events[0])
+    assert "Old Laboratory" not in full_row_text
+    assert "New Laboratory" not in full_row_text
+    assert _events_for_action(session, user_id, "user.renamed") == []
+
+
+@pytest.mark.req("FR-42")
+@pytest.mark.integration
+def test_a_repeat_login_with_the_same_or_no_organisation_emits_nothing(
+    app_db: Connection,
+) -> None:
+    session = Session(bind=app_db)
+    claims = _claims(
+        issuer=_UNTRUSTED,
+        subject="sub-organisation-unchanged",
+        preferred_username="nell",
+        display_name="Nell",
+        organisation="Same Laboratory",
+    )
+    without = _claims(
+        issuer=_UNTRUSTED,
+        subject="sub-organisation-unchanged",
+        preferred_username="nell",
+        display_name="Nell",
+    )
+
+    first = resolve_user_for_claims(
+        session, claims, trusted_issuers=_TRUSTED, audit=AuditContext.system()
+    )
+    session.flush()
+    assert first.user is not None
+    user_id = first.user.id
+
+    for repeat in (claims, without):
+        resolved = resolve_user_for_claims(
+            session, repeat, trusted_issuers=_TRUSTED, audit=AuditContext.system()
+        )
+        session.flush()
+        assert resolved.user is not None
+        assert resolved.user.organisation == "Same Laboratory"
+
+    assert _events_for_action(session, user_id, "user.organisation_changed") == []
+
+
+@pytest.mark.req("FR-42")
+@pytest.mark.integration
+def test_a_repeat_login_that_changes_name_and_organisation_emits_both_events(
+    app_db: Connection,
+) -> None:
+    """Each assignment must follow the previous event's flush, or the second diff is empty."""
+    session = Session(bind=app_db)
+    first_claims = _claims(
+        issuer=_UNTRUSTED,
+        subject="sub-repeat-name-and-organisation",
+        preferred_username="otto",
+        display_name="Otto",
+        organisation="Old Laboratory",
+    )
+    second_claims = _claims(
+        issuer=_UNTRUSTED,
+        subject="sub-repeat-name-and-organisation",
+        preferred_username="otto",
+        display_name="Otto Renamed",
+        organisation="New Laboratory",
+    )
+
+    first = resolve_user_for_claims(
+        session, first_claims, trusted_issuers=_TRUSTED, audit=AuditContext.system()
+    )
+    session.flush()
+    assert first.user is not None
+    user_id = first.user.id
+
+    resolve_user_for_claims(
+        session, second_claims, trusted_issuers=_TRUSTED, audit=AuditContext.system()
+    )
+    session.flush()
+
+    assert len(_events_for_action(session, user_id, "user.renamed")) == 1
+    assert len(_events_for_action(session, user_id, "user.organisation_changed")) == 1
