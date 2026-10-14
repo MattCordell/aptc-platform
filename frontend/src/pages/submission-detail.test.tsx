@@ -427,6 +427,57 @@ describe("submission detail withdraw (FR-28)", () => {
   });
 });
 
+describe("submission detail interest identities (FR-33, FR-44, NFR-20)", () => {
+  const IDENTITIES: Route = {
+    method: "GET",
+    path: INTEREST,
+    status: 200,
+    body: {
+      interest_count: 1,
+      distinct_organisation_count: 1,
+      distinct_organisations: [
+        { organisation: "Acme Pathology", label: "Acme Pathology", count: 1 },
+      ],
+      records: [
+        {
+          username: "u-sam",
+          display_name: "Sam Submitter",
+          organisation: "Acme Pathology",
+          registered_at: "2026-09-02T12:00:00Z",
+        },
+      ],
+    },
+  };
+
+  it("shows who registered interest to a caller who may see identities", async () => {
+    const { container } = await open([
+      me(["interest.identities.view", "interest.register"]),
+      DEFINITIONS,
+      detail(),
+      IDENTITIES,
+    ]);
+
+    const heading = await screen.findByRole("heading", {
+      name: "Who registered interest",
+    });
+    const section = heading.parentElement as HTMLElement;
+    expect(await within(section).findByText("Sam Submitter")).toBeVisible();
+    expect(within(section).getByText("1 person from 1 organisation.")).toBeVisible();
+    await expectNoA11yViolations(container);
+  });
+
+  it("neither shows the panel nor asks the server for it for a Member", async () => {
+    const { calls } = await open([MEMBER, DEFINITIONS, detail(), IDENTITIES]);
+
+    await screen.findByRole("heading", { level: 1, name: "Ferritin level" });
+    await screen.findByRole("button", { name: "Register interest" });
+    expect(screen.queryByRole("heading", { name: "Who registered interest" })).toBeNull();
+    expect(calls.some((call) => call.method === "GET" && call.path === INTEREST)).toBe(
+      false,
+    );
+  });
+});
+
 describe("submission detail failures", () => {
   it("shows the not-found page for an unknown id", async () => {
     await open([
