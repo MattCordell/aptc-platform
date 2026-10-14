@@ -34,7 +34,7 @@ new screen adds a route here; it does not invent a path anywhere else. Full inve
 | `/exports`, `/about` | FR-62–FR-69, FR-78 |
 | `/terms` (issue #435, a real screen: `pages/terms.tsx`) | NFR-45, NFR-47 |
 | `/sign-in?redirect=`, `/sign-out`, `/register`, `/auth/callback` | issue #41 |
-| `/submissions` (+ `mine=true`, `state` and `after` search params, issue #588, a real screen: `pages/submission-list.tsx`), `/submissions/new` (+ `entry` search param opens amendment mode, issue #548), `/submissions/$submissionId` (interest registration, FR-32 and FR-33, lives on this page: issue #589) | FR-23–FR-35 |
+| `/submissions` (+ `mine=true`, `state` and `after` search params, issue #588, a real screen: `pages/submission-list.tsx`), `/submissions/new` (+ `entry` search param opens amendment mode, issue #548), `/submissions/$submissionId` (a real screen, issue #589: `pages/submission-detail.tsx`, with the interest button in `submissions/interest-button.tsx`; the identities panel, FR-33, is still to come) | FR-23–FR-35 |
 | `/account` | placeholder, no screen yet |
 | `/admin`, `/admin/catalogue` (+ `q`, `after`, `filter.<key>` search params, issue #267), `/admin/catalogue{/new,/$businessKey/edit}` | FR-36–FR-39 |
 | `/admin/properties` (+ `deprecated=show` search param), `/admin/properties/$propertyKey`, `/admin/properties/$propertyKey/edit`, `/admin/properties/new` | FR-08–FR-13 |

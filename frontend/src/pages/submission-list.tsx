@@ -16,6 +16,7 @@ import { Select } from "../components/select.tsx";
 import { StatusBadge } from "../components/status-badge.tsx";
 import { useAnnounce } from "../components/use-announce.ts";
 import { useKeysetPaging } from "../components/use-keyset-paging.ts";
+import { SubmissionKind, SubmitterView } from "../submissions/kind-and-submitter.tsx";
 import {
   defaultStateFilter,
   isSubmissionStateFilter,
@@ -90,45 +91,6 @@ function emptyStateText(
   return filter === "open"
     ? "There are no open submissions."
     : `There are no ${submissionStateLabel(filter)} submissions.`;
-}
-
-function KindCell({ row }: { row: Row }) {
-  if (row.kind === "new_test") {
-    return "New test";
-  }
-  if (row.kind !== "amendment") {
-    return row.kind;
-  }
-  if (row.entry_business_key === null) {
-    return "Amendment";
-  }
-  return (
-    <>
-      Amendment to{" "}
-      <Link
-        to="/catalogue/$businessKey"
-        params={{ businessKey: row.entry_business_key }}
-        className="text-[var(--color-accent)] hover:underline"
-      >
-        {row.entry_business_key}
-      </Link>
-    </>
-  );
-}
-
-function SubmitterCell({ row }: { row: Row }) {
-  const submitter = row.submitter;
-  if (!("display_name" in submitter)) {
-    return submitter.username;
-  }
-  return (
-    <span className="flex flex-col">
-      <span>{submitter.display_name}</span>
-      {submitter.organisation === null ? null : (
-        <span className={MUTED}>{submitter.organisation}</span>
-      )}
-    </span>
-  );
 }
 
 export function SubmissionListPage() {
@@ -296,7 +258,12 @@ export function SubmissionListPage() {
                   {
                     key: "kind",
                     header: "Kind",
-                    render: (row: Row) => <KindCell row={row} />,
+                    render: (row: Row) => (
+                      <SubmissionKind
+                        kind={row.kind}
+                        entryBusinessKey={row.entry_business_key}
+                      />
+                    ),
                   },
                   {
                     key: "state",
@@ -316,7 +283,7 @@ export function SubmissionListPage() {
                   {
                     key: "submitter",
                     header: "Submitter",
-                    render: (row: Row) => <SubmitterCell row={row} />,
+                    render: (row: Row) => <SubmitterView submitter={row.submitter} />,
                   },
                   {
                     key: "interest_count",

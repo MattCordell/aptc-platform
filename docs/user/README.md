@@ -32,6 +32,9 @@
   amendment mode, opened from **Propose a change** on an active entry's page.
 - [Finding submissions](finding-submissions.md) — issue #588. The list at `/submissions`:
   All and My submissions, the state filter and paging.
+- [Reading a submission and registering interest](reading-a-submission.md) — issue #589. The
+  page at `/submissions/<id>`: what the submitter sent, the reference check, and the interest
+  button and count.
 - [Reading the preferred-term length distribution report](reading-the-length-distribution-report.md)
   — issue #152, API-only; there is no admin screen for this report yet.
 

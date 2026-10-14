@@ -39,7 +39,8 @@ returns the address to its plain form.
 
 Each row shows:
 
-- **Requesting term**, the proposed name. Choose it to open the submission.
+- **Requesting term**, the proposed name. Choose it to open the submission. See
+  [Reading a submission and registering interest](reading-a-submission.md).
 - **Kind**. A new test says "New test". A change says "Amendment to" and the identifier of
   the entry it changes, for example NPTC-000247. Choose the identifier to open that entry.
 - **State**, written out in words as well as shown in colour.
