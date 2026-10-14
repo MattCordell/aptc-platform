@@ -36,10 +36,12 @@ import {
   useRetireDesignation,
   useSavePropertyValues,
   useSession,
+  useInterestIdentities,
   useRegisterInterest,
   useRevokeInterest,
   useSubmissionDetail,
   useSubmissionsList,
+  useWithdrawSubmission,
 } from "./queries.ts";
 import type { ApiError } from "./unwrap.ts";
 
@@ -502,6 +504,190 @@ describe("useRegisterInterest and useRevokeInterest (FR-32, FR-34)", () => {
       "You cannot register interest in your own submission.",
     );
     expect(result.current.read.data?.has_registered_interest).toBe(false);
+  });
+
+  it("marks the identities stale so a reviewer's own click reaches the panel", async () => {
+    stubApi([
+      {
+        method: "PUT",
+        path: INTEREST,
+        status: 200,
+        body: { has_registered_interest: true, interest_count: 1 },
+      },
+    ]);
+    const { Wrapper, queryClient } = sharedClientWrapper();
+    const identitiesKey = ["api", "/api/v1/submissions/{submission_id}/interest", ID];
+    queryClient.setQueryData(identitiesKey, { records: [] });
+    const { result } = renderHook(() => useRegisterInterest(ID), { wrapper: Wrapper });
+
+    result.current.mutate();
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(queryClient.getQueryState(identitiesKey)?.isInvalidated).toBe(true);
+  });
+});
+
+describe("useInterestIdentities (FR-33)", () => {
+  const ID = "0b8a5c7e-6a43-4f56-9d1b-2f4f5a4e1c12";
+  const INTEREST = `/api/v1/submissions/${ID}/interest`;
+  const IDENTITIES = {
+    interest_count: 1,
+    distinct_organisation_count: 1,
+    distinct_organisations: [{ organisation: "Acme", label: "Acme", count: 1 }],
+    records: [
+      {
+        username: "u-a",
+        display_name: "A Person",
+        organisation: "Acme",
+        registered_at: "2026-09-01T12:00:00Z",
+      },
+    ],
+  };
+
+  it("reads the identities when enabled", async () => {
+    stubApi([{ method: "GET", path: INTEREST, status: 200, body: IDENTITIES }]);
+
+    const { result } = renderHook(() => useInterestIdentities(ID, true), { wrapper });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data?.records[0]?.display_name).toBe("A Person");
+  });
+
+  // The principal failure mode (NFR-20): a caller without the permission must
+  // never cost the server a 403.
+  it("sends no request when disabled", async () => {
+    const calls = stubApi([
+      { method: "GET", path: INTEREST, status: 200, body: IDENTITIES },
+    ]);
+
+    const { result } = renderHook(() => useInterestIdentities(ID, false), { wrapper });
+
+    await waitFor(() => expect(result.current.fetchStatus).toBe("idle"));
+    expect(calls).toHaveLength(0);
+  });
+});
+
+describe("useWithdrawSubmission (FR-28)", () => {
+  const ID = "0b8a5c7e-6a43-4f56-9d1b-2f4f5a4e1c13";
+  const DETAIL = `/api/v1/submissions/${ID}`;
+  const WITHDRAW = `${DETAIL}/withdraw`;
+  const detail = {
+    id: ID,
+    preferred_term: "Ferritin",
+    state: "Submitted",
+    row_version: 1,
+    interest_count: 2,
+  };
+  const BODY = { reason: "Sent in error.", expected_row_version: 1 };
+
+  function sharedClientWrapper() {
+    const queryClient = createQueryClient();
+    const Wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>
+        <AuthContext.Provider value={AUTH}>{children}</AuthContext.Provider>
+      </QueryClientProvider>
+    );
+    return { Wrapper, queryClient };
+  }
+
+  it("posts the reason and version, and writes the new state into the cached detail", async () => {
+    const calls = stubApi([
+      { method: "GET", path: DETAIL, status: 200, body: detail },
+      {
+        method: "POST",
+        path: WITHDRAW,
+        status: 200,
+        body: { id: ID, state: "Withdrawn", row_version: 2 },
+      },
+    ]);
+    const { Wrapper } = sharedClientWrapper();
+    const { result } = renderHook(
+      () => ({ read: useSubmissionDetail(ID), write: useWithdrawSubmission(ID) }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.read.isSuccess).toBe(true));
+
+    result.current.write.mutate(BODY);
+
+    await waitFor(() => expect(result.current.read.data?.state).toBe("Withdrawn"));
+    expect(result.current.read.data).toMatchObject({
+      preferred_term: "Ferritin",
+      row_version: 2,
+    });
+    expect(calls.find((call) => call.method === "POST")?.body).toEqual(BODY);
+    expect(calls.filter((call) => call.method === "GET")).toHaveLength(1);
+  });
+
+  it("marks the list stale so its State column re-reads", async () => {
+    stubApi([
+      {
+        method: "POST",
+        path: WITHDRAW,
+        status: 200,
+        body: { id: ID, state: "Withdrawn", row_version: 2 },
+      },
+    ]);
+    const { Wrapper, queryClient } = sharedClientWrapper();
+    queryClient.setQueryData(["api", "/api/v1/submissions", {}], { items: [] });
+    const { result } = renderHook(() => useWithdrawSubmission(ID), { wrapper: Wrapper });
+
+    result.current.mutate(BODY);
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(
+      queryClient.getQueryState(["api", "/api/v1/submissions", {}])?.isInvalidated,
+    ).toBe(true);
+  });
+
+  it.each([
+    [
+      "a stale version",
+      { detail: "Reload.", expected_row_version: 1, current_row_version: 2 },
+    ],
+    ["a closed state", { detail: "This submission is closed." }],
+  ])("re-reads the detail on a 409 for %s", async (_name, refusal) => {
+    const calls = stubApi([
+      { method: "GET", path: DETAIL, status: 200, body: detail },
+      { method: "POST", path: WITHDRAW, status: 409, body: refusal },
+    ]);
+    const { Wrapper } = sharedClientWrapper();
+    const { result } = renderHook(
+      () => ({ read: useSubmissionDetail(ID), write: useWithdrawSubmission(ID) }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.read.isSuccess).toBe(true));
+
+    result.current.write.mutate(BODY);
+
+    await waitFor(() => expect(result.current.write.isError).toBe(true));
+    await waitFor(() =>
+      expect(calls.filter((call) => call.method === "GET").length).toBeGreaterThan(1),
+    );
+    expect(result.current.read.data?.state).toBe("Submitted");
+  });
+
+  it("leaves the detail alone on a 422 for the reason", async () => {
+    const calls = stubApi([
+      { method: "GET", path: DETAIL, status: 200, body: detail },
+      {
+        method: "POST",
+        path: WITHDRAW,
+        status: 422,
+        body: { detail: "Enter a reason.", field: "reason" },
+      },
+    ]);
+    const { Wrapper } = sharedClientWrapper();
+    const { result } = renderHook(
+      () => ({ read: useSubmissionDetail(ID), write: useWithdrawSubmission(ID) }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.read.isSuccess).toBe(true));
+
+    result.current.write.mutate(BODY);
+
+    await waitFor(() => expect(result.current.write.isError).toBe(true));
+    expect(refusalDetail(result.current.write.error)).toBe("Enter a reason.");
+    expect(calls.filter((call) => call.method === "GET")).toHaveLength(1);
   });
 });
 
