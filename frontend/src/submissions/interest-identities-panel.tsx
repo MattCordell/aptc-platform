@@ -23,6 +23,9 @@ function plural(count: number, one: string, many: string): string {
 
 function summary(identities: Identities): string {
   const people = plural(identities.interest_count, "person", "people");
+  if (identities.distinct_organisation_count === 0) {
+    return `${people}. No one gave an organisation.`;
+  }
   const organisations = plural(
     identities.distinct_organisation_count,
     "organisation",

@@ -420,6 +420,68 @@ describe("submission detail withdraw (FR-28)", () => {
     expect(screen.getByRole("dialog")).toBeVisible();
   });
 
+  it("sends the new version when the user tries again after a stale refusal", async () => {
+    let refused = false;
+    const calls = stubApi(
+      [
+        SUBMITTER,
+        DEFINITIONS,
+        detail({ is_own: true, row_version: 1 }),
+        {
+          method: "POST",
+          path: WITHDRAW,
+          status: 409,
+          body: { detail: "Changed.", expected_row_version: 1, current_row_version: 2 },
+        },
+      ],
+      {
+        vary: (call, priorSameCalls) => {
+          if (call.method === "POST" && call.path === WITHDRAW) {
+            refused = true;
+            return priorSameCalls === 0
+              ? null
+              : {
+                  method: "POST",
+                  path: WITHDRAW,
+                  status: 200,
+                  body: { id: ID, state: "Withdrawn", row_version: 3 },
+                };
+          }
+          return refused && call.method === "GET" && call.path === DETAIL
+            ? detail({ is_own: true, row_version: 2 })
+            : null;
+        },
+      },
+    );
+    await renderRoute(`/submissions/${ID}`, SIGNED_IN);
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Withdraw submission" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.type(
+      within(dialog).getByRole("textbox", { name: /Reason/ }),
+      "Sent in error.",
+    );
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Confirm withdrawal" }),
+    );
+    await within(dialog).findAllByText(/Reload the page to see the latest version/);
+    await waitFor(() => expect(detailReads(calls)).toBeGreaterThan(1));
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Confirm withdrawal" }),
+    );
+
+    expect(await screen.findByText("You withdrew this submission.")).toBeVisible();
+    const posts = calls.filter((call) => call.method === "POST");
+    expect(
+      posts.map(
+        (call) => (call.body as { expected_row_version: number }).expected_row_version,
+      ),
+    ).toEqual([1, 2]);
+  });
+
   it("offers no button to another Member", async () => {
     await open([SUBMITTER, DEFINITIONS, detail({ is_own: false })]);
     await screen.findByRole("heading", { level: 1, name: "Ferritin level" });

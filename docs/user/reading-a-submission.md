@@ -82,7 +82,8 @@ Registering twice, or withdrawing twice, changes nothing the second time.
 Reviewers and Administrators see an extra panel, **Who registered interest**. Other people
 do not see it, and their browser never asks the platform for it. The panel shows:
 
-- A summary, for example "3 people from 2 organisations".
+- A summary, for example "3 people from 2 organisations". If no one gave an organisation, it
+  reads "1 person. No one gave an organisation."
 - **Organisations**: each organisation with the number of people who named it. Spellings that
   differ only by capital letters or spaces count as one organisation. People who gave no
   organisation are grouped under "No organisation given", and that group is not counted in the

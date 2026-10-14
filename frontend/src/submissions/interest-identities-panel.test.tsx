@@ -143,6 +143,38 @@ describe("InterestIdentitiesPanel", () => {
     expect(screen.getAllByText("No organisation given")).toHaveLength(2);
   });
 
+  it("does not say '0 organisations' when no one gave one", async () => {
+    stubApi([
+      REVIEWER,
+      {
+        method: "GET",
+        path: INTEREST,
+        status: 200,
+        body: {
+          interest_count: 1,
+          distinct_organisation_count: 0,
+          distinct_organisations: [
+            { organisation: null, label: "No organisation given", count: 1 },
+          ],
+          records: [
+            {
+              username: "u-sam",
+              display_name: "Sam Submitter",
+              organisation: null,
+              registered_at: "2026-09-02T12:00:00Z",
+            },
+          ],
+        },
+      },
+    ]);
+    renderPanel();
+
+    expect(
+      await screen.findByText("1 person. No one gave an organisation."),
+    ).toBeVisible();
+    expect(screen.queryByText(/0 organisations/)).toBeNull();
+  });
+
   it("says so when no one has registered interest", async () => {
     stubApi([
       REVIEWER,
