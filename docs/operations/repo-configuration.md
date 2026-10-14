@@ -13,6 +13,10 @@ script and none of these are declared in a tracked file (`scripts/backlog_sync.p
 its `LABEL_TAXONOMY` were retired in issue #101 — GitHub Issues, Milestones and the
 Projects v2 board are the source of truth for themselves, including for labels).
 
+The board's Status field has the options `Backlog`, `Ready`, `In progress`, `In review` and `Done`.
+The spelling matters to scripts: `In progress` has a lower-case p, so a lookup for `In Progress`
+finds no option.
+
 ### Current label inventory
 
 ```text

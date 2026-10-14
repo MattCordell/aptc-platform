@@ -8,7 +8,8 @@ for catalogue content.
 content column out of the `UPDATE` grant, so what the submitter sent is a privilege-level fact, not
 an application convention. `row_version` sits inside the grant because `version_id_col` writes it
 on every mapped update, as on `catalogue_entry`. There is no `DELETE` grant: a submission leaves the
-workflow through `state`.
+workflow through `state`. Every change of `state` goes through `nptc.submissions.transitions`, which
+also writes a `submission_transition` row.
 
 **`snomed_code` is `TEXT`, and `snomed_fsn` comes from the terminology server (FR-06, FR-82).** The
 code passes `nptc_sctid_is_valid` (ADR-0023), and the two columns are both present or both absent,
@@ -66,6 +67,7 @@ class SubmissionKind(StrEnum):
 
 class SubmissionState(StrEnum):
     SUBMITTED = "Submitted"
+    TRIAGE = "Triage"
     PUBLISHED_IN_RELEASE = "Published in release"
     REJECTED = "Rejected"
     WITHDRAWN = "Withdrawn"
@@ -85,7 +87,7 @@ CLOSED_SUBMISSION_STATES: Final[tuple[str, ...]] = (
 #: Plain literals, never built from the `StrEnum`s above: `test_sql_parameterisation.py`'s AST guard
 #: forbids SQL built from runtime data.
 _KIND_CHECK_SQL = "kind IN ('new_test','amendment')"
-_STATE_CHECK_SQL = "state IN ('Submitted','Published in release','Rejected','Withdrawn')"
+_STATE_CHECK_SQL = "state IN ('Submitted','Triage','Published in release','Rejected','Withdrawn')"
 _PREFERRED_TERM_NOT_BLANK_SQL = "length(btrim(preferred_term)) > 0"
 _SYNONYMS_IS_ARRAY_SQL = "jsonb_typeof(synonyms) = 'array'"
 _PROPERTY_VALUES_IS_OBJECT_SQL = "jsonb_typeof(property_values) = 'object'"

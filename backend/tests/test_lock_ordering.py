@@ -254,12 +254,18 @@ def _assigns_row_version(func_def: _FuncDef) -> bool:
 _SESSION_FREE_PRECHECKS = frozenset(
     {
         "validate_changelog_note",
+        "clean_transition_reason",
         "clean_term",
         "SCTID",
         "_validate_edition_hint",
         "_validate_system",
     }
 )
+
+
+#: The prechecks that validate a `reason`: the catalogue's changelog note and a submission's
+#: reason for a change of state.
+_REASON_PRECHECKS = frozenset({"validate_changelog_note", "clean_transition_reason"})
 
 
 def _precheck_call_name(stmt: ast.stmt) -> str | None:
@@ -335,7 +341,7 @@ def _validates_reason_before_lock(func_def: _FuncDef) -> bool:
     if not takes_reason:
         return True
     prechecks = _pre_lock_prechecks(func_def)
-    return prechecks is not None and "validate_changelog_note" in prechecks
+    return prechecks is not None and not _REASON_PRECHECKS.isdisjoint(prechecks)
 
 
 def _derive_from_sources(sources: Mapping[str, str]) -> dict[_FuncKey, _FuncDef]:
@@ -598,8 +604,9 @@ def test_guard_scans_the_submissions_package() -> None:
 @pytest.mark.req("NFR-08")
 def test_the_only_exempt_submissions_writers_are_the_two_named_with_a_reason() -> None:
     """The scan reaches the package, so a new writer there is held to the lock-first rule unless it
-    is named, with a reason, in `_EXEMPT_FUNCTIONS`. The two interest writers take the lock first
-    and are not exempt, so they are the whole of what the rule checks there."""
+    is named, with a reason, in `_EXEMPT_FUNCTIONS`. The two interest writers and the transition
+    writer take the lock first and are not exempt, so they are the whole of what the rule checks
+    there."""
     exempt_here = {key for key in _EXEMPT_FUNCTIONS if key[0].startswith("submissions.")}
     assert exempt_here == {
         ("submissions.new_test", "create_new_test_submission"),
@@ -609,6 +616,7 @@ def test_the_only_exempt_submissions_writers_are_the_two_named_with_a_reason() -
     assert unexempted == {
         ("submissions.interest", "register_interest"),
         ("submissions.interest", "revoke_interest"),
+        ("submissions.transitions", "transition_submission"),
     }
 
 

@@ -1,4 +1,5 @@
-"""Refusals specific to a submission: creating, reading and interest (FR-26, FR-32, FR-35, FR-42)."""
+"""Refusals specific to a submission: creating, reading, interest and changes of state (FR-26, FR-28,
+FR-32, FR-35, FR-42)."""
 
 from __future__ import annotations
 
@@ -18,6 +19,7 @@ __all__ = [
     "CodeRefusal",
     "FreeTextField",
     "FreeTextRefusedError",
+    "IllegalSubmissionTransitionError",
     "MalformedSubmissionCursorError",
     "OwnSubmissionInterestError",
     "SubmissionCodeRefusedError",
@@ -25,6 +27,8 @@ __all__ = [
     "SubmissionCodeUpstreamError",
     "SubmissionDuplicatesFoundError",
     "SubmissionNotFoundError",
+    "SubmissionVersionConflictError",
+    "TransitionReasonRequiredError",
 ]
 
 
@@ -69,6 +73,7 @@ class FreeTextField(StrEnum):
 
     NOTES = "notes"
     ORGANISATION = "organisation"
+    REASON = "reason"
 
 
 class FreeTextRefusedError(ValueError):
@@ -157,3 +162,38 @@ class ClosedSubmissionInterestError(Exception):
     def __init__(self, state: str) -> None:
         self.state = state
         super().__init__(f"interest refused, submission is {state}")
+
+
+class IllegalSubmissionTransitionError(Exception):
+    """The permitted-transitions table has no row for this move from the submission's current state
+    (FR-28). A closed submission is never reinterpreted, so a second withdrawal lands here. The
+    message holds no caller text."""
+
+    http_status: ClassVar[int] = 409
+
+    def __init__(self, from_state: str, to_state: str) -> None:
+        self.from_state = from_state
+        self.to_state = to_state
+        super().__init__(f"transition refused, {from_state} to {to_state} is not permitted")
+
+
+class SubmissionVersionConflictError(Exception):
+    """The caller's `expected_row_version` is not the submission's current one, so someone else
+    changed it since the caller read it (FR-28, FR-38's pattern). Carries both numbers so the
+    response can tell the caller where it stands."""
+
+    http_status: ClassVar[int] = 409
+
+    def __init__(self, *, expected_row_version: int, current_row_version: int) -> None:
+        self.expected_row_version = expected_row_version
+        self.current_row_version = current_row_version
+        super().__init__(
+            f"submission row_version is {current_row_version}, expected {expected_row_version}"
+        )
+
+
+class TransitionReasonRequiredError(ValueError):
+    """The reason for a change of state is empty once cleaned (FR-28). A change of state always
+    says why."""
+
+    http_status: ClassVar[int] = 422
