@@ -27,6 +27,7 @@ import base64
 import hashlib
 import html
 import importlib.util
+import json
 import re
 import secrets
 import sys
@@ -132,6 +133,9 @@ def _create_test_user(base_url: str, username: str = TEST_USERNAME) -> None:
         json={
             "username": username,
             "email": f"{username}@example.test",
+            "firstName": "Pat",
+            "lastName": "Tester",
+            "attributes": {"organisation": ["Test Pathology"]},
             "emailVerified": True,
             "enabled": True,
             "credentials": [{"type": "password", "value": TEST_PASSWORD, "temporary": False}],
@@ -505,6 +509,121 @@ def test_registration_links_point_at_the_frontend_whichever_client_started_the_f
     assert f'href="{FRONTEND_BASE_URL}/privacy"' in page
     assert f'href="{FRONTEND_BASE_URL}/terms"' in page
     assert "/account/privacy" not in page
+
+
+_REGISTRATION = {
+    "username": "registrant-one",
+    "email": "registrant-one@example.test",
+    "firstName": "Robin",
+    "lastName": "Registrant",
+    "organisation": "Example Pathology Service",
+    "password": "registrant-test-only-not-a-real-secret",
+    "password-confirm": "registrant-test-only-not-a-real-secret",
+}
+
+
+def _register(
+    realm: Realm, fields: dict[str, str], *, challenge: str, state: str
+) -> httpx.Response:
+    """Submits the realm's registration form as a browser would and returns the response
+    without following the redirect, so the authorisation code stays visible."""
+    jar = CookieJar()
+    with httpx.Client(timeout=30) as client:
+        page = client.get(
+            realm.authorization_endpoint.removesuffix("/auth") + "/registrations",
+            params=_authorize_params(challenge, state=state),
+            follow_redirects=True,
+        )
+        page.raise_for_status()
+        jar.collect(page)
+        action = re.search(r'<form id="kc-register-form"[^>]*action="([^"]+)"', page.text)
+        assert action is not None, "Keycloak registration page had no form"
+        return client.post(
+            html.unescape(action.group(1)),
+            data=fields,
+            follow_redirects=False,
+            headers=jar.header,
+        )
+
+
+def _claims(access_token: str) -> dict[str, object]:
+    payload = access_token.split(".")[1]
+    return dict(json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4))))
+
+
+@pytest.mark.integration
+@pytest.mark.req("FR-42")
+def test_registration_form_asks_for_name_organisation_and_username(realm: Realm) -> None:
+    page = _registration_page(realm).text
+
+    for field in ("username", "email", "firstName", "lastName", "organisation"):
+        assert f'name="{field}"' in page, field
+    assert _label_targets_without_input(page) == []
+
+
+@pytest.mark.integration
+@pytest.mark.req("FR-42")
+def test_completed_registration_puts_name_and_organisation_in_the_access_token(
+    realm: Realm,
+) -> None:
+    verifier, challenge = _pkce_pair()
+    state = secrets.token_urlsafe(16)
+
+    submitted = _register(realm, _REGISTRATION, challenge=challenge, state=state)
+    token = _exchange(realm, _code_from(submitted, state=state), verifier)
+
+    assert token.status_code == 200, token.text
+    claims = _claims(token.json()["access_token"])
+    assert claims["organisation"] == "Example Pathology Service"
+    assert claims["name"] == "Robin Registrant"
+    assert claims["preferred_username"] == "registrant-one"
+
+
+@pytest.mark.integration
+@pytest.mark.req("FR-42")
+@pytest.mark.parametrize("missing", ["firstName", "lastName", "organisation", "email", "username"])
+def test_registration_without_a_required_field_is_refused(realm: Realm, missing: str) -> None:
+    """The principal failure mode: a person who leaves out any one of the details the
+    catalogue attributes work to is not given an account."""
+    _verifier, challenge = _pkce_pair()
+    fields = {
+        **_REGISTRATION,
+        "username": f"refused-{missing.lower()}",
+        "email": f"refused-{missing.lower()}@example.test",
+        missing: "",
+    }
+
+    refused = _register(realm, fields, challenge=challenge, state=secrets.token_urlsafe(16))
+
+    assert refused.status_code == 200, refused.text
+    assert 'id="kc-register-form"' in refused.text
+    assert f'id="input-error-{missing}"' in refused.text
+
+
+@pytest.mark.integration
+@pytest.mark.req("FR-42")
+def test_registration_with_a_blank_organisation_is_refused(realm: Realm) -> None:
+    """Whitespace is not an organisation."""
+    _verifier, challenge = _pkce_pair()
+    fields = {**_REGISTRATION, "username": "blank-organisation", "organisation": "   "}
+
+    refused = _register(realm, fields, challenge=challenge, state=secrets.token_urlsafe(16))
+
+    assert refused.status_code == 200, refused.text
+    assert 'id="input-error-organisation"' in refused.text
+
+
+@pytest.mark.integration
+@pytest.mark.req("FR-42")
+def test_registration_with_an_email_address_as_the_username_is_refused(realm: Realm) -> None:
+    _verifier, challenge = _pkce_pair()
+    fields = {**_REGISTRATION, "username": "someone@example.test"}
+
+    refused = _register(realm, fields, challenge=challenge, state=secrets.token_urlsafe(16))
+
+    assert refused.status_code == 200, refused.text
+    assert 'id="input-error-username"' in refused.text
+    assert "not an email address" in refused.text
 
 
 @pytest.mark.integration

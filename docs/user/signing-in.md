@@ -7,13 +7,25 @@ commenting, or reviewing.
 ## Creating an account
 
 Choose **Register** at the top right of any page. You are taken to the NPTC sign-in
-service, where you create an account with a username, an email address and a password.
-This is an ordinary registration form: the catalogue application itself never sees your
-password.
+service, where you create an account. The form asks for:
+
+- your first name and last name;
+- your organisation;
+- a username of your choice, which shows to others instead of your email address; and
+- your email address and a password.
+
+Every one of these is required. If you leave one out, the form stays open and marks the
+field that is missing. A username cannot contain an **@** sign, because the catalogue does
+not show email addresses. This is an ordinary registration form: the catalogue application
+itself never sees your password.
 
 Once you have registered you are returned to the catalogue, already signed in. A new
 account starts as a **Provisional** member; an administrator can grant further roles
 later.
+
+The catalogue keeps your organisation with your account. A new submission offers it as the
+organisation by default. If you change it in your sign-in account, the catalogue picks up the
+new value the next time you sign in.
 
 The registration page explains how your details are used and links to the privacy policy
 and the terms of use. It also says that the organisation recorded on a submission or an

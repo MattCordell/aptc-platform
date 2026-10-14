@@ -223,6 +223,15 @@ assignment runs *after* the identity's own `record_change`, not before: `append_
 flushes the session before reading the chain tail, which would otherwise commit away the
 attribute history the `user.renamed` diff needs (issue #167).
 
+The same rules cover the organisation (FR-42). `nptc.auth.tokens` reads the `organisation`
+claim, normalises it like any free text and drops it if it holds an invisible character
+(FR-63) or runs past `MAX_ORGANISATION_LENGTH`. A dropped or absent claim never fails a
+sign-in and never clears a stored value. `_create_user` stores a usable claim at first
+sign-in. A later sign-in that carries a different value updates `app_user.organisation` and
+emits `user.organisation_changed`, a separate event from `user.renamed`, with each assignment
+following the previous event's flush. `app_user.organisation` is withheld from the event
+diff, so the event names the field and nothing else.
+
 `request.client.host` is not always an IP (Starlette's `TestClient` reports
 `"testclient"`; a unix-socket deployment reports a path), and `AuditContext.actor_ip`
 feeds a parser that raises on anything else — so a non-IP value is recorded as `None`
@@ -296,6 +305,28 @@ The level reached only reaches the backend if the token says so. Keycloak writes
 claim through the mapper in its built-in `acr` client scope, so `nptc-frontend` lists `acr`
 in its `defaultClientScopes`. Without it, every token lacks `acr`, `mfa_satisfied` is always
 false, and no Administrator can complete step-up.
+
+## The registration profile
+
+The realm file declares a Keycloak user profile (FR-42) as a `components` entry for
+`org.keycloak.userprofile.UserProfileProvider`. Without one, Keycloak's default profile
+applies and the form asks for no organisation.
+
+- **Required attributes.** `firstName`, `lastName`, `email` and `organisation` are required for
+  the `user` role, so the registration form refuses a blank one and marks the field.
+  `username` is always required.
+- **Username.** The default validators stay, and a `pattern` validator refuses an `@`, so an
+  email address cannot become the public handle (NFR-26, NFR-35).
+- **Organisation.** An attribute of the user, limited to `MAX_ORGANISATION_LENGTH` (500)
+  characters to match the submission form. A client-level `oidc-usermodel-attribute-mapper`
+  on `nptc-frontend` writes it to the access token as `organisation`. The mapper is on the
+  client, not in a top-level `clientScopes` array, for the reason ADR-0014 gives.
+- **Real name.** The built-in `profile` scope already builds the `name` claim from first and
+  last name, and the backend reads that claim as `display_name`.
+
+Because `--import-realm` skips a realm that already exists, an existing deployment gets the
+profile only after its Keycloak container is recreated
+([configuration](../operations/configuration.md)).
 
 ## The login theme
 

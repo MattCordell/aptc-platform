@@ -33,6 +33,8 @@ from nptc.auth.errors import (
 )
 from nptc.auth.jwks import SigningKeys
 from nptc.auth.tokens import TokenVerifier
+from nptc.submissions.errors import FreeTextField, FreeTextRefusedError
+from nptc.submissions.shared import clean_free_text
 
 _support_spec = importlib.util.spec_from_file_location(
     "_test_auth_token_verification_support", Path(__file__).parent / "auth_jwt_support.py"
@@ -267,3 +269,70 @@ def test_email_verified_string_false_maps_to_false(stub, signing_key, verifier) 
     claims = verifier.verify(token)
 
     assert claims.email_verified is False
+
+
+@pytest.mark.req("FR-42")
+def test_the_organisation_claim_is_read_and_normalised(stub, signing_key, verifier) -> None:
+    nbsp = chr(0x00A0)
+    token = mint_token(
+        signing_key,
+        kid="key-1",
+        issuer=stub.issuer_url,
+        extra_claims={"organisation": f"  Example{nbsp}Pathology  "},
+    )
+
+    assert verifier.verify(token).organisation == "Example Pathology"
+
+
+@pytest.mark.req("FR-42")
+@pytest.mark.parametrize(
+    "value",
+    [
+        None,
+        42,
+        ["Example Pathology"],
+        "   ",
+        "Example" + chr(0x200B) + "Pathology",
+        "Example" + chr(0x202E) + "Pathology",
+        "x" * 501,
+    ],
+    ids=["absent", "number", "list", "blank", "zero-width-space", "bidi-override", "too-long"],
+)
+def test_an_unusable_organisation_claim_is_dropped(stub, signing_key, verifier, value) -> None:
+    """The claim is the person's own free text. A value that would be refused on a submission
+    must not reach `app_user` by the back door, and must not fail the sign-in either."""
+    extra = {} if value is None else {"organisation": value}
+    token = mint_token(signing_key, kid="key-1", issuer=stub.issuer_url, extra_claims=extra)
+
+    assert verifier.verify(token).organisation is None
+
+
+@pytest.mark.req("FR-42")
+@pytest.mark.parametrize(
+    "value",
+    [
+        "Example" + chr(0x200B) + "Pathology",
+        "Example" + chr(0x202E) + "Pathology",
+        "Example" + chr(0x0007) + "Pathology",
+        "Example" + chr(0x000A) + "Pathology",
+        "Example Pathology",
+        "Example" + chr(0x00A0) + "Pathology",
+    ],
+    ids=["zero-width-space", "bidi-override", "bell", "line-break", "clean", "non-breaking-space"],
+)
+def test_the_organisation_claim_is_judged_like_a_submission_organisation(
+    stub, signing_key, verifier, value
+) -> None:
+    """The profile organisation is copied onto a submission without a second check, so the two
+    must agree on what is clean."""
+    token = mint_token(
+        signing_key, kid="key-1", issuer=stub.issuer_url, extra_claims={"organisation": value}
+    )
+    try:
+        expected: str | None = clean_free_text(
+            value, field=FreeTextField.ORGANISATION, multiline=False
+        )
+    except FreeTextRefusedError:
+        expected = None
+
+    assert verifier.verify(token).organisation == expected
