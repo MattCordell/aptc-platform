@@ -108,7 +108,7 @@ type SubmissionFieldRefusalBody = components["schemas"]["SubmissionFieldRefusalR
 
 /**
  * The fields of the new-test and amendment forms. `reason` belongs to the
- * withdraw request, which has no form yet, so it is left out here.
+ * withdraw request, which `asReasonRefusal` reads, so it is left out here.
  */
 export type SubmissionField = Exclude<SubmissionFieldRefusalBody["field"], "reason">;
 export type SubmissionFieldRefusal = Omit<SubmissionFieldRefusalBody, "field"> & {
@@ -166,6 +166,41 @@ export function asFieldRefusal(error: unknown): SubmissionFieldRefusal | null {
     return null;
   }
   return body as unknown as SubmissionFieldRefusal;
+}
+
+export type SubmissionVersionConflictBody =
+  components["schemas"]["SubmissionVersionConflictResponse"];
+
+/**
+ * The 409 for a submission change sent with a stale `expected_row_version`
+ * (FR-28), or `null` if this refusal is anything else, such as the 409 for a
+ * closed state, which carries only `detail`. Keyed on `current_row_version`
+ * being a number, as `asVersionConflict` is, because `detail` is on every 409.
+ */
+export function asSubmissionVersionConflict(
+  error: unknown,
+): SubmissionVersionConflictBody | null {
+  const body = bodyOf(error, [409]);
+  if (
+    body === null ||
+    typeof body.detail !== "string" ||
+    typeof body.current_row_version !== "number"
+  ) {
+    return null;
+  }
+  return body as unknown as SubmissionVersionConflictBody;
+}
+
+/**
+ * The 422 that names the withdraw request's `reason`, or `null` if this refusal
+ * is anything else. Keyed on `field`, never on the wording of `detail`.
+ */
+export function asReasonRefusal(error: unknown): { detail: string } | null {
+  const body = bodyOf(error, [422]);
+  if (body === null || typeof body.detail !== "string" || body.field !== "reason") {
+    return null;
+  }
+  return { detail: body.detail };
 }
 
 /**

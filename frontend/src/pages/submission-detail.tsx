@@ -14,11 +14,13 @@ import { PageHeader } from "../components/page-header.tsx";
 import { useAnnounce } from "../components/use-announce.ts";
 import { NotFoundPage } from "../shell/not-found-page.tsx";
 import { useDocumentTitle } from "../shell/use-document-title.ts";
+import { InterestIdentitiesPanel } from "../submissions/interest-identities-panel.tsx";
 import { SubmissionContent } from "../submissions/submission-content.tsx";
 import {
   SubmissionDetails,
   SubmissionInterest,
 } from "../submissions/submission-sidebar.tsx";
+import { WithdrawSubmission } from "../submissions/withdraw-submission.tsx";
 
 /**
  * One submission in any state (FR-28, FR-34): what the submitter sent, who they
@@ -100,6 +102,8 @@ function SubmissionView({
             <>
               <SubmissionDetails submission={submission} />
               <SubmissionInterest submission={submission} />
+              <InterestIdentitiesPanel submissionId={submission.id} />
+              <WithdrawSubmission submission={submission} />
             </>
           }
         >

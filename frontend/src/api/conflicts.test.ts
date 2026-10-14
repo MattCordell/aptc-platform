@@ -5,6 +5,8 @@ import {
   asDuplicateMatches,
   asFieldRefusal,
   asQuotaRefusal,
+  asReasonRefusal,
+  asSubmissionVersionConflict,
   asVersionConflict,
   refusalDetail,
   retryAfterSeconds,
@@ -157,6 +159,59 @@ describe("asFieldRefusal", () => {
     expect(
       asFieldRefusal(new ApiError(422, { detail: "x", field: "toString" })),
     ).toBeNull();
+  });
+});
+
+describe("asSubmissionVersionConflict", () => {
+  const STALE = {
+    detail: "This submission was changed since you loaded it.",
+    expected_row_version: 1,
+    current_row_version: 2,
+  };
+
+  it("narrows a 409 that carries the current version", () => {
+    expect(asSubmissionVersionConflict(new ApiError(409, STALE))).toEqual(STALE);
+  });
+
+  // The principal failure mode: the 409 for a closed state is a bare `detail`,
+  // and must show as a sentence rather than tell the user to reload.
+  it("is null for a 409 with only a detail, and for a non-numeric version", () => {
+    expect(
+      asSubmissionVersionConflict(new ApiError(409, { detail: "This is closed." })),
+    ).toBeNull();
+    expect(
+      asSubmissionVersionConflict(
+        new ApiError(409, { detail: "x", current_row_version: "2" }),
+      ),
+    ).toBeNull();
+  });
+
+  it("is null for another status, and for an error that is not an ApiError", () => {
+    expect(asSubmissionVersionConflict(new ApiError(422, STALE))).toBeNull();
+    expect(asSubmissionVersionConflict(new Error("offline"))).toBeNull();
+  });
+});
+
+describe("asReasonRefusal", () => {
+  it("narrows a 422 that names the reason", () => {
+    expect(
+      asReasonRefusal(new ApiError(422, { detail: "Enter a reason.", field: "reason" })),
+    ).toEqual({ detail: "Enter a reason." });
+  });
+
+  it("is null for a 422 that names another field, or none, or FastAPI's array detail", () => {
+    expect(
+      asReasonRefusal(new ApiError(422, { detail: "x", field: "notes" })),
+    ).toBeNull();
+    expect(asReasonRefusal(new ApiError(422, { detail: "x" }))).toBeNull();
+    expect(asReasonRefusal(new ApiError(422, { detail: [{ msg: "x" }] }))).toBeNull();
+  });
+
+  it("is null for another status, and for an error that is not an ApiError", () => {
+    expect(
+      asReasonRefusal(new ApiError(409, { detail: "x", field: "reason" })),
+    ).toBeNull();
+    expect(asReasonRefusal(new Error("offline"))).toBeNull();
   });
 });
 

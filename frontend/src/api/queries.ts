@@ -1419,7 +1419,34 @@ export function useSubmissionDetail(submissionId: string) {
   });
 }
 
+function interestIdentitiesKey(submissionId: string) {
+  return ["api", "/api/v1/submissions/{submission_id}/interest", submissionId];
+}
+
+/**
+ * Who registered interest in a submission, and which organisations they
+ * represent (FR-33). The server answers a caller without
+ * `interest.identities.view` with a 403, so a caller passes `enabled: false`
+ * for them and the request is never sent (NFR-20).
+ */
+export function useInterestIdentities(submissionId: string, enabled: boolean) {
+  const client = useApiClient();
+  return useQuery({
+    queryKey: interestIdentitiesKey(submissionId),
+    queryFn: async ({ signal }) =>
+      unwrap(
+        await client.GET("/api/v1/submissions/{submission_id}/interest", {
+          params: { path: { submission_id: submissionId } },
+          signal,
+        }),
+      ),
+    enabled: enabled && submissionId.length > 0,
+  });
+}
+
 type InterestResponse = components["schemas"]["InterestResponse"];
+type WithdrawBody = components["schemas"]["WithdrawRequest"];
+type TransitionAnswer = components["schemas"]["SubmissionTransitionResponse"];
 
 /** What `useSubmissionDetail` caches. The cache update below picks its two
  * fields from this type, because an object spread is not checked for a field
@@ -1457,7 +1484,11 @@ function useInterestMutation(
         submissionDetailKey(submissionId),
         (detail) => (detail === undefined ? undefined : { ...detail, ...interest }),
       );
-      return queryClient.invalidateQueries({ queryKey: SUBMISSIONS_LIST_KEY });
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: SUBMISSIONS_LIST_KEY }),
+        // A reviewer who registers is in the list they are looking at.
+        queryClient.invalidateQueries({ queryKey: interestIdentitiesKey(submissionId) }),
+      ]);
     },
     onError: () =>
       queryClient.invalidateQueries({ queryKey: submissionDetailKey(submissionId) }),
@@ -1484,6 +1515,46 @@ export function useRevokeInterest(submissionId: string) {
       }),
     ),
   );
+}
+
+/**
+ * The submitter withdraws their own open submission (FR-28). The answer holds
+ * the new state and `row_version`, so it goes straight into the cached detail
+ * and the page shows Withdrawn without a reload. Any 409 re-reads the detail:
+ * a stale version and a state that has already closed both mean the page that
+ * offered the action was out of date. A 422 for the reason is left to the
+ * caller, because the page it describes has not changed.
+ */
+export function useWithdrawSubmission(submissionId: string) {
+  const client = useApiClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: WithdrawBody) =>
+      unwrap(
+        await client.POST("/api/v1/submissions/{submission_id}/withdraw", {
+          params: { path: { submission_id: submissionId } },
+          body,
+        }),
+      ),
+    onSuccess: (answer: TransitionAnswer) => {
+      const transition: Pick<SubmissionDetailAnswer, "state" | "row_version"> = {
+        state: answer.state,
+        row_version: answer.row_version,
+      };
+      queryClient.setQueryData<SubmissionDetailAnswer>(
+        submissionDetailKey(submissionId),
+        (detail) => (detail === undefined ? undefined : { ...detail, ...transition }),
+      );
+      return queryClient.invalidateQueries({ queryKey: SUBMISSIONS_LIST_KEY });
+    },
+    onError: (error: unknown) => {
+      if (error instanceof ApiError && error.status === 409) {
+        void queryClient.invalidateQueries({
+          queryKey: submissionDetailKey(submissionId),
+        });
+      }
+    },
+  });
 }
 
 /**
