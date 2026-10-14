@@ -1,8 +1,9 @@
-# Reading a submission and registering interest
+# Reading a submission, registering interest and withdrawing
 
 A submission is a proposal for a new test, or for a change to an existing one. This page
-explains what the page for one submission shows, and how you register interest in it. You must
-be signed in to open it.
+explains what the page for one submission shows, how you register interest in it, how
+reviewers see who registered, and how a submitter withdraws their own submission. You must be
+signed in to open it.
 
 ## Open a submission
 
@@ -76,11 +77,61 @@ reader announces the new state and the count.
 
 Registering twice, or withdrawing twice, changes nothing the second time.
 
+## See who registered interest
+
+Reviewers and Administrators see an extra panel, **Who registered interest**. Other people
+do not see it, and their browser never asks the platform for it. The panel shows:
+
+- A summary, for example "3 people from 2 organisations".
+- **Organisations**: each organisation with the number of people who named it. Spellings that
+  differ only by capital letters or spaces count as one organisation. People who gave no
+  organisation are grouped under "No organisation given", and that group is not counted in the
+  number of organisations.
+- **People**: each person's name and username, the organisation they gave when they registered,
+  and the date they registered. The newest registration comes first. The organisation is the
+  one recorded at registration, so it can differ from the person's profile today. A closed
+  account shows the placeholder name the platform sends.
+
+The panel shows the people who hold interest now. When someone withdraws their interest, they
+leave the list. The panel shows for submissions in any state, including closed ones.
+
+## Withdraw your own submission
+
+If you sent a submission and it is still open, you can take it back. The **Your submission**
+panel shows a **Withdraw submission** button only when all three of these are true:
+
+1. The submission is yours.
+2. It is open: its state is Submitted or Triage.
+3. Your role may withdraw a submission. Provisional users, Members and Reviewers may.
+
+To withdraw:
+
+1. Choose **Withdraw submission**.
+2. Write a reason. It is required, and spaces alone do not count. The platform records it in
+   the audit log with the change. It is not published.
+3. Choose **Confirm withdrawal**.
+
+The state changes to Withdrawn at once, without reloading the page, and focus moves to the
+line "You withdrew this submission." A withdrawn submission stays on the platform, and
+people who can open submissions can still read it, but it cannot be reopened. To propose it
+again, send a new submission.
+
+Choose **Cancel** to close the box without withdrawing.
+
 ## When the platform refuses
 
 The page can be a little out of date, for example if a reviewer closed the submission while
 you had it open. If the platform refuses your request, the page shows its reason beneath the
 button and reloads the submission. The button then disappears or changes to match.
+
+If you try to withdraw and the platform refuses, the box stays open and shows why:
+
+- **The submission changed since you opened it.** The message tells you to reload the page.
+  The page has already read the new version, so you can then try again.
+- **The submission is already closed.** The platform's own sentence appears. Choose **Cancel**.
+  The button has gone because the page now shows the closed state.
+- **The reason is not accepted.** The Reason field is marked with the platform's explanation,
+  for example when the reason holds a character that cannot be shown.
 
 If a refresh fails, a line at the top says the submission may be out of date. The submission
 already on screen stays visible. If the first load fails, choose **Try again**.
