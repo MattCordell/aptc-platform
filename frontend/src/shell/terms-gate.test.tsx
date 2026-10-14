@@ -259,13 +259,13 @@ describe("accepting the terms", () => {
     );
   });
 
-  it("says the organisation on a submission stays with it after the account closes", async () => {
+  it("says the organisation on a submission or an interest record stays with it after the account closes", async () => {
     stubServer({ accepted: false });
     await renderRoute("/submissions", SIGNED_IN);
 
     expect(
       await screen.findByText(
-        "The organisation recorded on a submission stays with it after your account closes.",
+        "The organisation recorded on a submission or an interest record stays with it after your account closes.",
       ),
     ).toBeVisible();
   });

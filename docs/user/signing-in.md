@@ -16,8 +16,9 @@ account starts as a **Provisional** member; an administrator can grant further r
 later.
 
 The registration page explains how your details are used and links to the privacy policy
-and the terms of use. It also says that the organisation recorded on a submission stays with
-it after your account closes. Both links open in a new tab, so your form stays as you left it.
+and the terms of use. It also says that the organisation recorded on a submission or an
+interest record stays with it after your account closes. Both links open in a new tab, so
+your form stays as you left it.
 
 ## Accepting the terms of use
 
@@ -28,8 +29,8 @@ in, and again whenever the terms change.
 Until you accept, the catalogue shows a page called **Accept the terms of use** in place of
 the page you asked for. It shows:
 
-- how your details are used, including that the organisation recorded on a submission stays
-  with it after your account closes;
+- how your details are used, including that the organisation recorded on a submission or an
+  interest record stays with it after your account closes;
 - the full text of the terms, which includes the licence you grant for your contributions;
 - a box to tick; and
 - the buttons **Accept and continue** and **Sign out**.
