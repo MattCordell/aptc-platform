@@ -7,10 +7,10 @@ is not here, use your judgement and raise it in the PR.
 
 | Tool | Version |
 |---|---|
-| Python | see [`.python-version`](.python-version) |
-| Node.js | see [`.nvmrc`](.nvmrc) — bump alongside `frontend/package.json`'s `engines.node` floor, they must stay compatible |
+| Python | see [`.python-version`](.python-version), the minor version. CI pins the full patch version from the `python` tag in `backend/Dockerfile` |
+| Node.js | see [`.nvmrc`](.nvmrc) — bump alongside `frontend/package.json`'s `engines.node` floor, they must stay compatible. Keep `.nvmrc` equal to the `node` tag in `frontend/Dockerfile` |
 | pnpm | `11.20.0` (the root `package.json`'s `packageManager` field) |
-| `uv` | any recent version |
+| `uv` | any recent version locally. CI pins every `setup-uv` step to the `uv` tag in `backend/Dockerfile` |
 | Docker (with Compose) | any recent version supporting the Compose Specification - the daemon must be **running**, not just installed, since `backend/tests` runs against a real container (issue #33) |
 
 See [README.md](README.md)'s Quickstart for bringing up the local Docker Compose stack.
