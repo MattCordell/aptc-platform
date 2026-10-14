@@ -154,6 +154,24 @@ describe("All submissions view (FR-28, FR-34)", () => {
     );
   });
 
+  it.each([
+    ["/submissions?state=Withdrawn", "All submissions"],
+    ["/submissions?after=cursor-two", "All submissions"],
+    ["/submissions?mine=true&state=open", "My submissions"],
+    ["/submissions?mine=true&after=cursor-two", "My submissions"],
+  ])("marks only the right tab as current at %s", async (url, current) => {
+    stubApi([listRoute([])]);
+    await renderRoute(url, SIGNED_IN);
+
+    await screen.findByRole("table");
+    const other = current === "All submissions" ? "My submissions" : "All submissions";
+    expect(screen.getByRole("link", { name: current })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("link", { name: other })).not.toHaveAttribute("aria-current");
+  });
+
   it("says there are no open submissions when the list is empty", async () => {
     stubApi([listRoute([])]);
     await renderRoute("/submissions", SIGNED_IN);
@@ -501,12 +519,16 @@ describe("paging (ADR-0024)", () => {
 
   it("drops the cursor when the view changes", async () => {
     const user = userEvent.setup();
-    pagedApi();
+    const calls = pagedApi();
     const { router } = await renderRoute("/submissions?after=cursor-two", SIGNED_IN);
 
     await screen.findByRole("row", { name: /Full blood count/ });
     await user.click(screen.getByRole("link", { name: "My submissions" }));
 
     await waitFor(() => expect(router.state.location.search).toEqual({ mine: "true" }));
+    await waitFor(() =>
+      expect(lastListCall(calls)?.searchParams.get("mine")).toBe("true"),
+    );
+    expect(lastListCall(calls)?.searchParams.has("after")).toBe(false);
   });
 });

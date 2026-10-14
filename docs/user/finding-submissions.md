@@ -31,9 +31,6 @@ The **State** list narrows the view to one kind of submission:
 
 **All submissions** starts on **Open**. **My submissions** starts on **All states**.
 
-Today a submission can only be Submitted or Withdrawn. Triage, Published in release and
-Rejected appear when review comes to the platform.
-
 The filter is part of the address, for example `/submissions?state=Withdrawn`. You can
 bookmark a filtered view or send the link to someone. Choosing a view's starting state again
 returns the address to its plain form.

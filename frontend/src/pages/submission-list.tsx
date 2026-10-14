@@ -61,7 +61,7 @@ const STALE_DATA_WARNING =
   "The list could not be refreshed just now, so these submissions may be out of date.";
 
 const LOAD_FAILURE =
-  "The submissions could not be loaded. Try again in a moment, or change the filter.";
+  "The submissions could not be loaded. Try again in a moment, or change the state.";
 
 const TAB_CLASSES =
   "inline-block border-b-2 border-transparent px-3 py-2 text-sm font-medium text-[var(--color-text)] hover:underline aria-[current=page]:border-[var(--color-accent)] aria-[current=page]:text-[var(--color-accent-hover)] aria-[current=page]:underline aria-[current=page]:decoration-2 aria-[current=page]:underline-offset-4";
