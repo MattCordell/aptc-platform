@@ -14,6 +14,7 @@ import {
   validatePropertyListSearch,
   validateReleaseCompareSearch,
   validateSignInSearch,
+  validateSubmissionListSearch,
   validateSubmissionNewSearch,
   type AdminCatalogueSearch,
 } from "./search-params.ts";
@@ -467,6 +468,7 @@ describe("every validator is idempotent", () => {
     ["validateSignInSearch", validateSignInSearch],
     ["validateAdminCatalogueSearch", validateAdminCatalogueSearch],
     ["validateSubmissionNewSearch", validateSubmissionNewSearch],
+    ["validateSubmissionListSearch", validateSubmissionListSearch],
   ];
 
   it.each(cases)(
@@ -502,4 +504,53 @@ describe("validateSubmissionNewSearch (FR-35)", () => {
       expect(validateSubmissionNewSearch({ entry })).toEqual({});
     },
   );
+});
+
+describe("validateSubmissionListSearch (FR-28, FR-34)", () => {
+  it("is empty for the plain URL, so the view's own default applies", () => {
+    expect(validateSubmissionListSearch({})).toEqual({});
+  });
+
+  it("keeps mine=true, a known state and the cursor as received", () => {
+    expect(
+      validateSubmissionListSearch({
+        mine: "true",
+        state: "Published in release",
+        after: "opaque+cursor/==",
+      }),
+    ).toEqual({ mine: "true", state: "Published in release", after: "opaque+cursor/==" });
+  });
+
+  it.each([["open"], ["all"], ["Submitted"], ["Triage"], ["Rejected"], ["Withdrawn"]])(
+    "keeps the state filter %s",
+    (state) => {
+      expect(validateSubmissionListSearch({ state })).toEqual({ state });
+    },
+  );
+
+  it.each([["false"], [""], ["1"], [true], [["true"]], [null]])(
+    "drops mine=%j, so only the exact flag selects the My view",
+    (mine) => {
+      expect(validateSubmissionListSearch({ mine })).toEqual({});
+    },
+  );
+
+  it.each([["withdrawn"], ["Everything"], [""], [42], [["Withdrawn"]], [null]])(
+    "drops the unknown state %j rather than sending it to the API",
+    (state) => {
+      expect(validateSubmissionListSearch({ state })).toEqual({});
+    },
+  );
+
+  it("drops an empty cursor", () => {
+    expect(validateSubmissionListSearch({ after: "" })).toEqual({});
+  });
+
+  it("returns every key, so the router cannot merge a rejected raw value back in", () => {
+    const validated = validateSubmissionListSearch({ mine: "false", state: "Escalated" });
+
+    expect(Object.keys(validated).sort()).toEqual(["after", "mine", "state"]);
+    expect(validated.mine).toBeUndefined();
+    expect(validated.state).toBeUndefined();
+  });
 });

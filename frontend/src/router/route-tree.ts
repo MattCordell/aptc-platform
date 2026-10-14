@@ -35,6 +35,7 @@ import {
   validatePropertyListSearch,
   validateReleaseCompareSearch,
   validateSignInSearch,
+  validateSubmissionListSearch,
   validateSubmissionNewSearch,
   type AdminCatalogueSearch,
   type AdminCatalogueSearchInput,
@@ -52,6 +53,8 @@ import {
   type ReleaseCompareSearchInput,
   type SignInSearch,
   type SignInSearchInput,
+  type SubmissionListSearch,
+  type SubmissionListSearchInput,
   type SubmissionNewSearch,
   type SubmissionNewSearchInput,
 } from "./search-params.ts";
@@ -275,6 +278,9 @@ const submissionsRoute = createRoute({
 const submissionListRoute = createRoute({
   getParentRoute: () => submissionsRoute,
   path: "/",
+  validateSearch: validateSubmissionListSearch as (
+    search: SubmissionListSearchInput,
+  ) => SubmissionListSearch,
   component: SubmissionListPage,
   head: titled("Submissions"),
 });
@@ -295,14 +301,6 @@ const submissionDetailRoute = createRoute({
   path: "$submissionId",
   component: createPlaceholderPage({ title: "Submission" }),
   head: titled("Submission"),
-});
-
-// FR-32..34: register implementer interest.
-const interestRoute = createRoute({
-  getParentRoute: () => authenticatedRoute,
-  path: "interest",
-  component: createPlaceholderPage({ title: "My interest" }),
-  head: titled("My interest"),
 });
 
 const accountRoute = createRoute({
@@ -543,7 +541,6 @@ export const routeTree = rootRoute.addChildren([
       submissionNewRoute,
       submissionDetailRoute,
     ]),
-    interestRoute,
     accountRoute,
     adminRoute.addChildren([
       adminHomeRoute,

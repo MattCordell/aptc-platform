@@ -19,7 +19,6 @@ const NAV_LINKS = [
   { to: "/catalogue", label: "Search the catalogue" },
   { to: "/releases", label: "Releases" },
   { to: "/submissions", label: "Submissions" },
-  { to: "/interest", label: "My interest" },
   { to: "/admin", label: "Admin" },
   { to: "/account", label: "Account" },
 ] as const;

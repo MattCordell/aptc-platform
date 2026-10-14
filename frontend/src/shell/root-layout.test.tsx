@@ -83,12 +83,12 @@ describe("site header and footer (NFR-20, NFR-31)", () => {
       "Search the catalogue",
       "Releases",
       "Submissions",
-      "My interest",
       "Admin",
       "Account",
     ]) {
       expect(within(nav).getByRole("link", { name })).toBeVisible();
     }
+    expect(within(nav).queryByRole("link", { name: "My interest" })).toBeNull();
   });
 
   it("keeps the footer links and publisher line", async () => {

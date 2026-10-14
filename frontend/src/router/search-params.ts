@@ -1,5 +1,10 @@
 import type { SearchSchemaInput } from "@tanstack/react-router";
 
+import {
+  isSubmissionStateFilter,
+  type SubmissionStateFilter,
+} from "../submissions/state-options.ts";
+
 /**
  * Hand-written search-param validators for the route table.
  *
@@ -111,6 +116,36 @@ export function validateSubmissionNewSearch(
 ): SubmissionNewSearch {
   const entry = asString(search.entry).trim();
   return entry === "" ? {} : { entry };
+}
+
+/**
+ * Search state for `/submissions` (FR-28, FR-34). `mine=true` is the "My
+ * submissions" view; `state` narrows the list. Both are absent for the view's
+ * own default, so the plain URL is the default view and a pasted link
+ * reproduces the filtered one. `after` is the keyset cursor (ADR-0024), kept
+ * as received.
+ */
+export type SubmissionListSearch = {
+  mine?: "true";
+  state?: SubmissionStateFilter;
+  after?: string;
+};
+
+export type SubmissionListSearchInput = Partial<SubmissionListSearch> & SearchSchemaInput;
+
+export function validateSubmissionListSearch(
+  search: Record<string, unknown>,
+): SubmissionListSearch {
+  // Every key is returned, as `undefined` when dropped. The router merges this
+  // result over the raw URL search, so a key left out would let the rejected
+  // raw value through, and an unknown state would reach the API as a 422.
+  const state = asString(search.state);
+  const after = asString(search.after);
+  return {
+    mine: asString(search.mine) === "true" ? "true" : undefined,
+    state: isSubmissionStateFilter(state) ? state : undefined,
+    after: after.length > 0 ? after : undefined,
+  };
 }
 
 // --- catalogue lists: public and admin -----------------------------------
