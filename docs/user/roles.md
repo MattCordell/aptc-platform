@@ -1,11 +1,13 @@
 # Roles
 
 What the Administrator and Reviewer roles can each do on the screens this platform has
-shipped so far. The other authenticated roles (Provisional, Member) have two screens of their
-own, [Submitting a new test](submitting-a-new-test.md) and [Proposing a change to an
-entry](proposing-an-amendment.md) — see the PRD's permission matrix (§4.7) for what they will
-eventually reach.
-Anonymous and Observer use is self-explanatory from the public catalogue itself: browsing,
+shipped so far. The other authenticated roles (Provisional, Member) have the submission screens:
+[Submitting a new test](submitting-a-new-test.md), [Proposing a change to an
+entry](proposing-an-amendment.md), [Finding submissions](finding-submissions.md) and
+[Reading a submission, registering interest and withdrawing](reading-a-submission.md). See
+the PRD's permission matrix (§4.7) for what they will eventually reach. An Observer can read
+submissions and see interest counts, but cannot register interest.
+Anonymous use is self-explanatory from the public catalogue itself: browsing,
 searching and viewing what has already been published needs no account and no role
 beyond it.
 
@@ -23,6 +25,9 @@ shipped:
   remains for API callers.
 - **[Searching the audit log](searching-the-audit-log.md)** — finding who changed what and
   when, and exporting a filtered view. No other role can read the audit log.
+- **[Seeing who registered interest](reading-a-submission.md#see-who-registered-interest)** —
+  on a submission's page, with the organisations they gave. An Administrator cannot withdraw a
+  submission yet, even their own.
 
 ### Reaching each screen
 
@@ -66,8 +71,10 @@ wrong" section for what a missing permission looks like from inside a screen).
 A working group member with editorial authority over the submission pipeline described in
 the PRD, but **not** over the published catalogue — the screens for the submission
 pipeline itself (proposing, reviewing and approving amendments) have not shipped yet. On
-the screens that have, a Reviewer's one capability is:
+the screens that have, a Reviewer has two capabilities:
 
+- **[Seeing who registered interest](reading-a-submission.md#see-who-registered-interest)**
+  on a submission's page, with the organisations they gave.
 - **Acknowledging a possible duplicate term.** Opening
   [Editing an entry's terms](editing-designations.md#if-something-goes-wrong), a Reviewer
   can acknowledge a warning-severity term collision (the same synonym recorded on more

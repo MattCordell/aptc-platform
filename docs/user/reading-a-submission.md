@@ -103,7 +103,8 @@ panel shows a **Withdraw submission** button only when all three of these are tr
 
 1. The submission is yours.
 2. It is open: its state is Submitted or Triage.
-3. Your role may withdraw a submission. Provisional users, Members and Reviewers may.
+3. Your role may withdraw a submission. Provisional users, Members and Reviewers may. An
+   Administrator cannot withdraw a submission yet, even their own.
 
 To withdraw:
 

@@ -45,11 +45,11 @@ Each row shows:
   the entry it changes, for example NPTC-000247. Choose the identifier to open that entry.
 - **State**, written out in words as well as shown in colour.
 - **Submitted**, the date, in your own time zone.
-- **Submitter**. Most people see a username. Reviewers and Administrators also see the
-  submitter's name and the organisation they gave with the submission. The page shows only
-  what the platform sent it.
-- **Interest**, the number of people who have said they would use the test. If your account
-  may not see counts, the cell reads **Not shown**. That does not mean the count is zero.
+- **Submitter**. Most people see a username. Reviewers and Administrators see more. See
+  [the Details panel](reading-a-submission.md#the-details-panel).
+- **Interest**, the number of people who registered interest. **Not shown** means your
+  account may not see counts, not that the count is zero. See
+  [Interest](reading-a-submission.md#interest).
 
 ## Move through a long list
 

@@ -39,10 +39,12 @@
 - [Reading the preferred-term length distribution report](reading-the-length-distribution-report.md)
   — issue #152, API-only; there is no admin screen for this report yet.
 
-[Roles](roles.md) covers Administrator and Reviewer. Members and Provisional users have
-two screens so far, [Submitting a new test](submitting-a-new-test.md) and [Proposing a change
-to an entry](proposing-an-amendment.md), and Anonymous/Observer
-use is self-explanatory from the public catalogue itself.
+[Roles](roles.md) covers Administrator and Reviewer. Members and Provisional users also use
+the submission screens: [Submitting a new test](submitting-a-new-test.md), [Proposing a change
+to an entry](proposing-an-amendment.md), [Finding submissions](finding-submissions.md) and
+[Reading a submission, registering interest and withdrawing](reading-a-submission.md).
+Observers can read submissions and see interest counts. Anonymous use is self-explanatory
+from the public catalogue itself.
 
 Populated as the corresponding UI lands — see the documentation-impact table in
 [CONTRIBUTING.md](../../CONTRIBUTING.md).
