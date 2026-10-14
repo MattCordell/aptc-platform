@@ -545,4 +545,12 @@ describe("validateSubmissionListSearch (FR-28, FR-34)", () => {
   it("drops an empty cursor", () => {
     expect(validateSubmissionListSearch({ after: "" })).toEqual({});
   });
+
+  it("returns every key, so the router cannot merge a rejected raw value back in", () => {
+    const validated = validateSubmissionListSearch({ mine: "false", state: "Escalated" });
+
+    expect(Object.keys(validated).sort()).toEqual(["after", "mine", "state"]);
+    expect(validated.mine).toBeUndefined();
+    expect(validated.state).toBeUndefined();
+  });
 });

@@ -136,19 +136,16 @@ export type SubmissionListSearchInput = Partial<SubmissionListSearch> & SearchSc
 export function validateSubmissionListSearch(
   search: Record<string, unknown>,
 ): SubmissionListSearch {
-  const validated: SubmissionListSearch = {};
-  if (asString(search.mine) === "true") {
-    validated.mine = "true";
-  }
+  // Every key is returned, as `undefined` when dropped. The router merges this
+  // result over the raw URL search, so a key left out would let the rejected
+  // raw value through, and an unknown state would reach the API as a 422.
   const state = asString(search.state);
-  if (isSubmissionStateFilter(state)) {
-    validated.state = state;
-  }
   const after = asString(search.after);
-  if (after.length > 0) {
-    validated.after = after;
-  }
-  return validated;
+  return {
+    mine: asString(search.mine) === "true" ? "true" : undefined,
+    state: isSubmissionStateFilter(state) ? state : undefined,
+    after: after.length > 0 ? after : undefined,
+  };
 }
 
 // --- catalogue lists: public and admin -----------------------------------
