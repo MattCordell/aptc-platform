@@ -117,6 +117,10 @@ Before pushing (also run by `pre-commit run --all-files`, and mirrored by CI):
 pre-commit run --all-files
 ```
 
+A change to a generated API type, such as a `Literal` or enum in a response model, can break the
+frontend: some `Record` types in `frontend/src` list every member on purpose. After
+`pnpm generate:api`, run `pnpm typecheck` from `frontend/` as well as the backend tests.
+
 ## Testing conventions
 
 - `@pytest.mark.req("FR-07")` links a test to the PRD requirement it verifies (defined
