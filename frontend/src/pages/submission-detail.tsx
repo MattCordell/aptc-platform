@@ -19,6 +19,7 @@ import {
   SubmissionDetails,
   SubmissionInterest,
 } from "../submissions/submission-sidebar.tsx";
+import { WithdrawSubmission } from "../submissions/withdraw-submission.tsx";
 
 /**
  * One submission in any state (FR-28, FR-34): what the submitter sent, who they
@@ -100,6 +101,7 @@ function SubmissionView({
             <>
               <SubmissionDetails submission={submission} />
               <SubmissionInterest submission={submission} />
+              <WithdrawSubmission submission={submission} />
             </>
           }
         >

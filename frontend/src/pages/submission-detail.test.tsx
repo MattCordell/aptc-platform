@@ -345,6 +345,88 @@ describe("submission detail interest (FR-32, FR-34, FR-42)", () => {
   });
 });
 
+describe("submission detail withdraw (FR-28)", () => {
+  const WITHDRAW = `${DETAIL}/withdraw`;
+  const SUBMITTER = me(["submission.withdraw.own", "interest.register"]);
+  const detailReads = (calls: { method: string; path: string }[]) =>
+    calls.filter((call) => call.method === "GET" && call.path === DETAIL).length;
+
+  it("withdraws the submission and shows it as Withdrawn without a reload", async () => {
+    const { calls, container } = await open([
+      SUBMITTER,
+      DEFINITIONS,
+      detail({ is_own: true, row_version: 5 }),
+      {
+        method: "POST",
+        path: WITHDRAW,
+        status: 200,
+        body: { id: ID, state: "Withdrawn", row_version: 6 },
+      },
+    ]);
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Withdraw submission" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.type(
+      within(dialog).getByRole("textbox", { name: /Reason/ }),
+      "Sent in error.",
+    );
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Confirm withdrawal" }),
+    );
+
+    expect(await screen.findByText("You withdrew this submission.")).toBeVisible();
+    const details = screen.getByRole("complementary", { name: "Submission details" });
+    expect(within(details).getByText("Withdrawn", { selector: "span" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Withdraw submission" })).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(calls.find((call) => call.method === "POST")?.body).toEqual({
+      reason: "Sent in error.",
+      expected_row_version: 5,
+    });
+    await expectNoA11yViolations(container);
+  });
+
+  it("re-reads the submission and keeps the dialog open when the version is stale", async () => {
+    const { calls } = await open([
+      SUBMITTER,
+      DEFINITIONS,
+      detail({ is_own: true }),
+      {
+        method: "POST",
+        path: WITHDRAW,
+        status: 409,
+        body: { detail: "Changed.", expected_row_version: 1, current_row_version: 2 },
+      },
+    ]);
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Withdraw submission" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.type(
+      within(dialog).getByRole("textbox", { name: /Reason/ }),
+      "Sent in error.",
+    );
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Confirm withdrawal" }),
+    );
+
+    await waitFor(() => expect(detailReads(calls)).toBeGreaterThan(1));
+    expect(
+      await within(dialog).findAllByText(/Reload the page to see the latest version/),
+    ).not.toHaveLength(0);
+    expect(screen.getByRole("dialog")).toBeVisible();
+  });
+
+  it("offers no button to another Member", async () => {
+    await open([SUBMITTER, DEFINITIONS, detail({ is_own: false })]);
+    await screen.findByRole("heading", { level: 1, name: "Ferritin level" });
+    expect(screen.queryByRole("button", { name: "Withdraw submission" })).toBeNull();
+  });
+});
+
 describe("submission detail failures", () => {
   it("shows the not-found page for an unknown id", async () => {
     await open([
