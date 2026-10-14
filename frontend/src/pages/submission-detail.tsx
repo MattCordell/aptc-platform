@@ -1,6 +1,7 @@
 import { Link, useParams } from "@tanstack/react-router";
 import { useEffect } from "react";
 
+import { refusalDetail } from "../api/conflicts.ts";
 import { useSubmissionDetail } from "../api/queries.ts";
 import type { components } from "../api/schema.ts";
 import { ApiError } from "../api/unwrap.ts";
@@ -42,6 +43,13 @@ const LOAD_FAILURE = "This submission could not be loaded. Try again in a moment
 
 function isNotFound(error: unknown): boolean {
   return error instanceof ApiError && (error.status === 404 || error.status === 422);
+}
+
+/** A 401 or 403 is the server refusing this caller, so a retry cannot succeed
+ * and its own sentence says why (the route declares it for a caller without
+ * `submission.view` or who has not accepted the terms). */
+function isRefusal(error: unknown): boolean {
+  return error instanceof ApiError && (error.status === 401 || error.status === 403);
 }
 
 function SubmissionBreadcrumb({ current }: { current: string }) {
@@ -111,11 +119,15 @@ export function SubmissionDetailPage() {
 
   const hardFailure =
     submission.isError && submission.data === undefined && !isNotFound(submission.error);
+  const refused = hardFailure && isRefusal(submission.error);
+  const failureMessage = refused
+    ? (refusalDetail(submission.error) ?? LOAD_FAILURE)
+    : LOAD_FAILURE;
   useEffect(() => {
     if (hardFailure) {
-      announce(LOAD_FAILURE);
+      announce(failureMessage);
     }
-  }, [hardFailure, announce]);
+  }, [hardFailure, failureMessage, announce]);
 
   if (isNotFound(submission.error)) {
     return <NotFoundPage />;
@@ -135,14 +147,16 @@ export function SubmissionDetailPage() {
         <PageHeader id={HEADING_ID} title="Submission" />
         {hardFailure ? (
           <div className="flex flex-col items-start gap-3">
-            <p className="m-0 text-[var(--color-danger)]">{LOAD_FAILURE}</p>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => void submission.refetch()}
-            >
-              Try again
-            </Button>
+            <p className="m-0 text-[var(--color-danger)]">{failureMessage}</p>
+            {refused ? null : (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => void submission.refetch()}
+              >
+                Try again
+              </Button>
+            )}
           </div>
         ) : (
           <p className="m-0">Loading submission…</p>

@@ -388,6 +388,31 @@ describe("submission detail failures", () => {
     expect(screen.getByRole("button", { name: "Try again" })).toBeVisible();
   });
 
+  it("shows the server's reason and no retry when it refuses the caller", async () => {
+    await open([
+      MEMBER,
+      {
+        method: "GET",
+        path: DETAIL,
+        status: 403,
+        body: {
+          detail: "You must accept the current terms before you can view submissions.",
+        },
+      },
+    ]);
+
+    // Shown on the page and announced in the live region.
+    await waitFor(() =>
+      expect(
+        screen.getAllByText(
+          "You must accept the current terms before you can view submissions.",
+        ),
+      ).toHaveLength(2),
+    );
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+    expect(screen.queryByText(/Try again in a moment/)).toBeNull();
+  });
+
   it("warns that the page may be out of date when a refresh fails over data on screen", async () => {
     let failing = false;
     stubApi([MEMBER, DEFINITIONS, detail()], {

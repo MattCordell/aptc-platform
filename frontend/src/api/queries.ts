@@ -1421,6 +1421,13 @@ export function useSubmissionDetail(submissionId: string) {
 
 type InterestResponse = components["schemas"]["InterestResponse"];
 
+/** What `useSubmissionDetail` caches. The cache update below picks its two
+ * fields from this type, because an object spread is not checked for a field
+ * the type no longer has: a rename then fails `pnpm typecheck`. */
+type SubmissionDetailAnswer =
+  | components["schemas"]["SubmissionDetail"]
+  | components["schemas"]["IdentifiedSubmissionDetail"];
+
 /**
  * Both interest writes answer where the caller's interest now stands, so the
  * answer goes straight into the cached detail and the page never shows the old
@@ -1439,16 +1446,16 @@ function useInterestMutation(
   return useMutation({
     mutationFn: () => write(client),
     onSuccess: (answer) => {
-      queryClient.setQueryData(
+      const interest: Pick<
+        SubmissionDetailAnswer,
+        "has_registered_interest" | "interest_count"
+      > = {
+        has_registered_interest: answer.has_registered_interest,
+        interest_count: answer.interest_count,
+      };
+      queryClient.setQueryData<SubmissionDetailAnswer>(
         submissionDetailKey(submissionId),
-        (detail: object | undefined) =>
-          detail === undefined
-            ? undefined
-            : {
-                ...detail,
-                has_registered_interest: answer.has_registered_interest,
-                interest_count: answer.interest_count,
-              },
+        (detail) => (detail === undefined ? undefined : { ...detail, ...interest }),
       );
       return queryClient.invalidateQueries({ queryKey: SUBMISSIONS_LIST_KEY });
     },
