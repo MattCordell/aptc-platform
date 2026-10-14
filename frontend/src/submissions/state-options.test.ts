@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   defaultStateFilter,
+  isOpenSubmissionState,
   isSubmissionStateFilter,
   stateFilterOptions,
   statesForRequest,
@@ -30,6 +31,16 @@ describe("submission states (FR-28)", () => {
   it("degrades an unknown state to its own text and a neutral tone", () => {
     expect(submissionStateLabel("Escalated")).toBe("Escalated");
     expect(submissionStateTone("Escalated")).toBe("neutral");
+  });
+
+  it("counts Submitted and Triage as open and the rest as closed", () => {
+    const open = SUBMISSION_STATES.filter(isOpenSubmissionState);
+    expect(open).toEqual(["Submitted", "Triage"]);
+  });
+
+  it("does not count an unknown state as open", () => {
+    expect(isOpenSubmissionState("Escalated")).toBe(false);
+    expect(isOpenSubmissionState("toString")).toBe(false);
   });
 });
 

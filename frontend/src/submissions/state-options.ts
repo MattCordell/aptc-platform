@@ -39,6 +39,15 @@ function isSubmissionState(value: string): value is SubmissionState {
   return Object.hasOwn(STATE_DETAILS, value);
 }
 
+/**
+ * Whether a state the server returned is open (FR-28). An unknown value is not
+ * open, so a screen that offers an action only on open submissions hides it
+ * rather than offering it on a state it cannot name.
+ */
+export function isOpenSubmissionState(state: string): boolean {
+  return isSubmissionState(state) && STATE_DETAILS[state].open;
+}
+
 export function isSubmissionStateFilter(value: string): value is SubmissionStateFilter {
   return value === "open" || value === "all" || isSubmissionState(value);
 }

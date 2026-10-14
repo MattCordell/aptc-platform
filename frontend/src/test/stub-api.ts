@@ -88,7 +88,8 @@ export function stubApi(routes: Route[], options: StubOptions = {}) {
     // parsed, so FR-06's own test needs the text a route actually sent, not
     // what it round-trips back to.
     const text = method === "GET" ? "" : await request.clone().text();
-    const body = method === "GET" ? null : JSON.parse(text);
+    // A bodiless write, such as `PUT .../interest`, sends no text at all.
+    const body = text === "" ? null : JSON.parse(text);
     const priorSameCalls = calls.filter(
       (call) => call.method === method && call.path === path,
     ).length;

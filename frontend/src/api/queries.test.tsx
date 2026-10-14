@@ -36,6 +36,9 @@ import {
   useRetireDesignation,
   useSavePropertyValues,
   useSession,
+  useRegisterInterest,
+  useRevokeInterest,
+  useSubmissionDetail,
   useSubmissionsList,
 } from "./queries.ts";
 import type { ApiError } from "./unwrap.ts";
@@ -333,6 +336,172 @@ describe("useSubmissionsList (FR-28, FR-34)", () => {
     const { result } = renderHook(() => useSubmissionsList(), { wrapper });
 
     await waitFor(() => expect(result.current.isError).toBe(true));
+  });
+});
+
+describe("useSubmissionDetail (FR-28, FR-34)", () => {
+  const ID = "0b8a5c7e-6a43-4f56-9d1b-2f4f5a4e1c11";
+
+  it("reads the submission at its own path", async () => {
+    const calls = stubApi([
+      { method: "GET", path: `/api/v1/submissions/${ID}`, status: 200, body: { id: ID } },
+    ]);
+
+    const { result } = renderHook(() => useSubmissionDetail(ID), { wrapper });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(calls[0]?.path).toBe(`/api/v1/submissions/${ID}`);
+  });
+
+  it("sends nothing for a blank id", () => {
+    const calls = stubApi([]);
+
+    renderHook(() => useSubmissionDetail(""), { wrapper });
+
+    expect(calls).toEqual([]);
+  });
+
+  it("surfaces an unknown id as a query error with its status", async () => {
+    stubApi([
+      {
+        method: "GET",
+        path: `/api/v1/submissions/${ID}`,
+        status: 404,
+        body: { detail: "no such submission" },
+      },
+    ]);
+
+    const { result } = renderHook(() => useSubmissionDetail(ID), { wrapper });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect((result.current.error as ApiError).status).toBe(404);
+  });
+});
+
+describe("useRegisterInterest and useRevokeInterest (FR-32, FR-34)", () => {
+  const ID = "0b8a5c7e-6a43-4f56-9d1b-2f4f5a4e1c11";
+  const DETAIL = `/api/v1/submissions/${ID}`;
+  const INTEREST = `${DETAIL}/interest`;
+  const detail = {
+    id: ID,
+    preferred_term: "Ferritin",
+    has_registered_interest: false,
+    interest_count: 2,
+  };
+
+  function sharedClientWrapper() {
+    const queryClient = createQueryClient();
+    const Wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>
+        <AuthContext.Provider value={AUTH}>{children}</AuthContext.Provider>
+      </QueryClientProvider>
+    );
+    return { Wrapper, queryClient };
+  }
+
+  it("registers with a bodiless PUT and writes the answer into the cached detail", async () => {
+    const calls = stubApi([
+      { method: "GET", path: DETAIL, status: 200, body: detail },
+      {
+        method: "PUT",
+        path: INTEREST,
+        status: 200,
+        body: { has_registered_interest: true, interest_count: 3 },
+      },
+    ]);
+    const { Wrapper } = sharedClientWrapper();
+    const { result } = renderHook(
+      () => ({ read: useSubmissionDetail(ID), write: useRegisterInterest(ID) }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.read.isSuccess).toBe(true));
+
+    result.current.write.mutate();
+
+    await waitFor(() => expect(result.current.read.data?.interest_count).toBe(3));
+    expect(result.current.read.data).toMatchObject({
+      preferred_term: "Ferritin",
+      has_registered_interest: true,
+    });
+    expect(calls.filter((call) => call.method === "PUT")).toHaveLength(1);
+    expect(calls.filter((call) => call.method === "GET")).toHaveLength(1);
+  });
+
+  it("revokes with a DELETE and keeps a withheld count as null", async () => {
+    stubApi([
+      {
+        method: "GET",
+        path: DETAIL,
+        status: 200,
+        body: { ...detail, has_registered_interest: true, interest_count: null },
+      },
+      {
+        method: "DELETE",
+        path: INTEREST,
+        status: 200,
+        body: { has_registered_interest: false, interest_count: null },
+      },
+    ]);
+    const { Wrapper } = sharedClientWrapper();
+    const { result } = renderHook(
+      () => ({ read: useSubmissionDetail(ID), write: useRevokeInterest(ID) }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.read.isSuccess).toBe(true));
+
+    result.current.write.mutate();
+
+    await waitFor(() =>
+      expect(result.current.read.data?.has_registered_interest).toBe(false),
+    );
+    expect(result.current.read.data?.interest_count).toBeNull();
+  });
+
+  it("marks the list stale so its Interest column re-reads", async () => {
+    stubApi([
+      {
+        method: "PUT",
+        path: INTEREST,
+        status: 200,
+        body: { has_registered_interest: true, interest_count: 1 },
+      },
+    ]);
+    const { Wrapper, queryClient } = sharedClientWrapper();
+    queryClient.setQueryData(["api", "/api/v1/submissions", {}], { items: [] });
+    const { result } = renderHook(() => useRegisterInterest(ID), { wrapper: Wrapper });
+
+    result.current.mutate();
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(
+      queryClient.getQueryState(["api", "/api/v1/submissions", {}])?.isInvalidated,
+    ).toBe(true);
+  });
+
+  it("throws a refusal with its detail and leaves the cached detail alone", async () => {
+    stubApi([
+      { method: "GET", path: DETAIL, status: 200, body: detail },
+      {
+        method: "PUT",
+        path: INTEREST,
+        status: 409,
+        body: { detail: "You cannot register interest in your own submission." },
+      },
+    ]);
+    const { Wrapper } = sharedClientWrapper();
+    const { result } = renderHook(
+      () => ({ read: useSubmissionDetail(ID), write: useRegisterInterest(ID) }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.read.isSuccess).toBe(true));
+
+    result.current.write.mutate();
+
+    await waitFor(() => expect(result.current.write.isError).toBe(true));
+    expect(refusalDetail(result.current.write.error)).toBe(
+      "You cannot register interest in your own submission.",
+    );
+    expect(result.current.read.data?.has_registered_interest).toBe(false);
   });
 });
 

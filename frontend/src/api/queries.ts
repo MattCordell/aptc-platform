@@ -1390,6 +1390,92 @@ export function useSubmissionsList(params: SubmissionsListParams = {}) {
   });
 }
 
+/** The list's key prefix. The detail key below does not start with it, so a
+ * refresh of the list never refetches an open detail page. */
+const SUBMISSIONS_LIST_KEY = ["api", "/api/v1/submissions"];
+
+function submissionDetailKey(submissionId: string) {
+  return ["api", "/api/v1/submissions/{submission_id}", submissionId];
+}
+
+/**
+ * One submission in any state, with the content its submitter sent (FR-28,
+ * FR-34). As for the list, the submitter and the counts depend on the caller's
+ * permissions, so a consumer narrows by field rather than by role. An unknown
+ * id is a 404 and a malformed one a 422; the page treats both as not found.
+ */
+export function useSubmissionDetail(submissionId: string) {
+  const client = useApiClient();
+  return useQuery({
+    queryKey: submissionDetailKey(submissionId),
+    queryFn: async ({ signal }) =>
+      unwrap(
+        await client.GET("/api/v1/submissions/{submission_id}", {
+          params: { path: { submission_id: submissionId } },
+          signal,
+        }),
+      ),
+    enabled: submissionId.length > 0,
+  });
+}
+
+type InterestResponse = components["schemas"]["InterestResponse"];
+
+/**
+ * Both interest writes answer where the caller's interest now stands, so the
+ * answer goes straight into the cached detail and the page never shows the old
+ * count while a refetch runs. The list's Interest column reads the same fact,
+ * so its pages are marked stale. A refusal (409 for the caller's own or a
+ * closed submission, 403 without `interest.register`) is thrown as an
+ * `ApiError` and nothing is cached.
+ */
+function useInterestMutation(
+  submissionId: string,
+  write: (client: ApiClient) => Promise<InterestResponse>,
+) {
+  const client = useApiClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => write(client),
+    onSuccess: (answer) => {
+      queryClient.setQueryData(
+        submissionDetailKey(submissionId),
+        (detail: object | undefined) =>
+          detail === undefined
+            ? undefined
+            : {
+                ...detail,
+                has_registered_interest: answer.has_registered_interest,
+                interest_count: answer.interest_count,
+              },
+      );
+      return queryClient.invalidateQueries({ queryKey: SUBMISSIONS_LIST_KEY });
+    },
+  });
+}
+
+/** Register the caller's interest (FR-32, FR-34). Idempotent on the server. */
+export function useRegisterInterest(submissionId: string) {
+  return useInterestMutation(submissionId, async (client) =>
+    unwrap(
+      await client.PUT("/api/v1/submissions/{submission_id}/interest", {
+        params: { path: { submission_id: submissionId } },
+      }),
+    ),
+  );
+}
+
+/** Withdraw the caller's interest (FR-32, FR-34). Idempotent on the server. */
+export function useRevokeInterest(submissionId: string) {
+  return useInterestMutation(submissionId, async (client) =>
+    unwrap(
+      await client.DELETE("/api/v1/submissions/{submission_id}/interest", {
+        params: { path: { submission_id: submissionId } },
+      }),
+    ),
+  );
+}
+
 /**
  * Ask which catalogue entries and open submissions a new test may duplicate
  * (FR-25), before it is sent. A mutation, not a query: it is an action the
