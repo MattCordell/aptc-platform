@@ -30,7 +30,12 @@ def _dockerfile_tags(dockerfile: str, image_pattern: str) -> list[str]:
 
 
 def _single_tag(dockerfile: str, image_pattern: str) -> str:
-    tags = set(_dockerfile_tags(dockerfile, image_pattern))
+    found = _dockerfile_tags(dockerfile, image_pattern)
+    assert found, (
+        f"no FROM line in {dockerfile} matches {image_pattern!r}; if the image reference "
+        "changed shape (a digest or a variant suffix), update the pattern in this test"
+    )
+    tags = set(found)
     assert len(tags) == 1, f"{dockerfile} must use exactly one tag, found {sorted(tags)}"
     return tags.pop()
 
