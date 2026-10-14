@@ -1352,6 +1352,44 @@ export function useSubmissionPropertyDefinitions() {
   });
 }
 
+export interface SubmissionsListParams {
+  /** Sent as repeated `state` pairs. Left out, the server lists the open
+   * states, or every state when `mine` is set (FR-28). */
+  state?: readonly components["schemas"]["SubmissionState"][];
+  /** Keep only the caller's own submissions. Sent only when true. */
+  mine?: boolean;
+  limit?: number;
+  /** The previous page's `next_cursor`, passed back unchanged (ADR-0024). */
+  after?: string | null;
+  enabled?: boolean;
+  /** As `EntriesListParams.keepPreviousPage`. */
+  keepPreviousPage?: boolean;
+}
+
+/**
+ * One page of submissions, newest first (FR-28, FR-34). The page type depends
+ * on the caller's permissions: the submitter is a plain username unless the
+ * caller may see identities, and the counts are absent for a caller who may
+ * not see them (FR-42), so a consumer narrows by field rather than by role.
+ */
+export function useSubmissionsList(params: SubmissionsListParams = {}) {
+  const client = useApiClient();
+  const { state, mine = false, limit, after, enabled = true, keepPreviousPage } = params;
+  const query = {
+    state: state === undefined ? undefined : [...state],
+    mine: mine ? true : undefined,
+    limit,
+    after,
+  };
+  return useQuery({
+    queryKey: ["api", "/api/v1/submissions", query],
+    placeholderData: keepPreviousPage === true ? keepPreviousData : undefined,
+    queryFn: async ({ signal }) =>
+      unwrap(await client.GET("/api/v1/submissions", { params: { query }, signal })),
+    enabled,
+  });
+}
+
 /**
  * Ask which catalogue entries and open submissions a new test may duplicate
  * (FR-25), before it is sent. A mutation, not a query: it is an action the

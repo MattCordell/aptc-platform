@@ -80,6 +80,16 @@ describe("not-found route", () => {
   });
 });
 
+describe("removed routes", () => {
+  it("renders the not-found page for /interest, signed in", async () => {
+    await renderRoute("/interest", { auth: { status: "signed-in" } });
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: /couldn't find that page/i }),
+    ).toBeInTheDocument();
+  });
+});
+
 describe("route error boundary", () => {
   let consoleError: ReturnType<typeof vi.spyOn>;
 

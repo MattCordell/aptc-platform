@@ -36,6 +36,7 @@ import {
   useRetireDesignation,
   useSavePropertyValues,
   useSession,
+  useSubmissionsList,
 } from "./queries.ts";
 import type { ApiError } from "./unwrap.ts";
 
@@ -282,6 +283,56 @@ describe("useAdminEntriesList", () => {
     renderHook(() => useAdminEntriesList({ enabled: false }), { wrapper });
 
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("useSubmissionsList (FR-28, FR-34)", () => {
+  it("sends a bare request by default, so the server's own default applies", async () => {
+    const fetchMock = stubFetch(200, { items: [], next_cursor: null });
+
+    renderHook(() => useSubmissionsList(), { wrapper });
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const request = requestFor(fetchMock);
+    expect(new URL(request.url).pathname).toBe("/api/v1/submissions");
+    expect([...new URL(request.url).searchParams.keys()]).toEqual([]);
+  });
+
+  it("sends each state as its own repeated parameter, mine only when true, and the cursor", async () => {
+    const fetchMock = stubFetch(200, { items: [], next_cursor: null });
+
+    renderHook(
+      () =>
+        useSubmissionsList({
+          state: ["Submitted", "Published in release"],
+          mine: true,
+          after: "cursor-1",
+        }),
+      { wrapper },
+    );
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const params = new URL(requestFor(fetchMock).url).searchParams;
+    expect(params.getAll("state")).toEqual(["Submitted", "Published in release"]);
+    expect(params.get("mine")).toBe("true");
+    expect(params.get("after")).toBe("cursor-1");
+  });
+
+  it("leaves mine out when it is false", async () => {
+    const fetchMock = stubFetch(200, { items: [], next_cursor: null });
+
+    renderHook(() => useSubmissionsList({ mine: false }), { wrapper });
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(new URL(requestFor(fetchMock).url).searchParams.has("mine")).toBe(false);
+  });
+
+  it("surfaces a refusal as a query error", async () => {
+    stubFetch(403, { detail: "no" });
+
+    const { result } = renderHook(() => useSubmissionsList(), { wrapper });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
   });
 });
 

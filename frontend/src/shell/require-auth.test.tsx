@@ -20,7 +20,7 @@ import { renderRoute } from "../test/render-route.tsx";
  * tests are about what the shell shows.
  */
 
-const GATED_PATHS = ["/submissions", "/admin/users", "/interest", "/admin"];
+const GATED_PATHS = ["/submissions", "/admin/users", "/admin"];
 
 describe("RequireAuth - signed out", () => {
   it.each(GATED_PATHS)("sends a signed-out visitor from %s to sign-in", async (path) => {
