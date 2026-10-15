@@ -50,6 +50,11 @@ a reviewer has edited it. Everyone else gets no such key, the same omission rule
 detail now comes in four classes: identity crossed with working-copy visibility. It is on the detail
 only, because a list item carries no content to compare.
 
+**The detail shows the terminology request to a reviewer too (FR-30).** The same caller gets
+`terminology_request` beside `working_copy`, null until the submission has waited for terminology, and
+everyone else gets no such key. A submitter is told the state, never the request: the record carries
+the reviewer's own justification and the tracking of a request with a third party.
+
 **The transition history names its actor by the same rule (FR-28, FR-42).** `PlainActor` carries the
 username alone and `IdentifiedActor` adds the display name and the organisation from the actor's
 profile, because a transition has no copy of its own to show. A closed account's actor shows the same
@@ -82,6 +87,10 @@ from nptc.api.labels import (
     fsn_provenance,
 )
 from nptc.api.routers.auth import ErrorResponse
+from nptc.api.routers.submission_terminology_request import (
+    TerminologyRequestView,
+    terminology_request_view,
+)
 from nptc.api.routers.submission_working_copy import WorkingCopyView, working_copy_view
 from nptc.api.routers.submissions import SessionDep, SubmittedPropertyValue
 from nptc.auth.identity import UserRef
@@ -233,10 +242,12 @@ class _DetailFields(_SummaryFields):
 class _ReviewDetailFields(_DetailFields):
     """The detail for a caller with `submission.transition.review`: it adds `working_copy`, the
     reviewer's edited copy of the content above, or null when nobody has edited the submission
-    (FR-23). The key is absent for every other caller, not null, so a submitter never learns that a
-    working copy exists."""
+    (FR-23), and `terminology_request`, what was asked of the terminology authority, or null when the
+    submission has never waited for a code (FR-30). Both keys are absent for every other caller, not
+    null, so a submitter never learns that either exists."""
 
     working_copy: WorkingCopyView | None
+    terminology_request: TerminologyRequestView | None
 
 
 class SubmissionSummary(_SummaryFields):
@@ -592,7 +603,8 @@ def get_submission(
     on the list: a username only, unless the caller holds `submitter_identity.view`.
 
     A caller with `submission.transition.review` also gets `working_copy`, the reviewer's edited
-    copy of that content, or null when it has not been edited. Every other caller gets no such key."""
+    copy of that content, or null when it has not been edited, and `terminology_request`, or null
+    when the submission has never waited for a code. Every other caller gets neither key."""
     record = queries.get_submission(session, submission_id, viewer_id=principal.user_id)
     interest = interest_summaries(session, [submission_id], viewer_id=principal.user_id)[
         submission_id
@@ -602,9 +614,11 @@ def get_submission(
     identified = principal.has(Permission.SUBMITTER_IDENTITY_VIEW)
     if principal.has(Permission.SUBMISSION_TRANSITION_REVIEW):
         copy = queries.get_working_copy(session, submission_id)
+        request = queries.get_terminology_request(session, submission_id)
         review_fields = {
             **fields,
             "working_copy": None if copy is None else working_copy_view(copy, settings),
+            "terminology_request": None if request is None else terminology_request_view(request),
         }
         if identified:
             return IdentifiedReviewSubmissionDetail(

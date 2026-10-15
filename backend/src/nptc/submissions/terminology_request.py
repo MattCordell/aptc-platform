@@ -26,6 +26,13 @@ the server, then takes the lock and judges the move again against the committed 
 `test_lock_ordering.py` names this function as exempt from its lock-first rule, and
 `test_submissions_terminology_request.py` pins the ordering instead.
 
+**While the submission waits, the tracking fields can change** (FR-31): the external reference and
+the expected release, because a request with a third party moves on without the submission's content
+changing. What was asked for (`proposed_fsn`, `target_edition`, `justification`, `raised_date`) never
+changes, and the `UPDATE` grant says so. A change bumps `submission.row_version`, the one lock, so an
+edit and a move cannot cross, appends one audit event naming only the fields that changed, and writes
+nothing when the request changes nothing.
+
 **Two audit events when the request is made, and each says one thing.** `submission.terminology_requested` is the change of
 state, on the submission, with the reason, as for any move. `submission.terminology_request_created`
 is the record, with every field it holds. The record is written through a snapshot because the
@@ -39,6 +46,7 @@ from dataclasses import dataclass, replace
 from datetime import date
 
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.exc import ObjectDeletedError, StaleDataError
 
 from nptc.audit.diffing import ChangeKind
 from nptc.audit.policy import policy_for
@@ -54,7 +62,9 @@ from nptc.db.models.submission_working_copy import SubmissionWorkingCopy
 from nptc.submissions.errors import (
     FreeTextField,
     SubmissionNotFoundError,
+    SubmissionVersionConflictError,
     TerminologyRequestFieldRequiredError,
+    TerminologyRequestNotOpenError,
 )
 from nptc.submissions.shared import clean_free_text, resolve_code
 from nptc.submissions.transitions import (
@@ -75,12 +85,17 @@ from nptc_shared.terminology import TerminologyClient
 __all__ = [
     "TerminologyAttachment",
     "TerminologyRequestDetails",
+    "TerminologyRequestUpdate",
+    "TerminologyTrackingChanges",
     "attach_terminology_code",
     "clean_terminology_request",
+    "clean_terminology_tracking",
     "request_terminology",
+    "update_terminology_request",
 ]
 
 _RECORD_CREATED = "submission.terminology_request_created"
+_RECORD_UPDATED = "submission.terminology_request_updated"
 
 
 @dataclass(frozen=True)
@@ -95,6 +110,30 @@ class TerminologyRequestDetails:
     external_reference_ref: str
     raised_date: date
     expected_release: date | None = None
+
+
+@dataclass(frozen=True)
+class TerminologyTrackingChanges:
+    """What a reviewer changes while the submission waits. A field left out stays as it is. The
+    external reference is replaced as a pair, because a system without its reference cannot be
+    followed. `expected_release_given` is true when `expected_release` was sent, so a sent `None`
+    clears the date and a date left out keeps it."""
+
+    external_reference_system: str | None = None
+    external_reference_ref: str | None = None
+    expected_release: date | None = None
+    expected_release_given: bool = False
+
+
+@dataclass(frozen=True)
+class TerminologyRequestUpdate:
+    """The outcome of a change to the tracking fields. `changed` is false when the request left the
+    record as it was, and then nothing was written. `submission` carries the `row_version` to send
+    next."""
+
+    submission: Submission
+    record: SubmissionTerminologyRequest
+    changed: bool
 
 
 @dataclass(frozen=True)
@@ -306,3 +345,94 @@ def _judge_attach(principal: Principal, submission: Submission) -> PermittedTran
         SubmissionState.READY_FOR_APPROVAL,
         required_from=SubmissionState.AWAITING_TERMINOLOGY,
     )
+
+
+def clean_terminology_tracking(changes: TerminologyTrackingChanges) -> TerminologyTrackingChanges:
+    """`changes` with the external reference cleaned as free text is (FR-63), or a refusal. It
+    touches no session, so a writer runs it ahead of the append lock and a refused request takes
+    none."""
+    if changes.external_reference_system is None and changes.external_reference_ref is None:
+        return changes
+    if changes.external_reference_system is None or changes.external_reference_ref is None:
+        raise ValueError("the external reference is replaced as a pair: send both or neither")
+    return replace(
+        changes,
+        external_reference_system=_required(
+            changes.external_reference_system,
+            FreeTextField.EXTERNAL_REFERENCE_SYSTEM,
+            multiline=False,
+        ),
+        external_reference_ref=_required(
+            changes.external_reference_ref, FreeTextField.EXTERNAL_REFERENCE_REF, multiline=False
+        ),
+    )
+
+
+def update_terminology_request(
+    session: Session,
+    ctx: AuditContext,
+    *,
+    submission_id: uuid.UUID,
+    changes: TerminologyTrackingChanges,
+    reason: str,
+    expected_row_version: int,
+) -> TerminologyRequestUpdate:
+    """Applies `changes` to the tracking fields of the submission's terminology request, bumps the
+    submission's `row_version` and appends one audit event. Returns the outcome. A request that
+    changes nothing writes nothing, but is still judged against the committed row under the lock.
+
+    Raises `TransitionReasonRequiredError` for a blank reason,
+    `TerminologyRequestFieldRequiredError` for a reference field that is empty once cleaned,
+    `FreeTextRefusedError` for one with an invisible character, `SubmissionNotFoundError` for an
+    unknown submission, `TerminologyRequestNotOpenError` for a submission that is not
+    `Awaiting terminology`, and `SubmissionVersionConflictError` for a stale
+    `expected_row_version`. The caller's permission is judged by the route, as for the working copy.
+    A refusal writes nothing.
+    """
+    cleaned_reason = clean_transition_reason(reason)
+    changes = clean_terminology_tracking(changes)
+
+    acquire_append_lock(session)
+    submission = load_submission_locked(session, submission_id)
+    record = session.get(SubmissionTerminologyRequest, submission.id, populate_existing=True)
+    if submission.state != SubmissionState.AWAITING_TERMINOLOGY.value or record is None:
+        raise TerminologyRequestNotOpenError(submission.state)
+    check_row_version(submission, expected_row_version)
+
+    new_values: dict[str, object] = {}
+    if changes.external_reference_system is not None:
+        new_values["external_reference_system"] = changes.external_reference_system
+        new_values["external_reference_ref"] = changes.external_reference_ref
+    if changes.expected_release_given:
+        new_values["expected_release"] = changes.expected_release
+    changed = [name for name, value in new_values.items() if getattr(record, name) != value]
+    if not changed:
+        return TerminologyRequestUpdate(submission=submission, record=record, changed=False)
+
+    savepoint = session.begin_nested()
+    try:
+        for name in changed:
+            setattr(record, name, new_values[name])
+        # The manual bump marks the submission dirty, so the flush issues the UPDATE that
+        # `version_id_col` guards: a writer that skipped the lock still fails on a stale version.
+        submission.row_version += 1
+        record_change(
+            session,
+            ctx,
+            action=_RECORD_UPDATED,
+            instance=record,
+            kind=ChangeKind.UPDATED,
+            reason=cleaned_reason,
+        )
+    except StaleDataError, ObjectDeletedError:
+        savepoint.rollback()
+        session.expire(submission)
+        current = load_submission_locked(session, submission_id)
+        raise SubmissionVersionConflictError(
+            expected_row_version=expected_row_version, current_row_version=current.row_version
+        ) from None
+    except BaseException:
+        savepoint.rollback()
+        raise
+    savepoint.commit()
+    return TerminologyRequestUpdate(submission=submission, record=record, changed=True)

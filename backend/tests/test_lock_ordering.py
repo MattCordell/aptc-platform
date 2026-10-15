@@ -260,6 +260,7 @@ _SESSION_FREE_PRECHECKS = frozenset(
         "validate_changelog_note",
         "clean_transition_reason",
         "clean_terminology_request",
+        "clean_terminology_tracking",
         "clean_term",
         "SCTID",
         "_validate_edition_hint",
@@ -610,7 +611,8 @@ def test_guard_scans_the_submissions_package() -> None:
 def test_the_only_exempt_submissions_writers_are_the_four_named_with_a_reason() -> None:
     """The scan reaches the package, so a new writer there is held to the lock-first rule unless it
     is named, with a reason, in `_EXEMPT_FUNCTIONS`. The two interest writers, the transition writer
-    and the terminology request writer take the lock first and are not exempt, so they are the whole of what the rule checks
+    and the two terminology request writers that make no network call take the lock first and are not
+    exempt, so they are the whole of what the rule checks
     there."""
     exempt_here = {key for key in _EXEMPT_FUNCTIONS if key[0].startswith("submissions.")}
     assert exempt_here == {
@@ -624,6 +626,7 @@ def test_the_only_exempt_submissions_writers_are_the_four_named_with_a_reason() 
         ("submissions.interest", "register_interest"),
         ("submissions.interest", "revoke_interest"),
         ("submissions.terminology_request", "request_terminology"),
+        ("submissions.terminology_request", "update_terminology_request"),
         ("submissions.transitions", "transition_submission"),
     }
 

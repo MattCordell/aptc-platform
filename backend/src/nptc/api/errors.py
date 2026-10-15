@@ -731,6 +731,10 @@ _DETAIL_SUBMISSION_CODE_REFUSED: Final[dict[CodeRefusal, str]] = {
         "The terminology server returned no fully specified name for this SNOMED CT code, "
         "so it cannot be submitted."
     ),
+    CodeRefusal.ATTACH_ONLY: (
+        "While a submission is Awaiting terminology, an Administrator attaches its SNOMED CT "
+        "code once the terminology authority has issued it. Leave the code out of this edit."
+    ),
 }
 #: FR-35. One sentence per reason, each naming what the submitter can change.
 _DETAIL_AMENDMENT_REFUSED: Final[dict[AmendmentRefusal, str]] = {

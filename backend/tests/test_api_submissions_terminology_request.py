@@ -1159,3 +1159,541 @@ def test_the_detail_offers_the_attach_to_an_administrator_and_not_to_a_reviewer(
 
     assert reviewer["available_transitions"] == []
     assert admin["available_transitions"] == ["Ready for approval"]
+
+
+# --- tracking the request while the submission waits (FR-31, NFR-08) -----------------------------
+
+
+def _track(
+    api: ApiTestApp,
+    token: str | None,
+    submission_id: object,
+    *,
+    reason: object = "Moved to the next release.",
+    expected_row_version: object = 2,
+    **fields: object,
+) -> Any:
+    return api.request(
+        "PATCH",
+        f"/submissions/{submission_id}/terminology-request",
+        token=token,
+        json={"reason": reason, "expected_row_version": expected_row_version, **fields},
+    )
+
+
+def _record_events(api: ApiTestApp, submission: Submission) -> list[Any]:
+    return _events(api, submission, entity_type="submission_terminology_request")
+
+
+def _assert_untracked(api: ApiTestApp, submission: Submission) -> None:
+    """Nothing the tracking change writes exists: the record is as the move in wrote it, the version
+    is the one it left, and only the creation event is on the record."""
+    record = _record(api, submission)
+    assert record is not None
+    assert (record.external_reference_system, record.external_reference_ref) == (
+        "snomed-request-service",
+        "REQ-1",
+    )
+    assert str(record.expected_release) == "2027-03-31"
+    assert submission.row_version == 2
+    assert [event.action for event in _record_events(api, submission)] == [
+        "submission.terminology_request_created"
+    ]
+
+
+@pytest.mark.req("FR-31")
+@pytest.mark.req("NFR-08")
+@pytest.mark.integration
+@pytest.mark.parametrize("role", _REVIEWING_ROLES)
+def test_a_reviewing_role_changes_the_tracking_fields_and_the_change_is_audited(
+    api: ApiTestApp, role: Role
+) -> None:
+    submission = _awaiting(api)
+    token, _ = _sign_in(api, role)
+
+    response = _track(
+        api,
+        token,
+        submission.id,
+        external_reference={"system": "  new-system  ", "reference": "REQ-9"},
+        expected_release="2027-06-30",
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["changed"] is True
+    assert body["row_version"] == 3
+    assert body["terminology_request"]["external_reference"] == {
+        "system": "new-system",
+        "reference": "REQ-9",
+    }
+    assert body["terminology_request"]["expected_release"] == "2027-06-30"
+    # What was asked for is as the move in left it.
+    assert body["terminology_request"]["proposed_fsn"] == "Serum sodium level (observable entity)"
+    assert body["terminology_request"]["raised_date"] == "2026-10-01"
+    record = _record(api, submission)
+    assert record is not None
+    assert (record.external_reference_system, record.external_reference_ref) == (
+        "new-system",
+        "REQ-9",
+    )
+    created, updated = _record_events(api, submission)
+    assert created.action == "submission.terminology_request_created"
+    assert updated.action == "submission.terminology_request_updated"
+    assert updated.before == {
+        "external_reference_ref": "REQ-1",
+        "external_reference_system": "snomed-request-service",
+        "expected_release": "2027-03-31",
+    }
+    assert updated.after == {
+        "external_reference_ref": "REQ-9",
+        "external_reference_system": "new-system",
+        "expected_release": "2027-06-30",
+    }
+    assert updated.reason == "Moved to the next release."
+    assert _state(api, submission) == "Awaiting terminology"
+
+
+@pytest.mark.req("FR-31")
+@pytest.mark.integration
+def test_each_tracking_field_changes_on_its_own_and_the_release_can_be_cleared(
+    api: ApiTestApp,
+) -> None:
+    submission = _awaiting(api)
+    token, _ = _sign_in(api, Role.REVIEWER)
+
+    only_release = _track(api, token, submission.id, expected_release="2028-01-01")
+    only_reference = _track(
+        api,
+        token,
+        submission.id,
+        expected_row_version=3,
+        external_reference={"system": "other", "reference": "REQ-2"},
+    )
+    cleared = _track(api, token, submission.id, expected_row_version=4, expected_release=None)
+
+    assert only_release.status_code == 200, only_release.text
+    assert only_release.json()["terminology_request"]["external_reference"]["reference"] == "REQ-1"
+    assert only_reference.status_code == 200, only_reference.text
+    assert only_reference.json()["terminology_request"]["expected_release"] == "2028-01-01"
+    assert cleared.status_code == 200, cleared.text
+    assert cleared.json()["terminology_request"]["expected_release"] is None
+    assert cleared.json()["terminology_request"]["external_reference"]["system"] == "other"
+    assert cleared.json()["row_version"] == 5
+
+
+@pytest.mark.req("FR-31")
+@pytest.mark.req("NFR-08")
+@pytest.mark.integration
+def test_a_change_that_alters_nothing_writes_nothing_and_says_so(api: ApiTestApp) -> None:
+    submission = _awaiting(api)
+    token, _ = _sign_in(api, Role.REVIEWER)
+
+    response = _track(
+        api,
+        token,
+        submission.id,
+        external_reference={"system": "snomed-request-service", "reference": "REQ-1"},
+        expected_release="2027-03-31",
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["changed"] is False
+    assert response.json()["row_version"] == 2
+    _assert_untracked(api, submission)
+
+
+@pytest.mark.req("FR-31")
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    ("fields", "field"),
+    [
+        (
+            {"external_reference": {"system": " ", "reference": "REQ-2"}},
+            "external_reference_system",
+        ),
+        ({"external_reference": {"system": "svc", "reference": ""}}, "external_reference_ref"),
+        (
+            {"external_reference": {"system": f"s{ZERO_WIDTH_SPACE}", "reference": "REQ-2"}},
+            "external_reference_system",
+        ),
+        (
+            {"external_reference": {"system": "svc", "reference": f"R{ZERO_WIDTH_SPACE}"}},
+            "external_reference_ref",
+        ),
+    ],
+    ids=["blank_system", "empty_reference", "invisible_in_system", "invisible_in_reference"],
+)
+def test_a_reference_part_that_is_blank_or_unclean_is_a_422_that_names_it(
+    api: ApiTestApp, fields: dict[str, object], field: str
+) -> None:
+    submission = _awaiting(api)
+    token, _ = _sign_in(api, Role.REVIEWER)
+
+    response = _track(api, token, submission.id, **fields)
+
+    assert response.status_code == 422, response.text
+    assert response.json()["field"] == field
+    _assert_untracked(api, submission)
+
+
+@pytest.mark.req("FR-31")
+@pytest.mark.integration
+@pytest.mark.parametrize("reason", ["   ", f"Done{ZERO_WIDTH_SPACE}"], ids=["blank", "invisible"])
+def test_a_blank_or_unclean_reason_is_a_422_on_the_tracking_change(
+    api: ApiTestApp, reason: str
+) -> None:
+    submission = _awaiting(api)
+    token, _ = _sign_in(api, Role.REVIEWER)
+
+    response = _track(api, token, submission.id, reason=reason, expected_release="2028-01-01")
+
+    assert response.status_code == 422, response.text
+    assert response.json()["field"] == "reason"
+    _assert_untracked(api, submission)
+
+
+@pytest.mark.req("FR-31")
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {},
+        {"external_reference": None},
+        {"external_reference": {"system": "svc"}},
+        {"external_reference": {"reference": "REQ-2"}},
+        {"expected_release": "next spring"},
+        {"expected_release": "2028-01-01", "proposed_fsn": "Something else"},
+        {"expected_release": "2028-01-01", "target_edition": "int"},
+        {"expected_release": "2028-01-01", "justification": "Different"},
+        {"expected_release": "2028-01-01", "raised_date": "2026-11-01"},
+    ],
+    ids=[
+        "nothing_sent",
+        "reference_null",
+        "reference_without_reference",
+        "reference_without_system",
+        "release_not_a_date",
+        "fsn_is_fixed",
+        "edition_is_fixed",
+        "justification_is_fixed",
+        "raised_date_is_fixed",
+    ],
+)
+def test_a_tracking_body_that_fails_validation_is_a_422_and_what_was_asked_for_is_fixed(
+    api: ApiTestApp, fields: dict[str, object]
+) -> None:
+    submission = _awaiting(api)
+    token, _ = _sign_in(api, Role.REVIEWER)
+
+    response = _track(api, token, submission.id, **fields)
+
+    assert response.status_code == 422, response.text
+    _assert_untracked(api, submission)
+
+
+@pytest.mark.req("FR-31")
+@pytest.mark.req("FR-44")
+@pytest.mark.req("FR-81")
+@pytest.mark.integration
+@pytest.mark.parametrize("role", _NON_REVIEWING_ROLES)
+def test_a_role_without_the_review_permission_cannot_change_the_tracking_fields(
+    api: ApiTestApp, role: Role
+) -> None:
+    submission = _awaiting(api)
+    token, _ = _sign_in(api, role)
+
+    response = _track(api, token, submission.id, expected_release="2028-01-01")
+
+    assert response.status_code == 403, response.text
+    _assert_untracked(api, submission)
+
+
+@pytest.mark.req("FR-44")
+@pytest.mark.req("FR-81")
+@pytest.mark.integration
+def test_the_submitter_cannot_change_the_tracking_fields_of_their_own_submission(
+    api: ApiTestApp,
+) -> None:
+    reviewer_token, _ = _sign_in(api, Role.REVIEWER)
+    member_token, submitter = _sign_in(api, Role.MEMBER)
+    submission = _submission(api, submitter)
+    assert _request(api, reviewer_token, submission.id).status_code == 200
+
+    response = _track(api, member_token, submission.id, expected_release="2028-01-01")
+
+    assert response.status_code == 403, response.text
+    _assert_untracked(api, submission)
+
+
+@pytest.mark.req("FR-44")
+@pytest.mark.integration
+def test_an_anonymous_caller_is_refused_the_tracking_change_with_401(api: ApiTestApp) -> None:
+    submission = _awaiting(api)
+
+    response = _track(api, None, submission.id, expected_release="2028-01-01")
+
+    assert response.status_code == 401, response.text
+    _assert_untracked(api, submission)
+
+
+@pytest.mark.req("NFR-45")
+@pytest.mark.integration
+def test_a_reviewer_who_has_not_accepted_the_current_terms_cannot_track(api: ApiTestApp) -> None:
+    submission = _awaiting(api)
+    token, reviewer = _sign_in(api, Role.REVIEWER, accept_terms=False)
+
+    refused = _track(api, token, submission.id, expected_release="2028-01-01")
+
+    assert refused.status_code == 403, refused.text
+    assert refused.json()["code"] == TERMS_ACCEPTANCE_REQUIRED_CODE
+    _assert_untracked(api, submission)
+
+    api.accept_current_terms(reviewer.id)
+    assert _track(api, token, submission.id, expected_release="2028-01-01").status_code == 200
+
+
+@pytest.mark.req("FR-31")
+@pytest.mark.integration
+@pytest.mark.parametrize("state", ["Submitted", "Triage", "Under review", "Approved", "Withdrawn"])
+def test_a_submission_that_is_not_awaiting_terminology_has_no_request_to_change(
+    api: ApiTestApp, state: str
+) -> None:
+    submission = _submission(api, _sign_in(api, Role.MEMBER)[1], state=state)
+    token, _ = _sign_in(api, Role.REVIEWER)
+
+    response = _track(
+        api, token, submission.id, expected_row_version=1, expected_release="2028-01-01"
+    )
+
+    assert response.status_code == 409, response.text
+    assert _record(api, submission) is None
+    assert _all_events(api, submission) == []
+
+
+@pytest.mark.req("FR-31")
+@pytest.mark.req("FR-30")
+@pytest.mark.integration
+def test_the_request_is_frozen_once_the_code_is_attached(api: ApiTestApp) -> None:
+    _seed_concepts(api)
+    submission = _awaiting(api)
+    admin_token, _ = _sign_in(api, Role.ADMINISTRATOR)
+    assert _attach(api, admin_token, submission.id).status_code == 200
+
+    response = _track(
+        api, admin_token, submission.id, expected_row_version=3, expected_release="2028-01-01"
+    )
+
+    assert response.status_code == 409, response.text
+    record = _record(api, submission)
+    assert record is not None and str(record.expected_release) == "2027-03-31"
+    assert [event.action for event in _record_events(api, submission)] == [
+        "submission.terminology_request_created"
+    ]
+
+
+@pytest.mark.req("FR-28")
+@pytest.mark.req("FR-31")
+@pytest.mark.integration
+def test_a_stale_row_version_is_a_409_that_carries_the_current_one_on_the_tracking_change(
+    api: ApiTestApp,
+) -> None:
+    submission = _awaiting(api)
+    token, _ = _sign_in(api, Role.REVIEWER)
+
+    response = _track(api, token, submission.id, expected_row_version=1, expected_release=None)
+
+    assert response.status_code == 409, response.text
+    assert response.json()["current_row_version"] == 2
+    _assert_untracked(api, submission)
+
+
+@pytest.mark.req("FR-28")
+@pytest.mark.req("FR-31")
+@pytest.mark.integration
+def test_a_tracking_change_and_the_attach_cannot_cross(api: ApiTestApp) -> None:
+    _seed_concepts(api)
+    submission = _awaiting(api)
+    reviewer_token, _ = _sign_in(api, Role.REVIEWER)
+    admin_token, _ = _sign_in(api, Role.ADMINISTRATOR)
+    assert (
+        _track(api, reviewer_token, submission.id, expected_release="2028-01-01").status_code == 200
+    )
+
+    stale = _attach(api, admin_token, submission.id, expected_row_version=2)
+    current = _attach(api, admin_token, submission.id, expected_row_version=3)
+
+    assert stale.status_code == 409, stale.text
+    assert stale.json()["current_row_version"] == 3
+    assert current.status_code == 200, current.text
+
+
+@pytest.mark.req("FR-31")
+@pytest.mark.integration
+def test_an_unknown_submission_is_a_404_and_a_malformed_identifier_a_422_on_the_tracking_change(
+    api: ApiTestApp,
+) -> None:
+    token, _ = _sign_in(api, Role.REVIEWER)
+
+    assert _track(api, token, uuid.uuid4(), expected_release=None).status_code == 404
+    assert _track(api, token, "not-a-uuid", expected_release=None).status_code == 422
+
+
+# --- the working copy while the submission waits (FR-23, FR-30) ----------------------------------
+
+
+def _edit_working_copy(
+    api: ApiTestApp,
+    token: str,
+    submission_id: object,
+    *,
+    expected_row_version: int = 2,
+    **fields: object,
+) -> Any:
+    return api.request(
+        "PATCH",
+        f"/submissions/{submission_id}/working-copy",
+        token=token,
+        json={"reason": "Corrected.", "expected_row_version": expected_row_version, **fields},
+    )
+
+
+@pytest.mark.req("FR-23")
+@pytest.mark.req("FR-30")
+@pytest.mark.integration
+@pytest.mark.parametrize("role", _REVIEWING_ROLES)
+def test_a_reviewing_role_may_edit_the_working_copy_while_the_submission_waits(
+    api: ApiTestApp, role: Role
+) -> None:
+    submission = _awaiting(api)
+    token, _ = _sign_in(api, role)
+
+    response = _edit_working_copy(api, token, submission.id, notes="Raised with the authority")
+
+    assert response.status_code == 200, response.text
+    assert response.json()["notes"] == "Raised with the authority"
+    assert _state(api, submission) == "Awaiting terminology"
+
+
+@pytest.mark.req("FR-30")
+@pytest.mark.req("FR-82")
+@pytest.mark.integration
+@pytest.mark.parametrize("role", _REVIEWING_ROLES)
+def test_no_edit_sets_the_code_while_the_submission_waits(api: ApiTestApp, role: Role) -> None:
+    _seed_concepts(api)
+    submission = _awaiting(api)
+    token, _ = _sign_in(api, role)
+    calls_before = len(api.terminology.requests)
+
+    response = _edit_working_copy(api, token, submission.id, snomed_code=_CODE)
+
+    assert response.status_code == 422, response.text
+    assert response.json()["field"] == "snomed_code"
+    assert "Administrator" in response.json()["detail"]
+    assert len(api.terminology.requests) == calls_before
+    assert _working_copy(api, submission) is None
+
+
+@pytest.mark.req("FR-30")
+@pytest.mark.integration
+def test_an_edit_that_leaves_the_code_out_is_not_blocked_by_the_wait(api: ApiTestApp) -> None:
+    _seed_concepts(api)
+    submission = _awaiting(api)
+    token, _ = _sign_in(api, Role.REVIEWER)
+
+    response = _edit_working_copy(
+        api, token, submission.id, preferred_term="Reworded term", synonyms=["Reworded synonym"]
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["snomed_code"] is None
+
+
+# --- who sees the request (FR-30, FR-44) -------------------------------------------------------
+
+
+@pytest.mark.req("FR-30")
+@pytest.mark.req("FR-44")
+@pytest.mark.integration
+@pytest.mark.parametrize("role", _REVIEWING_ROLES)
+def test_a_reviewing_role_sees_the_request_in_the_detail(api: ApiTestApp, role: Role) -> None:
+    submission = _awaiting(api)
+    token, _ = _sign_in(api, role)
+
+    body = api.get(f"/submissions/{submission.id}", token=token).json()
+
+    request = body["terminology_request"]
+    assert request["proposed_fsn"] == "Serum sodium level (observable entity)"
+    assert request["target_edition"] == "au"
+    assert request["justification"] == "No concept covers this measurement."
+    assert request["external_reference"] == {
+        "system": "snomed-request-service",
+        "reference": "REQ-1",
+    }
+    assert request["raised_date"] == "2026-10-01"
+    assert request["expected_release"] == "2027-03-31"
+    assert body["state"] == "Awaiting terminology"
+
+
+@pytest.mark.req("FR-30")
+@pytest.mark.req("FR-44")
+@pytest.mark.integration
+def test_a_reviewer_sees_null_when_the_submission_never_waited(api: ApiTestApp) -> None:
+    submission = _submission(api, _sign_in(api, Role.MEMBER)[1])
+    token, _ = _sign_in(api, Role.REVIEWER)
+
+    body = api.get(f"/submissions/{submission.id}", token=token).json()
+
+    assert "terminology_request" in body
+    assert body["terminology_request"] is None
+
+
+@pytest.mark.req("FR-30")
+@pytest.mark.req("FR-44")
+@pytest.mark.integration
+@pytest.mark.parametrize("role", _NON_REVIEWING_ROLES)
+def test_a_role_without_the_review_permission_never_sees_the_request(
+    api: ApiTestApp, role: Role
+) -> None:
+    submission = _awaiting(api)
+    token, _ = _sign_in(api, role)
+
+    response = api.get(f"/submissions/{submission.id}", token=token)
+
+    assert response.status_code == 200, response.text
+    assert "terminology_request" not in response.json()
+    assert "proposed_fsn" not in response.text
+    assert "REQ-1" not in response.text
+
+
+@pytest.mark.req("FR-30")
+@pytest.mark.req("FR-44")
+@pytest.mark.integration
+def test_the_submitter_sees_the_state_and_never_the_request(api: ApiTestApp) -> None:
+    reviewer_token, _ = _sign_in(api, Role.REVIEWER)
+    member_token, submitter = _sign_in(api, Role.MEMBER)
+    submission = _submission(api, submitter)
+    assert _request(api, reviewer_token, submission.id).status_code == 200
+
+    response = api.get(f"/submissions/{submission.id}", token=member_token)
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["state"] == "Awaiting terminology"
+    assert "terminology_request" not in body
+    assert "working_copy" not in body
+    assert "snomed-request-service" not in response.text
+    assert "No concept covers this measurement." not in response.text
+
+
+@pytest.mark.req("FR-30")
+@pytest.mark.integration
+def test_the_list_never_carries_the_request(api: ApiTestApp) -> None:
+    _awaiting(api)
+    token, _ = _sign_in(api, Role.REVIEWER)
+
+    response = api.get("/submissions", token=token, params={"state": "Awaiting terminology"})
+
+    assert response.status_code == 200, response.text
+    assert response.json()["items"]
+    assert all("terminology_request" not in item for item in response.json()["items"])

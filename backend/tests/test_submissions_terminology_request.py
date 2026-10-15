@@ -39,13 +39,17 @@ from nptc.submissions.errors import (
     SubmissionNotFoundError,
     SubmissionVersionConflictError,
     TerminologyRequestFieldRequiredError,
+    TerminologyRequestNotOpenError,
     TransitionReasonRequiredError,
 )
 from nptc.submissions.terminology_request import (
     TerminologyAttachment,
     TerminologyRequestDetails,
+    TerminologyRequestUpdate,
+    TerminologyTrackingChanges,
     attach_terminology_code,
     request_terminology,
+    update_terminology_request,
 )
 from nptc.submissions.terms import SubmissionCodeMalformedError
 from nptc_shared.terminology import (
@@ -791,3 +795,322 @@ def test_an_attach_needs_a_human_actor(app_session: Session) -> None:
         )
 
     _assert_attach_wrote_nothing(app_session, submission.id)
+
+
+# --- tracking the request while the submission waits (FR-31, NFR-08) -----------------------------
+
+
+def _waiting_with_record(session: Session) -> Submission:
+    submission = _submission(session, state=SubmissionState.AWAITING_TERMINOLOGY)
+    session.add(
+        SubmissionTerminologyRequest(
+            submission_id=submission.id,
+            proposed_fsn="Serum sodium level (observable entity)",
+            target_edition="au",
+            justification="No concept covers this measurement.",
+            external_reference_system="snomed-request-service",
+            external_reference_ref="REQ-1",
+            raised_date=date(2026, 10, 1),
+            expected_release=date(2027, 3, 31),
+        )
+    )
+    session.flush()
+    return submission
+
+
+def _track(
+    session: Session,
+    submission: Submission,
+    changes: TerminologyTrackingChanges,
+    *,
+    reason: str = "Moved to the next release.",
+    expected_row_version: int | None = None,
+    actor: User | None = None,
+) -> TerminologyRequestUpdate:
+    user = _user(session) if actor is None else actor
+    return update_terminology_request(
+        session,
+        _context(user.id),
+        submission_id=submission.id,
+        changes=changes,
+        reason=reason,
+        expected_row_version=(
+            submission.row_version if expected_row_version is None else expected_row_version
+        ),
+    )
+
+
+def _assert_record_untouched(session: Session, submission_id: uuid.UUID) -> None:
+    session.expire_all()
+    current = session.get(Submission, submission_id)
+    record = session.get(SubmissionTerminologyRequest, submission_id)
+    assert current is not None and record is not None
+    assert current.row_version == 1
+    assert (record.external_reference_system, record.external_reference_ref) == (
+        "snomed-request-service",
+        "REQ-1",
+    )
+    assert record.expected_release == date(2027, 3, 31)
+    assert (
+        session.execute(
+            select(AuditEvent).where(AuditEvent.entity_id == str(submission_id))
+        ).first()
+        is None
+    )
+
+
+@pytest.mark.req("FR-31")
+@pytest.mark.req("NFR-08")
+@pytest.mark.integration
+def test_a_tracking_change_bumps_the_version_and_names_only_what_changed(
+    app_session: Session,
+) -> None:
+    submission = _waiting_with_record(app_session)
+
+    update = _track(
+        app_session,
+        submission,
+        TerminologyTrackingChanges(expected_release=date(2027, 9, 1), expected_release_given=True),
+    )
+
+    assert update.changed is True
+    assert update.submission.row_version == 2
+    assert update.record.expected_release == date(2027, 9, 1)
+    [event] = app_session.execute(
+        select(AuditEvent).where(AuditEvent.entity_id == str(submission.id))
+    ).scalars()
+    assert event.action == "submission.terminology_request_updated"
+    assert event.before == {"expected_release": "2027-03-31"}
+    assert event.after == {"expected_release": "2027-09-01"}
+
+
+@pytest.mark.req("FR-31")
+@pytest.mark.integration
+def test_the_expected_release_left_out_is_kept_and_sent_as_none_is_cleared(
+    app_session: Session,
+) -> None:
+    submission = _waiting_with_record(app_session)
+
+    kept = _track(
+        app_session,
+        submission,
+        TerminologyTrackingChanges(
+            external_reference_system="other", external_reference_ref="REQ-2"
+        ),
+    )
+    cleared = _track(
+        app_session,
+        submission,
+        TerminologyTrackingChanges(expected_release=None, expected_release_given=True),
+    )
+
+    assert kept.changed is True
+    assert cleared.changed is True
+    assert cleared.record.expected_release is None
+    assert cleared.record.external_reference_system == "other"
+
+
+@pytest.mark.req("FR-31")
+@pytest.mark.req("NFR-08")
+@pytest.mark.integration
+def test_a_change_that_alters_nothing_writes_nothing_but_takes_the_lock(
+    app_session: Session, capture_statements: Any
+) -> None:
+    """The state and version are judged under the lock, so a no-op is measured against the
+    committed row and a stale caller still learns that it is stale."""
+    submission = _waiting_with_record(app_session)
+    actor = _user(app_session)
+
+    with capture_statements(app_session.get_bind(), keep=_is_lock) as locks:
+        update = _track(
+            app_session,
+            submission,
+            TerminologyTrackingChanges(
+                external_reference_system="snomed-request-service",
+                external_reference_ref="REQ-1",
+                expected_release=date(2027, 3, 31),
+                expected_release_given=True,
+            ),
+            actor=actor,
+        )
+
+    assert update.changed is False
+    assert locks
+    _assert_record_untouched(app_session, submission.id)
+
+
+@pytest.mark.req("FR-28")
+@pytest.mark.req("FR-31")
+@pytest.mark.integration
+def test_a_stale_row_version_is_refused_even_when_the_change_would_alter_nothing(
+    app_session: Session,
+) -> None:
+    submission = _waiting_with_record(app_session)
+
+    with pytest.raises(SubmissionVersionConflictError) as refused:
+        _track(
+            app_session,
+            submission,
+            TerminologyTrackingChanges(
+                expected_release=date(2027, 3, 31), expected_release_given=True
+            ),
+            expected_row_version=3,
+        )
+
+    assert (refused.value.expected_row_version, refused.value.current_row_version) == (3, 1)
+    _assert_record_untouched(app_session, submission.id)
+
+
+@pytest.mark.req("FR-31")
+@pytest.mark.req("NFR-08")
+@pytest.mark.integration
+def test_a_failure_after_the_change_leaves_the_record_and_the_version_as_they_were(
+    app_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    submission = _waiting_with_record(app_session)
+
+    def fail(*_args: object, **_kwargs: object) -> None:
+        raise RuntimeError("the event could not be written")
+
+    monkeypatch.setattr(service_module, "record_change", fail)
+
+    with pytest.raises(RuntimeError, match="event could not"):
+        _track(
+            app_session,
+            submission,
+            TerminologyTrackingChanges(
+                expected_release=date(2028, 1, 1), expected_release_given=True
+            ),
+        )
+
+    app_session.expire_all()
+    record = app_session.get(SubmissionTerminologyRequest, submission.id)
+    assert record is not None
+    assert record.expected_release == date(2027, 3, 31)
+    assert app_session.get(Submission, submission.id).row_version == 1  # type: ignore[union-attr]
+
+
+@pytest.mark.req("FR-31")
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "state",
+    [s for s in SubmissionState if s is not SubmissionState.AWAITING_TERMINOLOGY],
+    ids=lambda s: s.value,
+)
+def test_a_submission_that_is_not_awaiting_terminology_has_no_request_to_track(
+    app_session: Session, state: SubmissionState
+) -> None:
+    submission = _submission(app_session, state=state)
+
+    with pytest.raises(TerminologyRequestNotOpenError) as refused:
+        _track(
+            app_session,
+            submission,
+            TerminologyTrackingChanges(
+                expected_release=date(2028, 1, 1), expected_release_given=True
+            ),
+        )
+
+    assert refused.value.state == state.value
+
+
+@pytest.mark.req("FR-31")
+@pytest.mark.integration
+def test_an_unknown_submission_is_refused_on_the_tracking_change(app_session: Session) -> None:
+    user = _user(app_session)
+
+    with pytest.raises(SubmissionNotFoundError):
+        update_terminology_request(
+            app_session,
+            _context(user.id),
+            submission_id=uuid.uuid4(),
+            changes=TerminologyTrackingChanges(
+                expected_release=date(2028, 1, 1), expected_release_given=True
+            ),
+            reason="Moved.",
+            expected_row_version=1,
+        )
+
+
+@pytest.mark.req("FR-63")
+@pytest.mark.req("NFR-08")
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    ("changes", "error"),
+    [
+        (
+            TerminologyTrackingChanges(external_reference_system=" ", external_reference_ref="R"),
+            TerminologyRequestFieldRequiredError,
+        ),
+        (
+            TerminologyTrackingChanges(external_reference_system="s", external_reference_ref=""),
+            TerminologyRequestFieldRequiredError,
+        ),
+        (
+            TerminologyTrackingChanges(
+                external_reference_system="s" + ZERO_WIDTH_SPACE, external_reference_ref="R"
+            ),
+            FreeTextRefusedError,
+        ),
+    ],
+    ids=["blank_system", "empty_reference", "invisible_in_system"],
+)
+def test_a_reference_that_cannot_be_cleaned_is_refused_before_the_append_lock(
+    app_session: Session,
+    capture_statements: Any,
+    changes: TerminologyTrackingChanges,
+    error: type[Exception],
+) -> None:
+    submission = _waiting_with_record(app_session)
+    actor = _user(app_session)
+
+    with (
+        capture_statements(app_session.get_bind(), keep=_is_lock) as locks,
+        pytest.raises(error),
+    ):
+        _track(app_session, submission, changes, actor=actor)
+
+    assert locks == []
+    _assert_record_untouched(app_session, submission.id)
+
+
+@pytest.mark.req("FR-28")
+@pytest.mark.req("NFR-08")
+@pytest.mark.integration
+def test_a_blank_reason_is_refused_on_the_tracking_change_before_the_append_lock(
+    app_session: Session, capture_statements: Any
+) -> None:
+    submission = _waiting_with_record(app_session)
+    actor = _user(app_session)
+
+    with (
+        capture_statements(app_session.get_bind(), keep=_is_lock) as locks,
+        pytest.raises(TransitionReasonRequiredError),
+    ):
+        _track(
+            app_session,
+            submission,
+            TerminologyTrackingChanges(
+                expected_release=date(2028, 1, 1), expected_release_given=True
+            ),
+            reason="  ",
+            actor=actor,
+        )
+
+    assert locks == []
+    _assert_record_untouched(app_session, submission.id)
+
+
+@pytest.mark.req("FR-31")
+@pytest.mark.integration
+def test_half_a_reference_is_a_programming_error_not_a_request(app_session: Session) -> None:
+    submission = _waiting_with_record(app_session)
+
+    with pytest.raises(ValueError, match="pair"):
+        _track(
+            app_session,
+            submission,
+            TerminologyTrackingChanges(external_reference_system="only-a-system"),
+        )
+
+    _assert_record_untouched(app_session, submission.id)

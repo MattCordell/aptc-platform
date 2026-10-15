@@ -189,6 +189,9 @@ COVERED_WRITE_ROUTES = frozenset(
         # the submitter is refused too. Negative-auth coverage lives in
         # `test_api_submissions_terminology_request.py`.
         RouteKey(method="POST", path="/submissions/{submission_id}/terminology-request"),
+        # Tracking a request while the submission waits (FR-31). The same permission as the
+        # request: `submission.transition.review`.
+        RouteKey(method="PATCH", path="/submissions/{submission_id}/terminology-request"),
         # Attaching the issued code (FR-30). It needs `submission.transition.approve`, which only
         # the Administrator holds, so the Reviewer is refused too. Negative-auth coverage lives in
         # `test_api_submissions_terminology_request.py`.

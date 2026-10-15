@@ -48,6 +48,9 @@ class CodeRefusal(StrEnum):
     STATUS_NOT_REPORTED = "status-not-reported"
     #: The server knows the code but returned no fully specified name to store beside it.
     NO_FSN = "no-fsn"
+    #: The submission is `Awaiting terminology`, so its code is attached by an Administrator once
+    #: the authority has issued it, and no edit of the working copy sets it (FR-30).
+    ATTACH_ONLY = "attach-only"
 
 
 class SubmissionCodeRefusedError(ValueError):

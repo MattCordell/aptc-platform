@@ -13,6 +13,10 @@ see `row_version` rise, which is accepted: one lock was the requirement.
 the whole field. A blank `notes` clears the note. Nothing else can clear a field: a code is replaced,
 never removed.
 
+**A code is not edited while the submission is `Awaiting terminology` (FR-30).** The code that
+ends the wait is the one an Administrator attaches after looking it up, so an edit that names
+`snomed_code` in that state is refused. Every other field stays editable.
+
 **An amendment proposes only `synonyms` and a code (FR-35).** Its `preferred_term` is a copy of the
 entry's term, kept as context, so an edit of the term, the notes or the property values is refused,
 and so is an edit that would leave the amendment with neither a synonym nor a code.
@@ -56,14 +60,21 @@ from nptc.audit.policy import policy_for
 from nptc.audit.recording import record_snapshot_change
 from nptc.audit.writer import AuditContext, acquire_append_lock
 from nptc.catalogue.property_values import PropertyValueInput
-from nptc.db.models.submission import WORKING_STATES, Submission, SubmissionKind
+from nptc.db.models.submission import (
+    WORKING_STATES,
+    Submission,
+    SubmissionKind,
+    SubmissionState,
+)
 from nptc.db.models.submission_working_copy import SubmissionWorkingCopy
 from nptc.registry.handlers import DatatypeRegistry
 from nptc.submissions.errors import (
     AmendmentRefusal,
     AmendmentRefusedError,
+    CodeRefusal,
     EditReasonRequiredError,
     FreeTextField,
+    SubmissionCodeRefusedError,
     SubmissionNotEditableError,
     SubmissionNotFoundError,
     SubmissionVersionConflictError,
@@ -160,7 +171,8 @@ def edit_working_copy(
 
     Raises `EditReasonRequiredError` for a blank reason, `SubmissionNotFoundError` for an unknown
     submission, `SubmissionNotEditableError` for a state outside `WORKING_STATES`,
-    `AmendmentRefusedError` for an amendment edit that names a field an amendment does not propose,
+    `SubmissionCodeRefusedError` (`CodeRefusal.ATTACH_ONLY`) for a code sent while the submission is
+    `Awaiting terminology`, `AmendmentRefusedError` for an amendment edit that names a field an amendment does not propose,
     `nptc.catalogue.term_hygiene.TermCleaningError` for a term that is empty or carries an
     invisible character, `FreeTextRefusedError` for the same in the reason or notes,
     `PropertyValidationError` carrying every property problem at once, `nptc.terminology.errors`
@@ -177,7 +189,7 @@ def edit_working_copy(
         raise EditReasonRequiredError("an edit of a working copy needs a reason")
 
     submission = _submission(session, submission_id, populate_existing=False)
-    _require_editable(submission)
+    _require_editable(submission, changes)
     kind = SubmissionKind(submission.kind)
     if kind is SubmissionKind.AMENDMENT and (
         changes.preferred_term is not None
@@ -189,7 +201,7 @@ def edit_working_copy(
 
     acquire_append_lock(session)
     submission = _submission(session, submission_id, populate_existing=True)
-    _require_editable(submission)
+    _require_editable(submission, changes)
     if submission.row_version != expected_row_version:
         raise SubmissionVersionConflictError(
             expected_row_version=expected_row_version, current_row_version=submission.row_version
@@ -248,9 +260,11 @@ def _submission(
     return submission
 
 
-def _require_editable(submission: Submission) -> None:
+def _require_editable(submission: Submission, changes: WorkingCopyChanges) -> None:
     if submission.state not in WORKING_STATES:
         raise SubmissionNotEditableError(submission.state)
+    if changes.snomed_code is not None and submission.state == SubmissionState.AWAITING_TERMINOLOGY:
+        raise SubmissionCodeRefusedError(CodeRefusal.ATTACH_ONLY)
 
 
 def _prepare(

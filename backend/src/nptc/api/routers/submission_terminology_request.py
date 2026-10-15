@@ -1,16 +1,17 @@
-"""The routes that wait for, and then attach, a code that does not exist yet (FR-30, FR-31, FR-44,
-FR-82, NFR-08).
+"""The routes that wait for, track and then attach a code that does not exist yet (FR-30, FR-31,
+FR-44, FR-82, NFR-08).
 
 `POST /submissions/{id}/terminology-request` moves an `Under review` submission to
 `Awaiting terminology` and records what was asked for. `POST
 /submissions/{id}/terminology-request/attach-code` looks the issued code up on the terminology
 server, writes it and its FSN to the working copy and moves the submission to `Ready for approval`.
-Both are HTTP adapters over `nptc.submissions.terminology_request`: the permission test, the order of
-the checks, the optimistic lock and the audit events all live in the service, and a domain exception
-carries `http_status`, which `nptc.api.errors` maps.
+`PATCH /submissions/{id}/terminology-request` changes the tracking fields while the submission waits.
+All three are HTTP adapters over `nptc.submissions.terminology_request`: the order of the checks, the
+optimistic lock and the audit events all live in the service, and a domain exception carries
+`http_status`, which `nptc.api.errors` maps.
 
-**Authorisation:** the request needs `Permission.SUBMISSION_TRANSITION_REVIEW` (FR-44), held by
-Reviewer and Administrator. The attach needs `Permission.SUBMISSION_TRANSITION_APPROVE`, held by the
+**Authorisation:** the request and the tracking change need `Permission.SUBMISSION_TRANSITION_REVIEW`
+(FR-44), held by Reviewer and Administrator. The attach needs `Permission.SUBMISSION_TRANSITION_APPROVE`, held by the
 Administrator alone, so a Reviewer is turned away at the gate before the submission is looked up and
 no call reaches the terminology server, and an Administrator must have stepped up with MFA. The terms
 gate applies as to every non-GET route (NFR-45).
@@ -31,6 +32,13 @@ specified name is a 422 that names the field. The terminology server being unrea
 one that answers with something unusable is a 502. A refusal writes nothing, so the submission stays
 `Awaiting terminology` and the same request can be sent again.
 
+**The tracking change is partial.** `external_reference` replaces the pair, and `expected_release`
+replaces the date, or clears it when sent as `null`. A field left out stays as it is. What was asked
+for (`proposed_fsn`, `target_edition`, `justification`, `raised_date`) cannot be changed, and a request
+that names one fails validation. A change that alters nothing is a 200 with `changed` false, writes
+nothing and leaves the `row_version` as it was. A submission that is not `Awaiting terminology` is a
+409, so a record is frozen once the code is attached.
+
 **The lookup is always against the AU edition.** `target_edition` on the record says where the
 concept was requested and does not change where the code is looked up (FR-82).
 
@@ -48,7 +56,7 @@ from datetime import date, datetime
 from typing import Annotated, Any, Final
 
 from fastapi import APIRouter, Body, Depends
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from nptc.api.dependencies import (
     ApiSettingsDep,
@@ -68,8 +76,10 @@ from nptc.db.models.submission_terminology_request import (
 )
 from nptc.submissions.terminology_request import (
     TerminologyRequestDetails,
+    TerminologyTrackingChanges,
     attach_terminology_code,
     request_terminology,
+    update_terminology_request,
 )
 
 __all__ = [
@@ -79,6 +89,8 @@ __all__ = [
     "TerminologyRequestMoveResponse",
     "TerminologyRequestRequest",
     "TerminologyRequestView",
+    "TerminologyTrackingRequest",
+    "TerminologyTrackingResponse",
     "router",
     "terminology_request_view",
 ]
@@ -127,6 +139,30 @@ _RESPONSES: Final[dict[int | str, dict[str, Any]]] = {
     },
 }
 
+
+_TRACKING_RESPONSES: Final[dict[int | str, dict[str, Any]]] = {
+    **_RESPONSES,
+    409: {
+        "model": SubmissionVersionConflictResponse | ErrorResponse,
+        "description": (
+            "The submission is not `Awaiting terminology`, so its request can no longer change. "
+            "Or `expected_row_version` is not the current one, because someone else changed the "
+            "submission after it was read; the body then carries `current_row_version`. Nothing "
+            "was changed."
+        ),
+    },
+    422: {
+        "model": SubmissionFieldRefusalResponse,
+        "description": (
+            "The `reason` or a part of the external reference is blank, or carries an invisible "
+            "character such as a zero-width space (`field` names it). An identifier that is not a "
+            "UUID, a request that sends none of `external_reference` and `expected_release`, a "
+            "`null` external reference, a part of it missing, a date that is not a date, a field "
+            "over its size bound or a field the request should not carry, such as `proposed_fsn`, "
+            "fails validation before the route runs."
+        ),
+    },
+}
 
 _ATTACH_RESPONSES: Final[dict[int | str, dict[str, Any]]] = {
     401: {
@@ -206,6 +242,44 @@ class TerminologyRequestRequest(BaseModel):
     expected_release: date | None = None
     reason: str = Field(max_length=_MAX_REASON_LENGTH)
     expected_row_version: int = Field(ge=1)
+
+
+class TerminologyTrackingRequest(BaseModel):
+    """The body of `PATCH /submissions/{id}/terminology-request`.
+
+    Send `external_reference`, `expected_release` or both. A field left out stays as it is.
+    `external_reference` replaces both parts and cannot be `null`. `expected_release` replaces the
+    date, and `null` clears it. `reason` says why, and `expected_row_version` is the `row_version`
+    the caller read.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    external_reference: ExternalReference | None = None
+    expected_release: date | None = None
+    reason: str = Field(max_length=_MAX_REASON_LENGTH)
+    expected_row_version: int = Field(ge=1)
+
+    @model_validator(mode="after")
+    def _something_is_sent_and_a_reference_is_never_null(self) -> TerminologyTrackingRequest:
+        sent = {"external_reference", "expected_release"} & self.model_fields_set
+        if not sent:
+            raise ValueError("send at least one of external_reference and expected_release")
+        if "external_reference" in sent and self.external_reference is None:
+            raise ValueError("external_reference cannot be null: leave it out to keep it as it is")
+        return self
+
+
+class TerminologyTrackingResponse(BaseModel):
+    """The request after a change, with the `row_version` to send with the next one. `changed` is
+    false when the change left the request as it was and nothing was written."""
+
+    model_config = ConfigDict(frozen=True)
+
+    submission_id: uuid.UUID
+    row_version: int
+    changed: bool
+    terminology_request: TerminologyRequestView
 
 
 class AttachCodeRequest(BaseModel):
@@ -349,4 +423,46 @@ def attach_submission_terminology_code(
         snomed_code=code,
         snomed_fsn=fsn,
         label_provenance={"snomed_fsn": fsn_provenance(settings)},
+    )
+
+
+@router.patch(
+    "/{submission_id}/terminology-request",
+    summary="Change the tracking fields of a terminology request",
+    response_model=TerminologyTrackingResponse,
+    responses=_TRACKING_RESPONSES,
+    dependencies=[_REQUEST],
+)
+def update_submission_terminology_request(
+    submission_id: uuid.UUID,
+    body: Annotated[TerminologyTrackingRequest, Body()],
+    session: SessionDep,
+    ctx: AuditContextDep,
+) -> TerminologyTrackingResponse:
+    """Changes the external reference and the expected release of a request while its submission is
+    `Awaiting terminology`. A change bumps the submission's `row_version` and appends one audit
+    event, in one transaction."""
+    sent = body.model_fields_set
+    update = update_terminology_request(
+        session,
+        ctx,
+        submission_id=submission_id,
+        changes=TerminologyTrackingChanges(
+            external_reference_system=(
+                None if body.external_reference is None else body.external_reference.system
+            ),
+            external_reference_ref=(
+                None if body.external_reference is None else body.external_reference.reference
+            ),
+            expected_release=body.expected_release,
+            expected_release_given="expected_release" in sent,
+        ),
+        reason=body.reason,
+        expected_row_version=body.expected_row_version,
+    )
+    return TerminologyTrackingResponse(
+        submission_id=update.submission.id,
+        row_version=update.submission.row_version,
+        changed=update.changed,
+        terminology_request=terminology_request_view(update.record),
     )
