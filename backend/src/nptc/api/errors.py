@@ -128,6 +128,7 @@ from nptc.submissions.errors import (
     ClosedSubmissionInterestError,
     CodeRefusal,
     EditReasonRequiredError,
+    ExpectedReleaseBeforeRaisedError,
     FreeTextField,
     FreeTextRefusedError,
     IllegalSubmissionTransitionError,
@@ -140,6 +141,9 @@ from nptc.submissions.errors import (
     SubmissionNotEditableError,
     SubmissionNotFoundError,
     SubmissionVersionConflictError,
+    TerminologyRequestFieldRequiredError,
+    TerminologyRequestNotOpenError,
+    TransitionNeedsOwnRouteError,
     TransitionReasonRequiredError,
 )
 from nptc.submissions.reference_check import (
@@ -358,6 +362,11 @@ SubmissionField = Literal[
     "organisation",
     "reason",
     "body",
+    "proposed_fsn",
+    "justification",
+    "external_reference_system",
+    "external_reference_ref",
+    "expected_release",
 ]
 
 
@@ -495,6 +504,39 @@ _DETAIL_FREE_TEXT_REFUSED: Final[dict[FreeTextField, str]] = {
         "The comment contains an invisible character, such as a zero-width space or a "
         "text-direction override. Remove it and send the request again."
     ),
+    FreeTextField.PROPOSED_FSN: (
+        "The proposed fully specified name contains an invisible character, such as a "
+        "zero-width space or a text-direction override. Remove it and send the request again."
+    ),
+    FreeTextField.JUSTIFICATION: (
+        "The justification contains an invisible character, such as a zero-width space or a "
+        "text-direction override. Remove it and send the request again."
+    ),
+    FreeTextField.EXTERNAL_REFERENCE_SYSTEM: (
+        "The external reference system contains an invisible character, such as a zero-width "
+        "space or a text-direction override. Remove it and send the request again."
+    ),
+    FreeTextField.EXTERNAL_REFERENCE_REF: (
+        "The external reference contains an invisible character, such as a zero-width space or "
+        "a text-direction override. Remove it and send the request again."
+    ),
+}
+#: Blank once cleaned, by field. The four fields of a terminology request.
+_DETAIL_TERMINOLOGY_REQUEST_FIELD_REQUIRED: Final[dict[FreeTextField, str]] = {
+    FreeTextField.PROPOSED_FSN: (
+        "The proposed fully specified name cannot be empty. Say what the new concept should be "
+        "called."
+    ),
+    FreeTextField.JUSTIFICATION: (
+        "The justification cannot be empty. Say why the terminology is needed."
+    ),
+    FreeTextField.EXTERNAL_REFERENCE_SYSTEM: (
+        "The external reference system cannot be empty. Name the system that holds the request."
+    ),
+    FreeTextField.EXTERNAL_REFERENCE_REF: (
+        "The external reference cannot be empty. Give the identifier the request has in that "
+        "system."
+    ),
 }
 #: Blank once cleaned, by field. Only the two fields a comment carries are listed.
 _DETAIL_COMMENT_TEXT_REQUIRED: Final[dict[FreeTextField, str]] = {
@@ -508,7 +550,19 @@ _DETAIL_TRANSITION_REASON_REQUIRED = (
 )
 _DETAIL_EDIT_REASON_REQUIRED = "A reason is required. Say why you are editing the submission."
 _DETAIL_SUBMISSION_NOT_EDITABLE = (
-    "A submission can be edited only while it is in Triage, Under review or Ready for approval."
+    "A submission can be edited only while it is in Triage, Under review, Awaiting terminology "
+    "or Ready for approval."
+)
+_DETAIL_EXPECTED_RELEASE_BEFORE_RAISED = (
+    "The expected release cannot be earlier than the date the request was raised. Check both dates."
+)
+_DETAIL_TRANSITION_NEEDS_OWN_ROUTE = (
+    "This change needs more than a reason, so it has its own route. Use "
+    "POST /submissions/{id}/terminology-request to wait for terminology, or "
+    "POST /submissions/{id}/terminology-request/attach-code to attach the code."
+)
+_DETAIL_TERMINOLOGY_REQUEST_NOT_OPEN = (
+    "The terminology request can be changed only while the submission is Awaiting terminology."
 )
 _DETAIL_ILLEGAL_SUBMISSION_TRANSITION = (
     "This change is not allowed for the submission's current state."
@@ -681,6 +735,10 @@ _DETAIL_SUBMISSION_CODE_REFUSED: Final[dict[CodeRefusal, str]] = {
     CodeRefusal.NO_FSN: (
         "The terminology server returned no fully specified name for this SNOMED CT code, "
         "so it cannot be submitted."
+    ),
+    CodeRefusal.ATTACH_ONLY: (
+        "While a submission is Awaiting terminology, an Administrator attaches its SNOMED CT "
+        "code once the terminology authority has issued it. Leave the code out of this edit."
     ),
 }
 #: FR-35. One sentence per reason, each naming what the submitter can change.
@@ -889,6 +947,12 @@ _REFUSALS: Final[dict[type[Exception], _Refusal]] = {
     ),
     SubmissionNotEditableError: _Refusal(
         _DETAIL_SUBMISSION_NOT_EDITABLE, "working copy edit refused: %s"
+    ),
+    TransitionNeedsOwnRouteError: _Refusal(
+        _DETAIL_TRANSITION_NEEDS_OWN_ROUTE, "submission transition refused, own route: %s"
+    ),
+    TerminologyRequestNotOpenError: _Refusal(
+        _DETAIL_TERMINOLOGY_REQUEST_NOT_OPEN, "terminology request change refused: %s"
     ),
     # Not logged: a blank search box on a public, unauthenticated endpoint is
     # the most ordinary client mistake there is, and logging it invites
@@ -1272,6 +1336,26 @@ def register_exception_handlers(app: FastAPI, auth_settings: AuthSettings) -> No
     ) -> JSONResponse:
         _logger.info("transition reason refused: blank")
         return _field_refusal(exc.http_status, _DETAIL_TRANSITION_REASON_REQUIRED, "reason")
+
+    @app.exception_handler(TerminologyRequestFieldRequiredError)
+    async def _handle_terminology_request_field_required(
+        _request: Request, exc: TerminologyRequestFieldRequiredError
+    ) -> JSONResponse:
+        _logger.info("terminology request field refused: %s is blank", exc.field.value)
+        return _field_refusal(
+            exc.http_status,
+            _DETAIL_TERMINOLOGY_REQUEST_FIELD_REQUIRED[exc.field],
+            exc.field.value,
+        )
+
+    @app.exception_handler(ExpectedReleaseBeforeRaisedError)
+    async def _handle_expected_release_before_raised(
+        _request: Request, exc: ExpectedReleaseBeforeRaisedError
+    ) -> JSONResponse:
+        _logger.info("terminology request refused: expected release before raised date")
+        return _field_refusal(
+            exc.http_status, _DETAIL_EXPECTED_RELEASE_BEFORE_RAISED, "expected_release"
+        )
 
     @app.exception_handler(CommentTextRequiredError)
     async def _handle_comment_text_required(

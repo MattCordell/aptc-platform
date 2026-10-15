@@ -375,7 +375,12 @@ def test_a_preferred_term_that_matches_a_synonym_drops_that_synonym(app_session:
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "state",
-    [SubmissionState.TRIAGE, SubmissionState.UNDER_REVIEW, SubmissionState.READY_FOR_APPROVAL],
+    [
+        SubmissionState.TRIAGE,
+        SubmissionState.UNDER_REVIEW,
+        SubmissionState.AWAITING_TERMINOLOGY,
+        SubmissionState.READY_FOR_APPROVAL,
+    ],
 )
 def test_an_edit_is_accepted_in_every_working_state(
     app_session: Session, state: SubmissionState
@@ -454,6 +459,37 @@ def test_an_edit_outside_the_working_states_is_refused(
 
     assert excinfo.value.state == state.value
     _assert_nothing_written(app_session, submission, version)
+
+
+@pytest.mark.req("FR-30")
+@pytest.mark.req("FR-82")
+@pytest.mark.integration
+def test_a_code_is_refused_while_the_submission_awaits_terminology(app_session: Session) -> None:
+    """The code that ends the wait is the one an Administrator attaches, so no edit sets it. The
+    refusal comes before any terminology call."""
+    submission = _new_test(app_session, state=SubmissionState.AWAITING_TERMINOLOGY)
+    version = submission.row_version
+    client = _client()
+
+    with pytest.raises(SubmissionCodeRefusedError) as refused:
+        _edit(app_session, submission, WorkingCopyChanges(snomed_code=_CODE), client=client)
+
+    assert refused.value.reason is CodeRefusal.ATTACH_ONLY
+    assert client.requests == ()
+    _assert_nothing_written(app_session, submission, version)
+
+
+@pytest.mark.req("FR-30")
+@pytest.mark.integration
+def test_an_edit_that_names_no_code_is_accepted_while_the_submission_awaits_terminology(
+    app_session: Session,
+) -> None:
+    submission = _new_test(app_session, state=SubmissionState.AWAITING_TERMINOLOGY)
+
+    result = _edit(app_session, submission, WorkingCopyChanges(notes="Raised with the authority"))
+
+    assert result.changed is True
+    assert result.content.snomed_code is None
 
 
 @pytest.mark.req("FR-23")

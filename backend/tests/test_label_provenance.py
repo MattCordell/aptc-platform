@@ -292,6 +292,12 @@ def test_label_field_name_set_is_not_stale() -> None:
         "IdentifiedSubmitter": frozenset({"display_name"}),
         # FR-42: the actor of a change of state, shown by the same rule as the submitter.
         "IdentifiedActor": frozenset({"display_name"}),
+        # FR-30: what a reviewer asks the terminology authority to create. `proposed_fsn` is the
+        # reviewer's own wording for a concept that does not exist yet, never a label the server
+        # served, and `terminology_request` names the record that holds it.
+        "TerminologyRequestView": frozenset({"proposed_fsn"}),
+        "TerminologyRequestMoveResponse": frozenset({"terminology_request"}),
+        "TerminologyTrackingResponse": frozenset({"terminology_request"}),
         # FR-33: a registrant's name, shown only to a caller who holds
         # `interest.identities.view` - identity data, never a label.
         "InterestPerson": frozenset({"display_name"}),

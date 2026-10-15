@@ -437,7 +437,9 @@ def test_a_reviewer_who_has_not_accepted_the_current_terms_is_refused(api: ApiTe
 
 @pytest.mark.req("FR-23")
 @pytest.mark.integration
-@pytest.mark.parametrize("state", ["Triage", "Under review", "Ready for approval"])
+@pytest.mark.parametrize(
+    "state", ["Triage", "Under review", "Awaiting terminology", "Ready for approval"]
+)
 def test_an_edit_is_accepted_in_every_working_state(api: ApiTestApp, state: str) -> None:
     token, _ = _sign_in(api, Role.REVIEWER)
     submission = _submission(api, _sign_in(api, Role.MEMBER)[1], state=state)

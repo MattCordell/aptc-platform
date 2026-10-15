@@ -17,6 +17,7 @@ describe("submission states (FR-28)", () => {
       "Submitted",
       "Triage",
       "Under review",
+      "Awaiting terminology",
       "Ready for approval",
       "Approved",
       "Published in release",
@@ -42,6 +43,7 @@ describe("submission states (FR-28)", () => {
       "Submitted",
       "Triage",
       "Under review",
+      "Awaiting terminology",
       "Ready for approval",
       "Approved",
     ]);
@@ -49,6 +51,7 @@ describe("submission states (FR-28)", () => {
 
   it("gives each review state a badge tone", () => {
     expect(submissionStateTone("Under review")).toBe("draft");
+    expect(submissionStateTone("Awaiting terminology")).toBe("draft");
     expect(submissionStateTone("Ready for approval")).toBe("draft");
     expect(submissionStateTone("Approved")).toBe("active");
   });
@@ -69,6 +72,7 @@ describe("statesForRequest", () => {
       "Submitted",
       "Triage",
       "Under review",
+      "Awaiting terminology",
       "Ready for approval",
       "Approved",
     ]);

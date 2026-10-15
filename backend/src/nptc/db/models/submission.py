@@ -75,6 +75,7 @@ class SubmissionState(StrEnum):
     SUBMITTED = "Submitted"
     TRIAGE = "Triage"
     UNDER_REVIEW = "Under review"
+    AWAITING_TERMINOLOGY = "Awaiting terminology"
     READY_FOR_APPROVAL = "Ready for approval"
     APPROVED = "Approved"
     PUBLISHED_IN_RELEASE = "Published in release"
@@ -94,13 +95,15 @@ CLOSED_SUBMISSION_STATES: Final[tuple[str, ...]] = (
     SubmissionState.WITHDRAWN.value,
 )
 
-#: The states in which a reviewer may edit a submission's working copy (FR-23): the three a reviewer
+#: The states in which a reviewer may edit a submission's working copy (FR-23): the four a reviewer
 #: works in. Listed, not derived from `CLOSED_SUBMISSION_STATES` or the transition table, so a state
 #: added later is not editable until someone decides it is. `Submitted` is untouched, and `Approved`
-#: is the moment the content is fixed for a release.
+#: is the moment the content is fixed for a release. A reviewer keeps editing while the submission
+#: is `Awaiting terminology`, because the proposal can still be corrected while the code is pending.
 WORKING_STATES: Final[tuple[str, ...]] = (
     SubmissionState.TRIAGE.value,
     SubmissionState.UNDER_REVIEW.value,
+    SubmissionState.AWAITING_TERMINOLOGY.value,
     SubmissionState.READY_FOR_APPROVAL.value,
 )
 
@@ -109,8 +112,8 @@ WORKING_STATES: Final[tuple[str, ...]] = (
 #: forbids SQL built from runtime data.
 _KIND_CHECK_SQL = "kind IN ('new_test','amendment')"
 _STATE_CHECK_SQL = (
-    "state IN ('Submitted','Triage','Under review','Ready for approval','Approved',"
-    "'Published in release','Rejected','Withdrawn')"
+    "state IN ('Submitted','Triage','Under review','Awaiting terminology',"
+    "'Ready for approval','Approved','Published in release','Rejected','Withdrawn')"
 )
 _PREFERRED_TERM_NOT_BLANK_SQL = "length(btrim(preferred_term)) > 0"
 _SYNONYMS_IS_ARRAY_SQL = "jsonb_typeof(synonyms) = 'array'"

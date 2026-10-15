@@ -457,15 +457,15 @@ def test_a_second_identical_move_is_a_409_and_adds_nothing(api: ApiTestApp) -> N
 
 @pytest.mark.req("FR-28")
 @pytest.mark.integration
-def test_awaiting_terminology_is_refused_until_its_move_exists(api: ApiTestApp) -> None:
-    """The state is not part of the graph yet, so the request fails validation before the service
-    runs. The submission is untouched."""
+def test_awaiting_terminology_is_not_reachable_from_triage(api: ApiTestApp) -> None:
+    """The state is a valid value, so the request passes validation, but the graph has no move
+    into it from `Triage`. The submission is untouched."""
     token, _ = _sign_in(api, Role.REVIEWER)
     submission = _submission(api, _sign_in(api, Role.MEMBER)[1], state="Triage")
 
     response = _move(api, token, submission.id, "Awaiting terminology")
 
-    assert response.status_code == 422, response.text
+    assert response.status_code == 409, response.text
     _assert_unchanged(api, submission, "Triage")
 
 

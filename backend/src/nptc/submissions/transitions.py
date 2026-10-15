@@ -19,12 +19,18 @@ move, so a caller cannot be judged until the move is known.
 **The audit append lock is taken first,** ahead of every read (`test_lock_ordering.py`). It also
 serialises two writers of one submission, so the version check decides and `StaleDataError` is only
 the backstop for a writer that skipped the lock.
+
+**A move that needs more than a reason has its own service** (`needs_payload`): the two moves of
+`Awaiting terminology` (FR-30) carry a record or a code. They are rows of the table, so the graph, the
+permissions and `available_transitions` stay in one place, but `transition_submission` refuses them
+once the permission is met, and `nptc.submissions.terminology_request` makes them through `check_move`
+and `perform_move`, the two halves of this module's own steps.
 """
 
 from __future__ import annotations
 
 import uuid
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Final
 
@@ -44,6 +50,7 @@ from nptc.submissions.errors import (
     IllegalSubmissionTransitionError,
     SubmissionNotFoundError,
     SubmissionVersionConflictError,
+    TransitionNeedsOwnRouteError,
     TransitionReasonRequiredError,
 )
 from nptc.submissions.shared import clean_free_text
@@ -54,7 +61,10 @@ __all__ = [
     "PermittedTransition",
     "TransitionRequirement",
     "available_transitions",
+    "check_move",
+    "check_row_version",
     "clean_transition_reason",
+    "perform_move",
     "transition_submission",
 ]
 
@@ -70,13 +80,17 @@ class TransitionRequirement:
 
 @dataclass(frozen=True, slots=True)
 class PermittedTransition:
-    """A move the platform allows. `action` is the audit action the move emits."""
+    """A move the platform allows. `action` is the audit action the move emits. `needs_payload` is
+    true for a move that carries more than a reason, which `transition_submission` refuses and its
+    own service makes."""
 
     action: str
     requirements: tuple[TransitionRequirement, ...]
+    needs_payload: bool = False
 
 
 _REVIEW = TransitionRequirement(Permission.SUBMISSION_TRANSITION_REVIEW, submitter_only=False)
+_APPROVE = TransitionRequirement(Permission.SUBMISSION_TRANSITION_APPROVE, submitter_only=False)
 _WITHDRAW_OWN = TransitionRequirement(Permission.SUBMISSION_WITHDRAW_OWN, submitter_only=True)
 _WITHDRAW_ANY = TransitionRequirement(Permission.SUBMISSION_WITHDRAW_ANY, submitter_only=False)
 _WITHDRAWN = "submission.withdrawn"
@@ -88,6 +102,9 @@ _REVIEW_STARTED = "submission.review_started"
 _REJECTED = "submission.rejected"
 _REOPENED = "submission.reopened"
 _READIED_FOR_APPROVAL = "submission.readied_for_approval"
+_TERMINOLOGY_REQUESTED = "submission.terminology_requested"
+_TERMINOLOGY_ATTACHED = "submission.terminology_attached"
+_REVIEW_RESUMED = "submission.review_resumed"
 
 # The Administrator holds `.any` and not `.own`, so an Administrator's own submission needs `.any`
 # on the same row as the submitter's `.own`. Only `.any` reaches `Approved` and `Published in
@@ -105,6 +122,19 @@ PERMITTED_TRANSITIONS: Final[
     (SubmissionState.REJECTED, SubmissionState.TRIAGE): PermittedTransition(_REOPENED, (_REVIEW,)),
     (SubmissionState.UNDER_REVIEW, SubmissionState.READY_FOR_APPROVAL): PermittedTransition(
         _READIED_FOR_APPROVAL, (_REVIEW,)
+    ),
+    # Only an Administrator takes a submission out of `Awaiting terminology` (PRD section 4.5): the
+    # code it waits for is the one an Administrator checks and attaches.
+    (SubmissionState.UNDER_REVIEW, SubmissionState.AWAITING_TERMINOLOGY): PermittedTransition(
+        _TERMINOLOGY_REQUESTED, (_REVIEW,), needs_payload=True
+    ),
+    (SubmissionState.AWAITING_TERMINOLOGY, SubmissionState.READY_FOR_APPROVAL): PermittedTransition(
+        _TERMINOLOGY_ATTACHED, (_APPROVE,), needs_payload=True
+    ),
+    # A request the authority declines, or one nobody pursues, must not strand the submission: the
+    # reviewer takes it back to `Under review`. The record stays as the history of the request.
+    (SubmissionState.AWAITING_TERMINOLOGY, SubmissionState.UNDER_REVIEW): PermittedTransition(
+        _REVIEW_RESUMED, (_REVIEW,)
     ),
     (SubmissionState.SUBMITTED, SubmissionState.WITHDRAWN): PermittedTransition(
         _WITHDRAWN, _WITHDRAW_OPEN
@@ -172,55 +202,120 @@ def transition_submission(
     invisible character, `SubmissionNotFoundError` for an unknown submission,
     `IllegalSubmissionTransitionError` for a move with no row, `PermissionDeniedError` for a caller
     who meets none of the move's requirements (`MfaRequiredError` when a role suppressed for want of
-    MFA would grant one), and `SubmissionVersionConflictError` for a stale `expected_row_version`.
-    A refusal writes nothing.
+    MFA would grant one), `TransitionNeedsOwnRouteError` for a move that carries more than a reason,
+    and `SubmissionVersionConflictError` for a stale `expected_row_version`. A refusal writes
+    nothing.
     """
     cleaned = clean_transition_reason(reason)
     acquire_append_lock(session)
-    submission = _submission(session, submission_id)
-    from_state = SubmissionState(submission.state)
+    submission = load_submission_locked(session, submission_id)
 
-    permitted = PERMITTED_TRANSITIONS.get((from_state, to_state))
-    if permitted is None:
-        raise IllegalSubmissionTransitionError(from_state.value, to_state.value)
-    if not any(
-        _met(requirement, principal, submission.submitter_id)
-        for requirement in permitted.requirements
-    ):
-        raise _denial(permitted, principal)
-    if submission.row_version != expected_row_version:
-        raise SubmissionVersionConflictError(
-            expected_row_version=expected_row_version, current_row_version=submission.row_version
-        )
+    permitted = check_move(principal, submission, to_state)
+    if permitted.needs_payload:
+        raise TransitionNeedsOwnRouteError(submission.state, to_state.value)
+    check_row_version(submission, expected_row_version)
 
-    actor_id = principal.user_id
-    if actor_id is None:
-        raise ValueError("a change of state belongs to a person, but the principal has none")
-
-    savepoint = session.begin_nested()
-    try:
-        submission.state = to_state.value
-        session.add(
-            SubmissionTransition(
-                submission_id=submission.id,
-                from_state=from_state.value,
-                to_state=to_state.value,
-                actor_id=actor_id,
-                reason=cleaned,
-            )
-        )
-        record_change(
+    return perform_move(
+        session,
+        principal,
+        submission,
+        to_state=to_state,
+        reason=cleaned,
+        expected_row_version=expected_row_version,
+        write=lambda: record_change(
             session,
             ctx,
             action=permitted.action,
             instance=submission,
             kind=ChangeKind.UPDATED,
             reason=cleaned,
+        ),
+    )
+
+
+def load_submission_locked(session: Session, submission_id: uuid.UUID) -> Submission:
+    """The submission as committed, or `SubmissionNotFoundError`. Call it with the append lock held:
+    `populate_existing` makes the read reach the database, because a copy already in the session's
+    identity map would otherwise be returned without a query."""
+    submission = session.get(Submission, submission_id, populate_existing=True)
+    if submission is None:
+        raise SubmissionNotFoundError("no submission has that identifier")
+    return submission
+
+
+def check_move(
+    principal: Principal,
+    submission: Submission,
+    to_state: SubmissionState,
+    *,
+    required_from: SubmissionState | None = None,
+) -> PermittedTransition:
+    """The table row for moving `submission` to `to_state`, once the caller may make the move.
+    `required_from` names the one state a caller of a dedicated service accepts, so a submission
+    elsewhere is refused as having no such move even when the table has another row to `to_state`.
+
+    Raises `IllegalSubmissionTransitionError` for a move with no row, then `PermissionDeniedError`
+    (`MfaRequiredError` when a role suppressed for want of MFA would grant a permission of the move)
+    for a caller who meets none of its requirements. The move comes first because a permission
+    belongs to a move."""
+    from_state = SubmissionState(submission.state)
+    permitted = PERMITTED_TRANSITIONS.get((from_state, to_state))
+    if permitted is None or (required_from is not None and from_state is not required_from):
+        raise IllegalSubmissionTransitionError(from_state.value, to_state.value)
+    if not any(
+        _met(requirement, principal, submission.submitter_id)
+        for requirement in permitted.requirements
+    ):
+        raise _denial(permitted, principal)
+    return permitted
+
+
+def check_row_version(submission: Submission, expected_row_version: int) -> None:
+    """Raises `SubmissionVersionConflictError` when `submission` is not at `expected_row_version`."""
+    if submission.row_version != expected_row_version:
+        raise SubmissionVersionConflictError(
+            expected_row_version=expected_row_version, current_row_version=submission.row_version
         )
+
+
+def perform_move(
+    session: Session,
+    principal: Principal,
+    submission: Submission,
+    *,
+    to_state: SubmissionState,
+    reason: str,
+    expected_row_version: int,
+    write: Callable[[], object],
+) -> Submission:
+    """Sets the state, adds the transition row and runs `write`, which appends the audit event and
+    any rows the move needs, in one savepoint. A stale write rolls the savepoint back and becomes
+    `SubmissionVersionConflictError`. Call it under the append lock after `check_move` and
+    `check_row_version`. `write` runs before any flush, because the audit diff reads attribute
+    history that a flush clears."""
+    actor_id = principal.user_id
+    if actor_id is None:
+        raise ValueError("a change of state belongs to a person, but the principal has none")
+
+    from_state = SubmissionState(submission.state)
+    submission_id = submission.id
+    savepoint = session.begin_nested()
+    try:
+        submission.state = to_state.value
+        session.add(
+            SubmissionTransition(
+                submission_id=submission_id,
+                from_state=from_state.value,
+                to_state=to_state.value,
+                actor_id=actor_id,
+                reason=reason,
+            )
+        )
+        write()
     except StaleDataError, ObjectDeletedError:
         savepoint.rollback()
         session.expire(submission)
-        current = _submission(session, submission_id)
+        current = load_submission_locked(session, submission_id)
         raise SubmissionVersionConflictError(
             expected_row_version=expected_row_version, current_row_version=current.row_version
         ) from None
@@ -228,15 +323,6 @@ def transition_submission(
         savepoint.rollback()
         raise
     savepoint.commit()
-    return submission
-
-
-def _submission(session: Session, submission_id: uuid.UUID) -> Submission:
-    # `populate_existing`: the lock is held, so the row read now is the committed one. A copy
-    # already in the session's identity map would otherwise be returned without a query.
-    submission = session.get(Submission, submission_id, populate_existing=True)
-    if submission is None:
-        raise SubmissionNotFoundError("no submission has that identifier")
     return submission
 
 

@@ -310,6 +310,45 @@ the submission's `row_version` is the one lock for an edit and a change of state
 The list and the transition history never carry a working copy. The edit's audit event is
 `submission.working_copy_edited` on the submission, and the audit log is Administrator-only.
 
+## Awaiting terminology (FR-30, FR-31)
+
+A Reviewer moves a submission from `Under review` to `Awaiting terminology` and can take it back, but only
+an Administrator ends the wait on an issued code. The moves are these routes and permissions:
+
+| Route | Needs | Who holds it |
+|---|---|---|
+| `POST /api/v1/submissions/{id}/terminology-request` | `submission.transition.review` | Reviewer, Administrator |
+| `PATCH /api/v1/submissions/{id}/terminology-request` | `submission.transition.review` | Reviewer, Administrator |
+| `POST /api/v1/submissions/{id}/terminology-request/attach-code` | `submission.transition.approve` | Administrator, with the MFA step-up |
+| `POST /api/v1/submissions/{id}/transitions` to `Under review` (take back) | `submission.transition.review` | Reviewer, Administrator |
+
+A Reviewer takes a waiting submission back to `Under review` when the request is declined or abandoned,
+through the general route, because that move carries only a reason. The request stays as history. An
+Administrator who has not stepped up with MFA holds no permission, so every route above answers them
+with the step-up challenge.
+
+A Reviewer who takes a submission back is under the ordinary review rules. Those already let a Reviewer
+set a code in the working copy once the terminology server confirms it (FR-23), so the take-back opens no
+new route to `Ready for approval`. Only the attach is reserved, because it is the step that accepts a code
+the terminology authority issued.
+
+The attach is Administrator-only (PRD section 4.5) because the code it writes is the one an
+Administrator has looked up on the terminology server. The gate runs before the submission is looked up,
+so a Reviewer, a Member or an Observer is refused with a 403 and no call reaches the terminology
+server. The service judges the move again under the lock, and it never reads a role name (FR-44). The
+general `POST /api/v1/submissions/{id}/transitions` route refuses both moves with a 409 once it has
+judged the caller, so a caller without the permission still gets a 403 first.
+
+`GET /api/v1/submissions/{id}` returns `terminology_request` to a holder of
+`submission.transition.review`, as it does `working_copy`, and leaves the key out for everyone else. The
+record carries a reviewer's justification and the tracking of a request with a third party, so the
+submitter sees the state and nothing more. The list and the transition history never carry it. A
+reviewer may edit the working copy while the submission waits, but the code is not editable then: only
+the attach writes it. The events are `submission.terminology_requested`,
+`submission.terminology_request_created`, `submission.terminology_request_updated`,
+`submission.terminology_attached` and `submission.review_resumed`, and the audit log is
+Administrator-only.
+
 ## FR-80 and FR-81: provable without a single endpoint
 
 Both are worded per-endpoint. Since issue #41 `backend/src/nptc/api/` serves one real

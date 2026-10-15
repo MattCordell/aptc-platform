@@ -80,6 +80,7 @@ and/or `data-model.md`, so it gets no section of its own below.
 | [`0034_internal_comment.py`](../../backend/migrations/versions/0034_internal_comment.py) | Adds `internal_comment`, staff-only comments on a submission or an entry (see [`data-model.md`](../architecture/data-model.md#internal_comment-fr-95-nfr-08-nfr-23)) | See [below](#0034_internal_commentpy) - an empty table on upgrade, and the downgrade discards every comment |
 | [`0035_submission_review_states.py`](../../backend/migrations/versions/0035_submission_review_states.py) | Adds `Under review`, `Ready for approval` and `Approved` to the state checks on `submission` and `submission_transition` (see [`data-model.md`](../architecture/data-model.md#submission_transition-fr-28-nfr-08)) | See [below](#0035_submission_review_statespy) - no data step, and the downgrade refuses while a submission or a recorded transition names one of the three states |
 | [`0036_submission_working_copy.py`](../../backend/migrations/versions/0036_submission_working_copy.py) | Adds `submission_working_copy`, a reviewer's edited copy of a submission (see [`data-model.md`](../architecture/data-model.md#submission_working_copy-fr-23-nfr-08)) | See [below](#0036_submission_working_copypy) - an empty table on upgrade, and the downgrade discards every working copy |
+| [`0037_awaiting_terminology.py`](../../backend/migrations/versions/0037_awaiting_terminology.py) | Adds `Awaiting terminology` to the state checks on `submission` and `submission_transition`, and `submission_terminology_request` (see [`data-model.md`](../architecture/data-model.md#submission_terminology_request-fr-30-fr-31-nfr-08)) | See [below](#0037_awaiting_terminologypy) - an empty table on upgrade, and the downgrade refuses while a submission or a recorded transition names the state |
 
 ## Provisioning the app role's login
 
@@ -746,6 +747,29 @@ content columns and `updated_at`. It may not move or delete one. The grant on `s
 
 The downgrade drops `submission_working_copy`, which discards every reviewer edit. The submissions keep
 their original content. Take a backup first if any edits have been made.
+
+## `0037_awaiting_terminology.py`
+
+Adds `Awaiting terminology` to the `state` check on `submission` and to the `from_state` and `to_state`
+checks on `submission_transition`, and creates `submission_terminology_request` (FR-30, FR-31, NFR-08 -
+see [`data-model.md`](../architecture/data-model.md#submission_terminology_request-fr-30-fr-31-nfr-08)).
+Widening a check cannot invalidate a stored row and the new table starts empty, so the upgrade is
+instant and needs no data step. The API at this revision serves
+`POST /api/v1/submissions/{id}/terminology-request`, which needs `submission.transition.review`,
+`PATCH` on the same path, and `POST /api/v1/submissions/{id}/terminology-request/attach-code`, which
+needs `submission.transition.approve` and so the Administrator's MFA step-up. `GET
+/api/v1/submissions/{id}` returns `terminology_request` to holders of the review permission.
+
+The grants are in the migration. The app role may insert and read a request and may update only the
+external reference, the expected release and `updated_at`. It may not rewrite what was asked for, or
+delete a request.
+
+The downgrade refuses to run while any submission is `Awaiting terminology`, or any recorded transition
+names the state as its `from_state` or `to_state`, because the narrower checks would reject that row.
+A submission that waited and then moved on still has such a transition, and `submission_transition` is
+insert-only, so the downgrade stays refused for that database. Restore from a backup taken before the
+upgrade instead. When the downgrade does run, it drops `submission_terminology_request`, which discards
+every request; take a backup first if any have been made.
 
 ## Testcontainers and Docker
 

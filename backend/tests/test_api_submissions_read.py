@@ -229,7 +229,7 @@ def test_a_caller_can_ask_for_closed_states_by_name(api: ApiTestApp) -> None:
 def test_an_unknown_state_is_a_422(api: ApiTestApp) -> None:
     token, _ = _sign_in(api, Role.MEMBER)
 
-    response = api.get(_PATH, token=token, params={"state": "Awaiting terminology"})
+    response = api.get(_PATH, token=token, params={"state": "Archived"})
 
     assert response.status_code == 422
 
@@ -615,7 +615,10 @@ def test_a_reviewer_is_offered_the_review_moves(api: ApiTestApp) -> None:
     assert _available(api, token, _add(api, member)) == ["Triage"]
     assert _available(api, token, _add(api, member, state="Triage")) == ["Under review", "Rejected"]
     assert _available(api, token, _add(api, member, state="Rejected")) == ["Triage"]
-    assert _available(api, token, _add(api, member, state="Under review")) == ["Ready for approval"]
+    assert _available(api, token, _add(api, member, state="Under review")) == [
+        "Ready for approval",
+        "Awaiting terminology",
+    ]
     assert _available(api, token, _add(api, member, state="Approved")) == []
     assert _available(api, token, _add(api, reviewer)) == ["Triage", "Withdrawn"]
 

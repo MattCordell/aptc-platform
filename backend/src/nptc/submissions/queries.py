@@ -15,6 +15,10 @@ to what this module returns.
 Keyset paging on `(created_at, id)`, newest first, never `OFFSET` (ADR-0024). `id` breaks a tie
 between two rows saved in one instant, so the order is total. The cursor is opaque to a client.
 
+**The terminology request is a separate read too (FR-30).** `get_terminology_request` returns the
+current request, the newest row, or `None` when the submission never waited for terminology, and
+only a caller who may see it asks.
+
 **The working copy is a separate read (FR-23).** `get_working_copy` returns the reviewer's edited
 copy or `None`. Only a caller who may see it asks, so a response for anyone else never reads the
 table.
@@ -41,6 +45,7 @@ from sqlalchemy.orm import Session
 from nptc.auth.identity import UserRef
 from nptc.db.models.catalogue_entry import CatalogueEntry
 from nptc.db.models.submission import CLOSED_SUBMISSION_STATES, Submission
+from nptc.db.models.submission_terminology_request import SubmissionTerminologyRequest
 from nptc.db.models.submission_transition import SubmissionTransition
 from nptc.db.models.submission_working_copy import SubmissionWorkingCopy
 from nptc.db.models.user import User
@@ -51,6 +56,7 @@ __all__ = [
     "SubmissionRecordPage",
     "TransitionRecord",
     "get_submission",
+    "get_terminology_request",
     "get_working_copy",
     "list_submissions",
     "list_transitions",
@@ -214,3 +220,20 @@ def list_transitions(session: Session, submission_id: uuid.UUID) -> tuple[Transi
 def get_working_copy(session: Session, submission_id: uuid.UUID) -> SubmissionWorkingCopy | None:
     """The submission's working copy, or `None` when no reviewer has edited it."""
     return session.get(SubmissionWorkingCopy, submission_id)
+
+
+def get_terminology_request(
+    session: Session, submission_id: uuid.UUID, *, populate_existing: bool = False
+) -> SubmissionTerminologyRequest | None:
+    """The submission's current terminology request, the newest of its rows, or `None` when it has
+    never waited for terminology. An earlier request stays as history. A writer that holds the
+    append lock passes `populate_existing`, so the row read is the committed one."""
+    return session.execute(
+        select(SubmissionTerminologyRequest)
+        .where(SubmissionTerminologyRequest.submission_id == submission_id)
+        .order_by(
+            SubmissionTerminologyRequest.created_at.desc(), SubmissionTerminologyRequest.id.desc()
+        )
+        .limit(1),
+        execution_options={"populate_existing": populate_existing},
+    ).scalar_one_or_none()

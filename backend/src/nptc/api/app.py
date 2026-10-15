@@ -35,6 +35,7 @@ from nptc.api.routers import (
     comments,
     registry,
     submission_interest,
+    submission_terminology_request,
     submission_transitions,
     submission_working_copy,
     submissions,
@@ -170,6 +171,9 @@ def create_app(
     # A reviewer edits a copy of a submission, never the submission itself (FR-23). Gated on
     # submission.transition.review, which only Reviewer and Administrator hold.
     app.include_router(submission_working_copy.router, prefix=API_PREFIX)
+    # A reviewer parks a submission until a code exists (FR-30). Gated on
+    # submission.transition.review, and on submission.transition.approve for the attach-code move.
+    app.include_router(submission_terminology_request.router, prefix=API_PREFIX)
     # Staff-only comments on a submission or an entry (FR-95). Gated on comment.internal.read and
     # comment.internal.write, which only Reviewer and Administrator hold.
     app.include_router(comments.router, prefix=API_PREFIX)
