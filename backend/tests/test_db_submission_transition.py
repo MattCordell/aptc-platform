@@ -118,7 +118,7 @@ def test_a_transition_refuses_a_state_the_submission_cannot_hold(
     db: Connection, column: str
 ) -> None:
     with pytest.raises(IntegrityError) as exc_info:
-        _insert_transition(db, **{column: "Awaiting terminology"})
+        _insert_transition(db, **{column: "Archived"})
 
     assert exc_info.value.orig.sqlstate == _CHECK_VIOLATION  # type: ignore[union-attr]
 

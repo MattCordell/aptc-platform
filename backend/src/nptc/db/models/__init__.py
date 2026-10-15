@@ -31,6 +31,7 @@ from nptc.db.models.property_value import PropertyValue
 from nptc.db.models.seed_import import SeedImport
 from nptc.db.models.submission import Submission, SubmissionKind, SubmissionState
 from nptc.db.models.submission_interest import SubmissionInterest
+from nptc.db.models.submission_terminology_request import SubmissionTerminologyRequest
 from nptc.db.models.submission_transition import SubmissionTransition
 from nptc.db.models.submission_working_copy import SubmissionWorkingCopy
 from nptc.db.models.terms_acceptance import TermsAcceptance
@@ -70,6 +71,7 @@ __all__ = [
     "SubmissionInterest",
     "SubmissionKind",
     "SubmissionState",
+    "SubmissionTerminologyRequest",
     "SubmissionTransition",
     "SubmissionWorkingCopy",
     "TermsAcceptance",

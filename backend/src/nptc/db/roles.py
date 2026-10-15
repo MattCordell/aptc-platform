@@ -350,6 +350,20 @@ REVOKE_SUBMISSION_WORKING_COPY_DELETE_SQL = (
     "REVOKE DELETE, TRUNCATE ON TABLE submission_working_copy FROM nptc_app;"
 )
 
+#: FR-30, FR-31: the request for a code that does not exist yet. What was asked for (`proposed_fsn`,
+#: `target_edition`, `justification`, `raised_date`) is left out of the `UPDATE` grant, so only the
+#: tracking fields can change while the submission waits. There is no `DELETE` grant.
+GRANT_SUBMISSION_TERMINOLOGY_REQUEST_SQL = (
+    "GRANT SELECT, INSERT ON TABLE submission_terminology_request TO nptc_app;"
+)
+GRANT_SUBMISSION_TERMINOLOGY_REQUEST_UPDATE_SQL = (
+    "GRANT UPDATE (external_reference_system, external_reference_ref, expected_release, "
+    "updated_at) ON TABLE submission_terminology_request TO nptc_app;"
+)
+REVOKE_SUBMISSION_TERMINOLOGY_REQUEST_DELETE_SQL = (
+    "REVOKE DELETE, TRUNCATE ON TABLE submission_terminology_request FROM nptc_app;"
+)
+
 #: FR-28, NFR-08: a transition is a fact about a past moment, so it is never edited or removed.
 GRANT_SUBMISSION_TRANSITION_SQL = "GRANT SELECT, INSERT ON TABLE submission_transition TO nptc_app;"
 REVOKE_SUBMISSION_TRANSITION_WRITE_SQL = (
