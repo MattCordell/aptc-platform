@@ -24,10 +24,12 @@ Each view has its own address. `/submissions?mine=true` is **My submissions**.
 
 The **State** list narrows the view to one kind of submission:
 
-- **Open** shows submissions still waiting for a decision: Submitted and Triage.
+- **Open** shows submissions that are not yet closed: Submitted, Triage, Under review, Ready
+  for approval and Approved. An approved submission is still open because it waits for a
+  release.
 - **All states** shows every submission, including closed ones.
-- **Submitted**, **Triage**, **Published in release**, **Rejected** or **Withdrawn** shows
-  that state alone.
+- **Submitted**, **Triage**, **Under review**, **Ready for approval**, **Approved**,
+  **Published in release**, **Rejected** or **Withdrawn** shows that state alone.
 
 **All submissions** starts on **Open**. **My submissions** starts on **All states**.
 

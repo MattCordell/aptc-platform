@@ -1485,7 +1485,7 @@ submission, held in [`submission_interest`](#submission_interest-fr-32-fr-34-nfr
 |---|---|---|
 | `id` | `UUID` | PK, `gen_random_uuid()` |
 | `kind` | `TEXT` | `NOT NULL`, `CHECK` in `new_test`, `amendment`. Amendments reuse the table, so they need no second one |
-| `state` | `TEXT` | `NOT NULL DEFAULT 'Submitted'`, `CHECK` in `Submitted`, `Triage`, `Published in release`, `Rejected`, `Withdrawn`. The three closed states are the end of the workflow (FR-28). Only a withdrawal writes a state today, and it writes `Withdrawn`. `Triage` is allowed so a submission can be withdrawn from it, but no route moves a submission into it yet, so only a test stores one. The other FR-28 states arrive with the workflow |
+| `state` | `TEXT` | `NOT NULL DEFAULT 'Submitted'`, `CHECK` in `Submitted`, `Triage`, `Under review`, `Ready for approval`, `Approved`, `Published in release`, `Rejected`, `Withdrawn`. The three closed states are the end of the workflow (FR-28). `POST /api/v1/submissions/{id}/transitions` writes the review moves and the withdrawals. No route reaches `Approved` or `Published in release` yet, so only a test stores them. `Awaiting terminology` arrives with its own move |
 | `entry_id` | `UUID` | Nullable, FK to `catalogue_entry.id`, indexed. The entry an amendment proposes to change. `CHECK ((kind = 'amendment') = (entry_id IS NOT NULL))`, so an amendment has one and a new test has none (FR-35) |
 | `preferred_term` | `TEXT` | `NOT NULL`, `CHECK` not blank. Cleaned at entry like an entry's term (FR-63). On an amendment, a copy of the entry's preferred term when it was proposed |
 | `synonyms` | `JSONB` | `NOT NULL DEFAULT '[]'`, `CHECK` a JSON array. Each term is cleaned at entry. A term that folds to the same comparison key as an earlier one, or as `preferred_term`, is dropped, as `add_synonyms` drops it, so the list converts to designations without a duplicate |
@@ -1512,7 +1512,9 @@ entry".
 `nptc.db.models.submission.CLOSED_SUBMISSION_STATES` lists `Published in release`, `Rejected` and
 `Withdrawn`. `GET /api/v1/submissions` leaves those out when the caller names no `state`, and its
 statement says `state NOT IN (...)` over that tuple and never lists the open states, so a state added
-later is open until it is listed there. `mine=true` with no `state` lifts the default, so a submitter's
+later is open until it is listed there. `Approved` is open on purpose: an approved submission still
+waits for a release (FR-29), so it stays in the default list and a user can still register interest in
+it. `mine=true` with no `state` lifts the default, so a submitter's
 own list holds their whole history. The list pages on `(created_at, id)`, newest first, using
 `ix_submission_created_at`, and one joined statement also reads the submitter and the amended entry's
 business key (`nptc.submissions.queries`).
@@ -1650,14 +1652,16 @@ naming `organisation` in `_redacted` (NFR-08). A call that changes nothing emits
 One row for each change of a submission's `state`: who changed it, from which state, to which, why,
 and when. Every change goes through `nptc.submissions.transitions.transition_submission`, so the new
 `state`, this row and the audit event are written in one transaction and agree, or none exists.
-Today the only change is a withdrawal, from `Submitted` or `Triage` to `Withdrawn`, by the submitter.
+The changes are the review moves and the withdrawals in the table below. `POST
+/api/v1/submissions/{id}/transitions` makes any of them, and `POST /api/v1/submissions/{id}/withdraw`
+is the submitter's shorter way to a withdrawal.
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `UUID` | PK, `gen_random_uuid()` |
 | `submission_id` | `UUID` | `NOT NULL`, FK to `submission.id` |
-| `from_state` | `TEXT` | `NOT NULL`, `CHECK` in the five submission states |
-| `to_state` | `TEXT` | `NOT NULL`, `CHECK` in the five submission states. `CHECK (from_state <> to_state)`, so a row always records a change |
+| `from_state` | `TEXT` | `NOT NULL`, `CHECK` in the eight submission states |
+| `to_state` | `TEXT` | `NOT NULL`, `CHECK` in the eight submission states. `CHECK (from_state <> to_state)`, so a row always records a change |
 | `actor_id` | `UUID` | `NOT NULL`, FK to `app_user.id`. The internal id, which account closure keeps (NFR-17) |
 | `reason` | `TEXT` | `NOT NULL`, `CHECK` not blank. The actor's own text, cleaned like a note (FR-63) |
 | `created_at` | `TIMESTAMPTZ` | `NOT NULL`, `clock_timestamp()`, so two changes in one transaction still order |
@@ -1669,10 +1673,32 @@ first.
 by `(from_state, to_state)`. Each row names the audit action and the ways an actor may make the move: a
 permission, and whether the actor must be the submitter. A move with no row is refused with a 409, so a
 closed submission is never reinterpreted, and a second withdrawal is refused and not repeated. A new
-state or move is a new row and not a second code path. The table seeds `Submitted -> Withdrawn` and
-`Triage -> Withdrawn`, each needing `submission.withdraw.own` and the submitter. It has no
-`submission.withdraw.any` row yet, so an Administrator, who holds `.any` and not `.own`, cannot
-withdraw even their own submission.
+state or move is a new row and not a second code path. The table holds nine moves:
+
+| From | To | Needs |
+|---|---|---|
+| `Submitted` | `Triage` | `submission.transition.review` |
+| `Triage` | `Under review` | `submission.transition.review` |
+| `Triage` | `Rejected` | `submission.transition.review` |
+| `Rejected` | `Triage` (reopen) | `submission.transition.review` |
+| `Under review` | `Ready for approval` | `submission.transition.review` |
+| `Submitted`, `Triage` | `Withdrawn` | `submission.withdraw.own` and the submitter, or `submission.withdraw.any` |
+| `Approved`, `Published in release` | `Withdrawn` | `submission.withdraw.any` |
+
+A reopened submission keeps its transition rows and is never a new record. The Administrator holds
+`.any` and not `.own`, so the `.any` requirement on the open-state withdrawal rows is what lets an
+Administrator withdraw a submission of their own. Only `.any` reaches `Approved` and `Published in
+release`, so the submitter's own withdrawal ends once a reviewer has accepted the proposal. No row
+enters `Approved` or `Awaiting terminology` yet, so a request for `Approved` is a 409 and one for
+`Awaiting terminology` fails validation (422).
+
+**The route and the detail read one table.** `POST /api/v1/submissions/{id}/transitions` takes
+`to_state`, `reason` and `expected_row_version`. Its gate turns away a caller who holds none of the
+permissions the table names (`TRANSITION_PERMISSIONS`, derived from it), and the service then judges the
+particular move. `nptc.submissions.transitions.available_transitions` applies the same requirement test,
+and `GET /api/v1/submissions/{id}` returns its answer as `available_transitions`: the states this caller
+may move this submission to now. The transition response carries the same field for the state it
+reports, so a screen keeps no copy of the graph.
 
 **The checks run in a fixed order, and a refusal writes nothing.** A blank reason, or one with an
 invisible character, is refused first (422). The service then takes the audit append lock and checks
@@ -1682,14 +1708,16 @@ waits on the lock, then finds `Withdrawn` and is refused. `StaleDataError` from 
 update is the backstop for a writer that skipped the lock, and it gives the same 409.
 
 **Optimistic locking uses `submission.row_version`.** `GET /api/v1/submissions/{id}` returns it, a
-withdrawal sends it back as `expected_row_version`, and the withdrawal's response carries the next one.
+move sends it back as `expected_row_version`, and the move's response carries the next one.
 A stale value is a 409 that carries `current_row_version`.
 
 **The row is fixed by privilege.** `nptc_app` holds `SELECT, INSERT` and no `UPDATE`, `DELETE` or
 `TRUNCATE`, as for `terms_acceptance`.
 
-A withdrawal emits one `submission.withdrawn` audit event on the `submission`, carrying `state` in
-`before` and `after` and the reason (NFR-08). The transition row is not a second event.
+Each move emits one audit event on the `submission`, carrying `state` in `before` and `after` and the
+reason (NFR-08). The action names the move: `submission.triaged`, `submission.review_started`,
+`submission.rejected`, `submission.reopened`, `submission.readied_for_approval` and
+`submission.withdrawn`. The transition row is not a second event.
 
 ## Extensions
 

@@ -77,6 +77,7 @@ and/or `data-model.md`, so it gets no section of its own below.
 | [`0031_submission_states.py`](../../backend/migrations/versions/0031_submission_states.py) | Widens the `submission.state` check to the three closed states (see [`data-model.md`](../architecture/data-model.md#submission-fr-23-fr-27-fr-28-fr-29-nfr-08)) | See [below](#0031_submission_statespy) - no data step, and the downgrade refuses while a closed state is stored |
 | [`0032_submission_interest.py`](../../backend/migrations/versions/0032_submission_interest.py) | `submission_interest` (see [`data-model.md`](../architecture/data-model.md#submission_interest-fr-32-fr-34-nfr-08-nfr-17)) | See [below](#0032_submission_interestpy) - an empty table on upgrade, and the downgrade discards every registered interest |
 | [`0033_submission_transition.py`](../../backend/migrations/versions/0033_submission_transition.py) | Adds `Triage` to the `submission.state` check, and `submission_transition` (see [`data-model.md`](../architecture/data-model.md#submission_transition-fr-28-nfr-08)) | See [below](#0033_submission_transitionpy) - an empty table on upgrade, and the downgrade refuses while a submission is in `Triage` |
+| [`0034_submission_review_states.py`](../../backend/migrations/versions/0034_submission_review_states.py) | Adds `Under review`, `Ready for approval` and `Approved` to the state checks on `submission` and `submission_transition` (see [`data-model.md`](../architecture/data-model.md#submission_transition-fr-28-nfr-08)) | See [below](#0034_submission_review_statespy) - no data step, and the downgrade refuses while a submission or a recorded transition names one of the three states |
 
 ## Provisioning the app role's login
 
@@ -699,6 +700,21 @@ delete one.
 The downgrade refuses to run while any submission is in `Triage`, because the narrower check would
 reject that row. Move those submissions first. It then drops `submission_transition`, which discards
 every recorded transition, with the reason each holds. Take a backup first if any have been made.
+
+## `0034_submission_review_states.py`
+
+Adds `Under review`, `Ready for approval` and `Approved` to the `state` check on `submission` and to the
+`from_state` and `to_state` checks on `submission_transition` (FR-28, FR-29 - see
+[`data-model.md`](../architecture/data-model.md#submission_transition-fr-28-nfr-08)). Widening a check
+cannot invalidate a stored row, so the upgrade is instant and needs no data step. The API at this
+revision serves `POST /api/v1/submissions/{id}/transitions`, and `GET /api/v1/submissions/{id}` returns
+`available_transitions`.
+
+The downgrade refuses to run while any submission is in one of the three states, or any recorded
+transition names one as its `from_state` or `to_state`, because the narrower checks would reject that
+row. A submission that was reviewed and then rejected or withdrawn still has such a transition, and
+`submission_transition` is insert-only, so the downgrade stays refused for that database. Restore from a
+backup taken before the upgrade instead.
 
 ## Testcontainers and Docker
 
