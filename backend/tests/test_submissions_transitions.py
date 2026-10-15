@@ -334,7 +334,6 @@ def test_a_role_without_the_review_permission_is_refused_every_review_move(
         ("Ready for approval", "Triage"),
         ("Rejected", "Under review"),
         ("Triage", "Approved"),
-        ("Ready for approval", "Approved"),
         ("Published in release", "Triage"),
         ("Withdrawn", "Triage"),
     ],
@@ -353,10 +352,24 @@ def test_a_move_the_table_has_no_row_for_is_refused_for_a_reviewer(
 
 
 @pytest.mark.req("FR-28")
-def test_no_move_enters_approved_until_the_approval_move_exists() -> None:
-    """Approval also writes the catalogue entry, so it is its own move and not a row of the review
-    graph. Until it lands, `Approved` is a state a submission can hold but no move reaches."""
-    assert SubmissionState.APPROVED not in {target for _, target in PERMITTED_TRANSITIONS}
+@pytest.mark.req("FR-29")
+@pytest.mark.req("FR-44")
+def test_only_an_administrator_move_from_ready_for_approval_enters_approved() -> None:
+    """Approval also writes the catalogue entry, so it is a move of its own: one row, one source
+    state, an Administrator-only permission and a service of its own."""
+    entering = {
+        move: row
+        for move, row in PERMITTED_TRANSITIONS.items()
+        if move[1] is SubmissionState.APPROVED
+    }
+
+    assert set(entering) == {(SubmissionState.READY_FOR_APPROVAL, SubmissionState.APPROVED)}
+    row = entering[(SubmissionState.READY_FOR_APPROVAL, SubmissionState.APPROVED)]
+    assert [requirement.permission for requirement in row.requirements] == [
+        Permission.SUBMISSION_TRANSITION_APPROVE
+    ]
+    assert Permission.SUBMISSION_TRANSITION_APPROVE in ADMINISTRATOR_ONLY
+    assert row.needs_payload
 
 
 # --- a suppressed Administrator who holds another role (FR-44) -----------------------------
@@ -651,6 +664,7 @@ def test_the_table_holds_exactly_the_moves_of_the_review_graph() -> None:
         (S.UNDER_REVIEW, S.AWAITING_TERMINOLOGY),
         (S.AWAITING_TERMINOLOGY, S.READY_FOR_APPROVAL),
         (S.AWAITING_TERMINOLOGY, S.UNDER_REVIEW),
+        (S.READY_FOR_APPROVAL, S.APPROVED),
         (S.SUBMITTED, S.WITHDRAWN),
         (S.TRIAGE, S.WITHDRAWN),
         (S.APPROVED, S.WITHDRAWN),
@@ -659,11 +673,12 @@ def test_the_table_holds_exactly_the_moves_of_the_review_graph() -> None:
 
 
 @pytest.mark.req("FR-30")
-def test_only_the_two_moves_of_awaiting_terminology_need_their_own_route() -> None:
+def test_only_the_moves_of_awaiting_terminology_and_approval_need_their_own_route() -> None:
     S = SubmissionState
     assert {move for move, row in PERMITTED_TRANSITIONS.items() if row.needs_payload} == {
         (S.UNDER_REVIEW, S.AWAITING_TERMINOLOGY),
         (S.AWAITING_TERMINOLOGY, S.READY_FOR_APPROVAL),
+        (S.READY_FOR_APPROVAL, S.APPROVED),
     }
 
 

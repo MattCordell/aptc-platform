@@ -21,9 +21,10 @@ serialises two writers of one submission, so the version check decides and `Stal
 the backstop for a writer that skipped the lock.
 
 **A move that needs more than a reason has its own service** (`needs_payload`): the two moves of
-`Awaiting terminology` (FR-30) carry a record or a code. They are rows of the table, so the graph, the
-permissions and `available_transitions` stay in one place, but `transition_submission` refuses them
-once the permission is met, and `nptc.submissions.terminology_request` makes them through `check_move`
+`Awaiting terminology` (FR-30) carry a record or a code, and approval (FR-28, FR-29) writes the
+catalogue entry. They are rows of the table, so the graph, the permissions and `available_transitions`
+stay in one place, but `transition_submission` refuses them once the permission is met.
+`nptc.submissions.terminology_request` and `nptc.submissions.approval` make them through `check_move`
 and `perform_move`, the two halves of this module's own steps.
 """
 
@@ -105,6 +106,7 @@ _READIED_FOR_APPROVAL = "submission.readied_for_approval"
 _TERMINOLOGY_REQUESTED = "submission.terminology_requested"
 _TERMINOLOGY_ATTACHED = "submission.terminology_attached"
 _REVIEW_RESUMED = "submission.review_resumed"
+_APPROVED = "submission.approved"
 
 # The Administrator holds `.any` and not `.own`, so an Administrator's own submission needs `.any`
 # on the same row as the submitter's `.own`. Only `.any` reaches `Approved` and `Published in
@@ -130,6 +132,11 @@ PERMITTED_TRANSITIONS: Final[
     ),
     (SubmissionState.AWAITING_TERMINOLOGY, SubmissionState.READY_FOR_APPROVAL): PermittedTransition(
         _TERMINOLOGY_ATTACHED, (_APPROVE,), needs_payload=True
+    ),
+    # Approval writes the catalogue entry in the same transaction (FR-28, FR-29), so it carries
+    # the Administrator's reason as the changelog note and has its own service.
+    (SubmissionState.READY_FOR_APPROVAL, SubmissionState.APPROVED): PermittedTransition(
+        _APPROVED, (_APPROVE,), needs_payload=True
     ),
     # A request the authority declines, or one nobody pursues, must not strand the submission: the
     # reviewer takes it back to `Under review`. The record stays as the history of the request.
