@@ -1,5 +1,5 @@
 import { refusalDetail } from "../api/conflicts.ts";
-import { useInterestIdentities, useSession } from "../api/queries.ts";
+import { useHasPermission, useInterestIdentities } from "../api/queries.ts";
 import type { components } from "../api/schema.ts";
 import { ApiError } from "../api/unwrap.ts";
 import { EntrySection } from "../catalogue/entry-section.tsx";
@@ -107,8 +107,7 @@ function Failure({ error, retry }: { error: unknown; retry: () => void }) {
  * placeholders and the organisation label render as the server sent them.
  */
 export function InterestIdentitiesPanel({ submissionId }: { submissionId: string }) {
-  const session = useSession();
-  const mayView = session.data?.permissions?.includes(VIEW_PERMISSION) === true;
+  const mayView = useHasPermission(VIEW_PERMISSION);
   const identities = useInterestIdentities(submissionId, mayView);
 
   if (!mayView) {

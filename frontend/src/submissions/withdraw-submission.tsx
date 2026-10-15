@@ -5,7 +5,7 @@ import {
   asSubmissionVersionConflict,
   refusalDetail,
 } from "../api/conflicts.ts";
-import { useSession, useWithdrawSubmission } from "../api/queries.ts";
+import { useHasPermission, useWithdrawSubmission } from "../api/queries.ts";
 import type { components } from "../api/schema.ts";
 import { Button } from "../components/button.tsx";
 import { Dialog } from "../components/dialog.tsx";
@@ -143,7 +143,7 @@ export function WithdrawSubmission({ submission }: { submission: Withdrawable })
 }
 
 function WithdrawPanel({ submission }: { submission: Withdrawable }) {
-  const session = useSession();
+  const mayWithdraw = useHasPermission(WITHDRAW_PERMISSION);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [withdrawn, setWithdrawn] = useState(false);
   const confirmation = useRef<HTMLParagraphElement>(null);
@@ -154,7 +154,6 @@ function WithdrawPanel({ submission }: { submission: Withdrawable }) {
     }
   }, [withdrawn]);
 
-  const mayWithdraw = session.data?.permissions?.includes(WITHDRAW_PERMISSION) === true;
   const canWithdraw = mayWithdrawNow(submission);
   if (!mayWithdraw || !submission.is_own || (!canWithdraw && !withdrawn && !dialogOpen)) {
     return null;
