@@ -200,7 +200,8 @@ class _SummaryFields(BaseModel):
     """What a list item and a detail share. `snomed_fsn` is the label the terminology server
     returned for `snomed_code` (FR-82), and `label_provenance` says which designation each label
     is (FR-98). `entry_business_key` is the entry an amendment proposes to change, and null for a
-    new test. `is_own` is true when the caller made the submission. `has_registered_interest` is
+    new test. `created_entry_business_key` is the entry an approved new test became, and null until
+    then and for an amendment. `is_own` is true when the caller made the submission. `has_registered_interest` is
     true when the caller holds live interest in it, and `interest_count` is how many users do, null
     when the caller may not see counts (FR-34)."""
 
@@ -210,6 +211,7 @@ class _SummaryFields(BaseModel):
     kind: str
     state: str
     entry_business_key: str | None
+    created_entry_business_key: str | None
     preferred_term: str
     snomed_code: str | None
     snomed_fsn: str | None
@@ -405,6 +407,7 @@ def _summary_fields(
         "kind": submission.kind,
         "state": submission.state,
         "entry_business_key": record.entry_business_key,
+        "created_entry_business_key": record.created_entry_business_key,
         "preferred_term": submission.preferred_term,
         "snomed_code": submission.snomed_code,
         "snomed_fsn": submission.snomed_fsn,

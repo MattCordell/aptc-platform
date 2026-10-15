@@ -198,6 +198,9 @@ COVERED_WRITE_ROUTES = frozenset(
         RouteKey(
             method="POST", path="/submissions/{submission_id}/terminology-request/attach-code"
         ),
+        # Approval (FR-28): needs `submission.transition.approve`, which only the Administrator
+        # holds. Negative-auth coverage lives in `test_api_submissions_approval.py`.
+        RouteKey(method="POST", path="/submissions/{submission_id}/approve"),
         # Internal comments (FR-95): post and withdraw, under a submission and under an entry. All
         # need `comment.internal.write`, which only Reviewer and Administrator hold. Negative-auth
         # coverage lives in `test_api_comments.py`.

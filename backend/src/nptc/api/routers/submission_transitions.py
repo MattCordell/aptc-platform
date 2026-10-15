@@ -111,8 +111,9 @@ _TRANSITION_RESPONSES: Final[dict[int | str, dict[str, Any]]] = {
         "model": SubmissionVersionConflictResponse | ErrorResponse,
         "description": (
             "The table has no move from the submission's current state to `to_state`, so a closed "
-            "submission is refused, a second withdrawal is too, and so is any request for a state "
-            "no move reaches yet, such as `Approved`. Or `expected_row_version` is not the current "
+            "submission is refused, a second withdrawal is too, and so is a move that has its own "
+            "route, such as `Approved`, which `POST /submissions/{id}/approve` makes. Or "
+            "`expected_row_version` is not the current "
             "one, because someone else changed the submission after it was read; the body then "
             "carries `current_row_version`. A stale `expected_row_version` sent after someone else "
             "has moved the submission gets the first reason, so a client should treat both as "
