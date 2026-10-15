@@ -201,9 +201,9 @@ class _SummaryFields(BaseModel):
     returned for `snomed_code` (FR-82), and `label_provenance` says which designation each label
     is (FR-98). `entry_business_key` is the entry an amendment proposes to change, and null for a
     new test. `created_entry_business_key` is the entry an approved new test became, and null until
-    then and for an amendment. `is_own` is true when the caller made the submission. `has_registered_interest` is
-    true when the caller holds live interest in it, and `interest_count` is how many users do, null
-    when the caller may not see counts (FR-34)."""
+    then and for an amendment. `is_own` is true when the caller made the submission.
+    `has_registered_interest` is true when the caller holds live interest in it, and `interest_count`
+    is how many users do, null when the caller may not see counts (FR-34)."""
 
     model_config = ConfigDict(frozen=True)
 

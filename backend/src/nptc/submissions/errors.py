@@ -135,6 +135,9 @@ class AmendmentNoLongerApplicableCause(StrEnum):
     SYNONYM_EXISTS = "synonym-exists"
     #: The code the amendment proposes is already the entry's active code.
     CODE_ALREADY_ACTIVE = "code-already-active"
+    #: The entry's active code was bound after the amendment was proposed, so approving would retire
+    #: a code the submitter never saw.
+    CODE_CHANGED = "code-changed"
 
 
 class AmendmentNoLongerApplicableError(Exception):

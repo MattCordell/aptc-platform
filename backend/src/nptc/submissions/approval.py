@@ -28,8 +28,10 @@ event would omit the link.
 **A new test is created `active` with its synonyms, its code and its properties.** A preferred-term
 collision is the catalogue's own refusal (FR-05). **An amendment re-reads the entry under the lock,**
 because it may have changed since the proposal: an entry that is no longer active, a synonym the entry
-has since gained and a code that is already its active code each refuse the whole approval, and none
-is applied in part. A different active code is retired, the proposed one is bound, and the two are
+has since gained, a code that is already its active code and a code bound after the proposal, which a
+replacement would retire unseen, each refuse the whole approval, and none is applied in part. The
+submission records no code of the entry's, so "bound after the proposal" is a binding created after
+the submission was. A different active code is retired, the proposed one is bound, and the two are
 linked (FR-08), in that order, which the unique index on active bindings fixes.
 """
 
@@ -226,6 +228,12 @@ def _amend_entry(
     current = _active_binding(session, entry.id)
     if current is not None and current.code == content.snomed_code:
         raise AmendmentNoLongerApplicableError(AmendmentNoLongerApplicableCause.CODE_ALREADY_ACTIVE)
+    if (
+        current is not None
+        and content.snomed_code is not None
+        and current.created_at > submission.created_at
+    ):
+        raise AmendmentNoLongerApplicableError(AmendmentNoLongerApplicableCause.CODE_CHANGED)
 
     with entry_child_write(session, entry, entry.row_version, reason=note):
         if content.synonyms:

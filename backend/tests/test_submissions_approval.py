@@ -188,6 +188,7 @@ def _ready_amendment(
     *,
     synonyms: list[str] | None = None,
     code: str | None = None,
+    proposed_at: datetime | None = None,
 ) -> Submission:
     submission = Submission(
         kind=SubmissionKind.AMENDMENT.value,
@@ -198,6 +199,7 @@ def _ready_amendment(
         snomed_code=code,
         snomed_fsn=None if code is None else _FSN,
         submitter_id=submitter.id,
+        **({} if proposed_at is None else {"created_at": proposed_at}),
     )
     session.add(submission)
     session.flush()
@@ -531,6 +533,52 @@ def test_an_amendment_whose_code_is_already_the_active_code_is_refused(
 
     assert refused.value.cause is AmendmentNoLongerApplicableCause.CODE_ALREADY_ACTIVE
     _assert_refused_and_nothing_written(app_session, submission, ctx)
+
+
+@pytest.mark.req("FR-35")
+@pytest.mark.integration
+def test_an_amendment_is_refused_when_the_entrys_code_was_bound_after_the_proposal(
+    app_session: Session,
+) -> None:
+    """Another change gave the entry a different code since this amendment was proposed. Replacing
+    it would retire a code the submitter never saw."""
+    admin, submitter = _user(app_session), _user(app_session)
+    entry = _entry(app_session, admin)
+    unseen = _bind(app_session, admin, entry, _code())
+    submission = _ready_amendment(
+        app_session, submitter, entry, code=_code(), proposed_at=datetime(2020, 1, 1, tzinfo=UTC)
+    )
+    ctx = _context(admin.id)
+
+    with pytest.raises(AmendmentNoLongerApplicableError) as refused:
+        _approve(app_session, submission, admin, ctx=ctx)
+
+    assert refused.value.cause is AmendmentNoLongerApplicableCause.CODE_CHANGED
+    _assert_refused_and_nothing_written(app_session, submission, ctx)
+    app_session.refresh(unseen)
+    assert unseen.status == "active"
+
+
+@pytest.mark.req("FR-35")
+@pytest.mark.integration
+def test_a_synonym_only_amendment_is_not_refused_for_a_code_bound_after_the_proposal(
+    app_session: Session,
+) -> None:
+    admin, submitter = _user(app_session), _user(app_session)
+    entry = _entry(app_session, admin)
+    kept = _bind(app_session, admin, entry, _code())
+    submission = _ready_amendment(
+        app_session,
+        submitter,
+        entry,
+        synonyms=[_term("Later synonym")],
+        proposed_at=datetime(2020, 1, 1, tzinfo=UTC),
+    )
+
+    _approve(app_session, submission, admin)
+
+    app_session.refresh(kept)
+    assert kept.status == "active"
 
 
 # --- a failure part-way writes nothing (FR-28, NFR-08) -------------------------------------

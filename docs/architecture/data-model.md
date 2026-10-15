@@ -1774,8 +1774,11 @@ the `submission.approved` event carries the link in `after`.
 
 **An amendment is applied to the entry it names.** The entry is re-read under the lock, because it may
 have changed since the proposal. An entry that is no longer `active` is a 409 naming its status. A
-proposed synonym the entry has since gained, or a proposed code that is already its active code, is a
-409 that names the cause, and nothing is applied in part. Synonyms are added through `add_synonyms`. A
+proposed synonym the entry has since gained, a proposed code that is already its active code, or an
+active code bound after the proposal was made is a 409 that names the cause, and nothing is applied in
+part. The last one stops a replacement from retiring a code the submitter never saw. The submission
+stores no code of the entry's, so the check compares the active binding's `created_at` with the
+submission's. Synonyms are added through `add_synonyms`. A
 different active code is retired, the proposed one is bound, and the two are linked with
 `link_replacement` (FR-08), in that order, which `ix_code_binding_one_active_per_entry` fixes. All of
 it runs in `entry_child_write`, so the entry's `row_version` is checked and bumped once.

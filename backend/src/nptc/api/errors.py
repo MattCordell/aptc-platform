@@ -780,11 +780,16 @@ _DETAIL_AMENDMENT_ENTRY_NOT_ACTIVE: Final[dict[CatalogueEntryStatus, str]] = {
 _DETAIL_AMENDMENT_NO_LONGER_APPLICABLE: Final[dict[AmendmentNoLongerApplicableCause, str]] = {
     AmendmentNoLongerApplicableCause.SYNONYM_EXISTS: (
         "The entry already has a synonym this amendment proposes, so it cannot be approved as it "
-        "stands. Edit the submission to remove that synonym, or reject it."
+        "stands. Reject the submission, or, if it proposes anything else, edit it to remove that "
+        "synonym."
     ),
     AmendmentNoLongerApplicableCause.CODE_ALREADY_ACTIVE: (
         "The entry already carries the code this amendment proposes, so it cannot be approved as it "
-        "stands. Edit the submission to remove the code, or reject it."
+        "stands. Reject the submission, or edit it to propose a different code."
+    ),
+    AmendmentNoLongerApplicableCause.CODE_CHANGED: (
+        "The entry's code changed after this amendment was proposed, so approving it would replace "
+        "a code the submitter never saw. Reject the submission and ask for a new amendment."
     ),
 }
 _DETAIL_LOCAL_CODE_SYSTEM_ALREADY_DEPRECATED = "This local code system is already deprecated."

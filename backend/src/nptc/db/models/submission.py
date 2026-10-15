@@ -5,11 +5,12 @@ is an entry until a later workflow step copies it into one, so a submitted value
 for catalogue content.
 
 **Immutable after insert, except `state` and `created_entry_id`.**
-`nptc.db.roles.GRANT_SUBMISSION_UPDATE_SQL` leaves every content column out of the `UPDATE` grant, so
-what the submitter sent is a privilege-level fact, not an application convention. `row_version` sits
-inside the grant because `version_id_col` writes it on every mapped update, as on `catalogue_entry`.
-There is no `DELETE` grant: a submission leaves the workflow through `state`. Every change of `state` goes through `nptc.submissions.transitions`, which
-also writes a `submission_transition` row.
+`nptc.db.roles.GRANT_SUBMISSION_UPDATE_SQL` leaves every content column out of the `UPDATE`
+grant, so what the submitter sent is a privilege-level fact, not an application convention.
+`row_version` sits inside the grant because `version_id_col` writes it on every mapped update, as on
+`catalogue_entry`. There is no `DELETE` grant: a submission leaves the workflow through `state`.
+Every change of `state` goes through `nptc.submissions.transitions`, which also writes a
+`submission_transition` row.
 
 **`snomed_code` is `TEXT`, and `snomed_fsn` comes from the terminology server (FR-06, FR-82).** The
 code passes `nptc_sctid_is_valid` (ADR-0023), and the two columns are both present or both absent,

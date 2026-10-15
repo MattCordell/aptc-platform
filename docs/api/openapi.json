@@ -5791,7 +5791,7 @@
             }
           },
           "409": {
-            "description": "The submission is not `Ready for approval`. Or `expected_row_version` is not the current one, because someone else changed the submission after it was read; the body then carries `current_row_version`. Or an amendment cannot be applied: its entry is not `active`, the entry already has a synonym it proposes, or the entry already carries the code it proposes. Or a preferred term or synonym collides with another entry's (the body then carries the collision report), the proposed code is already bound to another entry, a property is deprecated, or the entry changed while the approval ran. Nothing was changed.",
+            "description": "The submission is not `Ready for approval`. Or `expected_row_version` is not the current one, because someone else changed the submission after it was read; the body then carries `current_row_version`. Or an amendment cannot be applied: its entry is not `active`, the entry already has a synonym it proposes, or the entry already carries the code it proposes, or its code was bound after the amendment was proposed. Or a preferred term or synonym collides with another entry's (the body then carries the collision report), the proposed code is already bound to another entry, a property is deprecated, or the entry changed while the approval ran. Nothing was changed.",
             "content": {
               "application/json": {
                 "schema": {
