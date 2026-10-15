@@ -615,7 +615,10 @@ def test_a_reviewer_is_offered_the_review_moves(api: ApiTestApp) -> None:
     assert _available(api, token, _add(api, member)) == ["Triage"]
     assert _available(api, token, _add(api, member, state="Triage")) == ["Under review", "Rejected"]
     assert _available(api, token, _add(api, member, state="Rejected")) == ["Triage"]
-    assert _available(api, token, _add(api, member, state="Under review")) == ["Ready for approval"]
+    assert _available(api, token, _add(api, member, state="Under review")) == [
+        "Ready for approval",
+        "Awaiting terminology",
+    ]
     assert _available(api, token, _add(api, member, state="Approved")) == []
     assert _available(api, token, _add(api, reviewer)) == ["Triage", "Withdrawn"]
 
