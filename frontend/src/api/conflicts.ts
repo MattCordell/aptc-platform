@@ -111,7 +111,10 @@ type SubmissionFieldRefusalBody = components["schemas"]["SubmissionFieldRefusalR
  * withdraw request, which `asReasonRefusal` reads, and `body` to an internal
  * comment, so both are left out here.
  */
-export type SubmissionField = Exclude<SubmissionFieldRefusalBody["field"], "reason" | "body">;
+export type SubmissionField = Exclude<
+  SubmissionFieldRefusalBody["field"],
+  "reason" | "body"
+>;
 export type SubmissionFieldRefusal = Omit<SubmissionFieldRefusalBody, "field"> & {
   field: SubmissionField;
 };
