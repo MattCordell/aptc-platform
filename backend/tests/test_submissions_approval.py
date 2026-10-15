@@ -25,7 +25,11 @@ from nptc.catalogue.changelog import ChangelogNoteError
 from nptc.catalogue.collisions import DesignationCollisionError
 from nptc.catalogue.entries import create_entry
 from nptc.catalogue.local_codes import DatabaseLocalCodeLookup
-from nptc.catalogue.property_values import PropertyDefinitionNotFoundError
+from nptc.catalogue.property_values import (
+    DeprecatedPropertyWriteError,
+    PropertyDefinitionNotFoundError,
+)
+from nptc.db.definitions import deprecate_definition
 from nptc.db.models.audit import AuditEvent
 from nptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
 from nptc.db.models.code_binding import CodeBinding
@@ -560,6 +564,41 @@ def test_a_failure_after_the_entry_is_written_leaves_nothing_behind(app_session:
         select(func.count()).select_from(CodeBinding).where(CodeBinding.code == code)
     ).scalar_one()
     assert bound == 0
+
+
+@pytest.mark.req("FR-11")
+@pytest.mark.req("FR-28")
+@pytest.mark.integration
+def test_a_property_deprecated_since_the_proposal_refuses_the_approval(
+    app_session: Session,
+) -> None:
+    """The submission was valid when it was sent. Approval is the next write of the property, so a
+    definition retired in between is refused there, with the entry already half written."""
+    admin, submitter = _user(app_session), _user(app_session)
+    key = f"approval_{uuid.uuid4().hex[:8]}"
+    _property(app_session, key)
+    definition = app_session.execute(
+        select(PropertyDefinition).where(PropertyDefinition.key == key)
+    ).scalar_one()
+    term = _term("Deprecated property approval")
+    submission = _ready_new_test(
+        app_session, submitter, term=term, property_values={key: [{"value": "Serum"}]}
+    )
+    deprecate_definition(
+        app_session,
+        AuditContext.system(),
+        definition=definition,
+        expected_row_version=definition.row_version,
+        reason="Retired after the proposal was sent",
+    )
+    app_session.flush()
+    ctx = _context(admin.id)
+
+    with pytest.raises(DeprecatedPropertyWriteError):
+        _approve(app_session, submission, admin, ctx=ctx)
+
+    _assert_refused_and_nothing_written(app_session, submission, ctx)
+    assert _entries_named(app_session, term) == 0
 
 
 @pytest.mark.req("FR-05")
