@@ -28,8 +28,16 @@ from nptc.db.models.audit import AuditEvent
 from nptc.db.models.submission import Submission, SubmissionKind
 from nptc.db.models.submission_terminology_request import SubmissionTerminologyRequest
 from nptc.db.models.submission_transition import SubmissionTransition
+from nptc.db.models.submission_working_copy import SubmissionWorkingCopy
 from nptc.db.models.user import User
 from nptc.db.models.user_identity import UserIdentity
+from nptc_shared.terminology import (
+    AU_LANGUAGE_TAG,
+    Operation,
+    StubConcept,
+    TerminologyStatusError,
+    TerminologyTimeoutError,
+)
 
 
 def _load(name: str) -> Any:
@@ -622,3 +630,532 @@ def test_the_general_route_tells_a_caller_without_the_permission_403_not_409(
 
     assert response.status_code == 403, response.text
     _assert_unchanged(api, submission)
+
+
+# --- the move out: an Administrator attaches the code (FR-30, FR-82) -----------------------------
+
+_CODE = "391483001"
+_FSN = "Microscopy (acid fast bacilli) (procedure)"
+_INACTIVE_CODE = "119364003"
+_ATTACH_REASON = "The authority issued the code."
+
+
+def _seed_concepts(api: ApiTestApp) -> None:
+    api.terminology.add_concept(
+        StubConcept(
+            code=_CODE,
+            fsn=_FSN,
+            preferred_terms={AU_LANGUAGE_TAG: "Acid fast bacilli microscopy"},
+        )
+    )
+    api.terminology.add_concept(
+        StubConcept(
+            code=_INACTIVE_CODE,
+            fsn="Serum specimen (specimen)",
+            preferred_terms={AU_LANGUAGE_TAG: "Serum specimen"},
+            active=False,
+        )
+    )
+
+
+def _attach(
+    api: ApiTestApp,
+    token: str | None,
+    submission_id: object,
+    *,
+    snomed_code: object = _CODE,
+    reason: object = _ATTACH_REASON,
+    expected_row_version: object = 2,
+    **extra: object,
+) -> Any:
+    return api.post(
+        f"/submissions/{submission_id}/terminology-request/attach-code",
+        token=token,
+        json={
+            "snomed_code": snomed_code,
+            "reason": reason,
+            "expected_row_version": expected_row_version,
+            **extra,
+        },
+    )
+
+
+def _awaiting(api: ApiTestApp) -> Submission:
+    """A submission that a reviewer has moved to `Awaiting terminology` through the real route, so
+    the record, the transition row and the events are the ones the route writes. `row_version` is 2."""
+    token, _ = _sign_in(api, Role.REVIEWER)
+    submission = _submission(api, _sign_in(api, Role.MEMBER)[1])
+    assert _request(api, token, submission.id).status_code == 200
+    return submission
+
+
+def _working_copy(api: ApiTestApp, submission: Submission) -> SubmissionWorkingCopy | None:
+    api.session.expire_all()
+    return api.session.get(SubmissionWorkingCopy, submission.id)
+
+
+def _assert_still_awaiting(api: ApiTestApp, submission: Submission) -> None:
+    """Nothing the attach writes exists: the state, the version, the transitions and the events are
+    those the move in left, and there is no working copy."""
+    assert _state(api, submission) == "Awaiting terminology"
+    assert submission.row_version == 2
+    assert _working_copy(api, submission) is None
+    assert len(_transitions(api, submission)) == 1
+    assert [event.action for event in _events(api, submission)] == [
+        "submission.terminology_requested"
+    ]
+
+
+@pytest.mark.req("FR-30")
+@pytest.mark.req("FR-06")
+@pytest.mark.req("FR-82")
+@pytest.mark.req("NFR-08")
+@pytest.mark.integration
+def test_an_administrator_attaches_the_code_and_the_submission_is_ready_for_approval(
+    api: ApiTestApp,
+) -> None:
+    _seed_concepts(api)
+    submission = _awaiting(api)
+    token, admin = _sign_in(api, Role.ADMINISTRATOR)
+
+    response = _attach(api, token, submission.id)
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["state"] == "Ready for approval"
+    assert body["row_version"] == 3
+    assert (body["snomed_code"], body["snomed_fsn"]) == (_CODE, _FSN)
+    assert isinstance(body["snomed_code"], str)
+    assert set(body["label_provenance"]) == {"snomed_fsn"}
+    assert _state(api, submission) == "Ready for approval"
+    copy = _working_copy(api, submission)
+    assert copy is not None
+    assert (copy.snomed_code, copy.snomed_fsn) == (_CODE, _FSN)
+    assert copy.preferred_term == submission.preferred_term
+    assert [(t.from_state, t.to_state) for t in _transitions(api, submission)] == [
+        ("Under review", "Awaiting terminology"),
+        ("Awaiting terminology", "Ready for approval"),
+    ]
+    assert _transitions(api, submission)[-1].actor_id == admin.id
+    assert _transitions(api, submission)[-1].reason == _ATTACH_REASON
+    # The submitter's own content is untouched, and the record stays as the history of the request.
+    assert submission.snomed_code is None
+    assert _record(api, submission) is not None
+
+
+@pytest.mark.req("FR-30")
+@pytest.mark.req("NFR-08")
+@pytest.mark.integration
+def test_the_attach_appends_one_event_that_carries_the_state_and_the_code(
+    api: ApiTestApp,
+) -> None:
+    _seed_concepts(api)
+    submission = _awaiting(api)
+    token, _ = _sign_in(api, Role.ADMINISTRATOR)
+
+    assert _attach(api, token, submission.id).status_code == 200
+
+    moved, attached = _events(api, submission)
+    assert moved.action == "submission.terminology_requested"
+    assert attached.action == "submission.terminology_attached"
+    assert attached.before == {
+        "state": "Awaiting terminology",
+        "snomed_code": None,
+        "snomed_fsn": None,
+    }
+    assert attached.after == {
+        "state": "Ready for approval",
+        "snomed_code": _CODE,
+        "snomed_fsn": _FSN,
+    }
+    assert attached.reason == _ATTACH_REASON
+
+
+@pytest.mark.req("FR-30")
+@pytest.mark.req("FR-23")
+@pytest.mark.integration
+def test_an_edit_made_while_waiting_survives_the_attach(api: ApiTestApp) -> None:
+    _seed_concepts(api)
+    submission = _awaiting(api)
+    reviewer_token, _ = _sign_in(api, Role.REVIEWER)
+    edit = api.request(
+        "PATCH",
+        f"/submissions/{submission.id}/working-copy",
+        token=reviewer_token,
+        json={"notes": "Raised with the authority", "reason": "Note", "expected_row_version": 2},
+    )
+    assert edit.status_code == 200, edit.text
+    admin_token, _ = _sign_in(api, Role.ADMINISTRATOR)
+
+    response = _attach(api, admin_token, submission.id, expected_row_version=3)
+
+    assert response.status_code == 200, response.text
+    copy = _working_copy(api, submission)
+    assert copy is not None
+    assert copy.notes == "Raised with the authority"
+    assert (copy.snomed_code, copy.snomed_fsn) == (_CODE, _FSN)
+
+
+@pytest.mark.req("FR-30")
+@pytest.mark.integration
+def test_the_attach_looks_the_code_up_whatever_the_target_edition_says(
+    api: ApiTestApp,
+) -> None:
+    _seed_concepts(api)
+    reviewer_token, _ = _sign_in(api, Role.REVIEWER)
+    submission = _submission(api, _sign_in(api, Role.MEMBER)[1])
+    assert _request(api, reviewer_token, submission.id, target_edition="int").status_code == 200
+    token, _ = _sign_in(api, Role.ADMINISTRATOR)
+
+    assert _attach(api, token, submission.id).status_code == 200
+
+    lookups = [r for r in api.terminology.requests if r.operation is Operation.LOOKUP]
+    assert lookups
+    assert all(r.detail == _CODE for r in lookups)
+
+
+# --- a refused attach writes nothing (FR-30, FR-06, FR-82) ---------------------------------------
+
+
+@pytest.mark.req("FR-30")
+@pytest.mark.req("FR-81")
+@pytest.mark.integration
+def test_a_reviewer_is_refused_the_attach_and_no_terminology_call_is_made(
+    api: ApiTestApp,
+) -> None:
+    _seed_concepts(api)
+    submission = _awaiting(api)
+    token, _ = _sign_in(api, Role.REVIEWER)
+    calls_before = len(api.terminology.requests)
+
+    response = _attach(api, token, submission.id)
+
+    assert response.status_code == 403, response.text
+    assert "WWW-Authenticate" not in response.headers
+    assert len(api.terminology.requests) == calls_before
+    _assert_still_awaiting(api, submission)
+
+
+@pytest.mark.req("FR-30")
+@pytest.mark.req("FR-81")
+@pytest.mark.integration
+@pytest.mark.parametrize("role", _NON_REVIEWING_ROLES)
+def test_a_role_without_any_review_permission_is_refused_the_attach(
+    api: ApiTestApp, role: Role
+) -> None:
+    _seed_concepts(api)
+    submission = _awaiting(api)
+    token, _ = _sign_in(api, role)
+
+    response = _attach(api, token, submission.id)
+
+    assert response.status_code == 403, response.text
+    _assert_still_awaiting(api, submission)
+
+
+@pytest.mark.req("FR-30")
+@pytest.mark.req("FR-81")
+@pytest.mark.integration
+def test_the_submitter_cannot_attach_a_code_to_their_own_submission(api: ApiTestApp) -> None:
+    _seed_concepts(api)
+    reviewer_token, _ = _sign_in(api, Role.REVIEWER)
+    member_token, submitter = _sign_in(api, Role.MEMBER)
+    submission = _submission(api, submitter)
+    assert _request(api, reviewer_token, submission.id).status_code == 200
+
+    response = _attach(api, member_token, submission.id)
+
+    assert response.status_code == 403, response.text
+    _assert_still_awaiting(api, submission)
+
+
+@pytest.mark.req("FR-44")
+@pytest.mark.integration
+def test_a_reviewer_is_refused_the_attach_before_the_submission_is_looked_up(
+    api: ApiTestApp,
+) -> None:
+    token, _ = _sign_in(api, Role.REVIEWER)
+
+    assert _attach(api, token, uuid.uuid4()).status_code == 403
+
+
+@pytest.mark.req("FR-44")
+@pytest.mark.integration
+def test_an_anonymous_caller_is_refused_the_attach_with_401(api: ApiTestApp) -> None:
+    submission = _awaiting(api)
+
+    response = _attach(api, None, submission.id)
+
+    assert response.status_code == 401, response.text
+    assert response.headers["WWW-Authenticate"] == "Bearer"
+    _assert_still_awaiting(api, submission)
+
+
+@pytest.mark.req("NFR-45")
+@pytest.mark.integration
+def test_an_administrator_who_has_not_accepted_the_current_terms_is_refused(
+    api: ApiTestApp,
+) -> None:
+    _seed_concepts(api)
+    submission = _awaiting(api)
+    token, admin = _sign_in(api, Role.ADMINISTRATOR, accept_terms=False)
+
+    refused = _attach(api, token, submission.id)
+
+    assert refused.status_code == 403, refused.text
+    assert refused.json()["code"] == TERMS_ACCEPTANCE_REQUIRED_CODE
+    _assert_still_awaiting(api, submission)
+
+    api.accept_current_terms(admin.id)
+    assert _attach(api, token, submission.id).status_code == 200
+
+
+@pytest.mark.req("NFR-06")
+@pytest.mark.req("FR-44")
+@pytest.mark.integration
+def test_an_administrator_without_mfa_gets_a_step_up_challenge(api: ApiTestApp) -> None:
+    _seed_concepts(api)
+    submission = _awaiting(api)
+    subject = f"sub-terminology-no-mfa-{uuid.uuid4().hex[:8]}"
+    token = api.admin_token(subject=subject, with_mfa=False)
+
+    response = _attach(api, token, submission.id)
+
+    assert response.status_code == 403, response.text
+    challenge = response.headers["WWW-Authenticate"]
+    assert 'error="insufficient_user_authentication"' in challenge
+    _assert_still_awaiting(api, submission)
+
+
+@pytest.mark.req("FR-30")
+@pytest.mark.req("FR-06")
+@pytest.mark.req("FR-82")
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "code",
+    ["26604008", "not-a-code", "0123", _INACTIVE_CODE],
+    ids=["bad_check_digit", "not_digits", "too_short", "inactive"],
+)
+def test_a_code_that_cannot_be_stored_is_a_422_and_the_submission_keeps_waiting(
+    api: ApiTestApp, code: str
+) -> None:
+    _seed_concepts(api)
+    submission = _awaiting(api)
+    token, _ = _sign_in(api, Role.ADMINISTRATOR)
+
+    response = _attach(api, token, submission.id, snomed_code=code)
+
+    assert response.status_code == 422, response.text
+    assert response.json()["field"] == "snomed_code"
+    _assert_still_awaiting(api, submission)
+
+
+@pytest.mark.req("FR-30")
+@pytest.mark.req("FR-06")
+@pytest.mark.req("FR-81")
+@pytest.mark.integration
+def test_a_code_the_server_does_not_know_is_a_422_and_the_submission_keeps_waiting(
+    api: ApiTestApp,
+) -> None:
+    api.terminology.seed_error(
+        Operation.LOOKUP, TerminologyStatusError("not found", status_code=404)
+    )
+    submission = _awaiting(api)
+    token, _ = _sign_in(api, Role.ADMINISTRATOR)
+
+    response = _attach(api, token, submission.id, snomed_code="26604007")
+
+    assert response.status_code == 422, response.text
+    assert response.json()["field"] == "snomed_code"
+    _assert_still_awaiting(api, submission)
+
+
+@pytest.mark.req("FR-30")
+@pytest.mark.integration
+def test_an_unreachable_terminology_server_is_a_503_and_the_submission_keeps_waiting(
+    api: ApiTestApp,
+) -> None:
+    api.terminology.seed_error(Operation.LOOKUP, TerminologyTimeoutError("timed out"))
+    submission = _awaiting(api)
+    token, _ = _sign_in(api, Role.ADMINISTRATOR)
+
+    response = _attach(api, token, submission.id)
+
+    assert response.status_code == 503, response.text
+    assert response.json()["field"] == "snomed_code"
+    _assert_still_awaiting(api, submission)
+
+
+@pytest.mark.req("FR-82")
+@pytest.mark.integration
+def test_the_caller_cannot_supply_the_fsn(api: ApiTestApp) -> None:
+    _seed_concepts(api)
+    submission = _awaiting(api)
+    token, _ = _sign_in(api, Role.ADMINISTRATOR)
+
+    response = _attach(api, token, submission.id, snomed_fsn="Caller's own label")
+
+    assert response.status_code == 422, response.text
+    _assert_still_awaiting(api, submission)
+
+
+@pytest.mark.req("FR-28")
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    ("overrides", "field"),
+    [({"reason": "   "}, "reason"), ({"reason": f"Done{ZERO_WIDTH_SPACE}"}, "reason")],
+    ids=["blank_reason", "invisible_in_reason"],
+)
+def test_a_blank_or_unclean_reason_is_a_422_that_names_it(
+    api: ApiTestApp, overrides: dict[str, object], field: str
+) -> None:
+    _seed_concepts(api)
+    submission = _awaiting(api)
+    token, _ = _sign_in(api, Role.ADMINISTRATOR)
+
+    response = _attach(api, token, submission.id, **overrides)
+
+    assert response.status_code == 422, response.text
+    assert response.json()["field"] == field
+    _assert_still_awaiting(api, submission)
+
+
+@pytest.mark.req("FR-30")
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"snomed_code": None},
+        {"snomed_code": 391483001},
+        {"snomed_code": "9" * 40},
+        {"expected_row_version": 0},
+        {"unexpected": "field"},
+    ],
+    ids=["code_null", "code_a_number", "code_too_long", "version_zero", "extra_field"],
+)
+def test_an_attach_body_that_fails_validation_is_a_422_and_writes_nothing(
+    api: ApiTestApp, overrides: dict[str, object]
+) -> None:
+    _seed_concepts(api)
+    submission = _awaiting(api)
+    token, _ = _sign_in(api, Role.ADMINISTRATOR)
+
+    response = _attach(api, token, submission.id, **overrides)
+
+    assert response.status_code == 422, response.text
+    _assert_still_awaiting(api, submission)
+
+
+@pytest.mark.req("FR-30")
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "state",
+    [
+        "Submitted",
+        "Triage",
+        "Under review",
+        "Ready for approval",
+        "Approved",
+        "Published in release",
+        "Rejected",
+        "Withdrawn",
+    ],
+)
+def test_a_submission_that_is_not_awaiting_terminology_is_a_409(
+    api: ApiTestApp, state: str
+) -> None:
+    _seed_concepts(api)
+    submission = _submission(api, _sign_in(api, Role.MEMBER)[1], state=state)
+    token, _ = _sign_in(api, Role.ADMINISTRATOR)
+    calls_before = len(api.terminology.requests)
+
+    response = _attach(api, token, submission.id, expected_row_version=1)
+
+    assert response.status_code == 409, response.text
+    assert _state(api, submission) == state
+    assert _working_copy(api, submission) is None
+    assert _transitions(api, submission) == []
+    assert len(api.terminology.requests) == calls_before
+
+
+@pytest.mark.req("FR-28")
+@pytest.mark.req("FR-30")
+@pytest.mark.integration
+def test_a_stale_row_version_is_a_409_that_carries_the_current_one_on_the_attach(
+    api: ApiTestApp,
+) -> None:
+    _seed_concepts(api)
+    submission = _awaiting(api)
+    token, _ = _sign_in(api, Role.ADMINISTRATOR)
+
+    response = _attach(api, token, submission.id, expected_row_version=1)
+
+    assert response.status_code == 409, response.text
+    assert response.json()["current_row_version"] == 2
+    assert response.json()["expected_row_version"] == 1
+    _assert_still_awaiting(api, submission)
+
+
+@pytest.mark.req("FR-30")
+@pytest.mark.integration
+def test_the_attach_cannot_be_repeated(api: ApiTestApp) -> None:
+    _seed_concepts(api)
+    submission = _awaiting(api)
+    token, _ = _sign_in(api, Role.ADMINISTRATOR)
+    assert _attach(api, token, submission.id).status_code == 200
+
+    again = _attach(api, token, submission.id, expected_row_version=3)
+
+    assert again.status_code == 409, again.text
+    assert len(_transitions(api, submission)) == 2
+
+
+@pytest.mark.req("FR-30")
+@pytest.mark.integration
+def test_an_unknown_submission_is_a_404_and_a_malformed_identifier_a_422_on_the_attach(
+    api: ApiTestApp,
+) -> None:
+    _seed_concepts(api)
+    token, _ = _sign_in(api, Role.ADMINISTRATOR)
+
+    assert _attach(api, token, uuid.uuid4()).status_code == 404
+    assert _attach(api, token, "not-a-uuid").status_code == 422
+
+
+@pytest.mark.req("FR-28")
+@pytest.mark.req("FR-30")
+@pytest.mark.req("FR-81")
+@pytest.mark.integration
+def test_the_general_route_cannot_take_a_submission_out_of_awaiting_terminology(
+    api: ApiTestApp,
+) -> None:
+    submission = _awaiting(api)
+    reviewer_token, _ = _sign_in(api, Role.REVIEWER)
+    admin_token, _ = _sign_in(api, Role.ADMINISTRATOR)
+    body = {"to_state": "Ready for approval", "reason": _ATTACH_REASON, "expected_row_version": 2}
+
+    as_reviewer = api.post(
+        f"/submissions/{submission.id}/transitions", token=reviewer_token, json=body
+    )
+    as_admin = api.post(f"/submissions/{submission.id}/transitions", token=admin_token, json=body)
+
+    assert as_reviewer.status_code == 403, as_reviewer.text
+    assert as_admin.status_code == 409, as_admin.text
+    assert "attach-code" in as_admin.json()["detail"]
+    _assert_still_awaiting(api, submission)
+
+
+@pytest.mark.req("FR-30")
+@pytest.mark.integration
+def test_the_detail_offers_the_attach_to_an_administrator_and_not_to_a_reviewer(
+    api: ApiTestApp,
+) -> None:
+    submission = _awaiting(api)
+    reviewer_token, _ = _sign_in(api, Role.REVIEWER)
+    admin_token, _ = _sign_in(api, Role.ADMINISTRATOR)
+
+    reviewer = api.get(f"/submissions/{submission.id}", token=reviewer_token).json()
+    admin = api.get(f"/submissions/{submission.id}", token=admin_token).json()
+
+    assert reviewer["available_transitions"] == []
+    assert admin["available_transitions"] == ["Ready for approval"]

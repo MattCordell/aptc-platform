@@ -76,7 +76,14 @@ from nptc.submissions.shared import (
 from nptc.submissions.terms import TermField, clean_submission_term, distinct_synonyms
 from nptc_shared.terminology import TerminologyClient
 
-__all__ = ["WorkingContent", "WorkingCopyChanges", "WorkingCopyEdit", "edit_working_copy"]
+__all__ = [
+    "WorkingContent",
+    "WorkingCopyChanges",
+    "WorkingCopyEdit",
+    "edit_working_copy",
+    "store_working_content",
+    "working_content_of",
+]
 
 #: The content fields a working copy holds, in the order the audit diff names them.
 _CONTENT_FIELDS: Final = (
@@ -188,7 +195,7 @@ def edit_working_copy(
             expected_row_version=expected_row_version, current_row_version=submission.row_version
         )
     copy = session.get(SubmissionWorkingCopy, submission.id, populate_existing=True)
-    base = _content_of(submission if copy is None else copy)
+    base = working_content_of(submission if copy is None else copy)
     new = _merge(base, prepared)
     if kind is SubmissionKind.AMENDMENT and not new.synonyms and new.snomed_code is None:
         raise AmendmentRefusedError(AmendmentRefusal.NOTHING_PROPOSED)
@@ -199,16 +206,7 @@ def edit_working_copy(
 
     savepoint = session.begin_nested()
     try:
-        if copy is None:
-            session.add(
-                SubmissionWorkingCopy(
-                    submission_id=submission.id,
-                    **{name: getattr(new, name) for name in _CONTENT_FIELDS},
-                )
-            )
-        else:
-            for name in changed:
-                setattr(copy, name, getattr(new, name))
+        store_working_content(session, submission, copy, new, changed)
         # The manual bump marks the submission dirty, so the flush issues the UPDATE that
         # `version_id_col` guards: a writer that skipped the lock still fails on a stale version.
         submission.row_version += 1
@@ -301,7 +299,8 @@ def _prepare(
     )
 
 
-def _content_of(source: Submission | SubmissionWorkingCopy) -> WorkingContent:
+def working_content_of(source: Submission | SubmissionWorkingCopy) -> WorkingContent:
+    """The content a reviewer sees in `source`: the submission's original, or its working copy."""
     return WorkingContent(
         preferred_term=source.preferred_term,
         synonyms=list(source.synonyms),
@@ -310,6 +309,29 @@ def _content_of(source: Submission | SubmissionWorkingCopy) -> WorkingContent:
         property_values=dict(source.property_values),
         notes=source.notes,
     )
+
+
+def store_working_content(
+    session: Session,
+    submission: Submission,
+    copy: SubmissionWorkingCopy | None,
+    new: WorkingContent,
+    changed: Sequence[str],
+) -> None:
+    """Writes `new` as the working copy of `submission`. With no `copy` yet, the whole of `new` is
+    stored, so the first write also carries the original content the reviewer did not touch. With
+    one, only the `changed` fields are written. The caller holds the append lock and writes the audit
+    event, and a change of content bumps `row_version` itself."""
+    if copy is None:
+        session.add(
+            SubmissionWorkingCopy(
+                submission_id=submission.id,
+                **{name: getattr(new, name) for name in _CONTENT_FIELDS},
+            )
+        )
+        return
+    for name in changed:
+        setattr(copy, name, getattr(new, name))
 
 
 def _merge(base: WorkingContent, prepared: _Prepared) -> WorkingContent:

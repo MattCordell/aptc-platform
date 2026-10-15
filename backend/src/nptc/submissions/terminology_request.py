@@ -13,7 +13,20 @@ only what the move carries: the record, and the second audit event that says wha
 **Every refusal that needs no read runs before the lock.** The reason and the four text fields are
 cleaned first, so a refused request takes no lock. The submission is read only after the lock.
 
-**Two audit events, and each says one thing.** `submission.terminology_requested` is the change of
+**Attaching the code is the one move out, and only an Administrator makes it.** The code is looked up
+on the terminology server in the AU edition, whatever `target_edition` says, because `target_edition`
+records where the concept was requested and the platform's own edition is the one it serves (FR-82).
+The code and its FSN are written to the working copy, the state moves to `Ready for approval` and one
+audit event records all three, in one savepoint. The record stays as the history of what was asked.
+
+**The lookup runs before the lock.** The append lock is one global advisory lock, so holding it across
+a slow server would stall every audit write. `attach_terminology_code` therefore reads the submission
+and judges the move first, so a caller who may not make it never causes a terminology call, then calls
+the server, then takes the lock and judges the move again against the committed row.
+`test_lock_ordering.py` names this function as exempt from its lock-first rule, and
+`test_submissions_terminology_request.py` pins the ordering instead.
+
+**Two audit events when the request is made, and each says one thing.** `submission.terminology_requested` is the change of
 state, on the submission, with the reason, as for any move. `submission.terminology_request_created`
 is the record, with every field it holds. The record is written through a snapshot because the
 first event flushes the session, and an ORM diff of a row already flushed is empty.
@@ -37,17 +50,35 @@ from nptc.db.models.submission_terminology_request import (
     SubmissionTerminologyRequest,
     TargetEdition,
 )
-from nptc.submissions.errors import FreeTextField, TerminologyRequestFieldRequiredError
-from nptc.submissions.shared import clean_free_text
+from nptc.db.models.submission_working_copy import SubmissionWorkingCopy
+from nptc.submissions.errors import (
+    FreeTextField,
+    SubmissionNotFoundError,
+    TerminologyRequestFieldRequiredError,
+)
+from nptc.submissions.shared import clean_free_text, resolve_code
 from nptc.submissions.transitions import (
+    PermittedTransition,
     check_move,
     check_row_version,
     clean_transition_reason,
     load_submission_locked,
     perform_move,
 )
+from nptc.submissions.working_copy import (
+    WorkingContent,
+    store_working_content,
+    working_content_of,
+)
+from nptc_shared.terminology import TerminologyClient
 
-__all__ = ["TerminologyRequestDetails", "clean_terminology_request", "request_terminology"]
+__all__ = [
+    "TerminologyAttachment",
+    "TerminologyRequestDetails",
+    "attach_terminology_code",
+    "clean_terminology_request",
+    "request_terminology",
+]
 
 _RECORD_CREATED = "submission.terminology_request_created"
 
@@ -64,6 +95,15 @@ class TerminologyRequestDetails:
     external_reference_ref: str
     raised_date: date
     expected_release: date | None = None
+
+
+@dataclass(frozen=True)
+class TerminologyAttachment:
+    """The outcome of attaching a code: the submission as it now stands and the working content that
+    carries the code and its FSN."""
+
+    submission: Submission
+    content: WorkingContent
 
 
 def request_terminology(
@@ -176,3 +216,93 @@ def _required(text: str, field: FreeTextField, *, multiline: bool) -> str:
     if cleaned is None:
         raise TerminologyRequestFieldRequiredError(field)
     return cleaned
+
+
+def attach_terminology_code(
+    session: Session,
+    ctx: AuditContext,
+    principal: Principal,
+    *,
+    submission_id: uuid.UUID,
+    snomed_code: str,
+    reason: str,
+    expected_row_version: int,
+    terminology_client: TerminologyClient,
+) -> TerminologyAttachment:
+    """Looks the code up on the terminology server, writes the code and its FSN to the working copy
+    of an `Awaiting terminology` submission, moves it to `Ready for approval`, writes the transition
+    row and appends one audit event. Returns the outcome.
+
+    Raises `TransitionReasonRequiredError` for a blank reason, `SubmissionNotFoundError` for an
+    unknown submission, `IllegalSubmissionTransitionError` for a submission that is not
+    `Awaiting terminology`, `PermissionDeniedError` for a caller without
+    `submission.transition.approve` (`MfaRequiredError` when a role suppressed for want of MFA would
+    grant it), `nptc.submissions.terms.SubmissionCodeMalformedError` for a code that is not a SCTID,
+    `SubmissionCodeRefusedError` for a code the server does not know or rules out,
+    `SubmissionCodeUnavailableError` and `SubmissionCodeUpstreamError` for a server that cannot be
+    reached or answers with something unusable, and `SubmissionVersionConflictError` for a stale
+    `expected_row_version`. A refusal writes nothing. Blocks on the terminology server.
+    """
+    cleaned_reason = clean_transition_reason(reason)
+
+    submission = session.get(Submission, submission_id)
+    if submission is None:
+        raise SubmissionNotFoundError("no submission has that identifier")
+    _judge_attach(principal, submission)
+    code, fsn = resolve_code(terminology_client, snomed_code)
+
+    acquire_append_lock(session)
+    submission = load_submission_locked(session, submission_id)
+    permitted = _judge_attach(principal, submission)
+    check_row_version(submission, expected_row_version)
+
+    copy = session.get(SubmissionWorkingCopy, submission.id, populate_existing=True)
+    base = working_content_of(submission if copy is None else copy)
+    new = replace(base, snomed_code=code, snomed_fsn=fsn)
+    changed = [
+        name for name in ("snomed_code", "snomed_fsn") if getattr(new, name) != getattr(base, name)
+    ]
+
+    def write() -> None:
+        if changed:
+            store_working_content(session, submission, copy, new, changed)
+        record_snapshot_change(
+            session,
+            ctx,
+            action=permitted.action,
+            entity_type=Submission.__tablename__,
+            entity_id=str(submission.id),
+            policy=policy_for(Submission),
+            before={
+                "state": SubmissionState.AWAITING_TERMINOLOGY.value,
+                "snomed_code": base.snomed_code,
+                "snomed_fsn": base.snomed_fsn,
+            },
+            after={
+                "state": SubmissionState.READY_FOR_APPROVAL.value,
+                "snomed_code": code,
+                "snomed_fsn": fsn,
+            },
+            kind=ChangeKind.UPDATED,
+            reason=cleaned_reason,
+        )
+
+    moved = perform_move(
+        session,
+        principal,
+        submission,
+        to_state=SubmissionState.READY_FOR_APPROVAL,
+        reason=cleaned_reason,
+        expected_row_version=expected_row_version,
+        write=write,
+    )
+    return TerminologyAttachment(submission=moved, content=new)
+
+
+def _judge_attach(principal: Principal, submission: Submission) -> PermittedTransition:
+    return check_move(
+        principal,
+        submission,
+        SubmissionState.READY_FOR_APPROVAL,
+        required_from=SubmissionState.AWAITING_TERMINOLOGY,
+    )
