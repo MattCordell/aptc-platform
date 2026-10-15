@@ -14,6 +14,7 @@ from nptc.db.models.designation_collision_acknowledgement import (
     DesignationCollisionAcknowledgement,
 )
 from nptc.db.models.entry_seed_provenance import EntrySeedProvenance
+from nptc.db.models.internal_comment import InternalComment
 from nptc.db.models.local_code import LocalCode, LocalCodeStatus
 from nptc.db.models.local_code_snomed_map import LocalCodeSnomedMap, SnomedMapMatchStrength
 from nptc.db.models.local_code_system import LocalCodeSystem, LocalCodeSystemStatus
@@ -50,6 +51,7 @@ __all__ = [
     "DesignationCollisionAcknowledgement",
     "DesignationStatus",
     "EntrySeedProvenance",
+    "InternalComment",
     "LocalCode",
     "LocalCodeSnomedMap",
     "LocalCodeStatus",
