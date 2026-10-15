@@ -130,6 +130,11 @@ def _catalogue_paths(api: ApiTestApp, seeded: SeededCatalogue) -> list[str]:
             # coverage is `test_admin_entry_response_contains_no_uuid_and_
             # no_unquoted_code` below, which authenticates first.
             continue
+        if "comments" in methods["get"].get("tags", ()):
+            # FR-95's staff-only comment list sits under an entry's path, and 401s an anonymous
+            # caller by design. `test_api_comments.py` and `test_api_comments_non_leak.py`
+            # authenticate first.
+            continue
         path = template[len(API_PREFIX) :].replace("{business_key}", seeded.canonical)
         # FR-17/issue #140: the exact-code lookup routes' own path
         # parameters - `sct`/`ACTIVE_CODE` resolve to the canonical entry's

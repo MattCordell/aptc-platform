@@ -1,9 +1,10 @@
 """The submission read routes (FR-28, FR-42, NFR-20).
 
-`GET /submissions` lists and `GET /submissions/{id}` shows one. The write routes are in
-`nptc.api.routers.submissions`; both share the `/submissions` prefix.
+`GET /submissions` lists, `GET /submissions/{id}` shows one and `GET /submissions/{id}/transitions`
+gives its history. The write routes are in `nptc.api.routers.submissions`; all share the
+`/submissions` prefix.
 
-**Authorisation:** `Permission.SUBMISSION_VIEW` gates both routes (FR-44). Observer, Provisional,
+**Authorisation:** `Permission.SUBMISSION_VIEW` gates every route (FR-44). Observer, Provisional,
 Member, Reviewer and Administrator hold it.
 
 **The submitter-identity rule (FR-42) is applied on the server, field by field.** A caller who holds
@@ -43,6 +44,14 @@ by `_PAGES`. It is on the list only. The same grouped-statement rule applies, an
 table the transition route consults, so the two cannot disagree. `Approved` is an open state: the
 default list shows it, because an approved submission still waits for a release (FR-29).
 
+**The transition history names its actor by the same rule (FR-28, FR-42).** `PlainActor` carries the
+username alone and `IdentifiedActor` adds the display name and the organisation from the actor's
+profile, because a transition has no copy of its own to show. A closed account's actor shows the same
+placeholder. Every caller who may view the submission sees every `reason`, so a submitter can read why
+a reviewer moved their submission. The history is not paged: one submission changes state a handful of
+times. It reads the transition rows and the actor's user row only, so no internal comment is in it
+(FR-95).
+
 **No audit event.** A read changes nothing (NFR-08).
 """
 
@@ -68,6 +77,7 @@ from nptc.api.labels import (
 )
 from nptc.api.routers.auth import ErrorResponse
 from nptc.api.routers.submissions import SessionDep, SubmittedPropertyValue
+from nptc.auth.identity import UserRef
 from nptc.auth.permissions import Permission
 from nptc.auth.principal import Principal
 from nptc.db.models.submission import SubmissionKind, SubmissionState
@@ -75,7 +85,7 @@ from nptc.settings import ApiSettings
 from nptc.submissions import queries
 from nptc.submissions.interest import InterestSummary, interest_summaries
 from nptc.submissions.interest_identities import distinct_organisation_counts
-from nptc.submissions.queries import SubmissionRecord
+from nptc.submissions.queries import SubmissionRecord, TransitionRecord
 from nptc.submissions.transitions import available_transitions
 
 router = APIRouter(prefix="/submissions", tags=["submissions"])
@@ -141,6 +151,27 @@ class IdentifiedSubmitter(BaseModel):
     """The submitter as a caller with `submitter_identity.view` sees them. `organisation` is the
     copy the submitter sent with this submission, which can differ from their profile, and is null
     when they sent none. A closed account's `username` and `display_name` are the placeholder."""
+
+    model_config = ConfigDict(frozen=True)
+
+    username: str
+    display_name: str
+    organisation: str | None
+
+
+class PlainActor(BaseModel):
+    """Who made a change of state, as a caller without `submitter_identity.view` sees them: a
+    username only."""
+
+    model_config = ConfigDict(frozen=True)
+
+    username: str
+
+
+class IdentifiedActor(BaseModel):
+    """Who made a change of state, as a caller with `submitter_identity.view` sees them.
+    `organisation` is the actor's profile, which is null when they gave none. A closed account's
+    `username` and `display_name` are the placeholder."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -258,6 +289,42 @@ class CountedIdentifiedSubmissionPage(BaseModel):
     next_cursor: str | None
 
 
+class _TransitionFields(BaseModel):
+    """One change of state. `reason` is the actor's own text, shown to every caller who may view the
+    submission."""
+
+    model_config = ConfigDict(frozen=True)
+
+    from_state: str
+    to_state: str
+    reason: str
+    created_at: datetime
+
+
+class TransitionItem(_TransitionFields):
+    actor: PlainActor
+
+
+class IdentifiedTransitionItem(_TransitionFields):
+    actor: IdentifiedActor
+
+
+class TransitionHistory(BaseModel):
+    """Every change of state, oldest first. Empty for a submission that has not changed state."""
+
+    model_config = ConfigDict(frozen=True)
+
+    items: list[TransitionItem]
+
+
+class IdentifiedTransitionHistory(BaseModel):
+    """`TransitionHistory` for a caller with `submitter_identity.view`."""
+
+    model_config = ConfigDict(frozen=True)
+
+    items: list[IdentifiedTransitionItem]
+
+
 #: The item and page classes for a caller: whether they may see submitter identities, and whether
 #: they may see the organisation count. A caller without a permission gets a class with no such key.
 _PageClass = (
@@ -356,21 +423,34 @@ def _organisation_counts(
     return distinct_organisation_counts(session, submission_ids)
 
 
-def _username(record: SubmissionRecord) -> str:
-    return record.submitter.username or CLOSED_ACCOUNT_PLACEHOLDER
+def _username(user: UserRef) -> str:
+    return user.username or CLOSED_ACCOUNT_PLACEHOLDER
+
+
+def _display_name(user: UserRef) -> str:
+    return user.display_name or CLOSED_ACCOUNT_PLACEHOLDER
 
 
 def _plain_submitter(record: SubmissionRecord) -> PlainSubmitter:
     """The whole of what a caller without `submitter_identity.view` learns about a submitter."""
-    return PlainSubmitter(username=_username(record))
+    return PlainSubmitter(username=_username(record.submitter))
 
 
 def _identified_submitter(record: SubmissionRecord) -> IdentifiedSubmitter:
     return IdentifiedSubmitter(
-        username=_username(record),
-        display_name=record.submitter.display_name or CLOSED_ACCOUNT_PLACEHOLDER,
+        username=_username(record.submitter),
+        display_name=_display_name(record.submitter),
         organisation=record.submission.organisation,
     )
+
+
+def _transition_fields(record: TransitionRecord) -> dict[str, Any]:
+    return {
+        "from_state": record.from_state,
+        "to_state": record.to_state,
+        "reason": record.reason,
+        "created_at": record.created_at,
+    }
 
 
 @router.get(
@@ -485,3 +565,51 @@ def get_submission(
     if principal.has(Permission.SUBMITTER_IDENTITY_VIEW):
         return IdentifiedSubmissionDetail(**fields, submitter=_identified_submitter(record))
     return SubmissionDetail(**fields, submitter=_plain_submitter(record))
+
+
+@router.get(
+    "/{submission_id}/transitions",
+    summary="Show a submission's history of changes of state",
+    response_model=TransitionHistory | IdentifiedTransitionHistory,
+    responses={
+        401: _RESPONSE_401,
+        403: _RESPONSE_403,
+        404: _RESPONSE_404,
+        422: _RESPONSE_422_DETAIL,
+    },
+    dependencies=[_VIEW],
+)
+def get_submission_transitions(
+    submission_id: uuid.UUID,
+    session: SessionDep,
+    principal: CurrentPrincipal,
+) -> TransitionHistory | IdentifiedTransitionHistory:
+    """Every change of state, oldest first, with the reason and who made it. There is no paging: one
+    submission changes state a handful of times, and ADR-0024 covers lists that grow without bound.
+
+    A caller with `submitter_identity.view` gets each actor's display name and organisation. Every
+    other caller gets the username only. Each caller sees every reason.
+    """
+    records = queries.list_transitions(session, submission_id)
+    if principal.has(Permission.SUBMITTER_IDENTITY_VIEW):
+        return IdentifiedTransitionHistory(
+            items=[
+                IdentifiedTransitionItem(
+                    **_transition_fields(record),
+                    actor=IdentifiedActor(
+                        username=_username(record.actor),
+                        display_name=_display_name(record.actor),
+                        organisation=record.actor.organisation,
+                    ),
+                )
+                for record in records
+            ]
+        )
+    return TransitionHistory(
+        items=[
+            TransitionItem(
+                **_transition_fields(record), actor=PlainActor(username=_username(record.actor))
+            )
+            for record in records
+        ]
+    )

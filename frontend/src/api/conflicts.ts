@@ -108,9 +108,13 @@ type SubmissionFieldRefusalBody = components["schemas"]["SubmissionFieldRefusalR
 
 /**
  * The fields of the new-test and amendment forms. `reason` belongs to the
- * withdraw request, which `asReasonRefusal` reads, so it is left out here.
+ * withdraw request, which `asReasonRefusal` reads, and `body` to an internal
+ * comment, so both are left out here.
  */
-export type SubmissionField = Exclude<SubmissionFieldRefusalBody["field"], "reason">;
+export type SubmissionField = Exclude<
+  SubmissionFieldRefusalBody["field"],
+  "reason" | "body"
+>;
 export type SubmissionFieldRefusal = Omit<SubmissionFieldRefusalBody, "field"> & {
   field: SubmissionField;
 };

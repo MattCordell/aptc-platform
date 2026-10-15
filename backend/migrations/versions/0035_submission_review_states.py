@@ -1,7 +1,7 @@
 """submission review states
 
-Revision ID: 0034
-Revises: 0033
+Revision ID: 0035
+Revises: 0034
 Create Date: 2026-10-15
 
 FR-28, FR-29: the three review states, `Under review`, `Ready for approval` and `Approved`. The
@@ -23,8 +23,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "0034"
-down_revision: str | None = "0033"
+revision: str = "0035"
+down_revision: str | None = "0034"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -80,7 +80,7 @@ def downgrade() -> None:
     if submissions or transitions:
         raise RuntimeError(
             f"cannot downgrade: {submissions} submission row(s) and {transitions} transition "
-            "row(s) name Under review, Ready for approval or Approved, which revision 0033 "
+            "row(s) name Under review, Ready for approval or Approved, which revision 0034 "
             "does not allow"
         )
     op.drop_constraint(_TO_STATE_CONSTRAINT, "submission_transition", type_="check")

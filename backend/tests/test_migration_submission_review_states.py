@@ -1,4 +1,4 @@
-"""Migration 0034: the three review states on `submission` and `submission_transition` (FR-28, FR-29).
+"""Migration 0035: the three review states on `submission` and `submission_transition` (FR-28, FR-29).
 
 Runs on its own database, because it moves the schema back and forward.
 """
@@ -117,12 +117,12 @@ def _clear(engine: Engine) -> None:
 @pytest.mark.integration
 @pytest.mark.parametrize("state", _REVIEW_STATES)
 def test_the_upgrade_allows_each_review_state_on_a_submission(engine: Engine, state: str) -> None:
-    _at(engine, "0033")
+    _at(engine, "0034")
     with pytest.raises(IntegrityError) as before:
         _insert(engine, state)
     assert before.value.orig.sqlstate == _CHECK_VIOLATION  # type: ignore[union-attr]
 
-    _migrate(engine, "upgrade", "0034")
+    _migrate(engine, "upgrade", "0035")
 
     _insert(engine, state)
     _clear(engine)
@@ -138,12 +138,12 @@ def test_the_upgrade_allows_each_review_state_on_a_submission(engine: Engine, st
 def test_the_upgrade_allows_each_review_state_on_a_transition(
     engine: Engine, from_state: str, to_state: str
 ) -> None:
-    _at(engine, "0033")
+    _at(engine, "0034")
     with pytest.raises(IntegrityError) as before:
         _insert_transition(engine, from_state, to_state)
     assert before.value.orig.sqlstate == _CHECK_VIOLATION  # type: ignore[union-attr]
 
-    _migrate(engine, "upgrade", "0034")
+    _migrate(engine, "upgrade", "0035")
 
     _insert_transition(engine, from_state, to_state)
     _clear(engine)
@@ -152,7 +152,7 @@ def test_the_upgrade_allows_each_review_state_on_a_transition(
 @pytest.mark.req("FR-28")
 @pytest.mark.integration
 def test_the_upgrade_still_refuses_an_unknown_state(engine: Engine) -> None:
-    _at(engine, "0034")
+    _at(engine, "0035")
 
     with pytest.raises(IntegrityError) as exc_info:
         _insert(engine, "Awaiting terminology")
@@ -163,13 +163,13 @@ def test_the_upgrade_still_refuses_an_unknown_state(engine: Engine) -> None:
 @pytest.mark.req("FR-28")
 @pytest.mark.integration
 def test_the_downgrade_runs_when_no_row_names_a_review_state(engine: Engine) -> None:
-    _at(engine, "0034")
+    _at(engine, "0035")
     _clear(engine)
     _insert_transition(engine, "Triage", "Withdrawn")
 
-    _migrate(engine, "downgrade", "0033")
+    _migrate(engine, "downgrade", "0034")
 
-    assert _revision(engine) == "0033"
+    assert _revision(engine) == "0034"
     with pytest.raises(IntegrityError):
         _insert(engine, "Under review")
     _clear(engine)
@@ -178,26 +178,26 @@ def test_the_downgrade_runs_when_no_row_names_a_review_state(engine: Engine) -> 
 @pytest.mark.req("FR-28")
 @pytest.mark.integration
 def test_the_downgrade_refuses_while_a_submission_is_in_a_review_state(engine: Engine) -> None:
-    _at(engine, "0034")
+    _at(engine, "0035")
     _clear(engine)
     _insert(engine, "Approved")
 
     with pytest.raises(RuntimeError, match="cannot downgrade"):
-        _migrate(engine, "downgrade", "0033")
+        _migrate(engine, "downgrade", "0034")
 
-    assert _revision(engine) == "0034"
+    assert _revision(engine) == "0035"
     _clear(engine)
 
 
 @pytest.mark.req("FR-28")
 @pytest.mark.integration
 def test_the_downgrade_refuses_while_a_transition_names_a_review_state(engine: Engine) -> None:
-    _at(engine, "0034")
+    _at(engine, "0035")
     _clear(engine)
     _insert_transition(engine, "Under review", "Withdrawn")
 
     with pytest.raises(RuntimeError, match="cannot downgrade"):
-        _migrate(engine, "downgrade", "0033")
+        _migrate(engine, "downgrade", "0034")
 
-    assert _revision(engine) == "0034"
+    assert _revision(engine) == "0035"
     _clear(engine)

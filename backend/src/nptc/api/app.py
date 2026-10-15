@@ -32,6 +32,7 @@ from nptc.api.routers import (
     catalogue_designations,
     catalogue_entries,
     catalogue_properties,
+    comments,
     registry,
     submission_interest,
     submission_transitions,
@@ -165,6 +166,9 @@ def create_app(
     app.include_router(submission_interest.router, prefix=API_PREFIX)
     # A submitter withdraws their own submission (FR-28). Gated on submission.withdraw.own.
     app.include_router(submission_transitions.router, prefix=API_PREFIX)
+    # Staff-only comments on a submission or an entry (FR-95). Gated on comment.internal.read and
+    # comment.internal.write, which only Reviewer and Administrator hold.
+    app.include_router(comments.router, prefix=API_PREFIX)
     # Live SCTID resolution during form completion (FR-26). Its own prefix and
     # tag, not under /catalogue; see its docstring.
     app.include_router(terminology.router, prefix=API_PREFIX)

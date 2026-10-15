@@ -77,7 +77,8 @@ and/or `data-model.md`, so it gets no section of its own below.
 | [`0031_submission_states.py`](../../backend/migrations/versions/0031_submission_states.py) | Widens the `submission.state` check to the three closed states (see [`data-model.md`](../architecture/data-model.md#submission-fr-23-fr-27-fr-28-fr-29-nfr-08)) | See [below](#0031_submission_statespy) - no data step, and the downgrade refuses while a closed state is stored |
 | [`0032_submission_interest.py`](../../backend/migrations/versions/0032_submission_interest.py) | `submission_interest` (see [`data-model.md`](../architecture/data-model.md#submission_interest-fr-32-fr-34-nfr-08-nfr-17)) | See [below](#0032_submission_interestpy) - an empty table on upgrade, and the downgrade discards every registered interest |
 | [`0033_submission_transition.py`](../../backend/migrations/versions/0033_submission_transition.py) | Adds `Triage` to the `submission.state` check, and `submission_transition` (see [`data-model.md`](../architecture/data-model.md#submission_transition-fr-28-nfr-08)) | See [below](#0033_submission_transitionpy) - an empty table on upgrade, and the downgrade refuses while a submission is in `Triage` |
-| [`0034_submission_review_states.py`](../../backend/migrations/versions/0034_submission_review_states.py) | Adds `Under review`, `Ready for approval` and `Approved` to the state checks on `submission` and `submission_transition` (see [`data-model.md`](../architecture/data-model.md#submission_transition-fr-28-nfr-08)) | See [below](#0034_submission_review_statespy) - no data step, and the downgrade refuses while a submission or a recorded transition names one of the three states |
+| [`0034_internal_comment.py`](../../backend/migrations/versions/0034_internal_comment.py) | Adds `internal_comment`, staff-only comments on a submission or an entry (see [`data-model.md`](../architecture/data-model.md#internal_comment-fr-95-nfr-08-nfr-23)) | See [below](#0034_internal_commentpy) - an empty table on upgrade, and the downgrade discards every comment |
+| [`0035_submission_review_states.py`](../../backend/migrations/versions/0035_submission_review_states.py) | Adds `Under review`, `Ready for approval` and `Approved` to the state checks on `submission` and `submission_transition` (see [`data-model.md`](../architecture/data-model.md#submission_transition-fr-28-nfr-08)) | See [below](#0035_submission_review_statespy) - no data step, and the downgrade refuses while a submission or a recorded transition names one of the three states |
 
 ## Provisioning the app role's login
 
@@ -701,7 +702,22 @@ The downgrade refuses to run while any submission is in `Triage`, because the na
 reject that row. Move those submissions first. It then drops `submission_transition`, which discards
 every recorded transition, with the reason each holds. Take a backup first if any have been made.
 
-## `0034_submission_review_states.py`
+## `0034_internal_comment.py`
+
+Creates `internal_comment` (FR-95, NFR-08 - see
+[`data-model.md`](../architecture/data-model.md#internal_comment-fr-95-nfr-08-nfr-23)). The table starts
+empty, so the upgrade is instant and needs no data step. The API at this revision serves `GET` and
+`POST` on `/api/v1/submissions/{id}/comments` and `/api/v1/catalogue/entries/{business_key}/comments`,
+and `POST` on `.../comments/{comment_id}/withdraw` under each. They need `comment.internal.read` or
+`comment.internal.write`, which Reviewer and Administrator hold.
+
+The grants are in the migration. The app role may insert and read a comment and may update only the
+three `withdrawn_*` columns. It may not edit `body`, `author_id` or `created_at`, or delete a comment.
+
+The downgrade drops `internal_comment`, which discards every comment, withdrawn ones with their text.
+Take a backup first if any have been made.
+
+## `0035_submission_review_states.py`
 
 Adds `Under review`, `Ready for approval` and `Approved` to the `state` check on `submission` and to the
 `from_state` and `to_state` checks on `submission_transition` (FR-28, FR-29 - see

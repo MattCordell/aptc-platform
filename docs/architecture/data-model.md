@@ -1669,6 +1669,23 @@ is the submitter's shorter way to a withdrawal.
 `ix_submission_transition_submission_id_created_at` serves the one read, a submission's history, oldest
 first.
 
+**The history is `GET /api/v1/submissions/{id}/transitions` (FR-28, FR-42).** It needs
+`submission.view`, as the detail does, so every caller who may view a submission sees every `reason`.
+It returns each row as `from_state`, `to_state`, `reason`, `created_at` and `actor`, ordered by
+`created_at` and then `id`, which is total even for two rows written in one instant. It is not paged,
+because one submission changes state a handful of times. A submission with no row is a 200 with an
+empty list, and an unknown submission is a 404. The route reads this table and the actor's `app_user`
+row and nothing else, so no internal comment (FR-95) can reach it, and it emits no audit event
+(NFR-08).
+
+**The actor follows the submitter-identity rule.** A caller with `submitter_identity.view` gets the
+actor's `username`, `display_name` and `organisation`, taken from the actor's profile because a
+transition has no copy of its own. Every other caller gets `username` alone, and the other two keys are
+absent and not null. A closed account's actor shows the placeholder `Closed account` for `username` and
+`display_name` and a null `organisation` (NFR-17). The `actor_id` never leaves the read layer (NFR-04).
+There is no role label: `user_role` can hold several roles, and they change, so a label would describe
+the actor today and not at the time of the move.
+
 **The permitted moves are rows in code.** `nptc.submissions.transitions.PERMITTED_TRANSITIONS` is keyed
 by `(from_state, to_state)`. Each row names the audit action and the ways an actor may make the move: a
 permission, and whether the actor must be the submitter. A move with no row is refused with a 409, so a
@@ -1718,6 +1735,55 @@ Each move emits one audit event on the `submission`, carrying `state` in `before
 reason (NFR-08). The action names the move: `submission.triaged`, `submission.review_started`,
 `submission.rejected`, `submission.reopened`, `submission.readied_for_approval` and
 `submission.withdrawn`. The transition row is not a second event.
+
+## `internal_comment` (FR-95, NFR-08, NFR-23)
+
+A staff-only comment on one submission or one catalogue entry. Reviewers and Administrators write and
+read them through `nptc.comments.service`, which backs the routes in
+[`routers/comments.py`](../../backend/src/nptc/api/routers/comments.py). A submitter, a member or the
+public never sees one, and never learns that one exists.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `UUID` | PK, `gen_random_uuid()` |
+| `submission_id` | `UUID` | FK to `submission.id`, null when the comment is on an entry |
+| `entry_id` | `UUID` | FK to `catalogue_entry.id`, null when the comment is on a submission. `CHECK ((submission_id IS NULL) <> (entry_id IS NULL))`, so a comment has exactly one target |
+| `author_id` | `UUID` | `NOT NULL`, FK to `app_user.id`. The internal id, which account closure keeps (NFR-17) |
+| `body` | `TEXT` | `NOT NULL`, `CHECK` not blank. Plain text, cleaned like a note (FR-63), capped at 2,000 characters by the API |
+| `created_at` | `TIMESTAMPTZ` | `NOT NULL`, `clock_timestamp()`, so two comments in one transaction still order |
+| `withdrawn_at` | `TIMESTAMPTZ` | Null while the comment stands |
+| `withdrawn_by` | `UUID` | FK to `app_user.id`. `CHECK` that this, `withdrawn_at` and `withdrawn_reason` are all null or all set |
+| `withdrawn_reason` | `TEXT` | `CHECK` not blank when set |
+
+`ix_internal_comment_submission_id_created_at` and `ix_internal_comment_entry_id_created_at` serve the
+one read, a target's comments, oldest first.
+
+**A comment is append-only, fixed by privilege.** `nptc_app` holds `SELECT, INSERT` and a column-level
+`UPDATE` on the three `withdrawn_*` columns only. It holds no `UPDATE` on `body`, `author_id`,
+`created_at` or either target column, and no `DELETE` or `TRUNCATE`, so what was said, by whom and when
+cannot be edited or removed.
+
+**A withdrawal retracts and does not hide.** It sets the three `withdrawn_*` columns together, once, and
+keeps `body`. Every caller who may read comments still sees the text, beside who withdrew it, when and
+why. A second withdrawal is a 409 and leaves the first reason in place. Any holder of
+`comment.internal.write` may withdraw any comment, and a comment named under a target it is not on is a
+404.
+
+**Nothing on the parent row.** `submission` and `catalogue_entry` have no relationship, count or column
+for comments, and a comment write only reads them. A submitter can read `row_version` and `updated_at`
+on their submission, so a write there would show that a comment exists. A comment on an entry works for
+an entry of any status, a draft included.
+
+**The audit event is about the comment.** Posting emits `comment.created` and withdrawing emits
+`comment.withdrawn`, each with `entity_type` `internal_comment` and the comment's id as `entity_id`,
+never `catalogue_entry` or `submission`. The public history of an entry selects its events by those
+two entity types, so an event recorded under them would publish the comment. `body` is withheld, so the
+event names it in `_redacted` and never carries the text (NFR-08), so `internal_comment` is the one
+home of what was said. The withdrawal's reason is staff free text of a different kind, an explanation
+and not the comment, and it is recorded once, in the event's own `reason`, as the reason for a
+withdrawn submission is. The diff leaves `withdrawn_reason` out so it is not stored twice. The audit log
+and its export are Administrator-only, and an Administrator also holds `comment.internal.read`, so
+neither shows the reason to anyone who could not already read it.
 
 ## Extensions
 
