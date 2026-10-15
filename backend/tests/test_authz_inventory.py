@@ -177,6 +177,15 @@ COVERED_WRITE_ROUTES = frozenset(
         # refuses anyone but the submitter. Negative-auth coverage lives in
         # `test_api_submissions_withdraw.py`.
         RouteKey(method="POST", path="/submissions/{submission_id}/withdraw"),
+        # Internal comments (FR-95): post and withdraw, under a submission and under an entry. All
+        # need `comment.internal.write`, which only Reviewer and Administrator hold. Negative-auth
+        # coverage lives in `test_api_comments.py`.
+        RouteKey(method="POST", path="/submissions/{submission_id}/comments"),
+        RouteKey(method="POST", path="/submissions/{submission_id}/comments/{comment_id}/withdraw"),
+        RouteKey(method="POST", path="/catalogue/entries/{business_key}/comments"),
+        RouteKey(
+            method="POST", path="/catalogue/entries/{business_key}/comments/{comment_id}/withdraw"
+        ),
         # issue #249: the entry's own core-column write route - status.
         # Negative-auth coverage lives in
         # `test_api_catalogue_entries.py`.
