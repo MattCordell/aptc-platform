@@ -610,10 +610,10 @@ def test_guard_scans_the_submissions_package() -> None:
 @pytest.mark.req("NFR-08")
 def test_the_only_exempt_submissions_writers_are_the_four_named_with_a_reason() -> None:
     """The scan reaches the package, so a new writer there is held to the lock-first rule unless it
-    is named, with a reason, in `_EXEMPT_FUNCTIONS`. The two interest writers, the transition writer
-    and the two terminology request writers that make no network call take the lock first and are not
-    exempt, so they are the whole of what the rule checks
-    there."""
+    is named, with a reason, in `_EXEMPT_FUNCTIONS`. The two interest writers, the transition writer,
+    the approval writer with its two helpers and the two terminology request writers that make no
+    network call take the lock first and are not exempt, so they are the whole of what the rule
+    checks there."""
     exempt_here = {key for key in _EXEMPT_FUNCTIONS if key[0].startswith("submissions.")}
     assert exempt_here == {
         ("submissions.new_test", "create_new_test_submission"),
@@ -623,6 +623,9 @@ def test_the_only_exempt_submissions_writers_are_the_four_named_with_a_reason() 
     }
     unexempted = {key for key in _derive_required_functions() if key[0].startswith("submissions.")}
     assert unexempted == {
+        ("submissions.approval", "_amend_entry"),
+        ("submissions.approval", "_create_entry"),
+        ("submissions.approval", "approve_submission"),
         ("submissions.interest", "register_interest"),
         ("submissions.interest", "revoke_interest"),
         ("submissions.terminology_request", "request_terminology"),
