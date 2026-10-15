@@ -927,6 +927,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/submissions/{submission_id}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the internal comments on a submission
+         * @description Every comment, oldest first, withdrawn ones included with their text. A submission with no
+         *     comments gives an empty list.
+         */
+        get: operations["list_submission_comments_api_v1_submissions__submission_id__comments_get"];
+        put?: never;
+        /**
+         * Add an internal comment to a submission
+         * @description Adds the comment and appends its audit event. The submission itself is not changed.
+         */
+        post: operations["add_submission_comment_api_v1_submissions__submission_id__comments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/submissions/{submission_id}/comments/{comment_id}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw an internal comment on a submission
+         * @description Marks the comment withdrawn, with the reason. Its text stays.
+         */
+        post: operations["withdraw_submission_comment_api_v1_submissions__submission_id__comments__comment_id__withdraw_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalogue/entries/{business_key}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the internal comments on a catalogue entry
+         * @description Every comment, oldest first, withdrawn ones included with their text. An entry of any
+         *     status, a draft included, can be read here. An entry with no comments gives an empty list.
+         */
+        get: operations["list_entry_comments_api_v1_catalogue_entries__business_key__comments_get"];
+        put?: never;
+        /**
+         * Add an internal comment to a catalogue entry
+         * @description Adds the comment and appends its audit event. The entry itself is not changed, and its
+         *     public history does not show the comment.
+         */
+        post: operations["add_entry_comment_api_v1_catalogue_entries__business_key__comments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/catalogue/entries/{business_key}/comments/{comment_id}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw an internal comment on a catalogue entry
+         * @description Marks the comment withdrawn, with the reason. Its text stays.
+         */
+        post: operations["withdraw_entry_comment_api_v1_catalogue_entries__business_key__comments__comment_id__withdraw_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/terminology/concepts/{code}": {
         parameters: {
             query?: never;
@@ -1632,6 +1723,49 @@ export interface components {
             label_provenance: {
                 [key: string]: components["schemas"]["LabelProvenance"];
             };
+        };
+        /**
+         * CommentListResponse
+         * @description The comments on one target, oldest first, withdrawn ones included.
+         */
+        CommentListResponse: {
+            /** Comments */
+            comments: components["schemas"]["CommentResponse"][];
+        };
+        /**
+         * CommentPerson
+         * @description A person named on a comment. Both names are `Closed account` for a closed account.
+         */
+        CommentPerson: {
+            /** Username */
+            username: string;
+            /** Display Name */
+            display_name: string;
+        };
+        /**
+         * CommentResponse
+         * @description One comment. `body` is plain text. The three `withdrawn_*` values are all null for a comment
+         *     that stands and all set for one that was withdrawn, which keeps its `body`.
+         */
+        CommentResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Body */
+            body: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            author: components["schemas"]["CommentPerson"];
+            /** Withdrawn At */
+            withdrawn_at: string | null;
+            withdrawn_by: components["schemas"]["CommentPerson"] | null;
+            /** Withdrawn Reason */
+            withdrawn_reason: string | null;
         };
         /**
          * ConceptLookup
@@ -2685,6 +2819,11 @@ export interface components {
             /** Username */
             username: string;
         };
+        /** PostCommentRequest */
+        PostCommentRequest: {
+            /** Body */
+            body: string;
+        };
         /** ProcedureMatch */
         ProcedureMatch: {
             /** Code */
@@ -3224,7 +3363,7 @@ export interface components {
              * Field
              * @enum {string}
              */
-            field: "preferred_term" | "synonyms" | "snomed_code" | "reference_url" | "notes" | "organisation" | "reason";
+            field: "preferred_term" | "synonyms" | "snomed_code" | "reference_url" | "notes" | "organisation" | "reason" | "body";
         };
         /**
          * SubmissionKind
@@ -3543,6 +3682,14 @@ export interface components {
             changed_by: string | null;
             /** Changed At */
             changed_at: string | null;
+        };
+        /**
+         * WithdrawCommentRequest
+         * @description `reason` is required and is kept with the withdrawal.
+         */
+        WithdrawCommentRequest: {
+            /** Reason */
+            reason: string;
         };
         /**
          * WithdrawRequest
@@ -7059,6 +7206,459 @@ export interface operations {
                 };
             };
             /** @description `reason` is blank, or carries an invisible character such as a zero-width space (`field` is `reason`). An identifier that is not a UUID, a `reason` over the size bound or a field the request should not carry fails validation before the route runs. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionFieldRefusalResponse"];
+                };
+            };
+            /** @description An address exceeded its request budget (FR-22): an anonymous caller its anonymous budget, or a caller whose credentials the API kept rejecting its budget for rejected credentials. Wait for the number of seconds in `Retry-After`, then try again. A valid credential is never counted. The body's `bulk_artefacts` names where to fetch the whole catalogue instead. */
+            429: {
+                headers: {
+                    /** @description Whole seconds until the caller's request budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateLimitedResponse"];
+                };
+            };
+        };
+    };
+    list_submission_comments_api_v1_submissions__submission_id__comments_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentListResponse"];
+                };
+            };
+            /** @description No credential, or one that could not be verified. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The caller does not hold `comment.internal.read`. The refusal is the same whether or not the target exists or has comments. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No submission has the identifier. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The identifier is not well formed. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description An address exceeded its request budget (FR-22): an anonymous caller its anonymous budget, or a caller whose credentials the API kept rejecting its budget for rejected credentials. Wait for the number of seconds in `Retry-After`, then try again. A valid credential is never counted. The body's `bulk_artefacts` names where to fetch the whole catalogue instead. */
+            429: {
+                headers: {
+                    /** @description Whole seconds until the caller's request budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateLimitedResponse"];
+                };
+            };
+        };
+    };
+    add_submission_comment_api_v1_submissions__submission_id__comments_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PostCommentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentResponse"];
+                };
+            };
+            /** @description No credential, or one that could not be verified. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The caller does not hold `comment.internal.write`, or has not accepted the current terms of use (the body then carries a `code` that says so). The refusal is the same whether or not the target exists or has comments. The current terms of use have not been accepted. The body carries `code: terms_acceptance_required`. Accept them with `POST /auth/terms/acceptance` and try again. Never carries `WWW-Authenticate`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"] | components["schemas"]["TermsAcceptanceRequiredResponse"];
+                };
+            };
+            /** @description No submission has the identifier. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `body` is blank, or carries an invisible character such as a zero-width space (`field` is `body`). A malformed identifier, a `body` over the size bound or a field the request should not carry fails validation before the route runs. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionFieldRefusalResponse"];
+                };
+            };
+            /** @description An address exceeded its request budget (FR-22): an anonymous caller its anonymous budget, or a caller whose credentials the API kept rejecting its budget for rejected credentials. Wait for the number of seconds in `Retry-After`, then try again. A valid credential is never counted. The body's `bulk_artefacts` names where to fetch the whole catalogue instead. */
+            429: {
+                headers: {
+                    /** @description Whole seconds until the caller's request budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateLimitedResponse"];
+                };
+            };
+        };
+    };
+    withdraw_submission_comment_api_v1_submissions__submission_id__comments__comment_id__withdraw_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+                comment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WithdrawCommentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentResponse"];
+                };
+            };
+            /** @description No credential, or one that could not be verified. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The caller does not hold `comment.internal.write`, or has not accepted the current terms of use (the body then carries a `code` that says so). The refusal is the same whether or not the target exists or has comments. The current terms of use have not been accepted. The body carries `code: terms_acceptance_required`. Accept them with `POST /auth/terms/acceptance` and try again. Never carries `WWW-Authenticate`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"] | components["schemas"]["TermsAcceptanceRequiredResponse"];
+                };
+            };
+            /** @description No submission has the identifier, or no comment with that identifier is on it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The comment was withdrawn before. Nothing was changed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `reason` is blank, or carries an invisible character such as a zero-width space (`field` is `reason`). A malformed identifier, a `reason` over the size bound or a field the request should not carry fails validation before the route runs. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionFieldRefusalResponse"];
+                };
+            };
+            /** @description An address exceeded its request budget (FR-22): an anonymous caller its anonymous budget, or a caller whose credentials the API kept rejecting its budget for rejected credentials. Wait for the number of seconds in `Retry-After`, then try again. A valid credential is never counted. The body's `bulk_artefacts` names where to fetch the whole catalogue instead. */
+            429: {
+                headers: {
+                    /** @description Whole seconds until the caller's request budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateLimitedResponse"];
+                };
+            };
+        };
+    };
+    list_entry_comments_api_v1_catalogue_entries__business_key__comments_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The entry's public identifier, e.g. `NPTC-000247` (FR-03). */
+                business_key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentListResponse"];
+                };
+            };
+            /** @description No credential, or one that could not be verified. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The caller does not hold `comment.internal.read`. The refusal is the same whether or not the target exists or has comments. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No catalogue entry has the identifier. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The identifier is not well formed. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description An address exceeded its request budget (FR-22): an anonymous caller its anonymous budget, or a caller whose credentials the API kept rejecting its budget for rejected credentials. Wait for the number of seconds in `Retry-After`, then try again. A valid credential is never counted. The body's `bulk_artefacts` names where to fetch the whole catalogue instead. */
+            429: {
+                headers: {
+                    /** @description Whole seconds until the caller's request budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateLimitedResponse"];
+                };
+            };
+        };
+    };
+    add_entry_comment_api_v1_catalogue_entries__business_key__comments_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The entry's public identifier, e.g. `NPTC-000247` (FR-03). */
+                business_key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PostCommentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentResponse"];
+                };
+            };
+            /** @description No credential, or one that could not be verified. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The caller does not hold `comment.internal.write`, or has not accepted the current terms of use (the body then carries a `code` that says so). The refusal is the same whether or not the target exists or has comments. The current terms of use have not been accepted. The body carries `code: terms_acceptance_required`. Accept them with `POST /auth/terms/acceptance` and try again. Never carries `WWW-Authenticate`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"] | components["schemas"]["TermsAcceptanceRequiredResponse"];
+                };
+            };
+            /** @description No catalogue entry has the identifier. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `body` is blank, or carries an invisible character such as a zero-width space (`field` is `body`). A malformed identifier, a `body` over the size bound or a field the request should not carry fails validation before the route runs. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionFieldRefusalResponse"];
+                };
+            };
+            /** @description An address exceeded its request budget (FR-22): an anonymous caller its anonymous budget, or a caller whose credentials the API kept rejecting its budget for rejected credentials. Wait for the number of seconds in `Retry-After`, then try again. A valid credential is never counted. The body's `bulk_artefacts` names where to fetch the whole catalogue instead. */
+            429: {
+                headers: {
+                    /** @description Whole seconds until the caller's request budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateLimitedResponse"];
+                };
+            };
+        };
+    };
+    withdraw_entry_comment_api_v1_catalogue_entries__business_key__comments__comment_id__withdraw_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The entry's public identifier, e.g. `NPTC-000247` (FR-03). */
+                business_key: string;
+                comment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WithdrawCommentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentResponse"];
+                };
+            };
+            /** @description No credential, or one that could not be verified. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The caller does not hold `comment.internal.write`, or has not accepted the current terms of use (the body then carries a `code` that says so). The refusal is the same whether or not the target exists or has comments. The current terms of use have not been accepted. The body carries `code: terms_acceptance_required`. Accept them with `POST /auth/terms/acceptance` and try again. Never carries `WWW-Authenticate`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"] | components["schemas"]["TermsAcceptanceRequiredResponse"];
+                };
+            };
+            /** @description No catalogue entry has the identifier, or no comment with that identifier is on it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The comment was withdrawn before. Nothing was changed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `reason` is blank, or carries an invisible character such as a zero-width space (`field` is `reason`). A malformed identifier, a `reason` over the size bound or a field the request should not carry fails validation before the route runs. */
             422: {
                 headers: {
                     [name: string]: unknown;

@@ -324,6 +324,17 @@ REVOKE_SUBMISSION_INTEREST_DELETE_SQL = (
     "REVOKE DELETE, TRUNCATE ON TABLE submission_interest FROM nptc_app;"
 )
 
+#: FR-95: what was said, by whom and when is never edited or removed. Withdrawing sets the three
+#: `withdrawn_*` columns and nothing else, so they are the only updatable columns.
+GRANT_INTERNAL_COMMENT_SQL = "GRANT SELECT, INSERT ON TABLE internal_comment TO nptc_app;"
+GRANT_INTERNAL_COMMENT_UPDATE_SQL = (
+    "GRANT UPDATE (withdrawn_at, withdrawn_by, withdrawn_reason) "
+    "ON TABLE internal_comment TO nptc_app;"
+)
+REVOKE_INTERNAL_COMMENT_DELETE_SQL = (
+    "REVOKE DELETE, TRUNCATE ON TABLE internal_comment FROM nptc_app;"
+)
+
 #: FR-28, NFR-08: a transition is a fact about a past moment, so it is never edited or removed.
 GRANT_SUBMISSION_TRANSITION_SQL = "GRANT SELECT, INSERT ON TABLE submission_transition TO nptc_app;"
 REVOKE_SUBMISSION_TRANSITION_WRITE_SQL = (
