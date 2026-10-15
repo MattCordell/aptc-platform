@@ -1478,7 +1478,7 @@ catalogue content. Three routes write it today: `POST /api/v1/submissions` for a
 `POST /api/v1/submissions/amendments` for an amendment (FR-35), and
 `POST /api/v1/submissions/{id}/withdraw`, which changes `state` and writes a
 [`submission_transition`](#submission_transition-fr-28-nfr-08) row. Two routes read it: `GET /api/v1/submissions`
-and `GET /api/v1/submissions/{id}` (FR-42), described below. Both also carry the interest in each
+and `GET /api/v1/submissions/{id}` (FR-42), described below. A reviewer's edits go to [`submission_working_copy`](#submission_working_copy-fr-23-nfr-08), never to this table. Both also carry the interest in each
 submission, held in [`submission_interest`](#submission_interest-fr-32-fr-34-nfr-08-nfr-17).
 
 | Column | Type | Notes |
@@ -1784,6 +1784,51 @@ and not the comment, and it is recorded once, in the event's own `reason`, as th
 withdrawn submission is. The diff leaves `withdrawn_reason` out so it is not stored twice. The audit log
 and its export are Administrator-only, and an Administrator also holds `comment.internal.read`, so
 neither shows the reason to anyone who could not already read it.
+
+## `submission_working_copy` (FR-23, NFR-08)
+
+A reviewer's edited copy of a submission's content. A Reviewer or Administrator edits it through
+`PATCH /api/v1/submissions/{id}/working-copy`, which `nptc.submissions.working_copy` backs. The
+submission's own content never changes: `GRANT_SUBMISSION_UPDATE_SQL` still leaves every content
+column out. A submission with no row has not been edited, and its working content is its original.
+
+| Column | Type | Notes |
+|---|---|---|
+| `submission_id` | `UUID` | PK and FK to `submission.id`, so a submission has at most one working copy |
+| `preferred_term` | `TEXT` | `NOT NULL`, `CHECK` not blank. On an amendment it stays the copy of the entry's term, because an amendment proposes only `synonyms` and `snomed_code` |
+| `synonyms` | `JSONB` | `NOT NULL DEFAULT '[]'`, `CHECK` array. Replaced whole on every edit |
+| `snomed_code` | `TEXT` | Nullable, `CHECK nptc_sctid_is_valid` (FR-06, ADR-0023). A string end to end |
+| `snomed_fsn` | `TEXT` | Nullable, `CHECK` not blank. Always the label the terminology server returned (FR-82), never from the request. `CHECK ((snomed_code IS NULL) = (snomed_fsn IS NULL))` |
+| `property_values` | `JSONB` | `NOT NULL DEFAULT '{}'`, `CHECK` object. Keyed by property key, replaced whole on every edit |
+| `notes` | `TEXT` | Nullable, `CHECK` not blank |
+| `created_at` | `TIMESTAMPTZ` | `NOT NULL`, the first effective edit |
+| `updated_at` | `TIMESTAMPTZ` | `NOT NULL`, the latest effective edit |
+
+The content columns and their checks repeat those of `submission`, so a working copy cannot hold a value
+the original could not. The reference, duplicate and submitter columns are not here: a reviewer does not
+edit the evidence the submitter sent.
+
+**Why a table and not override columns on `submission`.** The `UPDATE` grant on `submission` covers
+`state`, `updated_at` and `row_version` only. Override columns would each need a new grant, and the
+original content would then be partly mutable by privilege. A separate table keeps the original fixed at
+the privilege level and leaves "has this been edited" as the presence of one row.
+
+**Fixed by privilege.** `nptc_app` holds `SELECT, INSERT` and a column-level `UPDATE` on the six content
+columns and `updated_at`. It holds no `UPDATE` on `submission_id` or `created_at`, and no `DELETE` or
+`TRUNCATE`, so a working copy is never moved or removed.
+
+**One lock.** The table has no version column. Every effective edit bumps `submission.row_version`, so an
+edit and a state transition carry the same `expected_row_version` and cannot cross. A submitter can see
+`row_version` rise on their own submission. That is accepted: one lock was the requirement.
+
+**Visibility.** `GET /api/v1/submissions/{id}` returns `working_copy` to a holder of
+`submission.transition.review` (Reviewer, Administrator) and leaves the key out for everyone else. The
+submitter never learns that a working copy exists (FR-23).
+
+**The audit event is about the submission.** An effective edit emits one `UPDATED` event with
+`entity_type` `submission`, whose `before` and `after` hold only the changed content fields. The first
+edit is also `UPDATED`, not a `CREATED` event listing every column. An edit that changes nothing writes
+no event, does not bump `row_version` and does not create the row.
 
 ## Extensions
 
