@@ -5026,6 +5026,111 @@
         }
       }
     },
+    "/api/v1/submissions/{submission_id}/transitions": {
+      "get": {
+        "tags": [
+          "submissions"
+        ],
+        "summary": "Show a submission's history of changes of state",
+        "description": "Every change of state, oldest first, with the reason and who made it. There is no paging: one\nsubmission changes state a handful of times, and ADR-0024 covers lists that grow without bound.\n\nA caller with `submitter_identity.view` gets each actor's display name and organisation. Every\nother caller gets the username only. Each caller sees every reason.",
+        "operationId": "get_submission_transitions_api_v1_submissions__submission_id__transitions_get",
+        "parameters": [
+          {
+            "name": "submission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Submission Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/TransitionHistory"
+                    },
+                    {
+                      "$ref": "#/components/schemas/IdentifiedTransitionHistory"
+                    }
+                  ],
+                  "title": "Response Get Submission Transitions Api V1 Submissions  Submission Id  Transitions Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No credential, or one that could not be verified.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but does not hold `submission.view`, or has not accepted the current terms of use (the body then carries a `code` that says so).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No submission has the identifier.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The identifier is not a UUID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/HTTPValidationError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "An address exceeded its request budget (FR-22): an anonymous caller its anonymous budget, or a caller whose credentials the API kept rejecting its budget for rejected credentials. Wait for the number of seconds in `Retry-After`, then try again. A valid credential is never counted. The body's `bulk_artefacts` names where to fetch the whole catalogue instead.",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds until the caller's request budget is available again.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimitedResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/submissions/{submission_id}/interest": {
       "put": {
         "tags": [
@@ -8669,6 +8774,37 @@
         ],
         "title": "HistoryPage"
       },
+      "IdentifiedActor": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "organisation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organisation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "display_name",
+          "organisation"
+        ],
+        "title": "IdentifiedActor",
+        "description": "Who made a change of state, as a caller with `submitter_identity.view` sees them.\n`organisation` is the actor's profile, which is null when they gave none. A closed account's\n`username` and `display_name` are the placeholder."
+      },
       "IdentifiedSubmissionDetail": {
         "properties": {
           "id": {
@@ -9025,6 +9161,56 @@
         "title": "IdentifiedSubmitter",
         "description": "The submitter as a caller with `submitter_identity.view` sees them. `organisation` is the\ncopy the submitter sent with this submission, which can differ from their profile, and is null\nwhen they sent none. A closed account's `username` and `display_name` are the placeholder."
       },
+      "IdentifiedTransitionHistory": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/IdentifiedTransitionItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "IdentifiedTransitionHistory",
+        "description": "`TransitionHistory` for a caller with `submitter_identity.view`."
+      },
+      "IdentifiedTransitionItem": {
+        "properties": {
+          "from_state": {
+            "type": "string",
+            "title": "From State"
+          },
+          "to_state": {
+            "type": "string",
+            "title": "To State"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "actor": {
+            "$ref": "#/components/schemas/IdentifiedActor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "from_state",
+          "to_state",
+          "reason",
+          "created_at",
+          "actor"
+        ],
+        "title": "IdentifiedTransitionItem"
+      },
       "InterestIdentitiesResponse": {
         "properties": {
           "interest_count": {
@@ -9290,6 +9476,20 @@
         ],
         "title": "PatchEntryRequest",
         "description": "The body of `PATCH /catalogue/entries/{business_key}`. Unknown fields are refused, so a\nclient that still sends the retired `specimen_unconstrained` fails loudly (ADR-0044)."
+      },
+      "PlainActor": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "title": "Username"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username"
+        ],
+        "title": "PlainActor",
+        "description": "Who made a change of state, as a caller without `submitter_identity.view` sees them: a\nusername only."
       },
       "PlainSubmitter": {
         "properties": {
@@ -11015,6 +11215,56 @@
         ],
         "title": "TermsVersionStaleResponse",
         "description": "The 409 for an accept request that names a version other than the current one. It\nreports the current version so the SPA can show the gate again under that text (NFR-47)."
+      },
+      "TransitionHistory": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TransitionItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "TransitionHistory",
+        "description": "Every change of state, oldest first. Empty for a submission that has not changed state."
+      },
+      "TransitionItem": {
+        "properties": {
+          "from_state": {
+            "type": "string",
+            "title": "From State"
+          },
+          "to_state": {
+            "type": "string",
+            "title": "To State"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "actor": {
+            "$ref": "#/components/schemas/PlainActor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "from_state",
+          "to_state",
+          "reason",
+          "created_at",
+          "actor"
+        ],
+        "title": "TransitionItem"
       },
       "UserRef": {
         "properties": {

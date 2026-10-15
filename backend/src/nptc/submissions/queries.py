@@ -14,6 +14,11 @@ to what this module returns.
 
 Keyset paging on `(created_at, id)`, newest first, never `OFFSET` (ADR-0024). `id` breaks a tie
 between two rows saved in one instant, so the order is total. The cursor is opaque to a client.
+
+**A submission's transition history is not paged.** One submission changes state a handful of times,
+so `list_transitions` returns every row, oldest first, in one joined statement. It reads
+`submission_transition` and the actor's user row and nothing else, so no comment text can reach it
+(FR-95).
 """
 
 from __future__ import annotations
@@ -32,10 +37,18 @@ from sqlalchemy.orm import Session
 from nptc.auth.identity import UserRef
 from nptc.db.models.catalogue_entry import CatalogueEntry
 from nptc.db.models.submission import CLOSED_SUBMISSION_STATES, Submission
+from nptc.db.models.submission_transition import SubmissionTransition
 from nptc.db.models.user import User
 from nptc.submissions.errors import MalformedSubmissionCursorError, SubmissionNotFoundError
 
-__all__ = ["SubmissionRecord", "SubmissionRecordPage", "get_submission", "list_submissions"]
+__all__ = [
+    "SubmissionRecord",
+    "SubmissionRecordPage",
+    "TransitionRecord",
+    "get_submission",
+    "list_submissions",
+    "list_transitions",
+]
 
 _CURSOR_SEPARATOR: Final = "|"
 
@@ -58,6 +71,17 @@ class SubmissionRecordPage:
 
     records: tuple[SubmissionRecord, ...]
     next_cursor: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class TransitionRecord:
+    """One change of state. `actor` is a `UserRef`, so the actor's internal id stays in this module."""
+
+    from_state: str
+    to_state: str
+    reason: str
+    created_at: datetime
+    actor: UserRef
 
 
 def _encode_cursor(created_at: datetime, submission_id: uuid.UUID) -> str:
@@ -155,3 +179,27 @@ def get_submission(
     if row is None:
         raise SubmissionNotFoundError("no submission has that identifier")
     return _record(*row, viewer_id=viewer_id)
+
+
+def list_transitions(session: Session, submission_id: uuid.UUID) -> tuple[TransitionRecord, ...]:
+    """Every change of state of one submission, oldest first, or `SubmissionNotFoundError`. A
+    submission that has never changed state gives an empty tuple. `id` breaks a tie between two rows
+    written in one instant, so the order is total."""
+    if session.scalar(select(Submission.id).where(Submission.id == submission_id)) is None:
+        raise SubmissionNotFoundError("no submission has that identifier")
+    rows = session.execute(
+        select(SubmissionTransition, User)
+        .join(User, User.id == SubmissionTransition.actor_id)
+        .where(SubmissionTransition.submission_id == submission_id)
+        .order_by(SubmissionTransition.created_at, SubmissionTransition.id)
+    ).all()
+    return tuple(
+        TransitionRecord(
+            from_state=transition.from_state,
+            to_state=transition.to_state,
+            reason=transition.reason,
+            created_at=transition.created_at,
+            actor=UserRef.from_user(user),
+        )
+        for transition, user in rows
+    )
