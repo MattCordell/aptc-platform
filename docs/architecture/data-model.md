@@ -1485,8 +1485,9 @@ submission, held in [`submission_interest`](#submission_interest-fr-32-fr-34-nfr
 |---|---|---|
 | `id` | `UUID` | PK, `gen_random_uuid()` |
 | `kind` | `TEXT` | `NOT NULL`, `CHECK` in `new_test`, `amendment`. Amendments reuse the table, so they need no second one |
-| `state` | `TEXT` | `NOT NULL DEFAULT 'Submitted'`, `CHECK` in `Submitted`, `Triage`, `Under review`, `Awaiting terminology`, `Ready for approval`, `Approved`, `Published in release`, `Rejected`, `Withdrawn`. The three closed states are the end of the workflow (FR-28). `POST /api/v1/submissions/{id}/transitions` writes the review moves and the withdrawals. `POST /api/v1/submissions/{id}/terminology-request` and `POST /api/v1/submissions/{id}/terminology-request/attach-code` make the two moves of `Awaiting terminology` (FR-30). No route reaches `Approved` or `Published in release` yet, so only a test stores them |
+| `state` | `TEXT` | `NOT NULL DEFAULT 'Submitted'`, `CHECK` in `Submitted`, `Triage`, `Under review`, `Awaiting terminology`, `Ready for approval`, `Approved`, `Published in release`, `Rejected`, `Withdrawn`. The three closed states are the end of the workflow (FR-28). `POST /api/v1/submissions/{id}/transitions` writes the review moves and the withdrawals. `POST /api/v1/submissions/{id}/terminology-request` and `POST /api/v1/submissions/{id}/terminology-request/attach-code` make the two moves of `Awaiting terminology` (FR-30). `POST /api/v1/submissions/{id}/approve` makes the move into `Approved` and writes the catalogue entry (FR-28, FR-29). No route reaches `Published in release` yet, so only a test stores it |
 | `entry_id` | `UUID` | Nullable, FK to `catalogue_entry.id`, indexed. The entry an amendment proposes to change. `CHECK ((kind = 'amendment') = (entry_id IS NOT NULL))`, so an amendment has one and a new test has none (FR-35) |
+| `created_entry_id` | `UUID` | Nullable, FK to `catalogue_entry.id`. The entry that approving a new test created, null until then. `CHECK (created_entry_id IS NULL OR kind = 'new_test')`, and a partial unique index (`ix_submission_created_entry_id`, `WHERE created_entry_id IS NOT NULL`) lets one entry come from at most one submission. The only content column the app role may update, and only the approval service writes it (FR-28) |
 | `preferred_term` | `TEXT` | `NOT NULL`, `CHECK` not blank. Cleaned at entry like an entry's term (FR-63). On an amendment, a copy of the entry's preferred term when it was proposed |
 | `synonyms` | `JSONB` | `NOT NULL DEFAULT '[]'`, `CHECK` a JSON array. Each term is cleaned at entry. A term that folds to the same comparison key as an earlier one, or as `preferred_term`, is dropped, as `add_synonyms` drops it, so the list converts to designations without a duplicate |
 | `snomed_code` | `TEXT` | Nullable. `CHECK nptc_sctid_is_valid`, so the format and the check digit hold in the database (FR-06) |
@@ -1534,7 +1535,7 @@ code, or both, in the same `synonyms`, `snomed_code` and `snomed_fsn` columns a 
 and a code goes through the same terminology lookup. It has an empty `property_values` and an
 empty `duplicate_matches`, because it takes neither. One `snomed_code` column cannot tell a new
 code from a replacement for the entry's current code, so a reviewer compares it with the entry.
-Only an `active` entry can be amended. Applying an amendment to the entry is a later step.
+Only an `active` entry can be amended. An Administrator's approval applies the amendment (see [Approval writes the catalogue](#approval-writes-the-catalogue-fr-28-fr-29-fr-35)).
 
 **`property_values` is one JSONB document, not a child table.** It maps a property key to the
 complete value list for that property, each item `{"value": ..., "justification": ...}`. That is
@@ -1692,7 +1693,7 @@ the actor today and not at the time of the move.
 by `(from_state, to_state)`. Each row names the audit action and the ways an actor may make the move: a
 permission, and whether the actor must be the submitter. A move with no row is refused with a 409, so a
 closed submission is never reinterpreted, and a second withdrawal is refused and not repeated. A new
-state or move is a new row and not a second code path. The table holds twelve moves:
+state or move is a new row and not a second code path. The table holds thirteen moves:
 
 | From | To | Needs |
 |---|---|---|
@@ -1703,6 +1704,7 @@ state or move is a new row and not a second code path. The table holds twelve mo
 | `Under review` | `Ready for approval` | `submission.transition.review` |
 | `Under review` | `Awaiting terminology` | `submission.transition.review`. Needs a terminology request, so it has its own route |
 | `Awaiting terminology` | `Ready for approval` | `submission.transition.approve`, which only the Administrator holds. Needs a code, so it has its own route |
+| `Ready for approval` | `Approved` | `submission.transition.approve`, which only the Administrator holds. Writes the catalogue entry, so it has its own route |
 | `Awaiting terminology` | `Under review` (take back) | `submission.transition.review`. A plain move, so `POST /api/v1/submissions/{id}/transitions` makes it. The request stays as history |
 | `Submitted`, `Triage` | `Withdrawn` | `submission.withdraw.own` and the submitter, or `submission.withdraw.any` |
 | `Approved`, `Published in release` | `Withdrawn` | `submission.withdraw.any` |
@@ -1710,15 +1712,14 @@ state or move is a new row and not a second code path. The table holds twelve mo
 A reopened submission keeps its transition rows and is never a new record. The Administrator holds
 `.any` and not `.own`, so the `.any` requirement on the open-state withdrawal rows is what lets an
 Administrator withdraw a submission of their own. Only `.any` reaches `Approved` and `Published in
-release`, so the submitter's own withdrawal ends once a reviewer has accepted the proposal. No row
-enters `Approved` yet, so a request for it is a 409. A submission leaves `Awaiting terminology`
+release`, so the submitter's own withdrawal ends once a reviewer has accepted the proposal. A submission leaves `Awaiting terminology`
 in one of two ways: an Administrator attaches the code, or a reviewer takes it back to `Under review` when
 the request is declined or abandoned. The table has no row from the state to `Rejected` or `Withdrawn`.
 
 **A move that needs more than a reason is flagged in the table** (`PermittedTransition.needs_payload`).
-The two moves of `Awaiting terminology` are rows like any other, so the graph, the permissions and
-`available_transitions` stay in one place, but `POST /api/v1/submissions/{id}/transitions` refuses
-them with a 409 that names their routes, after it has judged the caller, so a caller without the
+The two moves of `Awaiting terminology` and the approval are rows like any other, so the graph, the
+permissions and `available_transitions` stay in one place, but `POST /api/v1/submissions/{id}/transitions`
+refuses them with a 409 that names their routes, after it has judged the caller, so a caller without the
 permission still gets a 403. `available_transitions` still lists them, because the caller may make
 them through their own route.
 
@@ -1747,10 +1748,43 @@ A stale value is a 409 that carries `current_row_version`.
 Each move emits one audit event on the `submission`, carrying `state` in `before` and `after` and the
 reason (NFR-08). The action names the move: `submission.triaged`, `submission.review_started`,
 `submission.rejected`, `submission.reopened`, `submission.readied_for_approval`,
-`submission.terminology_requested`, `submission.terminology_attached`, `submission.review_resumed` and
-`submission.withdrawn`. The
+`submission.terminology_requested`, `submission.terminology_attached`, `submission.review_resumed`,
+`submission.approved` and `submission.withdrawn`. The
 transition row is not a second event. `submission.terminology_attached` also carries `snomed_code` and
 `snomed_fsn`, because the move writes the code to the working copy.
+
+### Approval writes the catalogue (FR-28, FR-29, FR-35)
+
+`POST /api/v1/submissions/{id}/approve` is the one move that changes the catalogue. It is a row of the
+table with `needs_payload`, and `nptc.submissions.approval.approve_submission` makes it. The service
+takes the audit append lock, reads the submission, judges the move and the `row_version` as every move
+does, and then writes inside one outer savepoint. The entry writes, the new `state`, the transition row
+and every audit event succeed or fail together, so a refusal at any step leaves the submission in
+`Ready for approval` and the catalogue as it was.
+
+**The content is the working copy when there is one,** otherwise the original. The `reason` is the
+changelog note (FR-37) of every catalogue write, so it is validated against the catalogue's rules,
+which are stricter than a transition's, before the lock is taken.
+
+**A new test becomes an `active` entry.** The service calls `create_entry`, then `add_synonyms`, then
+`create_binding` when there is a code, then `save_property_values` once for each property key, the way
+the seeded import does. A preferred term that collides with another entry's is the catalogue's own 409
+(FR-05). The submission records the entry in `created_entry_id`, set inside the move's write so that
+the `submission.approved` event carries the link in `after`.
+
+**An amendment is applied to the entry it names.** The entry is re-read under the lock, because it may
+have changed since the proposal. An entry that is no longer `active` is a 409 naming its status. A
+proposed synonym the entry has since gained, a proposed code that is already its active code, or an
+active code bound after the proposal was made is a 409 that names the cause, and nothing is applied in
+part. The last one stops a replacement from retiring a code the submitter never saw. The submission
+stores no code of the entry's, so the check compares the active binding's `created_at` with the
+submission's. Synonyms are added through `add_synonyms`. A
+different active code is retired, the proposed one is bound, and the two are linked with
+`link_replacement` (FR-08), in that order, which `ix_code_binding_one_active_per_entry` fixes. All of
+it runs in `entry_child_write`, so the entry's `row_version` is checked and bumped once.
+
+**Property values on an amendment are not applied,** because an amendment carries only synonyms and a
+code.
 
 ## `internal_comment` (FR-95, NFR-08, NFR-23)
 

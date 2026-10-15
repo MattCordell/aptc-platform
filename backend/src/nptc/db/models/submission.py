@@ -4,12 +4,13 @@ A submission is its own record, not a `catalogue_entry` with another status (FR-
 is an entry until a later workflow step copies it into one, so a submitted value is never mistaken
 for catalogue content.
 
-**Immutable after insert, except `state`.** `nptc.db.roles.GRANT_SUBMISSION_UPDATE_SQL` leaves every
-content column out of the `UPDATE` grant, so what the submitter sent is a privilege-level fact, not
-an application convention. `row_version` sits inside the grant because `version_id_col` writes it
-on every mapped update, as on `catalogue_entry`. There is no `DELETE` grant: a submission leaves the
-workflow through `state`. Every change of `state` goes through `nptc.submissions.transitions`, which
-also writes a `submission_transition` row.
+**Immutable after insert, except `state` and `created_entry_id`.**
+`nptc.db.roles.GRANT_SUBMISSION_UPDATE_SQL` leaves every content column out of the `UPDATE`
+grant, so what the submitter sent is a privilege-level fact, not an application convention.
+`row_version` sits inside the grant because `version_id_col` writes it on every mapped update, as on
+`catalogue_entry`. There is no `DELETE` grant: a submission leaves the workflow through `state`.
+Every change of `state` goes through `nptc.submissions.transitions`, which also writes a
+`submission_transition` row.
 
 **`snomed_code` is `TEXT`, and `snomed_fsn` comes from the terminology server (FR-06, FR-82).** The
 code passes `nptc_sctid_is_valid` (ADR-0023), and the two columns are both present or both absent,
@@ -37,6 +38,11 @@ on a new test, and a check says so. It is a foreign key to `catalogue_entry.id`,
 key, so the link survives anything that happens to the key's text. `preferred_term` is required on
 every row, so an amendment stores a copy of the entry's preferred term as it was when the
 submitter proposed the change. The copy is context for a reviewer, never a proposed rename.
+
+**A new test records the entry its approval created (FR-28).** `created_entry_id` is null until an
+Administrator approves, and only a new test may set it, because an amendment already names its entry
+in `entry_id`. A unique index keeps one entry to one submission. It is the only content column the
+app role may update, and only through `nptc.submissions.approval`.
 
 **`organisation` is the submitter's own copy** of the profile value, pre-filled and editable.
 Closing an account clears the profile (NFR-17); the copy stays, and the audit policy withholds it
@@ -135,6 +141,8 @@ _NEW_TEST_HAS_REFERENCE_SQL = "kind <> 'new_test' OR reference_url IS NOT NULL"
 #: An amendment has an entry and a new test has none. Both sides of the `=` are plain booleans, so
 #: neither can be NULL and the check cannot pass by being unknown.
 _AMENDMENT_LINKS_ENTRY_SQL = "(kind = 'amendment') = (entry_id IS NOT NULL)"
+#: An amendment already names its entry in `entry_id`, so only a new test records one it created.
+_CREATED_ENTRY_ONLY_ON_NEW_TEST_SQL = "created_entry_id IS NULL OR kind = 'new_test'"
 _DUPLICATE_MATCHES_IS_ARRAY_SQL = "jsonb_typeof(duplicate_matches) = 'array'"
 #: A confirmation time exists exactly when there is something to confirm.
 _DUPLICATE_CONFIRMATION_COMPLETE_SQL = (
@@ -152,6 +160,7 @@ class Submission(Base):
             "kind",
             "state",
             "entry_id",
+            "created_entry_id",
             "preferred_term",
             "synonyms",
             "snomed_code",
@@ -186,6 +195,7 @@ class Submission(Base):
         CheckConstraint(_REFERENCE_CHECK_COMPLETE_SQL, name="reference_check_complete"),
         CheckConstraint(_NEW_TEST_HAS_REFERENCE_SQL, name="new_test_has_reference"),
         CheckConstraint(_AMENDMENT_LINKS_ENTRY_SQL, name="amendment_links_entry"),
+        CheckConstraint(_CREATED_ENTRY_ONLY_ON_NEW_TEST_SQL, name="created_entry_only_on_new_test"),
         CheckConstraint(_DUPLICATE_MATCHES_IS_ARRAY_SQL, name="duplicate_matches_is_array"),
         CheckConstraint(
             _DUPLICATE_CONFIRMATION_COMPLETE_SQL, name="duplicate_confirmation_complete"
@@ -193,6 +203,13 @@ class Submission(Base):
         # "A user's own submissions" (FR-42) and "newest first" are the two reads on this table.
         Index("ix_submission_submitter_id", "submitter_id"),
         Index("ix_submission_created_at", "created_at"),
+        # One entry is the product of at most one submission.
+        Index(
+            "ix_submission_created_entry_id",
+            "created_entry_id",
+            unique=True,
+            postgresql_where=text("created_entry_id IS NOT NULL"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -212,6 +229,12 @@ class Submission(Base):
         ForeignKey("catalogue_entry.id"),
         nullable=True,
         index=True,
+        active_history=True,
+    )
+    created_entry_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("catalogue_entry.id"),
+        nullable=True,
         active_history=True,
     )
     preferred_term: Mapped[str] = mapped_column(Text, nullable=False, active_history=True)

@@ -81,6 +81,7 @@ and/or `data-model.md`, so it gets no section of its own below.
 | [`0035_submission_review_states.py`](../../backend/migrations/versions/0035_submission_review_states.py) | Adds `Under review`, `Ready for approval` and `Approved` to the state checks on `submission` and `submission_transition` (see [`data-model.md`](../architecture/data-model.md#submission_transition-fr-28-nfr-08)) | See [below](#0035_submission_review_statespy) - no data step, and the downgrade refuses while a submission or a recorded transition names one of the three states |
 | [`0036_submission_working_copy.py`](../../backend/migrations/versions/0036_submission_working_copy.py) | Adds `submission_working_copy`, a reviewer's edited copy of a submission (see [`data-model.md`](../architecture/data-model.md#submission_working_copy-fr-23-nfr-08)) | See [below](#0036_submission_working_copypy) - an empty table on upgrade, and the downgrade discards every working copy |
 | [`0037_awaiting_terminology.py`](../../backend/migrations/versions/0037_awaiting_terminology.py) | Adds `Awaiting terminology` to the state checks on `submission` and `submission_transition`, and `submission_terminology_request` (see [`data-model.md`](../architecture/data-model.md#submission_terminology_request-fr-30-fr-31-nfr-08)) | See [below](#0037_awaiting_terminologypy) - an empty table on upgrade, and the downgrade refuses while a submission or a recorded transition names the state |
+| [`0038_submission_created_entry.py`](../../backend/migrations/versions/0038_submission_created_entry.py) | Adds `submission.created_entry_id`, the entry an approved new test created (see [`data-model.md`](../architecture/data-model.md#submission-fr-23-fr-27-fr-28-fr-29-nfr-08)) | See [below](#0038_submission_created_entrypy) - a nullable column on upgrade, and the downgrade discards the links but keeps the entries |
 
 ## Provisioning the app role's login
 
@@ -770,6 +771,23 @@ A submission that waited and then moved on still has such a transition, and `sub
 insert-only, so the downgrade stays refused for that database. Restore from a backup taken before the
 upgrade instead. When the downgrade does run, it drops `submission_terminology_request`, which discards
 every request; take a backup first if any have been made.
+
+## `0038_submission_created_entry.py`
+
+Adds the nullable column `submission.created_entry_id`, a foreign key to `catalogue_entry`, with a
+check that only a new test may set it and a partial unique index that lets one entry come from at most
+one submission (FR-28, FR-29, NFR-08). No approval exists at revision 0037, so every stored row is null,
+the checks hold without a backfill and the upgrade is instant. The API at this revision serves `POST
+/api/v1/submissions/{id}/approve`, which needs `submission.transition.approve` and so the
+Administrator's MFA step-up, and `GET /api/v1/submissions` and `GET /api/v1/submissions/{id}` return
+`created_entry_business_key`.
+
+The grants gain one column. The app role may update `state`, `updated_at`, `row_version` and
+`created_entry_id` on `submission`, and still no content column. The grant is its own statement in the
+migration because the one in revision 0027 runs before the column exists.
+
+The downgrade drops the column, which discards the link from each approved new test to its entry. The
+entries stay, and so do the transition rows. Take a backup first if any submission has been approved.
 
 ## Testcontainers and Docker
 

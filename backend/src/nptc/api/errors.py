@@ -123,6 +123,8 @@ from nptc.settings import AuthSettings
 from nptc.submissions.duplicates import DuplicateMatch, MatchedOn, MatchSource
 from nptc.submissions.errors import (
     AmendmentEntryNotActiveError,
+    AmendmentNoLongerApplicableCause,
+    AmendmentNoLongerApplicableError,
     AmendmentRefusal,
     AmendmentRefusedError,
     ClosedSubmissionInterestError,
@@ -558,8 +560,9 @@ _DETAIL_EXPECTED_RELEASE_BEFORE_RAISED = (
 )
 _DETAIL_TRANSITION_NEEDS_OWN_ROUTE = (
     "This change needs more than a reason, so it has its own route. Use "
-    "POST /submissions/{id}/terminology-request to wait for terminology, or "
-    "POST /submissions/{id}/terminology-request/attach-code to attach the code."
+    "POST /submissions/{id}/terminology-request to wait for terminology, "
+    "POST /submissions/{id}/terminology-request/attach-code to attach the code, or "
+    "POST /submissions/{id}/approve to approve the submission."
 )
 _DETAIL_TERMINOLOGY_REQUEST_NOT_OPEN = (
     "The terminology request can be changed only while the submission is Awaiting terminology."
@@ -770,6 +773,23 @@ _DETAIL_AMENDMENT_ENTRY_NOT_ACTIVE: Final[dict[CatalogueEntryStatus, str]] = {
     ),
     CatalogueEntryStatus.WITHDRAWN: (
         "This entry is withdrawn, so it cannot be amended. Only an active entry can be."
+    ),
+}
+#: FR-29. An approval that finds the entry changed since the amendment was proposed. Names the cause,
+#: because the Administrator's next step differs: edit the working copy, or reject the submission.
+_DETAIL_AMENDMENT_NO_LONGER_APPLICABLE: Final[dict[AmendmentNoLongerApplicableCause, str]] = {
+    AmendmentNoLongerApplicableCause.SYNONYM_EXISTS: (
+        "The entry already has a synonym this amendment proposes, so it cannot be approved as it "
+        "stands. Reject the submission, or, if it proposes anything else, edit it to remove that "
+        "synonym."
+    ),
+    AmendmentNoLongerApplicableCause.CODE_ALREADY_ACTIVE: (
+        "The entry already carries the code this amendment proposes, so it cannot be approved as it "
+        "stands. Reject the submission, or edit it to propose a different code."
+    ),
+    AmendmentNoLongerApplicableCause.CODE_CHANGED: (
+        "The entry's code changed after this amendment was proposed, so approving it would replace "
+        "a code the submitter never saw. Reject the submission and ask for a new amendment."
     ),
 }
 _DETAIL_LOCAL_CODE_SYSTEM_ALREADY_DEPRECATED = "This local code system is already deprecated."
@@ -1413,6 +1433,16 @@ def register_exception_handlers(app: FastAPI, auth_settings: AuthSettings) -> No
         return JSONResponse(
             status_code=exc.http_status,
             content={"detail": _DETAIL_AMENDMENT_ENTRY_NOT_ACTIVE[exc.status]},
+        )
+
+    @app.exception_handler(AmendmentNoLongerApplicableError)
+    async def _handle_amendment_no_longer_applicable(
+        _request: Request, exc: AmendmentNoLongerApplicableError
+    ) -> JSONResponse:
+        _logger.info("approval refused, amendment no longer applies: %s", exc.cause.value)
+        return JSONResponse(
+            status_code=exc.http_status,
+            content={"detail": _DETAIL_AMENDMENT_NO_LONGER_APPLICABLE[exc.cause]},
         )
 
     @app.exception_handler(FreeTextRefusedError)

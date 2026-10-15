@@ -68,5 +68,6 @@ Nothing you typed is lost.
 The page shows **Your change was proposed**. A reviewer will look at it. Choose **Back to the
 entry** or **Back to the catalogue**.
 
-There is no page yet for following a proposal through review, and an approved change is not
-applied to the entry on this screen.
+There is no page yet for following a proposal through review. When an Administrator approves the
+change, the platform adds your synonyms to the entry and binds your code to it, and the entry's
+history records the approval. This screen does not show that.

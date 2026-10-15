@@ -1,8 +1,8 @@
 """`POST /api/v1/submissions/{id}/transitions` (FR-28, FR-44, FR-63, FR-81, NFR-08, NFR-45).
 
 The real app over a stub identity provider (`api_app_support`). Submissions are inserted directly,
-because `Approved` has no way in yet. `backend/tests` shares one Postgres container, so every
-assertion is scoped to rows this test created: transition rows are found by submission, and audit
+so a test can start a submission in any state. Approval has its own file. `backend/tests` shares
+one Postgres container, so every assertion is scoped to rows this test created: transition rows are found by submission, and audit
 events by the submission they describe. Every refusal asserts that nothing was written.
 """
 
@@ -421,7 +421,6 @@ def test_a_reviewer_who_has_not_accepted_the_current_terms_is_refused(api: ApiTe
         ("Under review", "Rejected"),
         ("Ready for approval", "Under review"),
         ("Triage", "Approved"),
-        ("Ready for approval", "Approved"),
         ("Published in release", "Triage"),
         ("Withdrawn", "Triage"),
     ],

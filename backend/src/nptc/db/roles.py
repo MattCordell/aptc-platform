@@ -312,6 +312,11 @@ GRANT_SUBMISSION_SQL = "GRANT SELECT, INSERT ON TABLE submission TO nptc_app;"
 GRANT_SUBMISSION_UPDATE_SQL = (
     "GRANT UPDATE (state, updated_at, row_version) ON TABLE submission TO nptc_app;"
 )
+#: FR-28: approving a new test records the entry it created. Separate from the grant above because
+#: that one runs in revision 0027, before the column exists.
+GRANT_SUBMISSION_CREATED_ENTRY_UPDATE_SQL = (
+    "GRANT UPDATE (created_entry_id) ON TABLE submission TO nptc_app;"
+)
 REVOKE_SUBMISSION_DELETE_SQL = "REVOKE DELETE, TRUNCATE ON TABLE submission FROM nptc_app;"
 
 #: FR-32: who registered interest, and when, is never edited or removed. Revoking sets `revoked_at`

@@ -5214,7 +5214,7 @@
             }
           },
           "409": {
-            "description": "The table has no move from the submission's current state to `to_state`, so a closed submission is refused, a second withdrawal is too, and so is any request for a state no move reaches yet, such as `Approved`. Or `expected_row_version` is not the current one, because someone else changed the submission after it was read; the body then carries `current_row_version`. A stale `expected_row_version` sent after someone else has moved the submission gets the first reason, so a client should treat both as \"reload the submission\". Nothing was changed.",
+            "description": "The table has no move from the submission's current state to `to_state`, so a closed submission is refused, a second withdrawal is too, and so is a move that has its own route, such as `Approved`, which `POST /submissions/{id}/approve` makes. Or `expected_row_version` is not the current one, because someone else changed the submission after it was read; the body then carries `current_row_version`. A stale `expected_row_version` sent after someone else has moved the submission gets the first reason, so a client should treat both as \"reload the submission\". Nothing was changed.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5682,6 +5682,134 @@
           },
           "422": {
             "description": "`reason` is blank, or carries an invisible character such as a zero-width space (`field` is `reason`). An identifier that is not a UUID, a `reason` over the size bound or a field the request should not carry fails validation before the route runs.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmissionFieldRefusalResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "An address exceeded its request budget (FR-22): an anonymous caller its anonymous budget, or a caller whose credentials the API kept rejecting its budget for rejected credentials. Wait for the number of seconds in `Retry-After`, then try again. A valid credential is never counted. The body's `bulk_artefacts` names where to fetch the whole catalogue instead.",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds until the caller's request budget is available again.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimitedResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/submissions/{submission_id}/approve": {
+      "post": {
+        "tags": [
+          "submissions"
+        ],
+        "summary": "Approve a submission and write the catalogue entry",
+        "description": "Moves a `Ready for approval` submission to `Approved`. A new test becomes an `active`\nentry, and an amendment is applied to its entry, in one transaction with the transition row\nand the audit events.",
+        "operationId": "approve_a_submission_api_v1_submissions__submission_id__approve_post",
+        "parameters": [
+          {
+            "name": "submission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Submission Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApproveResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No credential, or one that could not be verified.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller does not hold `submission.transition.approve`, which only an Administrator does, or is an Administrator who has not stepped up with MFA (the response then carries a `WWW-Authenticate` challenge), or has not accepted the current terms of use (the body then carries a `code` that says so). The current terms of use have not been accepted. The body carries `code: terms_acceptance_required`. Accept them with `POST /auth/terms/acceptance` and try again. Never carries `WWW-Authenticate`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/TermsAcceptanceRequiredResponse"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No submission has the identifier. Also returned when a property the submission carries no longer has a definition, which is a fault to report.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The submission is not `Ready for approval`. Or `expected_row_version` is not the current one, because someone else changed the submission after it was read; the body then carries `current_row_version`. Or an amendment cannot be applied: its entry is not `active`, the entry already has a synonym it proposes, or the entry already carries the code it proposes, or its code was bound after the amendment was proposed. Or a preferred term or synonym collides with another entry's (the body then carries the collision report), the proposed code is already bound to another entry, a property is deprecated, or the entry changed while the approval ran. Nothing was changed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SubmissionVersionConflictResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    }
+                  ],
+                  "title": "Response 409 Approve A Submission Api V1 Submissions  Submission Id  Approve Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`reason` is blank or carries an invisible character (`field` is `reason`). Or `reason` is not a meaningful changelog note: shorter than ten characters, a stock phrase such as \"approved\", or without a letter; the body then carries a message and no `field`. Or a property value in the submission fails its datatype or cardinality rule. An identifier that is not a UUID, a `reason` over the size bound or a field the request should not carry fails validation before the route runs. Nothing was changed.",
             "content": {
               "application/json": {
                 "schema": {
@@ -8144,6 +8272,82 @@
         "title": "AmendTarget",
         "description": "Which storage home an amendment's `term` means (see the module docstring)."
       },
+      "ApproveRequest": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Reason"
+          },
+          "expected_row_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Row Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reason",
+          "expected_row_version"
+        ],
+        "title": "ApproveRequest",
+        "description": "`reason` is required. It is kept with the transition and is the changelog note of every\ncatalogue write the approval makes (FR-37). `expected_row_version` is the `row_version` the\ncaller read on the submission, so an approval never lands on a submission that changed after\nthe caller looked at it."
+      },
+      "ApproveResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
+          "available_transitions": {
+            "items": {
+              "$ref": "#/components/schemas/SubmissionState"
+            },
+            "type": "array",
+            "title": "Available Transitions"
+          },
+          "entry_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Entry Id"
+          },
+          "business_key": {
+            "type": "string",
+            "title": "Business Key"
+          },
+          "entry_created": {
+            "type": "boolean",
+            "title": "Entry Created"
+          },
+          "entry_row_version": {
+            "type": "integer",
+            "title": "Entry Row Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "state",
+          "row_version",
+          "available_transitions",
+          "entry_id",
+          "business_key",
+          "entry_created",
+          "entry_row_version"
+        ],
+        "title": "ApproveResponse",
+        "description": "Where the submission now stands, with the entry the approval created or amended.\n`entry_created` is true for a new test and false for an amendment. `entry_row_version` is the\n`row_version` to send with the next change to the entry."
+      },
       "AttachCodeRequest": {
         "properties": {
           "snomed_code": {
@@ -9059,6 +9263,17 @@
             ],
             "title": "Entry Business Key"
           },
+          "created_entry_business_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created Entry Business Key"
+          },
           "preferred_term": {
             "type": "string",
             "title": "Preferred Term"
@@ -9130,6 +9345,7 @@
           "kind",
           "state",
           "entry_business_key",
+          "created_entry_business_key",
           "preferred_term",
           "snomed_code",
           "snomed_fsn",
@@ -9198,6 +9414,17 @@
               }
             ],
             "title": "Entry Business Key"
+          },
+          "created_entry_business_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created Entry Business Key"
           },
           "preferred_term": {
             "type": "string",
@@ -9270,6 +9497,7 @@
           "kind",
           "state",
           "entry_business_key",
+          "created_entry_business_key",
           "preferred_term",
           "snomed_code",
           "snomed_fsn",
@@ -10444,6 +10672,17 @@
             ],
             "title": "Entry Business Key"
           },
+          "created_entry_business_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created Entry Business Key"
+          },
           "preferred_term": {
             "type": "string",
             "title": "Preferred Term"
@@ -10616,6 +10855,7 @@
           "kind",
           "state",
           "entry_business_key",
+          "created_entry_business_key",
           "preferred_term",
           "snomed_code",
           "snomed_fsn",
@@ -10664,6 +10904,17 @@
               }
             ],
             "title": "Entry Business Key"
+          },
+          "created_entry_business_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created Entry Business Key"
           },
           "preferred_term": {
             "type": "string",
@@ -10817,6 +11068,7 @@
           "kind",
           "state",
           "entry_business_key",
+          "created_entry_business_key",
           "preferred_term",
           "snomed_code",
           "snomed_fsn",
@@ -10893,6 +11145,17 @@
             ],
             "title": "Entry Business Key"
           },
+          "created_entry_business_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created Entry Business Key"
+          },
           "preferred_term": {
             "type": "string",
             "title": "Preferred Term"
@@ -10960,6 +11223,7 @@
           "kind",
           "state",
           "entry_business_key",
+          "created_entry_business_key",
           "preferred_term",
           "snomed_code",
           "snomed_fsn",
@@ -12072,6 +12336,17 @@
             ],
             "title": "Entry Business Key"
           },
+          "created_entry_business_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created Entry Business Key"
+          },
           "preferred_term": {
             "type": "string",
             "title": "Preferred Term"
@@ -12244,6 +12519,7 @@
           "kind",
           "state",
           "entry_business_key",
+          "created_entry_business_key",
           "preferred_term",
           "snomed_code",
           "snomed_fsn",
@@ -12542,6 +12818,17 @@
             ],
             "title": "Entry Business Key"
           },
+          "created_entry_business_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created Entry Business Key"
+          },
           "preferred_term": {
             "type": "string",
             "title": "Preferred Term"
@@ -12694,6 +12981,7 @@
           "kind",
           "state",
           "entry_business_key",
+          "created_entry_business_key",
           "preferred_term",
           "snomed_code",
           "snomed_fsn",
@@ -13076,6 +13364,17 @@
             ],
             "title": "Entry Business Key"
           },
+          "created_entry_business_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created Entry Business Key"
+          },
           "preferred_term": {
             "type": "string",
             "title": "Preferred Term"
@@ -13143,6 +13442,7 @@
           "kind",
           "state",
           "entry_business_key",
+          "created_entry_business_key",
           "preferred_term",
           "snomed_code",
           "snomed_fsn",

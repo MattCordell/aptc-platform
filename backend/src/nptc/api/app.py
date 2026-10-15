@@ -34,6 +34,7 @@ from nptc.api.routers import (
     catalogue_properties,
     comments,
     registry,
+    submission_approval,
     submission_interest,
     submission_terminology_request,
     submission_transitions,
@@ -168,6 +169,9 @@ def create_app(
     app.include_router(submission_interest.router, prefix=API_PREFIX)
     # A submitter withdraws their own submission (FR-28). Gated on submission.withdraw.own.
     app.include_router(submission_transitions.router, prefix=API_PREFIX)
+    # An Administrator approves a submission and writes the catalogue entry (FR-28, FR-29, FR-35).
+    # Gated on submission.transition.approve, which only the Administrator holds.
+    app.include_router(submission_approval.router, prefix=API_PREFIX)
     # A reviewer edits a copy of a submission, never the submission itself (FR-23). Gated on
     # submission.transition.review, which only Reviewer and Administrator hold.
     app.include_router(submission_working_copy.router, prefix=API_PREFIX)

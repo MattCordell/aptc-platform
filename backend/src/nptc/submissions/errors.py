@@ -13,6 +13,8 @@ from nptc.terminology.errors import TerminologyUnavailableError, TerminologyUpst
 
 __all__ = [
     "AmendmentEntryNotActiveError",
+    "AmendmentNoLongerApplicableCause",
+    "AmendmentNoLongerApplicableError",
     "AmendmentRefusal",
     "AmendmentRefusedError",
     "ClosedSubmissionInterestError",
@@ -123,6 +125,31 @@ class AmendmentEntryNotActiveError(Exception):
     def __init__(self, status: CatalogueEntryStatus) -> None:
         self.status = status
         super().__init__(f"amendment refused, entry is {status.value}")
+
+
+class AmendmentNoLongerApplicableCause(StrEnum):
+    """Why an approved amendment can no longer be applied to its entry. A fixed set, so the API can
+    name the reason without echoing anything the caller typed."""
+
+    #: A synonym the amendment proposes is already an active designation of the entry.
+    SYNONYM_EXISTS = "synonym-exists"
+    #: The code the amendment proposes is already the entry's active code.
+    CODE_ALREADY_ACTIVE = "code-already-active"
+    #: The entry's active code was bound after the amendment was proposed, so approving would retire
+    #: a code the submitter never saw.
+    CODE_CHANGED = "code-changed"
+
+
+class AmendmentNoLongerApplicableError(Exception):
+    """The entry changed after the amendment was proposed, so applying it now would change nothing
+    or duplicate what the entry has (FR-29, FR-35). The cause is carried so the response can name
+    it; the message holds no caller text."""
+
+    http_status: ClassVar[int] = 409
+
+    def __init__(self, cause: AmendmentNoLongerApplicableCause) -> None:
+        self.cause = cause
+        super().__init__(f"approval refused, amendment no longer applies: {cause.value}")
 
 
 class AmendmentRefusal(StrEnum):

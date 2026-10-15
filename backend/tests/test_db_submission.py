@@ -323,6 +323,23 @@ _REFUSED_STATEMENTS = {
 }
 
 
+@pytest.mark.req("FR-28")
+@pytest.mark.integration
+def test_app_role_can_record_the_entry_an_approved_new_test_created(app_db: Connection) -> None:
+    submission_id = _insert_submission(app_db, _insert_user(app_db))
+    entry_id = _insert_entry(app_db)
+
+    app_db.execute(
+        text("UPDATE submission SET created_entry_id = :entry_id WHERE id = :id"),
+        {"entry_id": entry_id, "id": submission_id},
+    )
+
+    recorded = app_db.execute(
+        text("SELECT created_entry_id FROM submission WHERE id = :id"), {"id": submission_id}
+    ).scalar_one()
+    assert recorded == entry_id
+
+
 @pytest.mark.req("FR-23")
 @pytest.mark.integration
 @pytest.mark.parametrize("statement", _REFUSED_STATEMENTS.values(), ids=_REFUSED_STATEMENTS.keys())
@@ -347,6 +364,7 @@ def test_the_audit_policy_withholds_the_organisation_and_records_the_rest() -> N
             "kind",
             "state",
             "entry_id",
+            "created_entry_id",
             "preferred_term",
             "synonyms",
             "snomed_code",

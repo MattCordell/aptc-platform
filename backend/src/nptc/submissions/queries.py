@@ -40,7 +40,7 @@ from datetime import datetime
 from typing import Final
 
 from sqlalchemy import Select, select, tuple_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from nptc.auth.identity import UserRef
 from nptc.db.models.catalogue_entry import CatalogueEntry
@@ -72,6 +72,7 @@ class SubmissionRecord:
 
     submission: Submission
     entry_business_key: str | None
+    created_entry_business_key: str | None
     submitter: UserRef
     is_own: bool
 
@@ -118,17 +119,20 @@ def _decode_cursor(cursor: str) -> tuple[datetime, uuid.UUID]:
     return created_at, submission_id
 
 
-def _joined() -> Select[Submission, str, User]:
+def _joined() -> Select[Submission, str, str, User]:
+    created_entry = aliased(CatalogueEntry)
     return (
-        select(Submission, CatalogueEntry.business_key, User)
+        select(Submission, CatalogueEntry.business_key, created_entry.business_key, User)
         .join(User, User.id == Submission.submitter_id)
         .outerjoin(CatalogueEntry, CatalogueEntry.id == Submission.entry_id)
+        .outerjoin(created_entry, created_entry.id == Submission.created_entry_id)
     )
 
 
 def _record(
     submission: Submission,
     entry_business_key: str | None,
+    created_entry_business_key: str | None,
     user: User,
     *,
     viewer_id: uuid.UUID | None,
@@ -136,6 +140,7 @@ def _record(
     return SubmissionRecord(
         submission=submission,
         entry_business_key=entry_business_key,
+        created_entry_business_key=created_entry_business_key,
         submitter=UserRef.from_user(user),
         is_own=viewer_id is not None and submission.submitter_id == viewer_id,
     )

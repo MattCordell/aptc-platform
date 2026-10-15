@@ -349,6 +349,23 @@ the attach writes it. The events are `submission.terminology_requested`,
 `submission.terminology_attached` and `submission.review_resumed`, and the audit log is
 Administrator-only.
 
+## Approval (FR-28, FR-29, FR-35)
+
+| Route | Needs | Who holds it |
+|---|---|---|
+| `POST /api/v1/submissions/{id}/approve` | `submission.transition.approve` | Administrator, with the MFA step-up |
+
+Approval moves a `Ready for approval` submission to `Approved` and writes or amends the catalogue
+entry in the same transaction. Only an Administrator holds the permission, because the move changes
+published content. The gate runs before the submission is looked up, so a Reviewer, a Member and an
+Observer are refused with a 403 and nothing is read or written. The service judges the move again
+under the lock and never reads a role name (FR-44). The general `POST
+/api/v1/submissions/{id}/transitions` route refuses the move with a 409 once it has judged the
+caller, so a caller without the permission still gets a 403 first. A submitter has no route to
+approve their own submission, whatever their role, unless they hold the permission themselves.
+
+The event is `submission.approved`, and the audit log is Administrator-only.
+
 ## FR-80 and FR-81: provable without a single endpoint
 
 Both are worded per-endpoint. Since issue #41 `backend/src/nptc/api/` serves one real

@@ -937,6 +937,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/submissions/{submission_id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve a submission and write the catalogue entry
+         * @description Moves a `Ready for approval` submission to `Approved`. A new test becomes an `active`
+         *     entry, and an amendment is applied to its entry, in one transaction with the transition row
+         *     and the audit events.
+         */
+        post: operations["approve_a_submission_api_v1_submissions__submission_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/submissions/{submission_id}/working-copy": {
         parameters: {
             query?: never;
@@ -1470,6 +1492,49 @@ export interface components {
          */
         AmendTarget: "preferred_term" | "synonym";
         /**
+         * ApproveRequest
+         * @description `reason` is required. It is kept with the transition and is the changelog note of every
+         *     catalogue write the approval makes (FR-37). `expected_row_version` is the `row_version` the
+         *     caller read on the submission, so an approval never lands on a submission that changed after
+         *     the caller looked at it.
+         */
+        ApproveRequest: {
+            /** Reason */
+            reason: string;
+            /** Expected Row Version */
+            expected_row_version: number;
+        };
+        /**
+         * ApproveResponse
+         * @description Where the submission now stands, with the entry the approval created or amended.
+         *     `entry_created` is true for a new test and false for an amendment. `entry_row_version` is the
+         *     `row_version` to send with the next change to the entry.
+         */
+        ApproveResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** State */
+            state: string;
+            /** Row Version */
+            row_version: number;
+            /** Available Transitions */
+            available_transitions: components["schemas"]["SubmissionState"][];
+            /**
+             * Entry Id
+             * Format: uuid
+             */
+            entry_id: string;
+            /** Business Key */
+            business_key: string;
+            /** Entry Created */
+            entry_created: boolean;
+            /** Entry Row Version */
+            entry_row_version: number;
+        };
+        /**
          * AttachCodeRequest
          * @description The body of `POST /submissions/{id}/terminology-request/attach-code`.
          *
@@ -1970,6 +2035,8 @@ export interface components {
             state: string;
             /** Entry Business Key */
             entry_business_key: string | null;
+            /** Created Entry Business Key */
+            created_entry_business_key: string | null;
             /** Preferred Term */
             preferred_term: string;
             /** Snomed Code */
@@ -2022,6 +2089,8 @@ export interface components {
             state: string;
             /** Entry Business Key */
             entry_business_key: string | null;
+            /** Created Entry Business Key */
+            created_entry_business_key: string | null;
             /** Preferred Term */
             preferred_term: string;
             /** Snomed Code */
@@ -2649,6 +2718,8 @@ export interface components {
             state: string;
             /** Entry Business Key */
             entry_business_key: string | null;
+            /** Created Entry Business Key */
+            created_entry_business_key: string | null;
             /** Preferred Term */
             preferred_term: string;
             /** Snomed Code */
@@ -2707,6 +2778,8 @@ export interface components {
             state: string;
             /** Entry Business Key */
             entry_business_key: string | null;
+            /** Created Entry Business Key */
+            created_entry_business_key: string | null;
             /** Preferred Term */
             preferred_term: string;
             /** Snomed Code */
@@ -2773,6 +2846,8 @@ export interface components {
             state: string;
             /** Entry Business Key */
             entry_business_key: string | null;
+            /** Created Entry Business Key */
+            created_entry_business_key: string | null;
             /** Preferred Term */
             preferred_term: string;
             /** Snomed Code */
@@ -3349,6 +3424,8 @@ export interface components {
             state: string;
             /** Entry Business Key */
             entry_business_key: string | null;
+            /** Created Entry Business Key */
+            created_entry_business_key: string | null;
             /** Preferred Term */
             preferred_term: string;
             /** Snomed Code */
@@ -3553,6 +3630,8 @@ export interface components {
             state: string;
             /** Entry Business Key */
             entry_business_key: string | null;
+            /** Created Entry Business Key */
+            created_entry_business_key: string | null;
             /** Preferred Term */
             preferred_term: string;
             /** Snomed Code */
@@ -3739,6 +3818,8 @@ export interface components {
             state: string;
             /** Entry Business Key */
             entry_business_key: string | null;
+            /** Created Entry Business Key */
+            created_entry_business_key: string | null;
             /** Preferred Term */
             preferred_term: string;
             /** Snomed Code */
@@ -7449,7 +7530,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description The table has no move from the submission's current state to `to_state`, so a closed submission is refused, a second withdrawal is too, and so is any request for a state no move reaches yet, such as `Approved`. Or `expected_row_version` is not the current one, because someone else changed the submission after it was read; the body then carries `current_row_version`. A stale `expected_row_version` sent after someone else has moved the submission gets the first reason, so a client should treat both as "reload the submission". Nothing was changed. */
+            /** @description The table has no move from the submission's current state to `to_state`, so a closed submission is refused, a second withdrawal is too, and so is a move that has its own route, such as `Approved`, which `POST /submissions/{id}/approve` makes. Or `expected_row_version` is not the current one, because someone else changed the submission after it was read; the body then carries `current_row_version`. A stale `expected_row_version` sent after someone else has moved the submission gets the first reason, so a client should treat both as "reload the submission". Nothing was changed. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -7766,6 +7847,88 @@ export interface operations {
                 };
             };
             /** @description `reason` is blank, or carries an invisible character such as a zero-width space (`field` is `reason`). An identifier that is not a UUID, a `reason` over the size bound or a field the request should not carry fails validation before the route runs. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionFieldRefusalResponse"];
+                };
+            };
+            /** @description An address exceeded its request budget (FR-22): an anonymous caller its anonymous budget, or a caller whose credentials the API kept rejecting its budget for rejected credentials. Wait for the number of seconds in `Retry-After`, then try again. A valid credential is never counted. The body's `bulk_artefacts` names where to fetch the whole catalogue instead. */
+            429: {
+                headers: {
+                    /** @description Whole seconds until the caller's request budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateLimitedResponse"];
+                };
+            };
+        };
+    };
+    approve_a_submission_api_v1_submissions__submission_id__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApproveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApproveResponse"];
+                };
+            };
+            /** @description No credential, or one that could not be verified. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The caller does not hold `submission.transition.approve`, which only an Administrator does, or is an Administrator who has not stepped up with MFA (the response then carries a `WWW-Authenticate` challenge), or has not accepted the current terms of use (the body then carries a `code` that says so). The current terms of use have not been accepted. The body carries `code: terms_acceptance_required`. Accept them with `POST /auth/terms/acceptance` and try again. Never carries `WWW-Authenticate`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"] | components["schemas"]["TermsAcceptanceRequiredResponse"];
+                };
+            };
+            /** @description No submission has the identifier. Also returned when a property the submission carries no longer has a definition, which is a fault to report. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The submission is not `Ready for approval`. Or `expected_row_version` is not the current one, because someone else changed the submission after it was read; the body then carries `current_row_version`. Or an amendment cannot be applied: its entry is not `active`, the entry already has a synonym it proposes, or the entry already carries the code it proposes, or its code was bound after the amendment was proposed. Or a preferred term or synonym collides with another entry's (the body then carries the collision report), the proposed code is already bound to another entry, a property is deprecated, or the entry changed while the approval ran. Nothing was changed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionVersionConflictResponse"] | components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `reason` is blank or carries an invisible character (`field` is `reason`). Or `reason` is not a meaningful changelog note: shorter than ten characters, a stock phrase such as "approved", or without a letter; the body then carries a message and no `field`. Or a property value in the submission fails its datatype or cardinality rule. An identifier that is not a UUID, a `reason` over the size bound or a field the request should not carry fails validation before the route runs. Nothing was changed. */
             422: {
                 headers: {
                     [name: string]: unknown;
