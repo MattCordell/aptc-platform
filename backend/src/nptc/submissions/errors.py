@@ -74,6 +74,7 @@ class FreeTextField(StrEnum):
     NOTES = "notes"
     ORGANISATION = "organisation"
     REASON = "reason"
+    COMMENT = "body"
 
 
 class FreeTextRefusedError(ValueError):

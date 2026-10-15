@@ -99,6 +99,11 @@ from nptc.catalogue.property_value_sources import (
 from nptc.catalogue.property_values import PropertyDefinitionNotFoundError, PropertyValidationError
 from nptc.catalogue.search import EmptySearchQueryError, MalformedSearchCursorError
 from nptc.catalogue.term_hygiene import TermCleaningError
+from nptc.comments.errors import (
+    CommentAlreadyWithdrawnError,
+    CommentNotFoundError,
+    CommentTextRequiredError,
+)
 from nptc.db.models.catalogue_entry import CatalogueEntryStatus
 from nptc.exports.semantic_tag import EmptyDisplayTermError, NotAServedFSNError
 from nptc.registry.definitions import (
@@ -343,7 +348,14 @@ class PropertyValidationResponse(BaseModel):
 
 
 SubmissionField = Literal[
-    "preferred_term", "synonyms", "snomed_code", "reference_url", "notes", "organisation", "reason"
+    "preferred_term",
+    "synonyms",
+    "snomed_code",
+    "reference_url",
+    "notes",
+    "organisation",
+    "reason",
+    "body",
 ]
 
 
@@ -477,7 +489,18 @@ _DETAIL_FREE_TEXT_REFUSED: Final[dict[FreeTextField, str]] = {
         "The reason contains an invisible character, such as a zero-width space or a "
         "text-direction override. Remove it and send the request again."
     ),
+    FreeTextField.COMMENT: (
+        "The comment contains an invisible character, such as a zero-width space or a "
+        "text-direction override. Remove it and send the request again."
+    ),
 }
+#: Blank once cleaned, by field. Only the two fields a comment carries are listed.
+_DETAIL_COMMENT_TEXT_REQUIRED: Final[dict[FreeTextField, str]] = {
+    FreeTextField.COMMENT: "A comment cannot be empty. Write the comment and send it again.",
+    FreeTextField.REASON: "A reason is required. Say why you are withdrawing the comment.",
+}
+_DETAIL_COMMENT_NOT_FOUND = "No comment was found for the given identifier."
+_DETAIL_COMMENT_ALREADY_WITHDRAWN = "This comment has already been withdrawn."
 _DETAIL_TRANSITION_REASON_REQUIRED = (
     "A reason is required. Say why you are changing the submission."
 )
@@ -838,6 +861,10 @@ _REFUSALS: Final[dict[type[Exception], _Refusal]] = {
     EntryNotFoundError: _Refusal(_DETAIL_NOT_FOUND, "entry not found: %s"),
     CodeLookupNotFoundError: _Refusal(_DETAIL_CODE_LOOKUP_NOT_FOUND, "code lookup not found: %s"),
     SubmissionNotFoundError: _Refusal(_DETAIL_SUBMISSION_NOT_FOUND, "submission not found: %s"),
+    CommentNotFoundError: _Refusal(_DETAIL_COMMENT_NOT_FOUND, "comment not found: %s", _name),
+    CommentAlreadyWithdrawnError: _Refusal(
+        _DETAIL_COMMENT_ALREADY_WITHDRAWN, "comment withdrawal refused, already withdrawn: %s"
+    ),
     MalformedSubmissionCursorError: _Refusal(
         _DETAIL_SUBMISSION_CURSOR, "submission cursor refused: %s", _name
     ),
@@ -1232,6 +1259,15 @@ def register_exception_handlers(app: FastAPI, auth_settings: AuthSettings) -> No
     ) -> JSONResponse:
         _logger.info("transition reason refused: blank")
         return _field_refusal(exc.http_status, _DETAIL_TRANSITION_REASON_REQUIRED, "reason")
+
+    @app.exception_handler(CommentTextRequiredError)
+    async def _handle_comment_text_required(
+        _request: Request, exc: CommentTextRequiredError
+    ) -> JSONResponse:
+        _logger.info("comment text refused: %s is blank", exc.field.value)
+        return _field_refusal(
+            exc.http_status, _DETAIL_COMMENT_TEXT_REQUIRED[exc.field], exc.field.value
+        )
 
     @app.exception_handler(SubmissionVersionConflictError)
     async def _handle_submission_version_conflict(
