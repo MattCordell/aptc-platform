@@ -405,18 +405,22 @@ def test_a_read_writes_no_transition_and_no_audit_event(api: ApiTestApp) -> None
 def test_the_history_costs_the_same_statements_however_many_rows_it_has(
     api: ApiTestApp, app_db: Connection, capture_statements: Any
 ) -> None:
+    """Every statement the request runs is counted, not only those that name `submission_transition`:
+    a per-row lookup of the actor would query `app_user` alone and slip past that filter. Each row
+    has its own actor, so such a lookup would add a statement for every row."""
     token, _ = _sign_in(api, Role.REVIEWER)
     _, submitter = _sign_in(api, Role.MEMBER)
     submission = _submission(api, submitter, state=SubmissionState.SUBMITTED.value)
+    assert _history(api, token, submission.id).status_code == 200
 
-    def reads() -> int:
-        with capture_statements(
-            app_db, lambda statement, _: "submission_transition" in statement
-        ) as seen:
+    def statements() -> tuple[int, int]:
+        """The statements the whole request runs, and those that read the transition table."""
+        with capture_statements(app_db) as seen:
             assert _history(api, token, submission.id).status_code == 200
-        return len(seen)
+        return len(seen), sum("FROM submission_transition" in statement for statement in seen)
 
     base = datetime.now(UTC).replace(microsecond=0)
+    counts: list[tuple[int, int]] = []
     for step, (before, after) in enumerate(
         [("Submitted", "Triage"), ("Triage", "Submitted"), ("Submitted", "Triage")]
     ):
@@ -429,11 +433,10 @@ def test_the_history_costs_the_same_statements_however_many_rows_it_has(
             to_state=after,
             created_at=base + timedelta(minutes=step),
         )
-        if step == 0:
-            one_row = reads()
-    three_rows = reads()
+        counts.append(statements())
 
-    assert one_row == three_rows == 1
+    assert counts[0] == counts[1] == counts[2]
+    assert counts[0][1] == 1
 
 
 # --- who may read (FR-44) ------------------------------------------------------------------
