@@ -201,7 +201,7 @@ def test_a_caller_can_ask_for_closed_states_by_name(api: ApiTestApp) -> None:
 def test_an_unknown_state_is_a_422(api: ApiTestApp) -> None:
     token, _ = _sign_in(api, Role.MEMBER)
 
-    response = api.get(_PATH, token=token, params={"state": "Approved"})
+    response = api.get(_PATH, token=token, params={"state": "Awaiting terminology"})
 
     assert response.status_code == 422
 

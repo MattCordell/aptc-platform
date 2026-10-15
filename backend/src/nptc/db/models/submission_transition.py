@@ -31,10 +31,12 @@ __all__ = ["SubmissionTransition"]
 #: built from runtime data. They repeat the state check on `submission`, so a row can never record a
 #: state the submission itself could not hold.
 _FROM_STATE_CHECK_SQL = (
-    "from_state IN ('Submitted','Triage','Published in release','Rejected','Withdrawn')"
+    "from_state IN ('Submitted','Triage','Under review','Ready for approval','Approved',"
+    "'Published in release','Rejected','Withdrawn')"
 )
 _TO_STATE_CHECK_SQL = (
-    "to_state IN ('Submitted','Triage','Published in release','Rejected','Withdrawn')"
+    "to_state IN ('Submitted','Triage','Under review','Ready for approval','Approved',"
+    "'Published in release','Rejected','Withdrawn')"
 )
 _STATES_DIFFER_SQL = "from_state <> to_state"
 _REASON_NOT_BLANK_SQL = "length(btrim(reason)) > 0"
