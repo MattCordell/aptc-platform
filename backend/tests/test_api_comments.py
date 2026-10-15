@@ -21,6 +21,8 @@ from sqlalchemy import select
 from sqlalchemy.engine import Connection
 
 from nptc.api.terms_gate import TERMS_ACCEPTANCE_REQUIRED_CODE
+from nptc.audit.writer import AuditContext
+from nptc.auth.identity import close_account
 from nptc.auth.permissions import Role
 from nptc.db.models.audit import AuditEvent
 from nptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
@@ -493,6 +495,31 @@ def test_no_response_carries_a_user_id(api: ApiTestApp) -> None:
 
     for response in (created, withdrawn, listed):
         assert str(author.id) not in response.text
+
+
+@pytest.mark.req("FR-95")
+@pytest.mark.req("NFR-17")
+@pytest.mark.integration
+@pytest.mark.parametrize("kind", _KINDS)
+def test_a_closed_account_keeps_its_comments_under_the_placeholder(
+    api: ApiTestApp, kind: str
+) -> None:
+    path = _target(api, kind)
+    author_token, author = _sign_in(api, Role.REVIEWER)
+    created = _post(api, author_token, path)
+    assert created.status_code == 201, created.text
+    username = author.username
+    close_account(api.session, author.id, AuditContext.system())
+    api.session.flush()
+    reader, _ = _sign_in(api, Role.REVIEWER)
+
+    response = api.get(path, token=reader)
+
+    [comment] = response.json()["comments"]
+    assert comment["body"] == _BODY
+    assert comment["author"] == {"username": "Closed account", "display_name": "Closed account"}
+    assert username is not None
+    assert username not in response.text
 
 
 # --- the audit trail (NFR-08) --------------------------------------------------------------
