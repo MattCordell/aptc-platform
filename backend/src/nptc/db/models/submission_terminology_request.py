@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime
+from enum import StrEnum
 from typing import ClassVar
 
 from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, Text
@@ -35,7 +36,15 @@ from sqlalchemy.sql import func
 
 from nptc.db.base import Base
 
-__all__ = ["SubmissionTerminologyRequest"]
+__all__ = ["SubmissionTerminologyRequest", "TargetEdition"]
+
+
+class TargetEdition(StrEnum):
+    """The SNOMED CT edition a requested concept is meant for (FR-31)."""
+
+    AU = "au"
+    INT = "int"
+
 
 #: Plain literals, never built at run time: `test_sql_parameterisation.py` forbids SQL built from
 #: runtime data.

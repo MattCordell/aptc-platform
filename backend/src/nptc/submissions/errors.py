@@ -30,6 +30,9 @@ __all__ = [
     "SubmissionNotEditableError",
     "SubmissionNotFoundError",
     "SubmissionVersionConflictError",
+    "TerminologyRequestFieldRequiredError",
+    "TerminologyRequestNotOpenError",
+    "TransitionNeedsOwnRouteError",
     "TransitionReasonRequiredError",
 ]
 
@@ -77,6 +80,10 @@ class FreeTextField(StrEnum):
     ORGANISATION = "organisation"
     REASON = "reason"
     BODY = "body"
+    PROPOSED_FSN = "proposed_fsn"
+    JUSTIFICATION = "justification"
+    EXTERNAL_REFERENCE_SYSTEM = "external_reference_system"
+    EXTERNAL_REFERENCE_REF = "external_reference_ref"
 
 
 class FreeTextRefusedError(ValueError):
@@ -221,3 +228,38 @@ class EditReasonRequiredError(ValueError):
     why, as a change of state does."""
 
     http_status: ClassVar[int] = 422
+
+
+class TransitionNeedsOwnRouteError(Exception):
+    """The move is in the table, but it carries more than a reason, so the general transition route
+    cannot make it (FR-30). The states are carried so the response can name them; the message holds
+    no caller text."""
+
+    http_status: ClassVar[int] = 409
+
+    def __init__(self, from_state: str, to_state: str) -> None:
+        self.from_state = from_state
+        self.to_state = to_state
+        super().__init__(f"transition refused, {from_state} to {to_state} has its own route")
+
+
+class TerminologyRequestFieldRequiredError(ValueError):
+    """A field of the terminology request is empty once cleaned (FR-30, FR-31). `field` names it,
+    so the response says which one to fill without echoing anything the caller typed."""
+
+    http_status: ClassVar[int] = 422
+
+    def __init__(self, field: FreeTextField) -> None:
+        self.field = field
+        super().__init__(f"terminology request field is blank: {field.value}")
+
+
+class TerminologyRequestNotOpenError(Exception):
+    """The terminology request can be changed only while the submission is `Awaiting terminology`
+    (FR-30). The state is carried so the response can name it; the message holds no caller text."""
+
+    http_status: ClassVar[int] = 409
+
+    def __init__(self, state: str) -> None:
+        self.state = state
+        super().__init__(f"terminology request change refused, submission is {state}")

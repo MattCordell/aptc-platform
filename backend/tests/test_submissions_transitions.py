@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 import nptc.submissions.transitions as transitions_module
 from nptc.audit.writer import AuditContext
 from nptc.auth.errors_authorisation import MfaRequiredError, PermissionDeniedError
-from nptc.auth.permissions import Permission, Role, permissions_for_roles
+from nptc.auth.permissions import ADMINISTRATOR_ONLY, Permission, Role, permissions_for_roles
 from nptc.auth.principal import Principal
 from nptc.db.models.audit import AuditEvent
 from nptc.db.models.submission import Submission, SubmissionKind, SubmissionState
@@ -33,6 +33,7 @@ from nptc.submissions.errors import (
     IllegalSubmissionTransitionError,
     SubmissionNotFoundError,
     SubmissionVersionConflictError,
+    TransitionNeedsOwnRouteError,
     TransitionReasonRequiredError,
 )
 from nptc.submissions.transitions import (
@@ -501,8 +502,10 @@ def test_a_reviewer_is_offered_the_review_moves_and_withdrawal_only_of_their_own
     ]
     assert _available(reviewer, Role.REVIEWER, "Rejected", submitter=other) == ["Triage"]
     assert _available(reviewer, Role.REVIEWER, "Under review", submitter=other) == [
-        "Ready for approval"
+        "Ready for approval",
+        "Awaiting terminology",
     ]
+    assert _available(reviewer, Role.REVIEWER, "Awaiting terminology", submitter=other) == []
     assert _available(reviewer, Role.REVIEWER, "Approved", submitter=other) == []
     assert _available(reviewer, Role.REVIEWER, "Published in release", submitter=other) == []
 
@@ -523,6 +526,9 @@ def test_an_administrator_is_offered_withdrawal_from_every_open_and_approved_sta
         "Under review",
         "Rejected",
         "Withdrawn",
+    ]
+    assert _available(admin, Role.ADMINISTRATOR, "Awaiting terminology", submitter=other) == [
+        "Ready for approval"
     ]
     assert _available(admin, Role.ADMINISTRATOR, "Approved", submitter=other) == ["Withdrawn"]
     assert _available(admin, Role.ADMINISTRATOR, "Published in release", submitter=other) == [
@@ -557,6 +563,11 @@ def test_every_offered_move_is_one_the_service_accepts_and_no_other_is(
             _move(app_session, submission, actor, role, target.value)
         except IllegalSubmissionTransitionError, PermissionDeniedError:
             assert target not in offered
+        except TransitionNeedsOwnRouteError:
+            # Offered, and made through its own route: the general one refuses it once the caller
+            # has been judged.
+            assert target in offered
+            assert PERMITTED_TRANSITIONS[(SubmissionState(state), target)].needs_payload
         else:
             assert target in offered
         finally:
@@ -567,6 +578,7 @@ def test_every_offered_move_is_one_the_service_accepts_and_no_other_is(
 def test_the_route_gate_is_every_permission_the_table_names() -> None:
     named = {
         Permission.SUBMISSION_TRANSITION_REVIEW,
+        Permission.SUBMISSION_TRANSITION_APPROVE,
         Permission.SUBMISSION_WITHDRAW_OWN,
         Permission.SUBMISSION_WITHDRAW_ANY,
     }
@@ -633,11 +645,35 @@ def test_the_table_holds_exactly_the_moves_of_the_review_graph() -> None:
         (S.TRIAGE, S.REJECTED),
         (S.REJECTED, S.TRIAGE),
         (S.UNDER_REVIEW, S.READY_FOR_APPROVAL),
+        (S.UNDER_REVIEW, S.AWAITING_TERMINOLOGY),
+        (S.AWAITING_TERMINOLOGY, S.READY_FOR_APPROVAL),
         (S.SUBMITTED, S.WITHDRAWN),
         (S.TRIAGE, S.WITHDRAWN),
         (S.APPROVED, S.WITHDRAWN),
         (S.PUBLISHED_IN_RELEASE, S.WITHDRAWN),
     }
+
+
+@pytest.mark.req("FR-30")
+def test_only_the_two_moves_of_awaiting_terminology_need_their_own_route() -> None:
+    S = SubmissionState
+    assert {move for move, row in PERMITTED_TRANSITIONS.items() if row.needs_payload} == {
+        (S.UNDER_REVIEW, S.AWAITING_TERMINOLOGY),
+        (S.AWAITING_TERMINOLOGY, S.READY_FOR_APPROVAL),
+    }
+
+
+@pytest.mark.req("FR-30")
+@pytest.mark.req("FR-44")
+def test_only_an_administrator_permission_takes_a_submission_out_of_awaiting_terminology() -> None:
+    row = PERMITTED_TRANSITIONS[
+        (SubmissionState.AWAITING_TERMINOLOGY, SubmissionState.READY_FOR_APPROVAL)
+    ]
+
+    assert [requirement.permission for requirement in row.requirements] == [
+        Permission.SUBMISSION_TRANSITION_APPROVE
+    ]
+    assert Permission.SUBMISSION_TRANSITION_APPROVE in ADMINISTRATOR_ONLY
 
 
 @pytest.mark.req("FR-28")
