@@ -131,8 +131,9 @@ these are true:
 2. Its state is Submitted or Triage. Once a reviewer has moved it on, the platform no longer
    offers the button, because only an Administrator can withdraw it from then on.
 3. Your role may withdraw a submission. Provisional users, Members and Reviewers may. An
-   Administrator does not see this button, and no screen lets an Administrator withdraw a
-   submission yet.
+   Administrator role alone does not include this permission, so an Administrator who holds
+   no other role does not see this button. No screen lets an Administrator withdraw someone
+   else's submission yet.
 
 To withdraw:
 
