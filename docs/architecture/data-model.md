@@ -1485,7 +1485,7 @@ submission, held in [`submission_interest`](#submission_interest-fr-32-fr-34-nfr
 |---|---|---|
 | `id` | `UUID` | PK, `gen_random_uuid()` |
 | `kind` | `TEXT` | `NOT NULL`, `CHECK` in `new_test`, `amendment`. Amendments reuse the table, so they need no second one |
-| `state` | `TEXT` | `NOT NULL DEFAULT 'Submitted'`, `CHECK` in `Submitted`, `Triage`, `Under review`, `Ready for approval`, `Approved`, `Published in release`, `Rejected`, `Withdrawn`. The three closed states are the end of the workflow (FR-28). `POST /api/v1/submissions/{id}/transitions` writes the review moves and the withdrawals. No route reaches `Approved` or `Published in release` yet, so only a test stores them. `Awaiting terminology` arrives with its own move |
+| `state` | `TEXT` | `NOT NULL DEFAULT 'Submitted'`, `CHECK` in `Submitted`, `Triage`, `Under review`, `Awaiting terminology`, `Ready for approval`, `Approved`, `Published in release`, `Rejected`, `Withdrawn`. The three closed states are the end of the workflow (FR-28). `POST /api/v1/submissions/{id}/transitions` writes the review moves and the withdrawals. `POST /api/v1/submissions/{id}/terminology-request` and `POST /api/v1/submissions/{id}/terminology-request/attach-code` make the two moves of `Awaiting terminology` (FR-30). No route reaches `Approved` or `Published in release` yet, so only a test stores them |
 | `entry_id` | `UUID` | Nullable, FK to `catalogue_entry.id`, indexed. The entry an amendment proposes to change. `CHECK ((kind = 'amendment') = (entry_id IS NOT NULL))`, so an amendment has one and a new test has none (FR-35) |
 | `preferred_term` | `TEXT` | `NOT NULL`, `CHECK` not blank. Cleaned at entry like an entry's term (FR-63). On an amendment, a copy of the entry's preferred term when it was proposed |
 | `synonyms` | `JSONB` | `NOT NULL DEFAULT '[]'`, `CHECK` a JSON array. Each term is cleaned at entry. A term that folds to the same comparison key as an earlier one, or as `preferred_term`, is dropped, as `add_synonyms` drops it, so the list converts to designations without a duplicate |
@@ -1653,15 +1653,17 @@ One row for each change of a submission's `state`: who changed it, from which st
 and when. Every change goes through `nptc.submissions.transitions.transition_submission`, so the new
 `state`, this row and the audit event are written in one transaction and agree, or none exists.
 The changes are the review moves and the withdrawals in the table below. `POST
-/api/v1/submissions/{id}/transitions` makes any of them, and `POST /api/v1/submissions/{id}/withdraw`
-is the submitter's shorter way to a withdrawal.
+/api/v1/submissions/{id}/transitions` makes any of them except the two moves of `Awaiting terminology`,
+which carry more than a reason and have their own routes (see
+[`submission_terminology_request`](#submission_terminology_request-fr-30-fr-31-nfr-08)), and `POST
+/api/v1/submissions/{id}/withdraw` is the submitter's shorter way to a withdrawal.
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `UUID` | PK, `gen_random_uuid()` |
 | `submission_id` | `UUID` | `NOT NULL`, FK to `submission.id` |
-| `from_state` | `TEXT` | `NOT NULL`, `CHECK` in the eight submission states |
-| `to_state` | `TEXT` | `NOT NULL`, `CHECK` in the eight submission states. `CHECK (from_state <> to_state)`, so a row always records a change |
+| `from_state` | `TEXT` | `NOT NULL`, `CHECK` in the nine submission states |
+| `to_state` | `TEXT` | `NOT NULL`, `CHECK` in the nine submission states. `CHECK (from_state <> to_state)`, so a row always records a change |
 | `actor_id` | `UUID` | `NOT NULL`, FK to `app_user.id`. The internal id, which account closure keeps (NFR-17) |
 | `reason` | `TEXT` | `NOT NULL`, `CHECK` not blank. The actor's own text, cleaned like a note (FR-63) |
 | `created_at` | `TIMESTAMPTZ` | `NOT NULL`, `clock_timestamp()`, so two changes in one transaction still order |
@@ -1690,7 +1692,7 @@ the actor today and not at the time of the move.
 by `(from_state, to_state)`. Each row names the audit action and the ways an actor may make the move: a
 permission, and whether the actor must be the submitter. A move with no row is refused with a 409, so a
 closed submission is never reinterpreted, and a second withdrawal is refused and not repeated. A new
-state or move is a new row and not a second code path. The table holds nine moves:
+state or move is a new row and not a second code path. The table holds eleven moves:
 
 | From | To | Needs |
 |---|---|---|
@@ -1699,6 +1701,8 @@ state or move is a new row and not a second code path. The table holds nine move
 | `Triage` | `Rejected` | `submission.transition.review` |
 | `Rejected` | `Triage` (reopen) | `submission.transition.review` |
 | `Under review` | `Ready for approval` | `submission.transition.review` |
+| `Under review` | `Awaiting terminology` | `submission.transition.review`. Needs a terminology request, so it has its own route |
+| `Awaiting terminology` | `Ready for approval` | `submission.transition.approve`, which only the Administrator holds. Needs a code, so it has its own route |
 | `Submitted`, `Triage` | `Withdrawn` | `submission.withdraw.own` and the submitter, or `submission.withdraw.any` |
 | `Approved`, `Published in release` | `Withdrawn` | `submission.withdraw.any` |
 
@@ -1706,8 +1710,15 @@ A reopened submission keeps its transition rows and is never a new record. The A
 `.any` and not `.own`, so the `.any` requirement on the open-state withdrawal rows is what lets an
 Administrator withdraw a submission of their own. Only `.any` reaches `Approved` and `Published in
 release`, so the submitter's own withdrawal ends once a reviewer has accepted the proposal. No row
-enters `Approved` or `Awaiting terminology` yet, so a request for `Approved` is a 409 and one for
-`Awaiting terminology` fails validation (422).
+enters `Approved` yet, so a request for it is a 409. A submission cannot leave `Awaiting terminology`
+by withdrawal or rejection: the table has no such row, so the only way out is the attach.
+
+**A move that needs more than a reason is flagged in the table** (`PermittedTransition.needs_payload`).
+The two moves of `Awaiting terminology` are rows like any other, so the graph, the permissions and
+`available_transitions` stay in one place, but `POST /api/v1/submissions/{id}/transitions` refuses
+them with a 409 that names their routes, after it has judged the caller, so a caller without the
+permission still gets a 403. `available_transitions` still lists them, because the caller may make
+them through their own route.
 
 **The route and the detail read one table.** `POST /api/v1/submissions/{id}/transitions` takes
 `to_state`, `reason` and `expected_row_version`. Its gate turns away a caller who holds none of the
@@ -1733,8 +1744,10 @@ A stale value is a 409 that carries `current_row_version`.
 
 Each move emits one audit event on the `submission`, carrying `state` in `before` and `after` and the
 reason (NFR-08). The action names the move: `submission.triaged`, `submission.review_started`,
-`submission.rejected`, `submission.reopened`, `submission.readied_for_approval` and
-`submission.withdrawn`. The transition row is not a second event.
+`submission.rejected`, `submission.reopened`, `submission.readied_for_approval`,
+`submission.terminology_requested`, `submission.terminology_attached` and `submission.withdrawn`. The
+transition row is not a second event. `submission.terminology_attached` also carries `snomed_code` and
+`snomed_fsn`, because the move writes the code to the working copy.
 
 ## `internal_comment` (FR-95, NFR-08, NFR-23)
 
@@ -1825,10 +1838,76 @@ edit and a state transition carry the same `expected_row_version` and cannot cro
 `submission.transition.review` (Reviewer, Administrator) and leaves the key out for everyone else. The
 submitter never learns that a working copy exists (FR-23).
 
+**Editable while a submission waits for terminology (FR-30).** A reviewer may edit every field while
+the submission is `Awaiting terminology`, except the code: the code that ends the wait is the one an
+Administrator attaches, so an edit that names `snomed_code` in that state is a 422. The attach writes
+the code and its FSN to this table, creating the row from the original content if no reviewer has
+edited it.
+
 **The audit event is about the submission.** An effective edit emits one `UPDATED` event with
 `entity_type` `submission`, whose `before` and `after` hold only the changed content fields. The first
 edit is also `UPDATED`, not a `CREATED` event listing every column. An edit that changes nothing writes
 no event, does not bump `row_version` and does not create the row.
+
+## `submission_terminology_request` (FR-30, FR-31, NFR-08)
+
+The record of a request for a SNOMED CT code that does not exist yet. A Reviewer who cannot find a
+code for a proposed test moves the submission from `Under review` to `Awaiting terminology` through
+`POST /api/v1/submissions/{id}/terminology-request`, which `nptc.submissions.terminology_request`
+backs, and the record is written in the same transaction as the move. A submission never waits
+without a complete record. One row per submission: the current graph lets a submission enter the state
+once, so a second request is a 409.
+
+| Column | Type | Notes |
+|---|---|---|
+| `submission_id` | `UUID` | PK and FK to `submission.id`, so a submission has at most one request |
+| `proposed_fsn` | `TEXT` | `NOT NULL`, `CHECK` not blank. The fully specified name the reviewer asks for. Fixed once written |
+| `target_edition` | `TEXT` | `NOT NULL`, `CHECK` in `au`, `int`. The edition the concept is requested in. Fixed once written, and it does not change where the attach looks the code up |
+| `justification` | `TEXT` | `NOT NULL`, `CHECK` not blank. Cleaned like a note (FR-63). Fixed once written |
+| `external_reference_system` | `TEXT` | `NOT NULL`, `CHECK` not blank. The system that holds the concept request (FR-31). A tracking field |
+| `external_reference_ref` | `TEXT` | `NOT NULL`, `CHECK` not blank. The identifier of the request in that system. A tracking field |
+| `raised_date` | `DATE` | `NOT NULL`. When the request was raised with the terminology authority. Fixed once written |
+| `expected_release` | `DATE` | Nullable. When the code is expected, if known. A tracking field |
+| `created_at` | `TIMESTAMPTZ` | `NOT NULL`, `now()` |
+| `updated_at` | `TIMESTAMPTZ` | `NOT NULL`, the latest change to a tracking field |
+
+**The external reference is two columns, not one string** (FR-31), so a reader never parses text to find
+the system or the identifier. Both are required. No integration with a concept-request system exists
+yet, so the platform stores them and calls nothing.
+
+**What was asked for is fixed by privilege.** `nptc_app` holds `SELECT, INSERT` and a column-level
+`UPDATE` on the two `external_reference_*` columns, `expected_release` and `updated_at` only. It holds no
+`UPDATE` on the other columns, and no `DELETE` or `TRUNCATE`, so the request can be tracked while the
+submission waits and never rewritten or removed. A wrong request is a new submission or an amendment.
+
+**The tracking fields change while the submission waits.** `PATCH
+/api/v1/submissions/{id}/terminology-request` (`submission.transition.review`) replaces the external
+reference as a pair and replaces or clears the expected release. It needs the submission to be
+`Awaiting terminology`, so a record is frozen once the code is attached. A change bumps
+`submission.row_version`, so a tracking change and a move cannot cross, and an `expected_row_version`
+that is stale is a 409. A request that changes nothing writes nothing.
+
+**Attaching the code is an Administrator move.** `POST
+/api/v1/submissions/{id}/terminology-request/attach-code` needs `submission.transition.approve`, which
+only the Administrator holds, and the MFA step-up that comes with it. It looks the code up on the
+terminology server in the AU edition (FR-82), writes the code and its FSN to
+[`submission_working_copy`](#submission_working_copy-fr-23-nfr-08), moves the submission to
+`Ready for approval` and writes the transition row, in one transaction. The lookup runs before the
+append lock is taken, so `attach_terminology_code` is exempt from the lock-first rule in
+`test_lock_ordering.py` and a test pins the order instead. A code that is malformed, unknown, inactive or
+has no FSN is a 422 and the submission keeps waiting. The record stays as the history of what was asked.
+
+**Visibility.** `GET /api/v1/submissions/{id}` returns `terminology_request` to a holder of
+`submission.transition.review` (Reviewer, Administrator): the object, or null when the submission has never
+waited. Everyone else, the submitter included, gets no such key. The record carries a reviewer's
+justification and the tracking of a request with a third party, so a submitter is told the state and
+nothing more.
+
+**The audit events are about the request.** The move in appends two events: `submission.terminology_requested`
+on the `submission` (the change of state, with the reason) and `submission.terminology_request_created` on
+this table (every field it holds). A tracking change appends `submission.terminology_request_updated`,
+whose `before` and `after` hold only the changed fields. The `entity_id` of an event on this table is the
+submission's id.
 
 ## Extensions
 

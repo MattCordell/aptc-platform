@@ -46,9 +46,11 @@ the identifier to open that entry.
 Beside the main column, **Details** shows:
 
 - **Kind**: New test, or Amendment to an entry.
-- **State**: Submitted, Triage, Under review, Ready for approval, Approved, Published in
-  release, Rejected or Withdrawn. The first five are the open states. Published in release,
-  Rejected and Withdrawn are closed. The state is written out in words as well as shown in
+- **State**: Submitted, Triage, Under review, Awaiting terminology, Ready for approval,
+  Approved, Published in release, Rejected or Withdrawn. The first six are the open states.
+  Published in release, Rejected and Withdrawn are closed. Awaiting terminology means a
+  reviewer is waiting for a SNOMED CT code that does not exist yet. The reviewer's request for
+  that code is not shown to you. The state is written out in words as well as shown in
   colour.
 - **Submitted**: the date, in your own time zone.
 - **Submitter**: most people see a username. Reviewers and Administrators also see the
@@ -71,8 +73,8 @@ The **Register interest** button appears only when all three of these are true:
 1. Your role may register interest. Members, Reviewers and Administrators may. Provisional
    users and Observers may not, so they see the count but no button.
 2. The submission is not your own.
-3. The submission is open: its state is Submitted, Triage, Under review, Ready for approval
-   or Approved.
+3. The submission is open: its state is Submitted, Triage, Under review, Awaiting
+   terminology, Ready for approval or Approved.
 
 To register, choose **Register interest**. The button then reads **Withdraw interest**.
 Choose it to withdraw. The count changes at once, without reloading the page, and a screen

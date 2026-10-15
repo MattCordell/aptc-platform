@@ -27,6 +27,7 @@ const STATE_DETAILS: Record<SubmissionState, StateDetails> = {
   Submitted: { label: "Submitted", tone: "draft", open: true },
   Triage: { label: "Triage", tone: "draft", open: true },
   "Under review": { label: "Under review", tone: "draft", open: true },
+  "Awaiting terminology": { label: "Awaiting terminology", tone: "draft", open: true },
   "Ready for approval": { label: "Ready for approval", tone: "draft", open: true },
   // Approved still waits for a release (FR-29), so it stays open and keeps the default list.
   Approved: { label: "Approved", tone: "active", open: true },

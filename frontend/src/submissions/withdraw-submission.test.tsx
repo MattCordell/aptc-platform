@@ -126,6 +126,7 @@ describe("WithdrawSubmission visibility", () => {
 
   it.each([
     ["Under review"],
+    ["Awaiting terminology"],
     ["Ready for approval"],
     ["Approved"],
     ["Published in release"],

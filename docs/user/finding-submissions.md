@@ -24,12 +24,14 @@ Each view has its own address. `/submissions?mine=true` is **My submissions**.
 
 The **State** list narrows the view to one kind of submission:
 
-- **Open** shows submissions that are not yet closed: Submitted, Triage, Under review, Ready
-  for approval and Approved. An approved submission is still open because it waits for a
+- **Open** shows submissions that are not yet closed: Submitted, Triage, Under review,
+  Awaiting terminology, Ready for approval and Approved. An approved submission is still open because it waits for a
   release.
 - **All states** shows every submission, including closed ones.
-- **Submitted**, **Triage**, **Under review**, **Ready for approval**, **Approved**,
-  **Published in release**, **Rejected** or **Withdrawn** shows that state alone.
+- **Submitted**, **Triage**, **Under review**, **Awaiting terminology**,
+  **Ready for approval**, **Approved**, **Published in release**, **Rejected** or
+  **Withdrawn** shows that state alone. A submission is Awaiting terminology while a
+  reviewer waits for a SNOMED CT code that does not exist yet.
 
 **All submissions** starts on **Open**. **My submissions** starts on **All states**.
 

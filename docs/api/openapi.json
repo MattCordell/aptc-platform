@@ -4927,7 +4927,7 @@
           "submissions"
         ],
         "summary": "Show one submission",
-        "description": "One submission in any state, with the content the submitter sent. The submitter appears as\non the list: a username only, unless the caller holds `submitter_identity.view`.\n\nA caller with `submission.transition.review` also gets `working_copy`, the reviewer's edited\ncopy of that content, or null when it has not been edited. Every other caller gets no such key.",
+        "description": "One submission in any state, with the content the submitter sent. The submitter appears as\non the list: a username only, unless the caller holds `submitter_identity.view`.\n\nA caller with `submission.transition.review` also gets `working_copy`, the reviewer's edited\ncopy of that content, or null when it has not been edited, and `terminology_request`, or null\nwhen the submission has never waited for a code. Every other caller gets neither key.",
         "operationId": "get_submission_api_v1_submissions__submission_id__get",
         "parameters": [
           {
@@ -5861,6 +5861,424 @@
                     }
                   ],
                   "title": "Response 503 Edit Submission Working Copy Api V1 Submissions  Submission Id  Working Copy Patch"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "An address exceeded its request budget (FR-22): an anonymous caller its anonymous budget, or a caller whose credentials the API kept rejecting its budget for rejected credentials. Wait for the number of seconds in `Retry-After`, then try again. A valid credential is never counted. The body's `bulk_artefacts` names where to fetch the whole catalogue instead.",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds until the caller's request budget is available again.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimitedResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/submissions/{submission_id}/terminology-request": {
+      "post": {
+        "tags": [
+          "submissions"
+        ],
+        "summary": "Move a submission to Awaiting terminology",
+        "description": "Moves an `Under review` submission to `Awaiting terminology` and records what was asked for,\nin one transaction with the transition row and the audit events.",
+        "operationId": "request_submission_terminology_api_v1_submissions__submission_id__terminology_request_post",
+        "parameters": [
+          {
+            "name": "submission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Submission Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TerminologyRequestRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TerminologyRequestMoveResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No credential, or one that could not be verified.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller does not hold `submission.transition.review`, or has not accepted the current terms of use (the body then carries a `code` that says so). The current terms of use have not been accepted. The body carries `code: terms_acceptance_required`. Accept them with `POST /auth/terms/acceptance` and try again. Never carries `WWW-Authenticate`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/TermsAcceptanceRequiredResponse"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No submission has the identifier.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The submission is not `Under review`. Or `expected_row_version` is not the current one, because someone else changed the submission after it was read; the body then carries `current_row_version`. Nothing was changed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SubmissionVersionConflictResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    }
+                  ],
+                  "title": "Response 409 Request Submission Terminology Api V1 Submissions  Submission Id  Terminology Request Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A text field or the `reason` is blank, or carries an invisible character such as a zero-width space (`field` names it). An identifier that is not a UUID, a `target_edition` other than `au` or `int`, a date that is not a date, a missing field, a field over its size bound or a field the request should not carry fails validation before the route runs.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmissionFieldRefusalResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "An address exceeded its request budget (FR-22): an anonymous caller its anonymous budget, or a caller whose credentials the API kept rejecting its budget for rejected credentials. Wait for the number of seconds in `Retry-After`, then try again. A valid credential is never counted. The body's `bulk_artefacts` names where to fetch the whole catalogue instead.",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds until the caller's request budget is available again.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimitedResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "submissions"
+        ],
+        "summary": "Change the tracking fields of a terminology request",
+        "description": "Changes the external reference and the expected release of a request while its submission is\n`Awaiting terminology`. A change bumps the submission's `row_version` and appends one audit\nevent, in one transaction.",
+        "operationId": "update_submission_terminology_request_api_v1_submissions__submission_id__terminology_request_patch",
+        "parameters": [
+          {
+            "name": "submission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Submission Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TerminologyTrackingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TerminologyTrackingResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No credential, or one that could not be verified.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller does not hold `submission.transition.review`, or has not accepted the current terms of use (the body then carries a `code` that says so). The current terms of use have not been accepted. The body carries `code: terms_acceptance_required`. Accept them with `POST /auth/terms/acceptance` and try again. Never carries `WWW-Authenticate`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/TermsAcceptanceRequiredResponse"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No submission has the identifier.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The submission is not `Awaiting terminology`, so its request can no longer change. Or `expected_row_version` is not the current one, because someone else changed the submission after it was read; the body then carries `current_row_version`. Nothing was changed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SubmissionVersionConflictResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    }
+                  ],
+                  "title": "Response 409 Update Submission Terminology Request Api V1 Submissions  Submission Id  Terminology Request Patch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The `reason` or a part of the external reference is blank, or carries an invisible character such as a zero-width space (`field` names it). An identifier that is not a UUID, a request that sends none of `external_reference` and `expected_release`, a `null` external reference, a part of it missing, a date that is not a date, a field over its size bound or a field the request should not carry, such as `proposed_fsn`, fails validation before the route runs.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmissionFieldRefusalResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "An address exceeded its request budget (FR-22): an anonymous caller its anonymous budget, or a caller whose credentials the API kept rejecting its budget for rejected credentials. Wait for the number of seconds in `Retry-After`, then try again. A valid credential is never counted. The body's `bulk_artefacts` names where to fetch the whole catalogue instead.",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds until the caller's request budget is available again.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimitedResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/submissions/{submission_id}/terminology-request/attach-code": {
+      "post": {
+        "tags": [
+          "submissions"
+        ],
+        "summary": "Attach the issued code and move a submission to Ready for approval",
+        "description": "Looks the code up on the terminology server, writes it and its FSN to the working copy and\nmoves an `Awaiting terminology` submission to `Ready for approval`, in one transaction with the\ntransition row and the audit event.",
+        "operationId": "attach_submission_terminology_code_api_v1_submissions__submission_id__terminology_request_attach_code_post",
+        "parameters": [
+          {
+            "name": "submission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Submission Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttachCodeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachCodeResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No credential, or one that could not be verified.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller does not hold `submission.transition.approve`, which only an Administrator does, or is an Administrator who has not stepped up with MFA (the response then carries a `WWW-Authenticate` challenge), or has not accepted the current terms of use (the body then carries a `code` that says so). The current terms of use have not been accepted. The body carries `code: terms_acceptance_required`. Accept them with `POST /auth/terms/acceptance` and try again. Never carries `WWW-Authenticate`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/TermsAcceptanceRequiredResponse"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No submission has the identifier.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The submission is not `Awaiting terminology`. Or `expected_row_version` is not the current one, because someone else changed the submission after it was read; the body then carries `current_row_version`. Nothing was changed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SubmissionVersionConflictResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    }
+                  ],
+                  "title": "Response 409 Attach Submission Terminology Code Api V1 Submissions  Submission Id  Terminology Request Attach Code Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`reason` is blank or carries an invisible character (`field` is `reason`), or the SNOMED CT code is malformed, unknown to the AU edition, inactive, has no reported status or has no fully specified name (`field` is `snomed_code`). Nothing was changed, and the submission stays `Awaiting terminology`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmissionFieldRefusalResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The terminology server's response could not be used. `field` is `snomed_code`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SubmissionFieldRefusalResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    }
+                  ],
+                  "title": "Response 502 Attach Submission Terminology Code Api V1 Submissions  Submission Id  Terminology Request Attach Code Post"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The terminology server could not be reached, or a rate limit persisted through retries. Nothing was changed, and the same request can be sent again. May carry a `Retry-After` header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SubmissionFieldRefusalResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    }
+                  ],
+                  "title": "Response 503 Attach Submission Terminology Code Api V1 Submissions  Submission Id  Terminology Request Attach Code Post"
                 }
               }
             }
@@ -7725,6 +8143,85 @@
         ],
         "title": "AmendTarget",
         "description": "Which storage home an amendment's `term` means (see the module docstring)."
+      },
+      "AttachCodeRequest": {
+        "properties": {
+          "snomed_code": {
+            "type": "string",
+            "maxLength": 18,
+            "title": "Snomed Code"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Reason"
+          },
+          "expected_row_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Row Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "snomed_code",
+          "reason",
+          "expected_row_version"
+        ],
+        "title": "AttachCodeRequest",
+        "description": "The body of `POST /submissions/{id}/terminology-request/attach-code`.\n\n`snomed_code` is the code the terminology authority issued, as a string (FR-06). The server\nsupplies the FSN, so a request never carries one (FR-82). `reason` says why the submission can\nmove on, and `expected_row_version` is the `row_version` the caller read."
+      },
+      "AttachCodeResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
+          "available_transitions": {
+            "items": {
+              "$ref": "#/components/schemas/SubmissionState"
+            },
+            "type": "array",
+            "title": "Available Transitions"
+          },
+          "snomed_code": {
+            "type": "string",
+            "title": "Snomed Code"
+          },
+          "snomed_fsn": {
+            "type": "string",
+            "title": "Snomed Fsn"
+          },
+          "label_provenance": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/LabelProvenance"
+            },
+            "type": "object",
+            "title": "Label Provenance"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "state",
+          "row_version",
+          "available_transitions",
+          "snomed_code",
+          "snomed_fsn",
+          "label_provenance"
+        ],
+        "title": "AttachCodeResponse",
+        "description": "Where the submission now stands, with the code and the FSN the terminology server returned\nfor it, as the working copy now holds them. `label_provenance` states which designation the FSN\nis (FR-98)."
       },
       "AuditActor": {
         "properties": {
@@ -9657,6 +10154,28 @@
         "title": "ErrorResponse",
         "description": "Every refusal this API makes has this shape - one sentence saying\nwhat to do next, and deliberately nothing else. It never names a role,\na permission or an internal identifier (FR-44, NFR-04)."
       },
+      "ExternalReference": {
+        "properties": {
+          "system": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "System"
+          },
+          "reference": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Reference"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "system",
+          "reference"
+        ],
+        "title": "ExternalReference",
+        "description": "Where the request for the concept is tracked (FR-31): the system that holds it and the\nidentifier it has there."
+      },
       "Facet": {
         "properties": {
           "key": {
@@ -10077,6 +10596,16 @@
               }
             ]
           },
+          "terminology_request": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TerminologyRequestView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "submitter": {
             "$ref": "#/components/schemas/IdentifiedSubmitter"
           }
@@ -10105,6 +10634,7 @@
           "reference_status",
           "duplicate_confirmed_at",
           "working_copy",
+          "terminology_request",
           "submitter"
         ],
         "title": "IdentifiedReviewSubmissionDetail"
@@ -11694,6 +12224,16 @@
               }
             ]
           },
+          "terminology_request": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TerminologyRequestView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "submitter": {
             "$ref": "#/components/schemas/PlainSubmitter"
           }
@@ -11722,6 +12262,7 @@
           "reference_status",
           "duplicate_confirmed_at",
           "working_copy",
+          "terminology_request",
           "submitter"
         ],
         "title": "ReviewSubmissionDetail"
@@ -12212,7 +12753,11 @@
               "notes",
               "organisation",
               "reason",
-              "body"
+              "body",
+              "proposed_fsn",
+              "justification",
+              "external_reference_system",
+              "external_reference_ref"
             ],
             "title": "Field"
           }
@@ -12495,6 +13040,7 @@
           "Submitted",
           "Triage",
           "Under review",
+          "Awaiting terminology",
           "Ready for approval",
           "Approved",
           "Published in release",
@@ -12689,6 +13235,237 @@
         ],
         "title": "SubmittedPropertyValue",
         "description": "One stored value, as the registry's handler accepted it."
+      },
+      "TargetEdition": {
+        "type": "string",
+        "enum": [
+          "au",
+          "int"
+        ],
+        "title": "TargetEdition",
+        "description": "The SNOMED CT edition a requested concept is meant for (FR-31)."
+      },
+      "TerminologyRequestMoveResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
+          "available_transitions": {
+            "items": {
+              "$ref": "#/components/schemas/SubmissionState"
+            },
+            "type": "array",
+            "title": "Available Transitions"
+          },
+          "terminology_request": {
+            "$ref": "#/components/schemas/TerminologyRequestView"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "state",
+          "row_version",
+          "available_transitions",
+          "terminology_request"
+        ],
+        "title": "TerminologyRequestMoveResponse",
+        "description": "Where the submission now stands, with the request that was recorded."
+      },
+      "TerminologyRequestRequest": {
+        "properties": {
+          "proposed_fsn": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Proposed Fsn"
+          },
+          "target_edition": {
+            "$ref": "#/components/schemas/TargetEdition"
+          },
+          "justification": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Justification"
+          },
+          "external_reference": {
+            "$ref": "#/components/schemas/ExternalReference"
+          },
+          "raised_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Raised Date"
+          },
+          "expected_release": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Release"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Reason"
+          },
+          "expected_row_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Row Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "proposed_fsn",
+          "target_edition",
+          "justification",
+          "external_reference",
+          "raised_date",
+          "reason",
+          "expected_row_version"
+        ],
+        "title": "TerminologyRequestRequest",
+        "description": "The body of `POST /submissions/{id}/terminology-request`.\n\nEvery field but `expected_release` is required. `target_edition` is `au` or `int`.\n`raised_date` is when the request was raised with the terminology authority, and\n`expected_release` is when its code is expected, if known. `reason` says why the submission\nwaits, and `expected_row_version` is the `row_version` the caller read."
+      },
+      "TerminologyRequestView": {
+        "properties": {
+          "proposed_fsn": {
+            "type": "string",
+            "title": "Proposed Fsn"
+          },
+          "target_edition": {
+            "$ref": "#/components/schemas/TargetEdition"
+          },
+          "justification": {
+            "type": "string",
+            "title": "Justification"
+          },
+          "external_reference": {
+            "$ref": "#/components/schemas/ExternalReference"
+          },
+          "raised_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Raised Date"
+          },
+          "expected_release": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Release"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "proposed_fsn",
+          "target_edition",
+          "justification",
+          "external_reference",
+          "raised_date",
+          "expected_release",
+          "updated_at"
+        ],
+        "title": "TerminologyRequestView",
+        "description": "The terminology request of a submission. `updated_at` is the latest change to a tracking\nfield."
+      },
+      "TerminologyTrackingRequest": {
+        "properties": {
+          "external_reference": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExternalReference"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expected_release": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Release"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Reason"
+          },
+          "expected_row_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Row Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "reason",
+          "expected_row_version"
+        ],
+        "title": "TerminologyTrackingRequest",
+        "description": "The body of `PATCH /submissions/{id}/terminology-request`.\n\nSend `external_reference`, `expected_release` or both. A field left out stays as it is.\n`external_reference` replaces both parts and cannot be `null`. `expected_release` replaces the\ndate, and `null` clears it. `reason` says why, and `expected_row_version` is the `row_version`\nthe caller read."
+      },
+      "TerminologyTrackingResponse": {
+        "properties": {
+          "submission_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Submission Id"
+          },
+          "row_version": {
+            "type": "integer",
+            "title": "Row Version"
+          },
+          "changed": {
+            "type": "boolean",
+            "title": "Changed"
+          },
+          "terminology_request": {
+            "$ref": "#/components/schemas/TerminologyRequestView"
+          }
+        },
+        "type": "object",
+        "required": [
+          "submission_id",
+          "row_version",
+          "changed",
+          "terminology_request"
+        ],
+        "title": "TerminologyTrackingResponse",
+        "description": "The request after a change, with the `row_version` to send with the next one. `changed` is\nfalse when the change left the request as it was and nothing was written."
       },
       "TermsAcceptanceRequest": {
         "properties": {

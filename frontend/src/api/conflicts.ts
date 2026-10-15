@@ -108,12 +108,19 @@ type SubmissionFieldRefusalBody = components["schemas"]["SubmissionFieldRefusalR
 
 /**
  * The fields of the new-test and amendment forms. `reason` belongs to the
- * withdraw request, which `asReasonRefusal` reads, and `body` to an internal
- * comment, so both are left out here.
+ * withdraw request, which `asReasonRefusal` reads, `body` to an internal
+ * comment, and the four `proposed_fsn`, `justification` and
+ * `external_reference_*` fields to a reviewer's terminology request, so all
+ * are left out here.
  */
 export type SubmissionField = Exclude<
   SubmissionFieldRefusalBody["field"],
-  "reason" | "body"
+  | "reason"
+  | "body"
+  | "proposed_fsn"
+  | "justification"
+  | "external_reference_system"
+  | "external_reference_ref"
 >;
 export type SubmissionFieldRefusal = Omit<SubmissionFieldRefusalBody, "field"> & {
   field: SubmissionField;
