@@ -11020,16 +11020,24 @@
           "row_version": {
             "type": "integer",
             "title": "Row Version"
+          },
+          "available_transitions": {
+            "items": {
+              "$ref": "#/components/schemas/SubmissionState"
+            },
+            "type": "array",
+            "title": "Available Transitions"
           }
         },
         "type": "object",
         "required": [
           "id",
           "state",
-          "row_version"
+          "row_version",
+          "available_transitions"
         ],
         "title": "SubmissionTransitionResponse",
-        "description": "Where the submission now stands: its `state` and the `row_version` to send with the next\nchange."
+        "description": "Where the submission now stands: its `state` and the `row_version` to send with the next\nchange. `available_transitions` is what the caller may do next, as on `GET /submissions/{id}`, so\na screen that holds the submission can update itself without a second read."
       },
       "SubmissionVersionConflictResponse": {
         "properties": {

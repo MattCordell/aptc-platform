@@ -173,7 +173,8 @@ def test_a_reviewer_and_an_administrator_make_each_review_move(
     response = _move(api, token, submission.id, to_state)
 
     assert response.status_code == 200, response.text
-    assert response.json() == {"id": str(submission.id), "state": to_state, "row_version": 2}
+    body = response.json()
+    assert (body["id"], body["state"], body["row_version"]) == (str(submission.id), to_state, 2)
     assert _state(api, submission) == to_state
     [transition] = _transitions(api, submission)
     assert (transition.from_state, transition.to_state) == (from_state, to_state)
@@ -200,7 +201,8 @@ def test_a_reopened_submission_keeps_its_history_and_is_not_a_new_record(
         response = _move(api, token, submission.id, to_state, expected_row_version=version)
         assert response.status_code == 200, response.text
 
-    assert response.json() == {"id": str(submission.id), "state": "Triage", "row_version": 4}
+    assert response.json()["state"] == "Triage"
+    assert response.json()["row_version"] == 4
     assert [(row.from_state, row.to_state) for row in _transitions(api, submission)] == [
         ("Submitted", "Triage"),
         ("Triage", "Rejected"),
@@ -611,3 +613,29 @@ def test_every_state_the_detail_offers_is_accepted_by_the_route(api: ApiTestApp)
         fresh = _submission(api, submitter, state="Triage")
         response = _move(api, token, fresh.id, to_state)
         assert response.status_code == 200, response.text
+
+
+@pytest.mark.req("FR-28")
+@pytest.mark.integration
+def test_the_answer_lists_what_the_caller_may_do_next(api: ApiTestApp) -> None:
+    token, _ = _sign_in(api, Role.REVIEWER)
+    _, submitter = _sign_in(api, Role.MEMBER)
+    submission = _submission(api, submitter)
+
+    triaged = _move(api, token, submission.id, "Triage")
+    detail = api.get(f"/submissions/{submission.id}", token=token).json()
+
+    assert triaged.json()["available_transitions"] == ["Under review", "Rejected"]
+    assert triaged.json()["available_transitions"] == detail["available_transitions"]
+
+
+@pytest.mark.req("FR-28")
+@pytest.mark.integration
+def test_a_withdrawal_answers_with_no_further_move(api: ApiTestApp) -> None:
+    token, administrator = _sign_in(api, Role.ADMINISTRATOR)
+    submission = _submission(api, administrator, state="Triage")
+
+    withdrawn = _move(api, token, submission.id, "Withdrawn")
+
+    assert withdrawn.status_code == 200, withdrawn.text
+    assert withdrawn.json()["available_transitions"] == []

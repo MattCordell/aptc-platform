@@ -42,8 +42,13 @@ from nptc.api.errors import SubmissionFieldRefusalResponse, SubmissionVersionCon
 from nptc.api.routers.auth import ErrorResponse
 from nptc.api.routers.submissions import SessionDep
 from nptc.auth.permissions import Permission
-from nptc.db.models.submission import SubmissionState
-from nptc.submissions.transitions import TRANSITION_PERMISSIONS, transition_submission
+from nptc.auth.principal import Principal
+from nptc.db.models.submission import Submission, SubmissionState
+from nptc.submissions.transitions import (
+    TRANSITION_PERMISSIONS,
+    available_transitions,
+    transition_submission,
+)
 
 router = APIRouter(prefix="/submissions", tags=["submissions"])
 
@@ -152,13 +157,30 @@ class TransitionRequest(BaseModel):
 
 class SubmissionTransitionResponse(BaseModel):
     """Where the submission now stands: its `state` and the `row_version` to send with the next
-    change."""
+    change. `available_transitions` is what the caller may do next, as on `GET /submissions/{id}`, so
+    a screen that holds the submission can update itself without a second read."""
 
     model_config = ConfigDict(frozen=True)
 
     id: uuid.UUID
     state: str
     row_version: int
+    available_transitions: list[SubmissionState]
+
+
+def _answer(submission: Submission, principal: Principal) -> SubmissionTransitionResponse:
+    return SubmissionTransitionResponse(
+        id=submission.id,
+        state=submission.state,
+        row_version=submission.row_version,
+        available_transitions=list(
+            available_transitions(
+                principal,
+                from_state=SubmissionState(submission.state),
+                submitter_id=submission.submitter_id,
+            )
+        ),
+    )
 
 
 @router.post(
@@ -186,9 +208,7 @@ def withdraw_submission(
         reason=body.reason,
         expected_row_version=body.expected_row_version,
     )
-    return SubmissionTransitionResponse(
-        id=submission.id, state=submission.state, row_version=submission.row_version
-    )
+    return _answer(submission, principal)
 
 
 @router.post(
@@ -217,6 +237,4 @@ def transition_submission_state(
         reason=body.reason,
         expected_row_version=body.expected_row_version,
     )
-    return SubmissionTransitionResponse(
-        id=submission.id, state=submission.state, row_version=submission.row_version
-    )
+    return _answer(submission, principal)

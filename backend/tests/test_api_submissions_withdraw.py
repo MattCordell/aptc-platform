@@ -150,7 +150,12 @@ def test_the_submitter_withdraws_from_an_open_state(api: ApiTestApp, state: str)
     response = _withdraw(api, token, submission.id)
 
     assert response.status_code == 200, response.text
-    assert response.json() == {"id": str(submission.id), "state": "Withdrawn", "row_version": 2}
+    assert response.json() == {
+        "id": str(submission.id),
+        "state": "Withdrawn",
+        "row_version": 2,
+        "available_transitions": [],
+    }
     assert _state(api, submission) == "Withdrawn"
     [transition] = _transitions(api, submission)
     assert (transition.from_state, transition.to_state) == (state, "Withdrawn")
