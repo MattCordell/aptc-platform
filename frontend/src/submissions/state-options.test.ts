@@ -12,10 +12,13 @@ import {
 } from "./state-options.ts";
 
 describe("submission states (FR-28)", () => {
-  it("lists all five states", () => {
+  it("lists every state, in the order of the workflow", () => {
     expect(SUBMISSION_STATES).toEqual([
       "Submitted",
       "Triage",
+      "Under review",
+      "Ready for approval",
+      "Approved",
       "Published in release",
       "Rejected",
       "Withdrawn",
@@ -33,9 +36,21 @@ describe("submission states (FR-28)", () => {
     expect(submissionStateTone("Escalated")).toBe("neutral");
   });
 
-  it("counts Submitted and Triage as open and the rest as closed", () => {
+  it("counts every state before release as open, Approved included, and the rest as closed", () => {
     const open = SUBMISSION_STATES.filter(isOpenSubmissionState);
-    expect(open).toEqual(["Submitted", "Triage"]);
+    expect(open).toEqual([
+      "Submitted",
+      "Triage",
+      "Under review",
+      "Ready for approval",
+      "Approved",
+    ]);
+  });
+
+  it("gives each review state a badge tone", () => {
+    expect(submissionStateTone("Under review")).toBe("draft");
+    expect(submissionStateTone("Ready for approval")).toBe("draft");
+    expect(submissionStateTone("Approved")).toBe("active");
   });
 
   it("does not count an unknown state as open", () => {
@@ -50,7 +65,13 @@ describe("statesForRequest", () => {
   });
 
   it("sends the open states for Open", () => {
-    expect(statesForRequest("open")).toEqual(["Submitted", "Triage"]);
+    expect(statesForRequest("open")).toEqual([
+      "Submitted",
+      "Triage",
+      "Under review",
+      "Ready for approval",
+      "Approved",
+    ]);
   });
 
   it("sends every state for All states", () => {

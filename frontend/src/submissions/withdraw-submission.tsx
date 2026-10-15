@@ -14,14 +14,21 @@ import { Form } from "../components/form.tsx";
 import { EntrySection } from "../catalogue/entry-section.tsx";
 import { reasonProblem } from "../registry/property-form.ts";
 import { ReasonField } from "../registry/reason-field.tsx";
-import { isOpenSubmissionState } from "./state-options.ts";
 
 type SubmissionDetail = components["schemas"]["SubmissionDetail"];
 
 type Withdrawable = Pick<
   SubmissionDetail,
-  "id" | "is_own" | "state" | "row_version" | "preferred_term"
+  "id" | "is_own" | "available_transitions" | "row_version" | "preferred_term"
 >;
+
+/**
+ * Whether the server offers this caller the withdrawal now. It reads the
+ * server's own list, so no screen keeps a second copy of the state graph.
+ */
+function mayWithdrawNow(submission: Withdrawable): boolean {
+  return submission.available_transitions.includes("Withdrawn");
+}
 
 const WITHDRAW_PERMISSION = "submission.withdraw.own";
 
@@ -30,7 +37,7 @@ const REASON_FIELD_ID = "withdraw-reason";
 const STALE_VERSION =
   "This submission changed since you opened it. The page now shows the latest version. Check it, then confirm again.";
 
-const CLOSED = "This submission is no longer open, so it cannot be withdrawn.";
+const CLOSED = "This submission can no longer be withdrawn.";
 
 const FALLBACK_REFUSAL =
   "The submission could not be withdrawn. Try again, or contact an administrator if the problem persists.";
@@ -68,7 +75,7 @@ function WithdrawDialog({
         submitLabel="Confirm withdrawal"
         pendingLabel="Withdrawing"
         pending={withdraw.isPending}
-        submitBlocked={!isOpenSubmissionState(submission.state)}
+        submitBlocked={!mayWithdrawNow(submission)}
         blockedReason={CLOSED}
         errors={fieldErrors}
         formError={refusal === null ? undefined : refusalSentence(refusal)}
@@ -118,10 +125,11 @@ function WithdrawDialog({
 }
 
 /**
- * The submitter's way to take back their own open submission (FR-28). The
- * button shows only for a caller who holds `submission.withdraw.own`, on a
- * submission that is theirs and open: the server refuses every other case, so
- * hiding it is a convenience, never the check (NFR-20, FR-44).
+ * The submitter's way to take back their own submission (FR-28). The button
+ * shows only for a caller who holds `submission.withdraw.own`, on a submission
+ * that is theirs and whose `available_transitions` include `Withdrawn`: the
+ * server refuses every other case, so hiding it is a convenience, never the
+ * check (NFR-20, FR-44).
  *
  * The dialog stays open on a refusal, even when the refusal means the
  * submission has closed and the button has gone, so the user reads why. A
@@ -147,7 +155,7 @@ function WithdrawPanel({ submission }: { submission: Withdrawable }) {
   }, [withdrawn]);
 
   const mayWithdraw = session.data?.permissions?.includes(WITHDRAW_PERMISSION) === true;
-  const canWithdraw = isOpenSubmissionState(submission.state);
+  const canWithdraw = mayWithdrawNow(submission);
   if (!mayWithdraw || !submission.is_own || (!canWithdraw && !withdrawn && !dialogOpen)) {
     return null;
   }

@@ -903,6 +903,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/submissions/{submission_id}/transitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Move a submission to another state
+         * @description Moves the submission to `to_state` when the table of permitted moves has a row for it and the
+         *     caller may make it, with the reason, in one transaction with its transition row and audit
+         *     event. `available_transitions` on `GET /submissions/{id}` says which moves the caller may make.
+         */
+        post: operations["transition_submission_state_api_v1_submissions__submission_id__transitions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/terminology/concepts/{code}": {
         parameters: {
             query?: never;
@@ -2365,6 +2387,8 @@ export interface components {
             };
             /** Row Version */
             row_version: number;
+            /** Available Transitions */
+            available_transitions: components["schemas"]["SubmissionState"][];
             /** Synonyms */
             synonyms: string[];
             /** Property Values */
@@ -3114,6 +3138,8 @@ export interface components {
             };
             /** Row Version */
             row_version: number;
+            /** Available Transitions */
+            available_transitions: components["schemas"]["SubmissionState"][];
             /** Synonyms */
             synonyms: string[];
             /** Property Values */
@@ -3261,7 +3287,7 @@ export interface components {
          * SubmissionState
          * @enum {string}
          */
-        SubmissionState: "Submitted" | "Triage" | "Published in release" | "Rejected" | "Withdrawn";
+        SubmissionState: "Submitted" | "Triage" | "Under review" | "Ready for approval" | "Approved" | "Published in release" | "Rejected" | "Withdrawn";
         /** SubmissionSummary */
         SubmissionSummary: {
             /**
@@ -3301,7 +3327,8 @@ export interface components {
         /**
          * SubmissionTransitionResponse
          * @description Where the submission now stands: its `state` and the `row_version` to send with the next
-         *     change.
+         *     change. `available_transitions` is what the caller may do next, as on `GET /submissions/{id}`, so
+         *     a screen that holds the submission can update itself without a second read.
          */
         SubmissionTransitionResponse: {
             /**
@@ -3313,6 +3340,8 @@ export interface components {
             state: string;
             /** Row Version */
             row_version: number;
+            /** Available Transitions */
+            available_transitions: components["schemas"]["SubmissionState"][];
         };
         /**
          * SubmissionVersionConflictResponse
@@ -3387,6 +3416,20 @@ export interface components {
             code: "terms_version_stale";
             /** Current Version */
             current_version: string;
+        };
+        /**
+         * TransitionRequest
+         * @description `to_state` is the state to move to. `reason` is required and is kept with the move.
+         *     `expected_row_version` is the `row_version` the caller read on the submission, so a move never
+         *     lands on a submission that changed after the caller looked at it. `available_transitions` on
+         *     the submission lists the states the caller may ask for.
+         */
+        TransitionRequest: {
+            to_state: components["schemas"]["SubmissionState"];
+            /** Reason */
+            reason: string;
+            /** Expected Row Version */
+            expected_row_version: number;
         };
         /**
          * UserRef
@@ -6869,7 +6912,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description The caller does not hold `submission.withdraw.own`, or is not the submitter of this submission, or has not accepted the current terms of use (the body then carries a `code` that says so). The current terms of use have not been accepted. The body carries `code: terms_acceptance_required`. Accept them with `POST /auth/terms/acceptance` and try again. Never carries `WWW-Authenticate`. */
+            /** @description The caller does not hold `submission.withdraw.own`, or is not the submitter of this submission, or the submission has been approved and only `submission.withdraw.any` reaches it, or the caller has not accepted the current terms of use (the body then carries a `code` that says so). The current terms of use have not been accepted. The body carries `code: terms_acceptance_required`. Accept them with `POST /auth/terms/acceptance` and try again. Never carries `WWW-Authenticate`. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6897,6 +6940,88 @@ export interface operations {
                 };
             };
             /** @description `reason` is blank, or carries an invisible character such as a zero-width space (`field` is `reason`). An identifier that is not a UUID, a `reason` over the size bound or a field the request should not carry fails validation before the route runs. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionFieldRefusalResponse"];
+                };
+            };
+            /** @description An address exceeded its request budget (FR-22): an anonymous caller its anonymous budget, or a caller whose credentials the API kept rejecting its budget for rejected credentials. Wait for the number of seconds in `Retry-After`, then try again. A valid credential is never counted. The body's `bulk_artefacts` names where to fetch the whole catalogue instead. */
+            429: {
+                headers: {
+                    /** @description Whole seconds until the caller's request budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateLimitedResponse"];
+                };
+            };
+        };
+    };
+    transition_submission_state_api_v1_submissions__submission_id__transitions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransitionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionTransitionResponse"];
+                };
+            };
+            /** @description No credential, or one that could not be verified. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The caller holds none of the permissions any move needs, or lacks the one this move needs: `submission.transition.review` for a review move, `submission.withdraw.own` for the submitter's own withdrawal from `Submitted` or `Triage`, and `submission.withdraw.any` for any other withdrawal. Or the caller has not accepted the current terms of use (the body then carries a `code` that says so). The current terms of use have not been accepted. The body carries `code: terms_acceptance_required`. Accept them with `POST /auth/terms/acceptance` and try again. Never carries `WWW-Authenticate`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"] | components["schemas"]["TermsAcceptanceRequiredResponse"];
+                };
+            };
+            /** @description No submission has the identifier. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The table has no move from the submission's current state to `to_state`, so a closed submission is refused, a second withdrawal is too, and so is any request for a state no move reaches yet, such as `Approved`. Or `expected_row_version` is not the current one, because someone else changed the submission after it was read; the body then carries `current_row_version`. A stale `expected_row_version` sent after someone else has moved the submission gets the first reason, so a client should treat both as "reload the submission". Nothing was changed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionVersionConflictResponse"] | components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description `reason` is blank, or carries an invisible character such as a zero-width space (`field` is `reason`). An identifier that is not a UUID, a `to_state` that is not a submission state, a `reason` over the size bound or a field the request should not carry fails validation before the route runs. */
             422: {
                 headers: {
                     [name: string]: unknown;
