@@ -335,6 +335,21 @@ REVOKE_INTERNAL_COMMENT_DELETE_SQL = (
     "REVOKE DELETE, TRUNCATE ON TABLE internal_comment FROM nptc_app;"
 )
 
+#: FR-23: a reviewer's edited copy of a submission. The submission's own content stays immutable, so
+#: this is the one table that holds an edit. `submission_id` and `created_at` are left out of the
+#: `UPDATE` grant, so a working copy cannot be moved to another submission. There is no `DELETE`
+#: grant: a working copy is never removed.
+GRANT_SUBMISSION_WORKING_COPY_SQL = (
+    "GRANT SELECT, INSERT ON TABLE submission_working_copy TO nptc_app;"
+)
+GRANT_SUBMISSION_WORKING_COPY_UPDATE_SQL = (
+    "GRANT UPDATE (preferred_term, synonyms, snomed_code, snomed_fsn, property_values, notes, "
+    "updated_at) ON TABLE submission_working_copy TO nptc_app;"
+)
+REVOKE_SUBMISSION_WORKING_COPY_DELETE_SQL = (
+    "REVOKE DELETE, TRUNCATE ON TABLE submission_working_copy FROM nptc_app;"
+)
+
 #: FR-28, NFR-08: a transition is a fact about a past moment, so it is never edited or removed.
 GRANT_SUBMISSION_TRANSITION_SQL = "GRANT SELECT, INSERT ON TABLE submission_transition TO nptc_app;"
 REVOKE_SUBMISSION_TRANSITION_WRITE_SQL = (

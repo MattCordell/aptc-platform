@@ -127,6 +127,7 @@ from nptc.submissions.errors import (
     AmendmentRefusedError,
     ClosedSubmissionInterestError,
     CodeRefusal,
+    EditReasonRequiredError,
     FreeTextField,
     FreeTextRefusedError,
     IllegalSubmissionTransitionError,
@@ -136,6 +137,7 @@ from nptc.submissions.errors import (
     SubmissionCodeUnavailableError,
     SubmissionCodeUpstreamError,
     SubmissionDuplicatesFoundError,
+    SubmissionNotEditableError,
     SubmissionNotFoundError,
     SubmissionVersionConflictError,
     TransitionReasonRequiredError,
@@ -504,6 +506,10 @@ _DETAIL_COMMENT_ALREADY_WITHDRAWN = "This comment has already been withdrawn."
 _DETAIL_TRANSITION_REASON_REQUIRED = (
     "A reason is required. Say why you are changing the submission."
 )
+_DETAIL_EDIT_REASON_REQUIRED = "A reason is required. Say why you are editing the submission."
+_DETAIL_SUBMISSION_NOT_EDITABLE = (
+    "A submission can be edited only while it is in Triage, Under review or Ready for approval."
+)
 _DETAIL_ILLEGAL_SUBMISSION_TRANSITION = (
     "This change is not allowed for the submission's current state."
 )
@@ -689,6 +695,10 @@ _DETAIL_AMENDMENT_REFUSED: Final[dict[AmendmentRefusal, str]] = {
     AmendmentRefusal.CODE_ALREADY_BOUND: (
         "This entry already carries this SNOMED CT code, so it is not a change. Propose a "
         "different code, or a synonym the entry does not have."
+    ),
+    AmendmentRefusal.FIELD_NOT_AMENDABLE: (
+        "An amendment's working copy can change only its synonyms and its SNOMED CT code, and "
+        "must keep at least one of them."
     ),
 }
 #: FR-35. Names the status, which is the reason the submitter needs. Only the three statuses
@@ -876,6 +886,9 @@ _REFUSALS: Final[dict[type[Exception], _Refusal]] = {
     ),
     IllegalSubmissionTransitionError: _Refusal(
         _DETAIL_ILLEGAL_SUBMISSION_TRANSITION, "submission transition refused: %s"
+    ),
+    SubmissionNotEditableError: _Refusal(
+        _DETAIL_SUBMISSION_NOT_EDITABLE, "working copy edit refused: %s"
     ),
     # Not logged: a blank search box on a public, unauthenticated endpoint is
     # the most ordinary client mistake there is, and logging it invites
@@ -1268,6 +1281,13 @@ def register_exception_handlers(app: FastAPI, auth_settings: AuthSettings) -> No
         return _field_refusal(
             exc.http_status, _DETAIL_COMMENT_TEXT_REQUIRED[exc.field], exc.field.value
         )
+
+    @app.exception_handler(EditReasonRequiredError)
+    async def _handle_edit_reason_required(
+        _request: Request, exc: EditReasonRequiredError
+    ) -> JSONResponse:
+        _logger.info("edit reason refused: blank")
+        return _field_refusal(exc.http_status, _DETAIL_EDIT_REASON_REQUIRED, "reason")
 
     @app.exception_handler(SubmissionVersionConflictError)
     async def _handle_submission_version_conflict(

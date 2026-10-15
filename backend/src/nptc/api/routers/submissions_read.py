@@ -44,6 +44,12 @@ by `_PAGES`. It is on the list only. The same grouped-statement rule applies, an
 table the transition route consults, so the two cannot disagree. `Approved` is an open state: the
 default list shows it, because an approved submission still waits for a release (FR-29).
 
+**The detail shows the working copy to a reviewer (FR-23).** A caller with
+`Permission.SUBMISSION_TRANSITION_REVIEW` gets `working_copy` beside the submitted content, null until
+a reviewer has edited it. Everyone else gets no such key, the same omission rule as above, so the
+detail now comes in four classes: identity crossed with working-copy visibility. It is on the detail
+only, because a list item carries no content to compare.
+
 **The transition history names its actor by the same rule (FR-28, FR-42).** `PlainActor` carries the
 username alone and `IdentifiedActor` adds the display name and the organisation from the actor's
 profile, because a transition has no copy of its own to show. A closed account's actor shows the same
@@ -76,6 +82,7 @@ from nptc.api.labels import (
     fsn_provenance,
 )
 from nptc.api.routers.auth import ErrorResponse
+from nptc.api.routers.submission_working_copy import WorkingCopyView, working_copy_view
 from nptc.api.routers.submissions import SessionDep, SubmittedPropertyValue
 from nptc.auth.identity import UserRef
 from nptc.auth.permissions import Permission
@@ -223,6 +230,15 @@ class _DetailFields(_SummaryFields):
     duplicate_confirmed_at: datetime | None
 
 
+class _ReviewDetailFields(_DetailFields):
+    """The detail for a caller with `submission.transition.review`: it adds `working_copy`, the
+    reviewer's edited copy of the content above, or null when nobody has edited the submission
+    (FR-23). The key is absent for every other caller, not null, so a submitter never learns that a
+    working copy exists."""
+
+    working_copy: WorkingCopyView | None
+
+
 class SubmissionSummary(_SummaryFields):
     submitter: PlainSubmitter
 
@@ -236,6 +252,14 @@ class SubmissionDetail(_DetailFields):
 
 
 class IdentifiedSubmissionDetail(_DetailFields):
+    submitter: IdentifiedSubmitter
+
+
+class ReviewSubmissionDetail(_ReviewDetailFields):
+    submitter: PlainSubmitter
+
+
+class IdentifiedReviewSubmissionDetail(_ReviewDetailFields):
     submitter: IdentifiedSubmitter
 
 
@@ -539,7 +563,12 @@ def list_submissions(
 @router.get(
     "/{submission_id}",
     summary="Show one submission",
-    response_model=SubmissionDetail | IdentifiedSubmissionDetail,
+    response_model=(
+        SubmissionDetail
+        | IdentifiedSubmissionDetail
+        | ReviewSubmissionDetail
+        | IdentifiedReviewSubmissionDetail
+    ),
     responses={
         401: _RESPONSE_401,
         403: _RESPONSE_403,
@@ -553,16 +582,36 @@ def get_submission(
     session: SessionDep,
     principal: CurrentPrincipal,
     settings: ApiSettingsDep,
-) -> SubmissionDetail | IdentifiedSubmissionDetail:
+) -> (
+    SubmissionDetail
+    | IdentifiedSubmissionDetail
+    | ReviewSubmissionDetail
+    | IdentifiedReviewSubmissionDetail
+):
     """One submission in any state, with the content the submitter sent. The submitter appears as
-    on the list: a username only, unless the caller holds `submitter_identity.view`."""
+    on the list: a username only, unless the caller holds `submitter_identity.view`.
+
+    A caller with `submission.transition.review` also gets `working_copy`, the reviewer's edited
+    copy of that content, or null when it has not been edited. Every other caller gets no such key."""
     record = queries.get_submission(session, submission_id, viewer_id=principal.user_id)
     interest = interest_summaries(session, [submission_id], viewer_id=principal.user_id)[
         submission_id
     ]
     counts_visible = principal.has(Permission.INTEREST_VIEW_COUNTS)
     fields = _detail_fields(record, settings, interest, principal, counts_visible=counts_visible)
-    if principal.has(Permission.SUBMITTER_IDENTITY_VIEW):
+    identified = principal.has(Permission.SUBMITTER_IDENTITY_VIEW)
+    if principal.has(Permission.SUBMISSION_TRANSITION_REVIEW):
+        copy = queries.get_working_copy(session, submission_id)
+        review_fields = {
+            **fields,
+            "working_copy": None if copy is None else working_copy_view(copy, settings),
+        }
+        if identified:
+            return IdentifiedReviewSubmissionDetail(
+                **review_fields, submitter=_identified_submitter(record)
+            )
+        return ReviewSubmissionDetail(**review_fields, submitter=_plain_submitter(record))
+    if identified:
         return IdentifiedSubmissionDetail(**fields, submitter=_identified_submitter(record))
     return SubmissionDetail(**fields, submitter=_plain_submitter(record))
 

@@ -57,7 +57,13 @@ from sqlalchemy.sql import func
 
 from nptc.db.base import Base
 
-__all__ = ["CLOSED_SUBMISSION_STATES", "Submission", "SubmissionKind", "SubmissionState"]
+__all__ = [
+    "CLOSED_SUBMISSION_STATES",
+    "WORKING_STATES",
+    "Submission",
+    "SubmissionKind",
+    "SubmissionState",
+]
 
 
 class SubmissionKind(StrEnum):
@@ -86,6 +92,16 @@ CLOSED_SUBMISSION_STATES: Final[tuple[str, ...]] = (
     SubmissionState.PUBLISHED_IN_RELEASE.value,
     SubmissionState.REJECTED.value,
     SubmissionState.WITHDRAWN.value,
+)
+
+#: The states in which a reviewer may edit a submission's working copy (FR-23): the three a reviewer
+#: works in. Listed, not derived from `CLOSED_SUBMISSION_STATES` or the transition table, so a state
+#: added later is not editable until someone decides it is. `Submitted` is untouched, and `Approved`
+#: is the moment the content is fixed for a release.
+WORKING_STATES: Final[tuple[str, ...]] = (
+    SubmissionState.TRIAGE.value,
+    SubmissionState.UNDER_REVIEW.value,
+    SubmissionState.READY_FOR_APPROVAL.value,
 )
 
 

@@ -23,10 +23,6 @@ are the checker's, never the caller's.
 preferred term, is dropped, as `nptc.catalogue.designations.add_synonyms` drops it. The first
 spelling is kept, in the order given.
 
-**Free text is checked for invisible characters (FR-63).** `notes` may span lines. `organisation` is
-one line. Both are normalised like a term, and both refuse a zero-width space, a text-direction
-override or any other character with no single repair.
-
 **The FSN is the server's, never the caller's (FR-82).** The request carries a code only. The stored
 label is stored exactly as served.
 
@@ -47,16 +43,8 @@ from sqlalchemy.orm import Session
 from nptc.audit.diffing import ChangeKind
 from nptc.audit.recording import record_change
 from nptc.audit.writer import AuditContext, acquire_append_lock
-from nptc.catalogue.property_values import (
-    PropertyDefinitionNotFoundError,
-    PropertyValidationError,
-    PropertyValueInput,
-    PropertyWriteIssue,
-    check_property_values,
-)
-from nptc.db.models.property_definition import PropertyDefinition, PropertyScope, PropertyStatus
+from nptc.catalogue.property_values import PropertyValueInput
 from nptc.db.models.submission import Submission, SubmissionKind, SubmissionState
-from nptc.registry.definitions import DeprecatedPropertyWriteError
 from nptc.registry.handlers import DatatypeRegistry
 from nptc.submissions.duplicates import find_duplicates
 from nptc.submissions.errors import (
@@ -64,15 +52,15 @@ from nptc.submissions.errors import (
     SubmissionDuplicatesFoundError,
 )
 from nptc.submissions.reference_check import ReferenceChecker
-from nptc.submissions.shared import clean_free_text, resolve_code
+from nptc.submissions.shared import (
+    check_submission_property_values,
+    clean_free_text,
+    resolve_code,
+)
 from nptc.submissions.terms import TermField, clean_submission_term, distinct_synonyms
 from nptc_shared.terminology import TerminologyClient
 
 __all__ = ["NewTestSubmissionInput", "create_new_test_submission"]
-
-#: A submission accepts the properties whose scope reaches it. `maintenance` properties belong to
-#: the published catalogue alone (FR-09).
-SUBMISSION_SCOPES = frozenset({PropertyScope.SUBMISSION, PropertyScope.BOTH})
 
 
 @dataclass(frozen=True)
@@ -130,7 +118,7 @@ def create_new_test_submission(
     )
 
     property_values = {key: items for key, items in content.property_values.items() if items}
-    _check_property_values(session, registry, property_values)
+    check_submission_property_values(session, registry, property_values)
 
     snomed_code: str | None = None
     snomed_fsn: str | None = None
@@ -181,60 +169,3 @@ def _database_now(session: Session) -> datetime:
     """The transaction's start time, which is what `created_at` takes, so the two columns of
     one row never disagree because the application server's clock differs from the database's."""
     return session.execute(select(func.now())).scalar_one()
-
-
-def _check_property_values(
-    session: Session,
-    registry: DatatypeRegistry,
-    property_values: Mapping[str, Sequence[PropertyValueInput]],
-) -> None:
-    """Raises one `PropertyValidationError` naming every problem: a key that is unknown,
-    deprecated or out of scope, a value the registry's handler refuses, and a property the
-    registry requires at submission (FR-24) that the request leaves out."""
-    issues: list[PropertyWriteIssue] = []
-    for key, items in property_values.items():
-        try:
-            check = check_property_values(session, key, items, registry, scopes=SUBMISSION_SCOPES)
-        except PropertyDefinitionNotFoundError:
-            issues.append(
-                PropertyWriteIssue(
-                    property_key=key,
-                    label=key,
-                    code="unknown-property",
-                    message=f"{key} is not a known property",
-                )
-            )
-        except DeprecatedPropertyWriteError:
-            issues.append(
-                PropertyWriteIssue(
-                    property_key=key,
-                    label=key,
-                    code="deprecated-property",
-                    message=f"{key} is deprecated and accepts no new values",
-                )
-            )
-        else:
-            issues.extend(check.issues)
-
-    required = session.execute(
-        select(PropertyDefinition)
-        .where(
-            PropertyDefinition.required_for_submission.is_(True),
-            PropertyDefinition.status == PropertyStatus.ACTIVE,
-            PropertyDefinition.scope.in_(SUBMISSION_SCOPES),
-        )
-        .order_by(PropertyDefinition.key)
-    ).scalars()
-    issues.extend(
-        PropertyWriteIssue(
-            property_key=definition.key,
-            label=definition.label,
-            code="required-property-missing",
-            message=f"{definition.label} is required for a submission and has no value",
-        )
-        for definition in required
-        if definition.key not in property_values
-    )
-
-    if issues:
-        raise PropertyValidationError(tuple(issues))

@@ -79,6 +79,7 @@ and/or `data-model.md`, so it gets no section of its own below.
 | [`0033_submission_transition.py`](../../backend/migrations/versions/0033_submission_transition.py) | Adds `Triage` to the `submission.state` check, and `submission_transition` (see [`data-model.md`](../architecture/data-model.md#submission_transition-fr-28-nfr-08)) | See [below](#0033_submission_transitionpy) - an empty table on upgrade, and the downgrade refuses while a submission is in `Triage` |
 | [`0034_internal_comment.py`](../../backend/migrations/versions/0034_internal_comment.py) | Adds `internal_comment`, staff-only comments on a submission or an entry (see [`data-model.md`](../architecture/data-model.md#internal_comment-fr-95-nfr-08-nfr-23)) | See [below](#0034_internal_commentpy) - an empty table on upgrade, and the downgrade discards every comment |
 | [`0035_submission_review_states.py`](../../backend/migrations/versions/0035_submission_review_states.py) | Adds `Under review`, `Ready for approval` and `Approved` to the state checks on `submission` and `submission_transition` (see [`data-model.md`](../architecture/data-model.md#submission_transition-fr-28-nfr-08)) | See [below](#0035_submission_review_statespy) - no data step, and the downgrade refuses while a submission or a recorded transition names one of the three states |
+| [`0036_submission_working_copy.py`](../../backend/migrations/versions/0036_submission_working_copy.py) | Adds `submission_working_copy`, a reviewer's edited copy of a submission (see [`data-model.md`](../architecture/data-model.md#submission_working_copy-fr-23-nfr-08)) | See [below](#0036_submission_working_copypy) - an empty table on upgrade, and the downgrade discards every working copy |
 
 ## Provisioning the app role's login
 
@@ -731,6 +732,20 @@ transition names one as its `from_state` or `to_state`, because the narrower che
 row. A submission that was reviewed and then rejected or withdrawn still has such a transition, and
 `submission_transition` is insert-only, so the downgrade stays refused for that database. Restore from a
 backup taken before the upgrade instead.
+
+## `0036_submission_working_copy.py`
+
+Creates `submission_working_copy` (FR-23, NFR-08 - see
+[`data-model.md`](../architecture/data-model.md#submission_working_copy-fr-23-nfr-08)). The table starts
+empty, so the upgrade is instant and needs no data step. The API at this revision serves
+`PATCH /api/v1/submissions/{id}/working-copy`, which needs `submission.transition.review`, and
+`GET /api/v1/submissions/{id}` returns `working_copy` to holders of that permission.
+
+The grants are in the migration. The app role may insert and read a working copy and may update only its
+content columns and `updated_at`. It may not move or delete one. The grant on `submission` is unchanged.
+
+The downgrade drops `submission_working_copy`, which discards every reviewer edit. The submissions keep
+their original content. Take a backup first if any edits have been made.
 
 ## Testcontainers and Docker
 

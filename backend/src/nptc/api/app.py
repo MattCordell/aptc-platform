@@ -36,6 +36,7 @@ from nptc.api.routers import (
     registry,
     submission_interest,
     submission_transitions,
+    submission_working_copy,
     submissions,
     submissions_read,
     terminology,
@@ -166,6 +167,9 @@ def create_app(
     app.include_router(submission_interest.router, prefix=API_PREFIX)
     # A submitter withdraws their own submission (FR-28). Gated on submission.withdraw.own.
     app.include_router(submission_transitions.router, prefix=API_PREFIX)
+    # A reviewer edits a copy of a submission, never the submission itself (FR-23). Gated on
+    # submission.transition.review, which only Reviewer and Administrator hold.
+    app.include_router(submission_working_copy.router, prefix=API_PREFIX)
     # Staff-only comments on a submission or an entry (FR-95). Gated on comment.internal.read and
     # comment.internal.write, which only Reviewer and Administrator hold.
     app.include_router(comments.router, prefix=API_PREFIX)
