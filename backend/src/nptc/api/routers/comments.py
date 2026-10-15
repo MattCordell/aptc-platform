@@ -32,7 +32,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any, Final
+from typing import Any, Final, Literal
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, ConfigDict, Field
@@ -67,9 +67,41 @@ _ENTRY_COMMENTS = "/catalogue/entries/{business_key}/comments"
 _WITHDRAW = "/{comment_id}/withdraw"
 
 
+_Verb = Literal["read", "post", "withdraw"]
+
+_MALFORMED_422: Final[dict[str, Any]] = {
+    "description": "The identifier is not well formed.",
+    "content": {
+        "application/json": {
+            "schema": {"anyOf": [{"$ref": "#/components/schemas/HTTPValidationError"}]}
+        }
+    },
+}
+_TEXT_422: Final[dict[str, str]] = {
+    "post": (
+        "`body` is blank, or carries an invisible character such as a zero-width space (`field` is "
+        "`body`). A malformed identifier, a `body` over the size bound or a field the request "
+        "should not carry fails validation before the route runs."
+    ),
+    "withdraw": (
+        "`reason` is blank, or carries an invisible character such as a zero-width space (`field` "
+        "is `reason`). A malformed identifier, a `reason` over the size bound or a field the "
+        "request should not carry fails validation before the route runs."
+    ),
+}
+
+
 def _responses(
-    permission: Permission, *, target: str, withdraw: bool = False
+    permission: Permission, *, target: str, verb: _Verb
 ) -> dict[int | str, dict[str, Any]]:
+    """The error responses one route documents. The terms gate skips `GET` (NFR-45), so only the
+    routes that write say a caller can be refused for unaccepted terms."""
+    terms = (
+        ""
+        if verb == "read"
+        else ", or has not accepted the current terms of use (the body then carries a `code` that "
+        "says so)"
+    )
     responses: dict[int | str, dict[str, Any]] = {
         401: {
             "model": ErrorResponse,
@@ -78,28 +110,24 @@ def _responses(
         403: {
             "model": ErrorResponse,
             "description": (
-                f"The caller does not hold `{permission.value}`, or has not accepted the current "
-                "terms of use (the body then carries a `code` that says so). The refusal is the "
-                "same whether or not the target exists or has comments."
+                f"The caller does not hold `{permission.value}`{terms}. The refusal is the same "
+                "whether or not the target exists or has comments."
             ),
         },
         404: {
             "model": ErrorResponse,
             "description": (
                 f"No {target} has the identifier"
-                + (", or no comment with that identifier is on it." if withdraw else ".")
+                + (", or no comment with that identifier is on it." if verb == "withdraw" else ".")
             ),
         },
-        422: {
-            "model": SubmissionFieldRefusalResponse,
-            "description": (
-                "A blank `body` or `reason`, or one with an invisible character such as a "
-                "zero-width space (`field` is `body` or `reason`). A malformed identifier or a "
-                "text over the size bound fails validation before the route runs."
-            ),
-        },
+        422: (
+            _MALFORMED_422
+            if verb == "read"
+            else {"model": SubmissionFieldRefusalResponse, "description": _TEXT_422[verb]}
+        ),
     }
-    if withdraw:
+    if verb == "withdraw":
         responses[409] = {
             "model": ErrorResponse,
             "description": "The comment was withdrawn before. Nothing was changed.",
@@ -182,7 +210,7 @@ def _listing(session: SessionDep, target: CommentTarget) -> CommentListResponse:
     _SUBMISSION_COMMENTS,
     summary="List the internal comments on a submission",
     response_model=CommentListResponse,
-    responses=_responses(Permission.COMMENT_INTERNAL_READ, target="submission"),
+    responses=_responses(Permission.COMMENT_INTERNAL_READ, target="submission", verb="read"),
     dependencies=[_READ],
 )
 def list_submission_comments(submission_id: uuid.UUID, session: SessionDep) -> CommentListResponse:
@@ -196,7 +224,7 @@ def list_submission_comments(submission_id: uuid.UUID, session: SessionDep) -> C
     summary="Add an internal comment to a submission",
     status_code=201,
     response_model=CommentResponse,
-    responses=_responses(Permission.COMMENT_INTERNAL_WRITE, target="submission"),
+    responses=_responses(Permission.COMMENT_INTERNAL_WRITE, target="submission", verb="post"),
     dependencies=[_WRITE],
 )
 def add_submission_comment(
@@ -210,7 +238,7 @@ def add_submission_comment(
     _SUBMISSION_COMMENTS + _WITHDRAW,
     summary="Withdraw an internal comment on a submission",
     response_model=CommentResponse,
-    responses=_responses(Permission.COMMENT_INTERNAL_WRITE, target="submission", withdraw=True),
+    responses=_responses(Permission.COMMENT_INTERNAL_WRITE, target="submission", verb="withdraw"),
     dependencies=[_WRITE],
 )
 def withdraw_submission_comment(
@@ -232,7 +260,7 @@ def withdraw_submission_comment(
     _ENTRY_COMMENTS,
     summary="List the internal comments on a catalogue entry",
     response_model=CommentListResponse,
-    responses=_responses(Permission.COMMENT_INTERNAL_READ, target="catalogue entry"),
+    responses=_responses(Permission.COMMENT_INTERNAL_READ, target="catalogue entry", verb="read"),
     dependencies=[_READ],
 )
 def list_entry_comments(business_key: BusinessKeyPath, session: SessionDep) -> CommentListResponse:
@@ -246,7 +274,7 @@ def list_entry_comments(business_key: BusinessKeyPath, session: SessionDep) -> C
     summary="Add an internal comment to a catalogue entry",
     status_code=201,
     response_model=CommentResponse,
-    responses=_responses(Permission.COMMENT_INTERNAL_WRITE, target="catalogue entry"),
+    responses=_responses(Permission.COMMENT_INTERNAL_WRITE, target="catalogue entry", verb="post"),
     dependencies=[_WRITE],
 )
 def add_entry_comment(
@@ -265,7 +293,7 @@ def add_entry_comment(
     summary="Withdraw an internal comment on a catalogue entry",
     response_model=CommentResponse,
     responses=_responses(
-        Permission.COMMENT_INTERNAL_WRITE, target="catalogue entry", withdraw=True
+        Permission.COMMENT_INTERNAL_WRITE, target="catalogue entry", verb="withdraw"
     ),
     dependencies=[_WRITE],
 )

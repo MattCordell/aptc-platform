@@ -268,7 +268,7 @@ def test_a_blank_body_is_refused_and_writes_nothing(app_session: Session, body: 
             app_session, _context(_user(app_session)), SubmissionTarget(submission.id), body=body
         )
 
-    assert refused.value.field is FreeTextField.COMMENT
+    assert refused.value.field is FreeTextField.BODY
     assert _comments(app_session, submission_id=submission.id) == []
 
 
@@ -288,7 +288,7 @@ def test_a_body_with_an_invisible_character_is_refused_and_writes_nothing(
             body=f"hidden{_ZERO_WIDTH_SPACE}text",
         )
 
-    assert refused.value.field is FreeTextField.COMMENT
+    assert refused.value.field is FreeTextField.BODY
     assert _comments(app_session, submission_id=submission.id) == []
 
 
@@ -369,7 +369,7 @@ def test_a_withdrawal_keeps_the_text_and_is_audited_once(app_session: Session) -
     assert event.reason == _REASON
     assert event.actor_user_id == withdrawer.id
     assert event.after is not None
-    assert event.after["withdrawn_reason"] == _REASON
+    assert "withdrawn_reason" not in event.after
     assert "body" not in event.after
 
 

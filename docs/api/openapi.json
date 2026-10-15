@@ -5517,7 +5517,7 @@
             }
           },
           "403": {
-            "description": "The caller does not hold `comment.internal.read`, or has not accepted the current terms of use (the body then carries a `code` that says so). The refusal is the same whether or not the target exists or has comments.",
+            "description": "The caller does not hold `comment.internal.read`. The refusal is the same whether or not the target exists or has comments.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5537,11 +5537,15 @@
             }
           },
           "422": {
-            "description": "A blank `body` or `reason`, or one with an invisible character such as a zero-width space (`field` is `body` or `reason`). A malformed identifier or a text over the size bound fails validation before the route runs.",
+            "description": "The identifier is not well formed.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SubmissionFieldRefusalResponse"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/HTTPValidationError"
+                    }
+                  ]
                 }
               }
             }
@@ -5645,7 +5649,7 @@
             }
           },
           "422": {
-            "description": "A blank `body` or `reason`, or one with an invisible character such as a zero-width space (`field` is `body` or `reason`). A malformed identifier or a text over the size bound fails validation before the route runs.",
+            "description": "`body` is blank, or carries an invisible character such as a zero-width space (`field` is `body`). A malformed identifier, a `body` over the size bound or a field the request should not carry fails validation before the route runs.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5765,7 +5769,7 @@
             }
           },
           "422": {
-            "description": "A blank `body` or `reason`, or one with an invisible character such as a zero-width space (`field` is `body` or `reason`). A malformed identifier or a text over the size bound fails validation before the route runs.",
+            "description": "`reason` is blank, or carries an invisible character such as a zero-width space (`field` is `reason`). A malformed identifier, a `reason` over the size bound or a field the request should not carry fails validation before the route runs.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5853,7 +5857,7 @@
             }
           },
           "403": {
-            "description": "The caller does not hold `comment.internal.read`, or has not accepted the current terms of use (the body then carries a `code` that says so). The refusal is the same whether or not the target exists or has comments.",
+            "description": "The caller does not hold `comment.internal.read`. The refusal is the same whether or not the target exists or has comments.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5873,11 +5877,15 @@
             }
           },
           "422": {
-            "description": "A blank `body` or `reason`, or one with an invisible character such as a zero-width space (`field` is `body` or `reason`). A malformed identifier or a text over the size bound fails validation before the route runs.",
+            "description": "The identifier is not well formed.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SubmissionFieldRefusalResponse"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/HTTPValidationError"
+                    }
+                  ]
                 }
               }
             }
@@ -5986,7 +5994,7 @@
             }
           },
           "422": {
-            "description": "A blank `body` or `reason`, or one with an invisible character such as a zero-width space (`field` is `body` or `reason`). A malformed identifier or a text over the size bound fails validation before the route runs.",
+            "description": "`body` is blank, or carries an invisible character such as a zero-width space (`field` is `body`). A malformed identifier, a `body` over the size bound or a field the request should not carry fails validation before the route runs.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6111,7 +6119,7 @@
             }
           },
           "422": {
-            "description": "A blank `body` or `reason`, or one with an invisible character such as a zero-width space (`field` is `body` or `reason`). A malformed identifier or a text over the size bound fails validation before the route runs.",
+            "description": "`reason` is blank, or carries an invisible character such as a zero-width space (`field` is `reason`). A malformed identifier, a `reason` over the size bound or a field the request should not carry fails validation before the route runs.",
             "content": {
               "application/json": {
                 "schema": {

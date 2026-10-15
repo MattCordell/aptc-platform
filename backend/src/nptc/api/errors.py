@@ -489,14 +489,14 @@ _DETAIL_FREE_TEXT_REFUSED: Final[dict[FreeTextField, str]] = {
         "The reason contains an invisible character, such as a zero-width space or a "
         "text-direction override. Remove it and send the request again."
     ),
-    FreeTextField.COMMENT: (
+    FreeTextField.BODY: (
         "The comment contains an invisible character, such as a zero-width space or a "
         "text-direction override. Remove it and send the request again."
     ),
 }
 #: Blank once cleaned, by field. Only the two fields a comment carries are listed.
 _DETAIL_COMMENT_TEXT_REQUIRED: Final[dict[FreeTextField, str]] = {
-    FreeTextField.COMMENT: "A comment cannot be empty. Write the comment and send it again.",
+    FreeTextField.BODY: "A comment cannot be empty. Write the comment and send it again.",
     FreeTextField.REASON: "A reason is required. Say why you are withdrawing the comment.",
 }
 _DETAIL_COMMENT_NOT_FOUND = "No comment was found for the given identifier."

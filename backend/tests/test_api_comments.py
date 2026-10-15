@@ -522,6 +522,24 @@ def test_a_closed_account_keeps_its_comments_under_the_placeholder(
     assert username not in response.text
 
 
+@pytest.mark.req("FR-95")
+@pytest.mark.req("NFR-45")
+@pytest.mark.integration
+def test_only_the_routes_that_write_document_a_terms_refusal(api: ApiTestApp) -> None:
+    """The terms gate skips `GET`, so a client reading the schema must not be told a list can be
+    refused for unaccepted terms."""
+    paths = api.app.openapi()["paths"]
+    seen = 0
+    for path, operations in paths.items():
+        if "/comments" not in path:
+            continue
+        for method, operation in operations.items():
+            description = operation["responses"]["403"]["description"]
+            assert ("terms of use" in description) is (method == "post"), (method, path)
+            seen += 1
+    assert seen == 6
+
+
 # --- the audit trail (NFR-08) --------------------------------------------------------------
 
 

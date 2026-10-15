@@ -7094,7 +7094,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description The caller does not hold `comment.internal.read`, or has not accepted the current terms of use (the body then carries a `code` that says so). The refusal is the same whether or not the target exists or has comments. */
+            /** @description The caller does not hold `comment.internal.read`. The refusal is the same whether or not the target exists or has comments. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7112,13 +7112,13 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description A blank `body` or `reason`, or one with an invisible character such as a zero-width space (`field` is `body` or `reason`). A malformed identifier or a text over the size bound fails validation before the route runs. */
+            /** @description The identifier is not well formed. */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SubmissionFieldRefusalResponse"];
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
             /** @description An address exceeded its request budget (FR-22): an anonymous caller its anonymous budget, or a caller whose credentials the API kept rejecting its budget for rejected credentials. Wait for the number of seconds in `Retry-After`, then try again. A valid credential is never counted. The body's `bulk_artefacts` names where to fetch the whole catalogue instead. */
@@ -7185,7 +7185,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description A blank `body` or `reason`, or one with an invisible character such as a zero-width space (`field` is `body` or `reason`). A malformed identifier or a text over the size bound fails validation before the route runs. */
+            /** @description `body` is blank, or carries an invisible character such as a zero-width space (`field` is `body`). A malformed identifier, a `body` over the size bound or a field the request should not carry fails validation before the route runs. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -7268,7 +7268,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description A blank `body` or `reason`, or one with an invisible character such as a zero-width space (`field` is `body` or `reason`). A malformed identifier or a text over the size bound fails validation before the route runs. */
+            /** @description `reason` is blank, or carries an invisible character such as a zero-width space (`field` is `reason`). A malformed identifier, a `reason` over the size bound or a field the request should not carry fails validation before the route runs. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -7320,7 +7320,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description The caller does not hold `comment.internal.read`, or has not accepted the current terms of use (the body then carries a `code` that says so). The refusal is the same whether or not the target exists or has comments. */
+            /** @description The caller does not hold `comment.internal.read`. The refusal is the same whether or not the target exists or has comments. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7338,13 +7338,13 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description A blank `body` or `reason`, or one with an invisible character such as a zero-width space (`field` is `body` or `reason`). A malformed identifier or a text over the size bound fails validation before the route runs. */
+            /** @description The identifier is not well formed. */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SubmissionFieldRefusalResponse"];
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
             /** @description An address exceeded its request budget (FR-22): an anonymous caller its anonymous budget, or a caller whose credentials the API kept rejecting its budget for rejected credentials. Wait for the number of seconds in `Retry-After`, then try again. A valid credential is never counted. The body's `bulk_artefacts` names where to fetch the whole catalogue instead. */
@@ -7412,7 +7412,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description A blank `body` or `reason`, or one with an invisible character such as a zero-width space (`field` is `body` or `reason`). A malformed identifier or a text over the size bound fails validation before the route runs. */
+            /** @description `body` is blank, or carries an invisible character such as a zero-width space (`field` is `body`). A malformed identifier, a `body` over the size bound or a field the request should not carry fails validation before the route runs. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -7496,7 +7496,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description A blank `body` or `reason`, or one with an invisible character such as a zero-width space (`field` is `body` or `reason`). A malformed identifier or a text over the size bound fails validation before the route runs. */
+            /** @description `reason` is blank, or carries an invisible character such as a zero-width space (`field` is `reason`). A malformed identifier, a `reason` over the size bound or a field the request should not carry fails validation before the route runs. */
             422: {
                 headers: {
                     [name: string]: unknown;

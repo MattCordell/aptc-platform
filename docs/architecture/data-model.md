@@ -1733,8 +1733,12 @@ an entry of any status, a draft included.
 `comment.withdrawn`, each with `entity_type` `internal_comment` and the comment's id as `entity_id`,
 never `catalogue_entry` or `submission`. The public history of an entry selects its events by those
 two entity types, so an event recorded under them would publish the comment. `body` is withheld, so the
-event names it in `_redacted` and never carries the text (NFR-08). The audit log, which only an
-Administrator may read, records the event. The withdrawal's reason is in `reason`.
+event names it in `_redacted` and never carries the text (NFR-08), so `internal_comment` is the one
+home of what was said. The withdrawal's reason is staff free text of a different kind, an explanation
+and not the comment, and it is recorded once, in the event's own `reason`, as the reason for a
+withdrawn submission is. The diff leaves `withdrawn_reason` out so it is not stored twice. The audit log
+and its export are Administrator-only, and an Administrator also holds `comment.internal.read`, so
+neither shows the reason to anyone who could not already read it.
 
 ## Extensions
 

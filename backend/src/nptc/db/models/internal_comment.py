@@ -13,8 +13,12 @@ the text, so a withdrawal marks a comment as retracted and does not hide it.
 column for comments, and writing a comment never touches the parent row. A submitter can read
 `row_version` and `updated_at` on their submission, so a write there would show that a comment exists.
 
-**`body` is the staff member's own text,** cleaned by `nptc.submissions.shared.clean_free_text`. The
-audit policy withholds it: the audit log records that a comment was written, never what it said.
+**`body` is the staff member's own text,** cleaned like a note (FR-63). The audit policy withholds
+it, so this table is the one home of the text (NFR-26).
+
+**`withdrawn_reason` reaches the audit log once, in the event's own `reason`,** as a withdrawn
+submission's reason does. The diff leaves the column out so the text is not stored twice. It explains
+the withdrawal and is not the comment, so it is not withheld (`docs/architecture/data-model.md`).
 """
 
 from __future__ import annotations
@@ -57,11 +61,12 @@ class InternalComment(Base):
             "author_id",
             "withdrawn_at",
             "withdrawn_by",
-            "withdrawn_reason",
         }
     )
     __audit_withheld_fields__: ClassVar[frozenset[str]] = frozenset({"body"})
-    __audit_ignored_fields__: ClassVar[frozenset[str]] = frozenset({"id", "created_at"})
+    __audit_ignored_fields__: ClassVar[frozenset[str]] = frozenset(
+        {"id", "created_at", "withdrawn_reason"}
+    )
 
     __table_args__ = (
         CheckConstraint(_EXACTLY_ONE_TARGET_SQL, name="exactly_one_target"),

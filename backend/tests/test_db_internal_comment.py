@@ -249,6 +249,5 @@ def test_the_audit_policy_withholds_the_body_and_records_the_rest() -> None:
             "author_id",
             "withdrawn_at",
             "withdrawn_by",
-            "withdrawn_reason",
         }
     )

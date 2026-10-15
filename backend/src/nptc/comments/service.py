@@ -90,7 +90,7 @@ def post_comment(
     invisible character, and `SubmissionNotFoundError` or `EntryNotFoundError` for an unknown target.
     A refusal writes nothing.
     """
-    cleaned = _clean(body, FreeTextField.COMMENT)
+    cleaned = _clean(body, FreeTextField.BODY)
     acquire_append_lock(session)
     resolved = _resolve(session, target)
     comment = InternalComment(
