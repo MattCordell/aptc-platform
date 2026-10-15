@@ -23,6 +23,7 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.engine import Connection
 
+from nptc.api.errors import _DETAIL_AMENDMENT_NO_LONGER_APPLICABLE
 from nptc.api.terms_gate import TERMS_ACCEPTANCE_REQUIRED_CODE
 from nptc.auth.permissions import Role
 from nptc.catalogue.entries import allocate_business_key
@@ -34,6 +35,7 @@ from nptc.db.models.submission import Submission, SubmissionKind
 from nptc.db.models.submission_transition import SubmissionTransition
 from nptc.db.models.user import User
 from nptc.db.models.user_identity import UserIdentity
+from nptc.submissions.errors import AmendmentNoLongerApplicableCause
 from nptc_shared.sctid import has_valid_check_digit
 
 
@@ -142,6 +144,7 @@ def _amendment(
     *,
     synonyms: list[str] | None = None,
     code: str | None = None,
+    proposed_at: datetime | None = None,
 ) -> Submission:
     submission = Submission(
         kind=SubmissionKind.AMENDMENT.value,
@@ -152,6 +155,7 @@ def _amendment(
         snomed_code=code,
         snomed_fsn=None if code is None else _FSN,
         submitter_id=submitter.id,
+        **({} if proposed_at is None else {"created_at": proposed_at}),
     )
     api.session.add(submission)
     api.session.flush()
@@ -539,6 +543,33 @@ def test_an_amendment_whose_code_is_already_active_is_a_409_that_names_the_cause
     assert response.status_code == 409, response.text
     assert "already carries the code" in response.json()["detail"]
     _assert_unchanged(api, submission)
+
+
+@pytest.mark.req("FR-35")
+@pytest.mark.integration
+def test_an_amendment_whose_entry_code_was_bound_after_the_proposal_is_a_409_that_names_the_cause(
+    api: ApiTestApp,
+) -> None:
+    token, _ = _sign_in(api, Role.ADMINISTRATOR)
+    _, submitter = _sign_in(api, Role.MEMBER)
+    entry = _entry(api)
+    api.session.add(CodeBinding(entry_id=entry.id, code=_code(), fsn=_FSN))
+    api.session.flush()
+    submission = _amendment(
+        api, submitter, entry, code=_code(), proposed_at=datetime(2020, 1, 1, tzinfo=UTC)
+    )
+
+    response = _approve(api, token, submission.id)
+
+    assert response.status_code == 409, response.text
+    assert "changed after this amendment was proposed" in response.json()["detail"]
+    _assert_unchanged(api, submission)
+
+
+@pytest.mark.req("FR-35")
+def test_every_cause_an_approval_can_refuse_an_amendment_for_has_a_message() -> None:
+    """The handler indexes the table by cause, so a cause with no entry would be a 500."""
+    assert set(_DETAIL_AMENDMENT_NO_LONGER_APPLICABLE) == set(AmendmentNoLongerApplicableCause)
 
 
 @pytest.mark.req("FR-28")
