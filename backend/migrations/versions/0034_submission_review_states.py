@@ -44,7 +44,9 @@ _FROM_STATE_AFTER = (
     "from_state IN ('Submitted','Triage','Under review','Ready for approval','Approved',"
     "'Published in release','Rejected','Withdrawn')"
 )
-_TO_STATE_BEFORE = "to_state IN ('Submitted','Triage','Published in release','Rejected','Withdrawn')"
+_TO_STATE_BEFORE = (
+    "to_state IN ('Submitted','Triage','Published in release','Rejected','Withdrawn')"
+)
 _TO_STATE_AFTER = (
     "to_state IN ('Submitted','Triage','Under review','Ready for approval','Approved',"
     "'Published in release','Rejected','Withdrawn')"
