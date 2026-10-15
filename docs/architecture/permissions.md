@@ -312,8 +312,8 @@ The list and the transition history never carry a working copy. The edit's audit
 
 ## Awaiting terminology (FR-30, FR-31)
 
-A Reviewer moves a submission from `Under review` to `Awaiting terminology` and cannot move it out. The
-two moves are two routes and two permissions:
+A Reviewer moves a submission from `Under review` to `Awaiting terminology` and can take it back, but only
+an Administrator ends the wait on an issued code. The moves are these routes and permissions:
 
 | Route | Needs | Who holds it |
 |---|---|---|
@@ -326,6 +326,11 @@ A Reviewer takes a waiting submission back to `Under review` when the request is
 through the general route, because that move carries only a reason. The request stays as history. An
 Administrator who has not stepped up with MFA holds no permission, so every route above answers them
 with the step-up challenge.
+
+A Reviewer who takes a submission back is under the ordinary review rules. Those already let a Reviewer
+set a code in the working copy once the terminology server confirms it (FR-23), so the take-back opens no
+new route to `Ready for approval`. Only the attach is reserved, because it is the step that accepts a code
+the terminology authority issued.
 
 The attach is Administrator-only (PRD section 4.5) because the code it writes is the one an
 Administrator has looked up on the terminology server. The gate runs before the submission is looked up,

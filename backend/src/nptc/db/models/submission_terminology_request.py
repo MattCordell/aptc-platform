@@ -21,9 +21,6 @@ that holds the concept request and `external_reference_ref` is the identifier in
 reader never parses one string to find either. Both are required, because a reference without its
 system cannot be followed.
 
-**The dates keep their order.** An expected release is never before the day the request was raised,
-so the database refuses a request that says its code is due before it was asked for.
-
 **One lock.** There is no version column here. A change to the tracking fields bumps
 `submission.row_version`, so an edit and a state transition cannot cross, as for the working copy.
 """
@@ -93,7 +90,8 @@ class SubmissionTerminologyRequest(Base):
             _EXTERNAL_REFERENCE_REF_NOT_BLANK_SQL, name="external_reference_ref_not_blank"
         ),
         CheckConstraint(_EXPECTED_RELEASE_ORDER_SQL, name="expected_release_not_before_raised"),
-        # A submission's requests, oldest first, is the one read on this table.
+        # A submission's requests, newest first, is the one read on this table. The index serves
+        # either direction.
         Index(
             "ix_submission_terminology_request_submission_id_created_at",
             "submission_id",

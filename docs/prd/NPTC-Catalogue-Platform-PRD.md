@@ -162,7 +162,7 @@ Adds to Member:
 - Change the property registry, local code systems, or export configuration
 - Suspend a user or override a rate limit
 
-A Reviewer moves a submission into `Awaiting terminology` but not out of it. The move out, which attaches the code the terminology authority issued and returns the submission to `Ready for approval`, is Administrator-only (`submission.transition.approve`), because the code attached is the one an Administrator has looked up on the terminology server (FR-30, FR-82).
+A Reviewer moves a submission into `Awaiting terminology` and may take it back to `Under review` when the request is declined or abandoned. Ending the wait on an issued code is Administrator-only: the attach (`submission.transition.approve`) looks the code up on the terminology server, writes it to the working copy and returns the submission to `Ready for approval` (FR-30, FR-82). A Reviewer who takes a submission back is under the ordinary review rules, which already let a Reviewer set a code the terminology server confirms (FR-23), so the take-back opens no new route to `Ready for approval`. Only the attach is reserved, because it is the step that accepts a code the terminology authority issued.
 
 **FR-81 (MUST):** The boundary between Reviewer and Administrator MUST be enforced server-side per permission, and each withheld capability above MUST have a negative authorisation test asserting that a Reviewer is refused.
 
