@@ -104,6 +104,7 @@ _REOPENED = "submission.reopened"
 _READIED_FOR_APPROVAL = "submission.readied_for_approval"
 _TERMINOLOGY_REQUESTED = "submission.terminology_requested"
 _TERMINOLOGY_ATTACHED = "submission.terminology_attached"
+_REVIEW_RESUMED = "submission.review_resumed"
 
 # The Administrator holds `.any` and not `.own`, so an Administrator's own submission needs `.any`
 # on the same row as the submitter's `.own`. Only `.any` reaches `Approved` and `Published in
@@ -129,6 +130,11 @@ PERMITTED_TRANSITIONS: Final[
     ),
     (SubmissionState.AWAITING_TERMINOLOGY, SubmissionState.READY_FOR_APPROVAL): PermittedTransition(
         _TERMINOLOGY_ATTACHED, (_APPROVE,), needs_payload=True
+    ),
+    # A request the authority declines, or one nobody pursues, must not strand the submission: the
+    # reviewer takes it back to `Under review`. The record stays as the history of the request.
+    (SubmissionState.AWAITING_TERMINOLOGY, SubmissionState.UNDER_REVIEW): PermittedTransition(
+        _REVIEW_RESUMED, (_REVIEW,)
     ),
     (SubmissionState.SUBMITTED, SubmissionState.WITHDRAWN): PermittedTransition(
         _WITHDRAWN, _WITHDRAW_OPEN

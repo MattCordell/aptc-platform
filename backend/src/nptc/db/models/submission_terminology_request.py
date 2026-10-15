@@ -1,10 +1,13 @@
 """The `submission_terminology_request` table: a request for a code that does not exist yet (FR-30, FR-31).
 
 A reviewer who cannot find a SNOMED CT code for a proposed test moves the submission to
-`Awaiting terminology` and records here what was asked for and where. One row per submission,
-written in the same transaction as that move (`nptc.submissions.terminology_request`). The current
-graph lets a submission enter the state once, so a second row is never needed; if the graph ever
-allows a second entry, the key and the writers change together.
+`Awaiting terminology` and records here what was asked for and where. One row for each request,
+written in the same transaction as that move (`nptc.submissions.terminology_request`).
+
+**A submission can wait more than once.** A reviewer may return it to `Under review` when the
+request is declined or abandoned, and ask again later. The old row stays as history, because no
+privilege lets it be rewritten or removed, so the current request is the newest row of the
+submission (`ix_submission_terminology_request_submission_id_created_at`).
 
 **What is asked for is fixed, how the request is going can change.** `proposed_fsn`,
 `target_edition`, `justification` and `raised_date` say what was requested and when, so
@@ -18,6 +21,9 @@ that holds the concept request and `external_reference_ref` is the identifier in
 reader never parses one string to find either. Both are required, because a reference without its
 system cannot be followed.
 
+**The dates keep their order.** An expected release is never before the day the request was raised,
+so the database refuses a request that says its code is due before it was asked for.
+
 **One lock.** There is no version column here. A change to the tracking fields bumps
 `submission.row_version`, so an edit and a state transition cannot cross, as for the working copy.
 """
@@ -29,7 +35,7 @@ from datetime import date, datetime
 from enum import StrEnum
 from typing import ClassVar
 
-from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, Text
+from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, Index, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -51,6 +57,7 @@ class TargetEdition(StrEnum):
 _TARGET_EDITION_CHECK_SQL = "target_edition IN ('au','int')"
 _PROPOSED_FSN_NOT_BLANK_SQL = "length(btrim(proposed_fsn)) > 0"
 _JUSTIFICATION_NOT_BLANK_SQL = "length(btrim(justification)) > 0"
+_EXPECTED_RELEASE_ORDER_SQL = "expected_release IS NULL OR expected_release >= raised_date"
 _EXTERNAL_REFERENCE_SYSTEM_NOT_BLANK_SQL = "length(btrim(external_reference_system)) > 0"
 _EXTERNAL_REFERENCE_REF_NOT_BLANK_SQL = "length(btrim(external_reference_ref)) > 0"
 
@@ -72,7 +79,7 @@ class SubmissionTerminologyRequest(Base):
     )
     __audit_withheld_fields__: ClassVar[frozenset[str]] = frozenset()
     __audit_ignored_fields__: ClassVar[frozenset[str]] = frozenset(
-        {"submission_id", "created_at", "updated_at"}
+        {"id", "submission_id", "created_at", "updated_at"}
     )
 
     __table_args__ = (
@@ -85,11 +92,20 @@ class SubmissionTerminologyRequest(Base):
         CheckConstraint(
             _EXTERNAL_REFERENCE_REF_NOT_BLANK_SQL, name="external_reference_ref_not_blank"
         ),
+        CheckConstraint(_EXPECTED_RELEASE_ORDER_SQL, name="expected_release_not_before_raised"),
+        # A submission's requests, oldest first, is the one read on this table.
+        Index(
+            "ix_submission_terminology_request_submission_id_created_at",
+            "submission_id",
+            "created_at",
+        ),
     )
 
-    # One row per submission, so the foreign key is the primary key.
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid()
+    )
     submission_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("submission.id"), primary_key=True
+        UUID(as_uuid=True), ForeignKey("submission.id"), nullable=False
     )
     # `active_history=True` on every column in `__audit_fields__`: SQLAlchemy knows an attribute's
     # prior value only if it was loaded before reassignment.
@@ -102,8 +118,9 @@ class SubmissionTerminologyRequest(Base):
     external_reference_ref: Mapped[str] = mapped_column(Text, nullable=False, active_history=True)
     raised_date: Mapped[date] = mapped_column(Date, nullable=False, active_history=True)
     expected_release: Mapped[date | None] = mapped_column(Date, nullable=True, active_history=True)
+    # `clock_timestamp()`, not `now()`: two requests in one transaction still order by the instant.
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
+        DateTime(timezone=True), nullable=False, server_default=func.clock_timestamp()
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()

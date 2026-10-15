@@ -128,6 +128,7 @@ from nptc.submissions.errors import (
     ClosedSubmissionInterestError,
     CodeRefusal,
     EditReasonRequiredError,
+    ExpectedReleaseBeforeRaisedError,
     FreeTextField,
     FreeTextRefusedError,
     IllegalSubmissionTransitionError,
@@ -365,6 +366,7 @@ SubmissionField = Literal[
     "justification",
     "external_reference_system",
     "external_reference_ref",
+    "expected_release",
 ]
 
 
@@ -550,6 +552,9 @@ _DETAIL_EDIT_REASON_REQUIRED = "A reason is required. Say why you are editing th
 _DETAIL_SUBMISSION_NOT_EDITABLE = (
     "A submission can be edited only while it is in Triage, Under review, Awaiting terminology "
     "or Ready for approval."
+)
+_DETAIL_EXPECTED_RELEASE_BEFORE_RAISED = (
+    "The expected release cannot be earlier than the date the request was raised. Check both dates."
 )
 _DETAIL_TRANSITION_NEEDS_OWN_ROUTE = (
     "This change needs more than a reason, so it has its own route. Use "
@@ -1341,6 +1346,15 @@ def register_exception_handlers(app: FastAPI, auth_settings: AuthSettings) -> No
             exc.http_status,
             _DETAIL_TERMINOLOGY_REQUEST_FIELD_REQUIRED[exc.field],
             exc.field.value,
+        )
+
+    @app.exception_handler(ExpectedReleaseBeforeRaisedError)
+    async def _handle_expected_release_before_raised(
+        _request: Request, exc: ExpectedReleaseBeforeRaisedError
+    ) -> JSONResponse:
+        _logger.info("terminology request refused: expected release before raised date")
+        return _field_refusal(
+            exc.http_status, _DETAIL_EXPECTED_RELEASE_BEFORE_RAISED, "expected_release"
         )
 
     @app.exception_handler(CommentTextRequiredError)

@@ -505,7 +505,9 @@ def test_a_reviewer_is_offered_the_review_moves_and_withdrawal_only_of_their_own
         "Ready for approval",
         "Awaiting terminology",
     ]
-    assert _available(reviewer, Role.REVIEWER, "Awaiting terminology", submitter=other) == []
+    assert _available(reviewer, Role.REVIEWER, "Awaiting terminology", submitter=other) == [
+        "Under review"
+    ]
     assert _available(reviewer, Role.REVIEWER, "Approved", submitter=other) == []
     assert _available(reviewer, Role.REVIEWER, "Published in release", submitter=other) == []
 
@@ -528,7 +530,8 @@ def test_an_administrator_is_offered_withdrawal_from_every_open_and_approved_sta
         "Withdrawn",
     ]
     assert _available(admin, Role.ADMINISTRATOR, "Awaiting terminology", submitter=other) == [
-        "Ready for approval"
+        "Ready for approval",
+        "Under review",
     ]
     assert _available(admin, Role.ADMINISTRATOR, "Approved", submitter=other) == ["Withdrawn"]
     assert _available(admin, Role.ADMINISTRATOR, "Published in release", submitter=other) == [
@@ -647,6 +650,7 @@ def test_the_table_holds_exactly_the_moves_of_the_review_graph() -> None:
         (S.UNDER_REVIEW, S.READY_FOR_APPROVAL),
         (S.UNDER_REVIEW, S.AWAITING_TERMINOLOGY),
         (S.AWAITING_TERMINOLOGY, S.READY_FOR_APPROVAL),
+        (S.AWAITING_TERMINOLOGY, S.UNDER_REVIEW),
         (S.SUBMITTED, S.WITHDRAWN),
         (S.TRIAGE, S.WITHDRAWN),
         (S.APPROVED, S.WITHDRAWN),

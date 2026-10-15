@@ -60,12 +60,14 @@ from nptc.db.models.submission_terminology_request import (
 )
 from nptc.db.models.submission_working_copy import SubmissionWorkingCopy
 from nptc.submissions.errors import (
+    ExpectedReleaseBeforeRaisedError,
     FreeTextField,
     SubmissionNotFoundError,
     SubmissionVersionConflictError,
     TerminologyRequestFieldRequiredError,
     TerminologyRequestNotOpenError,
 )
+from nptc.submissions.queries import get_terminology_request
 from nptc.submissions.shared import clean_free_text, resolve_code
 from nptc.submissions.transitions import (
     PermittedTransition,
@@ -162,6 +164,7 @@ def request_terminology(
     Raises `TransitionReasonRequiredError` for a blank reason, `TerminologyRequestFieldRequiredError`
     for a text field that is empty once cleaned, `FreeTextRefusedError` for one with an invisible
     character, `SubmissionNotFoundError` for an unknown submission,
+    `ExpectedReleaseBeforeRaisedError` for a release before the day the request was raised,
     `IllegalSubmissionTransitionError` for a submission that is not `Under review`,
     `PermissionDeniedError` for a caller without `submission.transition.review`
     (`MfaRequiredError` when a role suppressed for want of MFA would grant it) and
@@ -190,6 +193,7 @@ def request_terminology(
             reason=cleaned_reason,
         )
         record = SubmissionTerminologyRequest(
+            id=uuid.uuid4(),
             submission_id=submission.id,
             proposed_fsn=details.proposed_fsn,
             target_edition=details.target_edition.value,
@@ -205,7 +209,7 @@ def request_terminology(
             ctx,
             action=_RECORD_CREATED,
             entity_type=SubmissionTerminologyRequest.__tablename__,
-            entity_id=str(submission.id),
+            entity_id=str(record.id),
             policy=policy_for(SubmissionTerminologyRequest),
             before=None,
             after={
@@ -234,7 +238,10 @@ def request_terminology(
 
 def clean_terminology_request(details: TerminologyRequestDetails) -> TerminologyRequestDetails:
     """`details` with its four text fields cleaned as free text is (FR-63), or a refusal. It touches
-    no session, so a writer runs it ahead of the append lock and a refused request takes none."""
+    no session, so a writer runs it ahead of the append lock and a refused request takes none. An
+    expected release before the day the request was raised is refused too."""
+    if details.expected_release is not None and details.expected_release < details.raised_date:
+        raise ExpectedReleaseBeforeRaisedError
     return replace(
         details,
         proposed_fsn=_required(details.proposed_fsn, FreeTextField.PROPOSED_FSN, multiline=False),
@@ -385,8 +392,10 @@ def update_terminology_request(
     `TerminologyRequestFieldRequiredError` for a reference field that is empty once cleaned,
     `FreeTextRefusedError` for one with an invisible character, `SubmissionNotFoundError` for an
     unknown submission, `TerminologyRequestNotOpenError` for a submission that is not
-    `Awaiting terminology`, and `SubmissionVersionConflictError` for a stale
-    `expected_row_version`. The caller's permission is judged by the route, as for the working copy.
+    `Awaiting terminology`, `SubmissionVersionConflictError` for a stale `expected_row_version`
+    and `ExpectedReleaseBeforeRaisedError` for a release before the day the request was raised. It
+    changes the newest request of the submission. The caller's permission is judged by the route,
+    as for the working copy.
     A refusal writes nothing.
     """
     cleaned_reason = clean_transition_reason(reason)
@@ -394,10 +403,16 @@ def update_terminology_request(
 
     acquire_append_lock(session)
     submission = load_submission_locked(session, submission_id)
-    record = session.get(SubmissionTerminologyRequest, submission.id, populate_existing=True)
+    record = get_terminology_request(session, submission.id, populate_existing=True)
     if submission.state != SubmissionState.AWAITING_TERMINOLOGY.value or record is None:
         raise TerminologyRequestNotOpenError(submission.state)
     check_row_version(submission, expected_row_version)
+    if (
+        changes.expected_release_given
+        and changes.expected_release is not None
+        and changes.expected_release < record.raised_date
+    ):
+        raise ExpectedReleaseBeforeRaisedError
 
     new_values: dict[str, object] = {}
     if changes.external_reference_system is not None:

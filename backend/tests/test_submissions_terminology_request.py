@@ -32,6 +32,7 @@ from nptc.db.models.submission_working_copy import SubmissionWorkingCopy
 from nptc.db.models.user import User
 from nptc.submissions.errors import (
     CodeRefusal,
+    ExpectedReleaseBeforeRaisedError,
     FreeTextField,
     FreeTextRefusedError,
     IllegalSubmissionTransitionError,
@@ -42,6 +43,7 @@ from nptc.submissions.errors import (
     TerminologyRequestNotOpenError,
     TransitionReasonRequiredError,
 )
+from nptc.submissions.queries import get_terminology_request
 from nptc.submissions.terminology_request import (
     TerminologyAttachment,
     TerminologyRequestDetails,
@@ -52,6 +54,7 @@ from nptc.submissions.terminology_request import (
     update_terminology_request,
 )
 from nptc.submissions.terms import SubmissionCodeMalformedError
+from nptc.submissions.transitions import transition_submission
 from nptc_shared.terminology import (
     AU_LANGUAGE_TAG,
     Operation,
@@ -151,7 +154,7 @@ def _assert_nothing_written(session: Session, submission_id: uuid.UUID, state: s
     assert current is not None
     assert current.state == state
     assert current.row_version == 1
-    assert session.get(SubmissionTerminologyRequest, submission_id) is None
+    assert get_terminology_request(session, submission_id) is None
     assert (
         session.execute(
             select(SubmissionTransition).where(SubmissionTransition.submission_id == submission_id)
@@ -178,7 +181,7 @@ def test_the_move_writes_the_state_the_record_and_the_transition_together(
 
     assert moved.state == "Awaiting terminology"
     assert moved.row_version == 2
-    record = app_session.get(SubmissionTerminologyRequest, submission.id)
+    record = get_terminology_request(app_session, submission.id)
     assert record is not None
     assert (record.proposed_fsn, record.target_edition) == (
         "Serum sodium level (observable entity)",
@@ -843,7 +846,7 @@ def _track(
 def _assert_record_untouched(session: Session, submission_id: uuid.UUID) -> None:
     session.expire_all()
     current = session.get(Submission, submission_id)
-    record = session.get(SubmissionTerminologyRequest, submission_id)
+    record = get_terminology_request(session, submission_id)
     assert current is not None and record is not None
     assert current.row_version == 1
     assert (record.external_reference_system, record.external_reference_ref) == (
@@ -853,7 +856,7 @@ def _assert_record_untouched(session: Session, submission_id: uuid.UUID) -> None
     assert record.expected_release == date(2027, 3, 31)
     assert (
         session.execute(
-            select(AuditEvent).where(AuditEvent.entity_id == str(submission_id))
+            select(AuditEvent).where(AuditEvent.entity_id.in_([str(submission_id), str(record.id)]))
         ).first()
         is None
     )
@@ -877,7 +880,7 @@ def test_a_tracking_change_bumps_the_version_and_names_only_what_changed(
     assert update.submission.row_version == 2
     assert update.record.expected_release == date(2027, 9, 1)
     [event] = app_session.execute(
-        select(AuditEvent).where(AuditEvent.entity_id == str(submission.id))
+        select(AuditEvent).where(AuditEvent.entity_id == str(update.record.id))
     ).scalars()
     assert event.action == "submission.terminology_request_updated"
     assert event.before == {"expected_release": "2027-03-31"}
@@ -984,7 +987,7 @@ def test_a_failure_after_the_change_leaves_the_record_and_the_version_as_they_we
         )
 
     app_session.expire_all()
-    record = app_session.get(SubmissionTerminologyRequest, submission.id)
+    record = get_terminology_request(app_session, submission.id)
     assert record is not None
     assert record.expected_release == date(2027, 3, 31)
     assert app_session.get(Submission, submission.id).row_version == 1  # type: ignore[union-attr]
@@ -1114,3 +1117,89 @@ def test_half_a_reference_is_a_programming_error_not_a_request(app_session: Sess
         )
 
     _assert_record_untouched(app_session, submission.id)
+
+
+# --- the dates keep their order (FR-31) ----------------------------------------------------------
+
+
+@pytest.mark.req("FR-31")
+@pytest.mark.req("NFR-08")
+@pytest.mark.integration
+def test_an_expected_release_before_the_raised_date_is_refused_before_the_append_lock(
+    app_session: Session, capture_statements: Any
+) -> None:
+    submission = _submission(app_session)
+    actor = _user(app_session)
+
+    with (
+        capture_statements(app_session.get_bind(), keep=_is_lock) as locks,
+        pytest.raises(ExpectedReleaseBeforeRaisedError),
+    ):
+        _request(
+            app_session,
+            submission,
+            actor=actor,
+            details=_details(raised_date=date(2026, 10, 1), expected_release=date(2026, 9, 30)),
+        )
+
+    assert locks == []
+    _assert_nothing_written(app_session, submission.id, "Under review")
+
+
+@pytest.mark.req("FR-31")
+@pytest.mark.integration
+def test_a_tracking_change_that_puts_the_release_before_the_raised_date_is_refused(
+    app_session: Session,
+) -> None:
+    submission = _waiting_with_record(app_session)
+
+    with pytest.raises(ExpectedReleaseBeforeRaisedError):
+        _track(
+            app_session,
+            submission,
+            TerminologyTrackingChanges(
+                expected_release=date(2026, 9, 30), expected_release_given=True
+            ),
+        )
+
+    _assert_record_untouched(app_session, submission.id)
+
+
+# --- taking a waiting submission back, and asking again (FR-28, FR-30) ---------------------------
+
+
+@pytest.mark.req("FR-28")
+@pytest.mark.req("FR-30")
+@pytest.mark.integration
+def test_a_submission_taken_back_can_be_moved_to_waiting_again_with_a_new_request(
+    app_session: Session,
+) -> None:
+    submission = _waiting_with_record(app_session)
+    first = get_terminology_request(app_session, submission.id)
+    assert first is not None
+    reviewer = _user(app_session)
+
+    transition_submission(
+        app_session,
+        _context(reviewer.id),
+        _principal(reviewer, Role.REVIEWER),
+        submission_id=submission.id,
+        to_state=SubmissionState.UNDER_REVIEW,
+        reason="The authority declined the request.",
+        expected_row_version=submission.row_version,
+    )
+    request_terminology(
+        app_session,
+        _context(reviewer.id),
+        _principal(reviewer, Role.REVIEWER),
+        submission_id=submission.id,
+        details=_details(external_reference_ref="REQ-2"),
+        reason="Asking again.",
+        expected_row_version=submission.row_version,
+    )
+
+    current = get_terminology_request(app_session, submission.id)
+    assert current is not None
+    assert current.id != first.id
+    assert current.external_reference_ref == "REQ-2"
+    assert first.external_reference_ref == "REQ-1"

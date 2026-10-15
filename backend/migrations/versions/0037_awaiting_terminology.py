@@ -5,7 +5,8 @@ Revises: 0036
 Create Date: 2026-10-15
 
 FR-30, FR-31, NFR-08: the `Awaiting terminology` state and `submission_terminology_request`, the
-record of what a reviewer asked the terminology authority for. See
+record of what a reviewer asked the terminology authority for, one row for each request, so a submission
+returned to `Under review` can wait again. See
 `nptc.db.models.submission_terminology_request` for the reasoning.
 
 The `state` check on `submission` and the two state checks on `submission_transition` are widened
@@ -77,6 +78,7 @@ def upgrade() -> None:
 
     op.create_table(
         "submission_terminology_request",
+        sa.Column("id", sa.UUID(), server_default=sa.text("gen_random_uuid()"), nullable=False),
         sa.Column("submission_id", sa.UUID(), nullable=False),
         sa.Column("proposed_fsn", sa.Text(), nullable=False),
         sa.Column("target_edition", sa.Text(), nullable=False),
@@ -88,7 +90,7 @@ def upgrade() -> None:
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
+            server_default=sa.text("clock_timestamp()"),
             nullable=False,
         ),
         sa.Column(
@@ -117,12 +119,21 @@ def upgrade() -> None:
             "length(btrim(external_reference_ref)) > 0",
             name=op.f("ck_submission_terminology_request_external_reference_ref_not_blank"),
         ),
+        sa.CheckConstraint(
+            "expected_release IS NULL OR expected_release >= raised_date",
+            name=op.f("ck_submission_terminology_request_expected_release_not_before_raised"),
+        ),
         sa.ForeignKeyConstraint(
             ["submission_id"],
             ["submission.id"],
             name=op.f("fk_submission_terminology_request_submission_id_submission"),
         ),
-        sa.PrimaryKeyConstraint("submission_id", name=op.f("pk_submission_terminology_request")),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_submission_terminology_request")),
+    )
+    op.create_index(
+        "ix_submission_terminology_request_submission_id_created_at",
+        "submission_terminology_request",
+        ["submission_id", "created_at"],
     )
 
     op.execute(roles.GRANT_SUBMISSION_TERMINOLOGY_REQUEST_SQL)

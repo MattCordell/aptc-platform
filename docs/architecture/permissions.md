@@ -320,6 +320,12 @@ two moves are two routes and two permissions:
 | `POST /api/v1/submissions/{id}/terminology-request` | `submission.transition.review` | Reviewer, Administrator |
 | `PATCH /api/v1/submissions/{id}/terminology-request` | `submission.transition.review` | Reviewer, Administrator |
 | `POST /api/v1/submissions/{id}/terminology-request/attach-code` | `submission.transition.approve` | Administrator, with the MFA step-up |
+| `POST /api/v1/submissions/{id}/transitions` to `Under review` (take back) | `submission.transition.review` | Reviewer, Administrator |
+
+A Reviewer takes a waiting submission back to `Under review` when the request is declined or abandoned,
+through the general route, because that move carries only a reason. The request stays as history. An
+Administrator who has not stepped up with MFA holds no permission, so every route above answers them
+with the step-up challenge.
 
 The attach is Administrator-only (PRD section 4.5) because the code it writes is the one an
 Administrator has looked up on the terminology server. The gate runs before the submission is looked up,
@@ -334,8 +340,9 @@ record carries a reviewer's justification and the tracking of a request with a t
 submitter sees the state and nothing more. The list and the transition history never carry it. A
 reviewer may edit the working copy while the submission waits, but the code is not editable then: only
 the attach writes it. The events are `submission.terminology_requested`,
-`submission.terminology_request_created`, `submission.terminology_request_updated` and
-`submission.terminology_attached`, and the audit log is Administrator-only.
+`submission.terminology_request_created`, `submission.terminology_request_updated`,
+`submission.terminology_attached` and `submission.review_resumed`, and the audit log is
+Administrator-only.
 
 ## FR-80 and FR-81: provable without a single endpoint
 

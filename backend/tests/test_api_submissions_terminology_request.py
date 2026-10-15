@@ -31,6 +31,7 @@ from nptc.db.models.submission_transition import SubmissionTransition
 from nptc.db.models.submission_working_copy import SubmissionWorkingCopy
 from nptc.db.models.user import User
 from nptc.db.models.user_identity import UserIdentity
+from nptc.submissions.queries import get_terminology_request
 from nptc_shared.terminology import (
     AU_LANGUAGE_TAG,
     Operation,
@@ -128,7 +129,7 @@ def _request(api: ApiTestApp, token: str | None, submission_id: object, **overri
 
 def _record(api: ApiTestApp, submission: Submission) -> SubmissionTerminologyRequest | None:
     api.session.expire_all()
-    return api.session.get(SubmissionTerminologyRequest, submission.id)
+    return get_terminology_request(api.session, submission.id)
 
 
 def _transitions(api: ApiTestApp, submission: Submission) -> list[SubmissionTransition]:
@@ -155,10 +156,31 @@ def _events(
     )
 
 
-def _all_events(api: ApiTestApp, submission: Submission) -> list[Any]:
-    return _events(api, submission) + _events(
-        api, submission, entity_type="submission_terminology_request"
+def _record_events(api: ApiTestApp, submission: Submission) -> list[Any]:
+    """The events about the submission's requests. An event about a request carries the request's own
+    id, so the ids are read first."""
+    ids = [
+        str(record_id)
+        for record_id in api.session.execute(
+            select(SubmissionTerminologyRequest.id).where(
+                SubmissionTerminologyRequest.submission_id == submission.id
+            )
+        ).scalars()
+    ]
+    return list(
+        api.session.execute(
+            select(AuditEvent)
+            .where(
+                AuditEvent.entity_type == "submission_terminology_request",
+                AuditEvent.entity_id.in_(ids),
+            )
+            .order_by(AuditEvent.sequence)
+        ).scalars()
     )
+
+
+def _all_events(api: ApiTestApp, submission: Submission) -> list[Any]:
+    return _events(api, submission) + _record_events(api, submission)
 
 
 def _state(api: ApiTestApp, submission: Submission) -> str:
@@ -238,7 +260,7 @@ def test_the_move_appends_one_state_event_and_one_record_event(api: ApiTestApp) 
     assert moved.before == {"state": "Under review"}
     assert moved.after == {"state": "Awaiting terminology"}
     assert moved.reason == _REASON
-    [created] = _events(api, submission, entity_type="submission_terminology_request")
+    [created] = _record_events(api, submission)
     assert created.action == "submission.terminology_request_created"
     assert created.before is None
     assert created.after == {
@@ -1157,8 +1179,8 @@ def test_the_detail_offers_the_attach_to_an_administrator_and_not_to_a_reviewer(
     reviewer = api.get(f"/submissions/{submission.id}", token=reviewer_token).json()
     admin = api.get(f"/submissions/{submission.id}", token=admin_token).json()
 
-    assert reviewer["available_transitions"] == []
-    assert admin["available_transitions"] == ["Ready for approval"]
+    assert reviewer["available_transitions"] == ["Under review"]
+    assert admin["available_transitions"] == ["Ready for approval", "Under review"]
 
 
 # --- tracking the request while the submission waits (FR-31, NFR-08) -----------------------------
@@ -1179,10 +1201,6 @@ def _track(
         token=token,
         json={"reason": reason, "expected_row_version": expected_row_version, **fields},
     )
-
-
-def _record_events(api: ApiTestApp, submission: Submission) -> list[Any]:
-    return _events(api, submission, entity_type="submission_terminology_request")
 
 
 def _assert_untracked(api: ApiTestApp, submission: Submission) -> None:
@@ -1697,3 +1715,265 @@ def test_the_list_never_carries_the_request(api: ApiTestApp) -> None:
     assert response.status_code == 200, response.text
     assert response.json()["items"]
     assert all("terminology_request" not in item for item in response.json()["items"])
+
+
+# --- a declined or abandoned request must not strand the submission (FR-28, FR-30) --------------
+
+
+def _resume(
+    api: ApiTestApp,
+    token: str | None,
+    submission_id: object,
+    *,
+    reason: object = "The authority declined the request.",
+    expected_row_version: object = 2,
+) -> Any:
+    return api.post(
+        f"/submissions/{submission_id}/transitions",
+        token=token,
+        json={
+            "to_state": "Under review",
+            "reason": reason,
+            "expected_row_version": expected_row_version,
+        },
+    )
+
+
+@pytest.mark.req("FR-28")
+@pytest.mark.req("FR-30")
+@pytest.mark.req("NFR-08")
+@pytest.mark.integration
+@pytest.mark.parametrize("role", _REVIEWING_ROLES)
+def test_a_reviewing_role_takes_a_waiting_submission_back_to_under_review(
+    api: ApiTestApp, role: Role
+) -> None:
+    submission = _awaiting(api)
+    token, actor = _sign_in(api, role)
+
+    response = _resume(api, token, submission.id)
+
+    assert response.status_code == 200, response.text
+    assert response.json()["state"] == "Under review"
+    assert response.json()["row_version"] == 3
+    assert _state(api, submission) == "Under review"
+    last = _transitions(api, submission)[-1]
+    assert (last.from_state, last.to_state, last.actor_id) == (
+        "Awaiting terminology",
+        "Under review",
+        actor.id,
+    )
+    assert last.reason == "The authority declined the request."
+    resumed = _events(api, submission)[-1]
+    assert resumed.action == "submission.review_resumed"
+    assert resumed.before == {"state": "Awaiting terminology"}
+    assert resumed.after == {"state": "Under review"}
+
+
+@pytest.mark.req("FR-30")
+@pytest.mark.integration
+def test_the_request_stays_as_history_after_the_submission_is_taken_back(
+    api: ApiTestApp,
+) -> None:
+    submission = _awaiting(api)
+    token, _ = _sign_in(api, Role.REVIEWER)
+    assert _resume(api, token, submission.id).status_code == 200
+
+    record = _record(api, submission)
+
+    assert record is not None
+    assert record.external_reference_ref == "REQ-1"
+    assert [event.action for event in _record_events(api, submission)] == [
+        "submission.terminology_request_created"
+    ]
+    body = api.get(f"/submissions/{submission.id}", token=token).json()
+    assert body["state"] == "Under review"
+    assert body["terminology_request"]["external_reference"]["reference"] == "REQ-1"
+
+
+@pytest.mark.req("FR-30")
+@pytest.mark.integration
+def test_a_submission_taken_back_can_wait_again_and_the_newest_request_is_current(
+    api: ApiTestApp,
+) -> None:
+    submission = _awaiting(api)
+    token, _ = _sign_in(api, Role.REVIEWER)
+    assert _resume(api, token, submission.id).status_code == 200
+
+    second = _request(
+        api,
+        token,
+        submission.id,
+        expected_row_version=3,
+        justification="Asked again with a clearer name.",
+        external_reference={"system": "snomed-request-service", "reference": "REQ-2"},
+    )
+
+    assert second.status_code == 200, second.text
+    assert second.json()["state"] == "Awaiting terminology"
+    api.session.expire_all()
+    rows = list(
+        api.session.execute(
+            select(SubmissionTerminologyRequest)
+            .where(SubmissionTerminologyRequest.submission_id == submission.id)
+            .order_by(SubmissionTerminologyRequest.created_at)
+        ).scalars()
+    )
+    assert [row.external_reference_ref for row in rows] == ["REQ-1", "REQ-2"]
+    detail = api.get(f"/submissions/{submission.id}", token=token).json()
+    assert detail["terminology_request"]["justification"] == "Asked again with a clearer name."
+
+    tracked = _track(
+        api, token, submission.id, expected_row_version=4, expected_release="2028-02-02"
+    )
+
+    assert tracked.status_code == 200, tracked.text
+    api.session.expire_all()
+    rows = list(
+        api.session.execute(
+            select(SubmissionTerminologyRequest)
+            .where(SubmissionTerminologyRequest.submission_id == submission.id)
+            .order_by(SubmissionTerminologyRequest.created_at)
+        ).scalars()
+    )
+    assert [str(row.expected_release) for row in rows] == ["2027-03-31", "2028-02-02"]
+
+
+@pytest.mark.req("FR-28")
+@pytest.mark.req("FR-81")
+@pytest.mark.integration
+@pytest.mark.parametrize("role", _NON_REVIEWING_ROLES)
+def test_a_role_without_the_review_permission_cannot_take_a_waiting_submission_back(
+    api: ApiTestApp, role: Role
+) -> None:
+    submission = _awaiting(api)
+    token, _ = _sign_in(api, role)
+
+    response = _resume(api, token, submission.id)
+
+    assert response.status_code == 403, response.text
+    _assert_still_awaiting(api, submission)
+
+
+@pytest.mark.req("FR-28")
+@pytest.mark.integration
+def test_taking_a_submission_back_needs_a_reason_and_the_current_version(api: ApiTestApp) -> None:
+    submission = _awaiting(api)
+    token, _ = _sign_in(api, Role.REVIEWER)
+
+    blank = _resume(api, token, submission.id, reason="  ")
+    stale = _resume(api, token, submission.id, expected_row_version=1)
+
+    assert blank.status_code == 422, blank.text
+    assert blank.json()["field"] == "reason"
+    assert stale.status_code == 409, stale.text
+    assert stale.json()["current_row_version"] == 2
+    _assert_still_awaiting(api, submission)
+
+
+@pytest.mark.req("FR-30")
+@pytest.mark.integration
+def test_the_attach_is_refused_once_the_submission_is_back_under_review(
+    api: ApiTestApp,
+) -> None:
+    _seed_concepts(api)
+    submission = _awaiting(api)
+    reviewer_token, _ = _sign_in(api, Role.REVIEWER)
+    admin_token, _ = _sign_in(api, Role.ADMINISTRATOR)
+    assert _resume(api, reviewer_token, submission.id).status_code == 200
+
+    response = _attach(api, admin_token, submission.id, expected_row_version=3)
+
+    assert response.status_code == 409, response.text
+    assert _working_copy(api, submission) is None
+
+
+# --- the dates keep their order (FR-31) ----------------------------------------------------------
+
+
+@pytest.mark.req("FR-31")
+@pytest.mark.integration
+def test_an_expected_release_before_the_raised_date_is_a_422_that_names_the_field(
+    api: ApiTestApp,
+) -> None:
+    token, _ = _sign_in(api, Role.REVIEWER)
+    submission = _submission(api, _sign_in(api, Role.MEMBER)[1])
+
+    response = _request(
+        api, token, submission.id, raised_date="2026-10-01", expected_release="2026-09-30"
+    )
+
+    assert response.status_code == 422, response.text
+    assert response.json()["field"] == "expected_release"
+    _assert_unchanged(api, submission)
+
+
+@pytest.mark.req("FR-31")
+@pytest.mark.integration
+def test_an_expected_release_on_the_raised_date_is_accepted(api: ApiTestApp) -> None:
+    token, _ = _sign_in(api, Role.REVIEWER)
+    submission = _submission(api, _sign_in(api, Role.MEMBER)[1])
+
+    response = _request(
+        api, token, submission.id, raised_date="2026-10-01", expected_release="2026-10-01"
+    )
+
+    assert response.status_code == 200, response.text
+
+
+@pytest.mark.req("FR-31")
+@pytest.mark.integration
+def test_a_tracking_change_cannot_set_the_release_before_the_raised_date(
+    api: ApiTestApp,
+) -> None:
+    submission = _awaiting(api)
+    token, _ = _sign_in(api, Role.REVIEWER)
+
+    response = _track(api, token, submission.id, expected_release="2026-09-30")
+
+    assert response.status_code == 422, response.text
+    assert response.json()["field"] == "expected_release"
+    _assert_untracked(api, submission)
+
+
+@pytest.mark.req("FR-31")
+@pytest.mark.integration
+def test_a_tracking_change_may_clear_the_release_whatever_the_raised_date(
+    api: ApiTestApp,
+) -> None:
+    submission = _awaiting(api)
+    token, _ = _sign_in(api, Role.REVIEWER)
+
+    response = _track(api, token, submission.id, expected_release=None)
+
+    assert response.status_code == 200, response.text
+    assert response.json()["terminology_request"]["expected_release"] is None
+
+
+# --- an Administrator without MFA is told to step up on every route (FR-44, NFR-06) --------------
+
+
+@pytest.mark.req("NFR-06")
+@pytest.mark.req("FR-44")
+@pytest.mark.integration
+@pytest.mark.parametrize("route", ["request", "track"])
+def test_an_administrator_without_mfa_gets_a_step_up_challenge_on_the_request_and_the_tracking_change(
+    api: ApiTestApp, route: str
+) -> None:
+    submission = (
+        _awaiting(api) if route == "track" else _submission(api, _sign_in(api, Role.MEMBER)[1])
+    )
+    token = api.admin_token(
+        subject=f"sub-terminology-{route}-{uuid.uuid4().hex[:8]}", with_mfa=False
+    )
+
+    if route == "request":
+        response = _request(api, token, submission.id)
+    else:
+        response = _track(api, token, submission.id, expected_release="2028-01-01")
+
+    assert response.status_code == 403, response.text
+    assert 'error="insufficient_user_authentication"' in response.headers["WWW-Authenticate"]
+    if route == "request":
+        _assert_unchanged(api, submission)
+    else:
+        _assert_untracked(api, submission)

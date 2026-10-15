@@ -18,6 +18,7 @@ __all__ = [
     "ClosedSubmissionInterestError",
     "CodeRefusal",
     "EditReasonRequiredError",
+    "ExpectedReleaseBeforeRaisedError",
     "FreeTextField",
     "FreeTextRefusedError",
     "IllegalSubmissionTransitionError",
@@ -266,3 +267,14 @@ class TerminologyRequestNotOpenError(Exception):
     def __init__(self, state: str) -> None:
         self.state = state
         super().__init__(f"terminology request change refused, submission is {state}")
+
+
+class ExpectedReleaseBeforeRaisedError(ValueError):
+    """The expected release of a terminology request is earlier than the day the request was
+    raised (FR-31). A request cannot be due before it was asked for. The message holds no caller
+    text."""
+
+    http_status: ClassVar[int] = 422
+
+    def __init__(self) -> None:
+        super().__init__("expected release is earlier than the date the request was raised")

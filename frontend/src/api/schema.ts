@@ -3618,7 +3618,7 @@ export interface components {
              * Field
              * @enum {string}
              */
-            field: "preferred_term" | "synonyms" | "snomed_code" | "reference_url" | "notes" | "organisation" | "reason" | "body" | "proposed_fsn" | "justification" | "external_reference_system" | "external_reference_ref";
+            field: "preferred_term" | "synonyms" | "snomed_code" | "reference_url" | "notes" | "organisation" | "reason" | "body" | "proposed_fsn" | "justification" | "external_reference_system" | "external_reference_ref" | "expected_release";
         };
         /**
          * SubmissionKind
@@ -7920,7 +7920,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description The caller does not hold `submission.transition.review`, or has not accepted the current terms of use (the body then carries a `code` that says so). The current terms of use have not been accepted. The body carries `code: terms_acceptance_required`. Accept them with `POST /auth/terms/acceptance` and try again. Never carries `WWW-Authenticate`. */
+            /** @description The caller does not hold `submission.transition.review`, or is an Administrator who has not stepped up with MFA (the response then carries a `WWW-Authenticate` challenge), or has not accepted the current terms of use (the body then carries a `code` that says so). The current terms of use have not been accepted. The body carries `code: terms_acceptance_required`. Accept them with `POST /auth/terms/acceptance` and try again. Never carries `WWW-Authenticate`. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7947,7 +7947,7 @@ export interface operations {
                     "application/json": components["schemas"]["SubmissionVersionConflictResponse"] | components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description A text field or the `reason` is blank, or carries an invisible character such as a zero-width space (`field` names it). An identifier that is not a UUID, a `target_edition` other than `au` or `int`, a date that is not a date, a missing field, a field over its size bound or a field the request should not carry fails validation before the route runs. */
+            /** @description A text field or the `reason` is blank, or carries an invisible character such as a zero-width space (`field` names it). An identifier that is not a UUID, a `expected_release` is earlier than `raised_date` (`field` is `expected_release`). An identifier that is not a UUID, a `target_edition` other than `au` or `int`, a date that is not a date, a missing field, a field over its size bound or a field the request should not carry fails validation before the route runs. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -8002,7 +8002,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description The caller does not hold `submission.transition.review`, or has not accepted the current terms of use (the body then carries a `code` that says so). The current terms of use have not been accepted. The body carries `code: terms_acceptance_required`. Accept them with `POST /auth/terms/acceptance` and try again. Never carries `WWW-Authenticate`. */
+            /** @description The caller does not hold `submission.transition.review`, or is an Administrator who has not stepped up with MFA (the response then carries a `WWW-Authenticate` challenge), or has not accepted the current terms of use (the body then carries a `code` that says so). The current terms of use have not been accepted. The body carries `code: terms_acceptance_required`. Accept them with `POST /auth/terms/acceptance` and try again. Never carries `WWW-Authenticate`. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -8029,7 +8029,7 @@ export interface operations {
                     "application/json": components["schemas"]["SubmissionVersionConflictResponse"] | components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description The `reason` or a part of the external reference is blank, or carries an invisible character such as a zero-width space (`field` names it). An identifier that is not a UUID, a request that sends none of `external_reference` and `expected_release`, a `null` external reference, a part of it missing, a date that is not a date, a field over its size bound or a field the request should not carry, such as `proposed_fsn`, fails validation before the route runs. */
+            /** @description The `reason` or a part of the external reference is blank, or carries an invisible character such as a zero-width space (`field` names it), or `expected_release` is earlier than the `raised_date` the request was made with (`field` is `expected_release`). An identifier that is not a UUID, a request that sends none of `external_reference` and `expected_release`, a `null` external reference, a part of it missing, a date that is not a date, a field over its size bound or a field the request should not carry, such as `proposed_fsn`, fails validation before the route runs. */
             422: {
                 headers: {
                     [name: string]: unknown;

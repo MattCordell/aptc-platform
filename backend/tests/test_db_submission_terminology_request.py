@@ -101,14 +101,41 @@ def test_the_expected_release_is_optional(db: Connection) -> None:
 
 @pytest.mark.req("FR-30")
 @pytest.mark.integration
-def test_a_submission_has_at_most_one_request(db: Connection) -> None:
+def test_a_submission_may_ask_again_and_the_newest_request_is_the_current_one(
+    db: Connection,
+) -> None:
     submission_id = _insert_submission(db)
-    _insert_request(db, submission_id)
+    _insert_request(db, submission_id, external_reference_ref="REQ-1")
+    _insert_request(db, submission_id, external_reference_ref="REQ-2")
 
+    refs = db.execute(
+        text(
+            "SELECT external_reference_ref FROM submission_terminology_request "
+            "WHERE submission_id = :id ORDER BY created_at, id"
+        ),
+        {"id": submission_id},
+    ).scalars()
+
+    assert list(refs) == ["REQ-1", "REQ-2"]
+
+
+@pytest.mark.req("FR-31")
+@pytest.mark.integration
+def test_a_request_refuses_an_expected_release_before_it_was_raised(db: Connection) -> None:
     with pytest.raises(IntegrityError) as exc_info:
-        _insert_request(db, submission_id)
+        _insert_request(
+            db, _insert_submission(db), raised_date="2026-10-01", expected_release="2026-09-30"
+        )
 
-    assert exc_info.value.orig.sqlstate == _UNIQUE_VIOLATION  # type: ignore[union-attr]
+    assert exc_info.value.orig.sqlstate == _CHECK_VIOLATION  # type: ignore[union-attr]
+
+
+@pytest.mark.req("FR-31")
+@pytest.mark.integration
+def test_a_request_may_expect_its_release_on_the_day_it_was_raised(db: Connection) -> None:
+    _insert_request(
+        db, _insert_submission(db), raised_date="2026-10-01", expected_release="2026-10-01"
+    )
 
 
 @pytest.mark.req("FR-30")
@@ -206,6 +233,7 @@ def test_app_role_can_update_the_tracking_fields(app_db: Connection) -> None:
 #: One refused statement per test: a privilege error aborts the transaction. The parameter ids name
 #: the column or verb, so a failure says which guarantee broke.
 _REFUSED_STATEMENTS = {
+    "update_id": "UPDATE submission_terminology_request SET id = gen_random_uuid()",
     "update_submission_id": "UPDATE submission_terminology_request SET submission_id = submission_id",
     "update_proposed_fsn": "UPDATE submission_terminology_request SET proposed_fsn = 'x'",
     "update_target_edition": "UPDATE submission_terminology_request SET target_edition = 'int'",

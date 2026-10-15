@@ -74,6 +74,7 @@ from nptc.db.models.submission_terminology_request import (
     SubmissionTerminologyRequest,
     TargetEdition,
 )
+from nptc.submissions.queries import get_terminology_request
 from nptc.submissions.terminology_request import (
     TerminologyRequestDetails,
     TerminologyTrackingChanges,
@@ -114,8 +115,10 @@ _RESPONSES: Final[dict[int | str, dict[str, Any]]] = {
     403: {
         "model": ErrorResponse,
         "description": (
-            "The caller does not hold `submission.transition.review`, or has not accepted the "
-            "current terms of use (the body then carries a `code` that says so)."
+            "The caller does not hold `submission.transition.review`, or is an Administrator "
+            "who has not stepped up with MFA (the response then carries a `WWW-Authenticate` "
+            "challenge), or has not accepted the current terms of use (the body then carries a "
+            "`code` that says so)."
         ),
     },
     404: {"model": ErrorResponse, "description": "No submission has the identifier."},
@@ -132,9 +135,10 @@ _RESPONSES: Final[dict[int | str, dict[str, Any]]] = {
         "description": (
             "A text field or the `reason` is blank, or carries an invisible character such as a "
             "zero-width space (`field` names it). An identifier that is not a UUID, a "
-            "`target_edition` other than `au` or `int`, a date that is not a date, a missing "
-            "field, a field over its size bound or a field the request should not carry fails "
-            "validation before the route runs."
+            "`expected_release` is earlier than `raised_date` (`field` is `expected_release`). An "
+            "identifier that is not a UUID, a `target_edition` other than `au` or `int`, a date "
+            "that is not a date, a missing field, a field over its size bound or a field the "
+            "request should not carry fails validation before the route runs."
         ),
     },
 }
@@ -155,7 +159,9 @@ _TRACKING_RESPONSES: Final[dict[int | str, dict[str, Any]]] = {
         "model": SubmissionFieldRefusalResponse,
         "description": (
             "The `reason` or a part of the external reference is blank, or carries an invisible "
-            "character such as a zero-width space (`field` names it). An identifier that is not a "
+            "character such as a zero-width space (`field` names it), or `expected_release` is "
+            "earlier than the `raised_date` the request was made with (`field` is "
+            "`expected_release`). An identifier that is not a "
             "UUID, a request that sends none of `external_reference` and `expected_release`, a "
             "`null` external reference, a part of it missing, a date that is not a date, a field "
             "over its size bound or a field the request should not carry, such as `proposed_fsn`, "
@@ -375,7 +381,7 @@ def request_submission_terminology(
         reason=body.reason,
         expected_row_version=body.expected_row_version,
     )
-    record = session.get(SubmissionTerminologyRequest, submission.id, populate_existing=True)
+    record = get_terminology_request(session, submission.id, populate_existing=True)
     if record is None:
         raise RuntimeError("the terminology request was written but cannot be read back")
     moved = _answer(submission, principal)

@@ -1692,7 +1692,7 @@ the actor today and not at the time of the move.
 by `(from_state, to_state)`. Each row names the audit action and the ways an actor may make the move: a
 permission, and whether the actor must be the submitter. A move with no row is refused with a 409, so a
 closed submission is never reinterpreted, and a second withdrawal is refused and not repeated. A new
-state or move is a new row and not a second code path. The table holds eleven moves:
+state or move is a new row and not a second code path. The table holds twelve moves:
 
 | From | To | Needs |
 |---|---|---|
@@ -1703,6 +1703,7 @@ state or move is a new row and not a second code path. The table holds eleven mo
 | `Under review` | `Ready for approval` | `submission.transition.review` |
 | `Under review` | `Awaiting terminology` | `submission.transition.review`. Needs a terminology request, so it has its own route |
 | `Awaiting terminology` | `Ready for approval` | `submission.transition.approve`, which only the Administrator holds. Needs a code, so it has its own route |
+| `Awaiting terminology` | `Under review` (take back) | `submission.transition.review`. A plain move, so `POST /api/v1/submissions/{id}/transitions` makes it. The request stays as history |
 | `Submitted`, `Triage` | `Withdrawn` | `submission.withdraw.own` and the submitter, or `submission.withdraw.any` |
 | `Approved`, `Published in release` | `Withdrawn` | `submission.withdraw.any` |
 
@@ -1710,8 +1711,9 @@ A reopened submission keeps its transition rows and is never a new record. The A
 `.any` and not `.own`, so the `.any` requirement on the open-state withdrawal rows is what lets an
 Administrator withdraw a submission of their own. Only `.any` reaches `Approved` and `Published in
 release`, so the submitter's own withdrawal ends once a reviewer has accepted the proposal. No row
-enters `Approved` yet, so a request for it is a 409. A submission cannot leave `Awaiting terminology`
-by withdrawal or rejection: the table has no such row, so the only way out is the attach.
+enters `Approved` yet, so a request for it is a 409. A submission leaves `Awaiting terminology`
+in one of two ways: an Administrator attaches the code, or a reviewer takes it back to `Under review` when
+the request is declined or abandoned. The table has no row from the state to `Rejected` or `Withdrawn`.
 
 **A move that needs more than a reason is flagged in the table** (`PermittedTransition.needs_payload`).
 The two moves of `Awaiting terminology` are rows like any other, so the graph, the permissions and
@@ -1745,7 +1747,8 @@ A stale value is a 409 that carries `current_row_version`.
 Each move emits one audit event on the `submission`, carrying `state` in `before` and `after` and the
 reason (NFR-08). The action names the move: `submission.triaged`, `submission.review_started`,
 `submission.rejected`, `submission.reopened`, `submission.readied_for_approval`,
-`submission.terminology_requested`, `submission.terminology_attached` and `submission.withdrawn`. The
+`submission.terminology_requested`, `submission.terminology_attached`, `submission.review_resumed` and
+`submission.withdrawn`. The
 transition row is not a second event. `submission.terminology_attached` also carries `snomed_code` and
 `snomed_fsn`, because the move writes the code to the working copy.
 
@@ -1855,20 +1858,23 @@ The record of a request for a SNOMED CT code that does not exist yet. A Reviewer
 code for a proposed test moves the submission from `Under review` to `Awaiting terminology` through
 `POST /api/v1/submissions/{id}/terminology-request`, which `nptc.submissions.terminology_request`
 backs, and the record is written in the same transaction as the move. A submission never waits
-without a complete record. One row per submission: the current graph lets a submission enter the state
-once, so a second request is a 409.
+without a complete record. One row for each request. A submission can wait more than once: a reviewer may
+take it back to `Under review` when the request is declined or abandoned, and ask again later. The earlier
+row stays as history, because no privilege lets it be rewritten or removed, and the current request is the
+newest row of the submission.
 
 | Column | Type | Notes |
 |---|---|---|
-| `submission_id` | `UUID` | PK and FK to `submission.id`, so a submission has at most one request |
+| `id` | `UUID` | PK, `gen_random_uuid()` |
+| `submission_id` | `UUID` | `NOT NULL`, FK to `submission.id`. `ix_submission_terminology_request_submission_id_created_at` serves the one read, a submission's requests |
 | `proposed_fsn` | `TEXT` | `NOT NULL`, `CHECK` not blank. The fully specified name the reviewer asks for. Fixed once written |
 | `target_edition` | `TEXT` | `NOT NULL`, `CHECK` in `au`, `int`. The edition the concept is requested in. Fixed once written, and it does not change where the attach looks the code up |
 | `justification` | `TEXT` | `NOT NULL`, `CHECK` not blank. Cleaned like a note (FR-63). Fixed once written |
 | `external_reference_system` | `TEXT` | `NOT NULL`, `CHECK` not blank. The system that holds the concept request (FR-31). A tracking field |
 | `external_reference_ref` | `TEXT` | `NOT NULL`, `CHECK` not blank. The identifier of the request in that system. A tracking field |
 | `raised_date` | `DATE` | `NOT NULL`. When the request was raised with the terminology authority. Fixed once written |
-| `expected_release` | `DATE` | Nullable. When the code is expected, if known. A tracking field |
-| `created_at` | `TIMESTAMPTZ` | `NOT NULL`, `now()` |
+| `expected_release` | `DATE` | Nullable. When the code is expected, if known. A tracking field. `CHECK (expected_release IS NULL OR expected_release >= raised_date)`, so a request is never due before it was asked for |
+| `created_at` | `TIMESTAMPTZ` | `NOT NULL`, `clock_timestamp()`, so two requests in one transaction still order |
 | `updated_at` | `TIMESTAMPTZ` | `NOT NULL`, the latest change to a tracking field |
 
 **The external reference is two columns, not one string** (FR-31), so a reader never parses text to find
@@ -1877,13 +1883,14 @@ yet, so the platform stores them and calls nothing.
 
 **What was asked for is fixed by privilege.** `nptc_app` holds `SELECT, INSERT` and a column-level
 `UPDATE` on the two `external_reference_*` columns, `expected_release` and `updated_at` only. It holds no
-`UPDATE` on the other columns, and no `DELETE` or `TRUNCATE`, so the request can be tracked while the
+`UPDATE` on the other columns, `id` and `submission_id` included, and no `DELETE` or `TRUNCATE`, so the request can be tracked while the
 submission waits and never rewritten or removed. A wrong request is a new submission or an amendment.
 
 **The tracking fields change while the submission waits.** `PATCH
 /api/v1/submissions/{id}/terminology-request` (`submission.transition.review`) replaces the external
-reference as a pair and replaces or clears the expected release. It needs the submission to be
-`Awaiting terminology`, so a record is frozen once the code is attached. A change bumps
+reference as a pair and replaces or clears the expected release of the newest request. It needs the
+submission to be `Awaiting terminology`, so a record is frozen once the code is attached or the submission
+is taken back. A release before the `raised_date` is a 422. A change bumps
 `submission.row_version`, so a tracking change and a move cannot cross, and an `expected_row_version`
 that is stale is a 409. A request that changes nothing writes nothing.
 
@@ -1898,8 +1905,8 @@ append lock is taken, so `attach_terminology_code` is exempt from the lock-first
 has no FSN is a 422 and the submission keeps waiting. The record stays as the history of what was asked.
 
 **Visibility.** `GET /api/v1/submissions/{id}` returns `terminology_request` to a holder of
-`submission.transition.review` (Reviewer, Administrator): the object, or null when the submission has never
-waited. Everyone else, the submitter included, gets no such key. The record carries a reviewer's
+`submission.transition.review` (Reviewer, Administrator): the newest request, or null when the submission
+has never waited. A request stays visible after the submission is taken back or its code attached. Everyone else, the submitter included, gets no such key. The record carries a reviewer's
 justification and the tracking of a request with a third party, so a submitter is told the state and
 nothing more.
 
@@ -1907,7 +1914,7 @@ nothing more.
 on the `submission` (the change of state, with the reason) and `submission.terminology_request_created` on
 this table (every field it holds). A tracking change appends `submission.terminology_request_updated`,
 whose `before` and `after` hold only the changed fields. The `entity_id` of an event on this table is the
-submission's id.
+request's own id.
 
 ## Extensions
 
