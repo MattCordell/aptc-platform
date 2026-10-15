@@ -169,12 +169,13 @@ _SCAN_SOURCES: dict[str, str] = {
 #: The `local_codes` writers and `acknowledge_collision` write tables with no
 #: `catalogue_entry` row lock or collision lock to cycle against.
 #:
-#: `create_new_test_submission` and `create_amendment_submission` take no row lock and no collision
-#: lock, so there is no cycle to close, and neither may hold the append lock across the terminology
-#: server or the reference check: that lock is global, and a slow call would stall every audit
-#: write. Each runs its reads and network calls first and takes the lock just before its write.
-#: `test_submissions_new_test.py` and `test_submissions_amendment.py` pin that order, and any other
-#: writer in the package is held to the lock-first rule.
+#: `create_new_test_submission`, `create_amendment_submission` and `edit_working_copy` take no row
+#: lock and no collision lock, so there is no cycle to close, and none may hold the append lock
+#: across the terminology server or the reference check: that lock is global, and a slow call would
+#: stall every audit write. Each runs its reads and network calls first and takes the lock just
+#: before its write. `test_submissions_new_test.py`, `test_submissions_amendment.py` and
+#: `test_submissions_working_copy.py` pin that order, and any other writer in the package is held
+#: to the lock-first rule.
 #:
 #: `_save_for_one_entry` is the per-target body of `save_property_values_for_entries`
 #: and is called from nowhere else. That caller has already validated `reason` and
@@ -196,6 +197,7 @@ _EXEMPT_FUNCTIONS: frozenset[_FuncKey] = frozenset(
         ("collisions", "acknowledge_collision"),
         ("submissions.new_test", "create_new_test_submission"),
         ("submissions.amendment", "create_amendment_submission"),
+        ("submissions.working_copy", "edit_working_copy"),
     }
 )
 
@@ -611,6 +613,7 @@ def test_the_only_exempt_submissions_writers_are_the_two_named_with_a_reason() -
     assert exempt_here == {
         ("submissions.new_test", "create_new_test_submission"),
         ("submissions.amendment", "create_amendment_submission"),
+        ("submissions.working_copy", "edit_working_copy"),
     }
     unexempted = {key for key in _derive_required_functions() if key[0].startswith("submissions.")}
     assert unexempted == {

@@ -7,6 +7,21 @@ and a code the terminology server rules out is ruled out for both.
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from nptc.catalogue.property_values import (
+    PropertyDefinitionNotFoundError,
+    PropertyValidationError,
+    PropertyValueInput,
+    PropertyWriteIssue,
+    check_property_values,
+)
+from nptc.db.models.property_definition import PropertyDefinition, PropertyScope, PropertyStatus
+from nptc.registry.definitions import DeprecatedPropertyWriteError
+from nptc.registry.handlers import DatatypeRegistry
 from nptc.submissions.errors import (
     CodeRefusal,
     FreeTextField,
@@ -26,7 +41,17 @@ from nptc_shared.sctid import InvalidSCTIDError
 from nptc_shared.terminology import TerminologyClient
 from nptc_shared.text import clean_text
 
-__all__ = ["clean_free_text", "resolve_code"]
+__all__ = [
+    "SUBMISSION_SCOPES",
+    "check_submission_property_values",
+    "clean_free_text",
+    "resolve_code",
+]
+
+#: A submission accepts the properties whose scope reaches it. `maintenance` properties belong to
+#: the published catalogue alone (FR-09).
+SUBMISSION_SCOPES = frozenset({PropertyScope.SUBMISSION, PropertyScope.BOTH})
+
 
 #: Line breaks and tabs are formatting in a multi-line note, not a defect.
 _NOTE_FORMATTING = frozenset({chr(10), chr(13), chr(9)})
@@ -66,3 +91,60 @@ def resolve_code(client: TerminologyClient, code: str) -> tuple[str, str]:
     if concept.fsn is None or not concept.fsn.strip():
         raise SubmissionCodeRefusedError(CodeRefusal.NO_FSN)
     return concept.code, concept.fsn
+
+
+def check_submission_property_values(
+    session: Session,
+    registry: DatatypeRegistry,
+    property_values: Mapping[str, Sequence[PropertyValueInput]],
+) -> None:
+    """Raises one `PropertyValidationError` naming every problem: a key that is unknown,
+    deprecated or out of scope, a value the registry's handler refuses, and a property the
+    registry requires at submission (FR-24) that the request leaves out."""
+    issues: list[PropertyWriteIssue] = []
+    for key, items in property_values.items():
+        try:
+            check = check_property_values(session, key, items, registry, scopes=SUBMISSION_SCOPES)
+        except PropertyDefinitionNotFoundError:
+            issues.append(
+                PropertyWriteIssue(
+                    property_key=key,
+                    label=key,
+                    code="unknown-property",
+                    message=f"{key} is not a known property",
+                )
+            )
+        except DeprecatedPropertyWriteError:
+            issues.append(
+                PropertyWriteIssue(
+                    property_key=key,
+                    label=key,
+                    code="deprecated-property",
+                    message=f"{key} is deprecated and accepts no new values",
+                )
+            )
+        else:
+            issues.extend(check.issues)
+
+    required = session.execute(
+        select(PropertyDefinition)
+        .where(
+            PropertyDefinition.required_for_submission.is_(True),
+            PropertyDefinition.status == PropertyStatus.ACTIVE,
+            PropertyDefinition.scope.in_(SUBMISSION_SCOPES),
+        )
+        .order_by(PropertyDefinition.key)
+    ).scalars()
+    issues.extend(
+        PropertyWriteIssue(
+            property_key=definition.key,
+            label=definition.label,
+            code="required-property-missing",
+            message=f"{definition.label} is required for a submission and has no value",
+        )
+        for definition in required
+        if definition.key not in property_values
+    )
+
+    if issues:
+        raise PropertyValidationError(tuple(issues))

@@ -17,6 +17,7 @@ __all__ = [
     "AmendmentRefusedError",
     "ClosedSubmissionInterestError",
     "CodeRefusal",
+    "EditReasonRequiredError",
     "FreeTextField",
     "FreeTextRefusedError",
     "IllegalSubmissionTransitionError",
@@ -26,6 +27,7 @@ __all__ = [
     "SubmissionCodeUnavailableError",
     "SubmissionCodeUpstreamError",
     "SubmissionDuplicatesFoundError",
+    "SubmissionNotEditableError",
     "SubmissionNotFoundError",
     "SubmissionVersionConflictError",
     "TransitionReasonRequiredError",
@@ -122,6 +124,9 @@ class AmendmentRefusal(StrEnum):
     NOTHING_NEW = "nothing-new"
     #: The code is the one the entry already carries, and no synonym is left to propose.
     CODE_ALREADY_BOUND = "code-already-bound"
+    #: A reviewer's edit of an amendment named a field an amendment does not propose, or left it
+    #: with neither a synonym nor a code (FR-23).
+    FIELD_NOT_AMENDABLE = "field-not-amendable"
 
 
 class AmendmentRefusedError(ValueError):
@@ -196,5 +201,23 @@ class SubmissionVersionConflictError(Exception):
 class TransitionReasonRequiredError(ValueError):
     """The reason for a change of state is empty once cleaned (FR-28). A change of state always
     says why."""
+
+    http_status: ClassVar[int] = 422
+
+
+class SubmissionNotEditableError(Exception):
+    """The submission is in a state in which a reviewer may not edit its working copy (FR-23). The
+    state is carried so the response can name it; the message holds no caller text."""
+
+    http_status: ClassVar[int] = 409
+
+    def __init__(self, state: str) -> None:
+        self.state = state
+        super().__init__(f"working copy edit refused, submission is {state}")
+
+
+class EditReasonRequiredError(ValueError):
+    """The reason for an edit of a working copy is empty once cleaned (FR-23). An edit always says
+    why, as a change of state does."""
 
     http_status: ClassVar[int] = 422
