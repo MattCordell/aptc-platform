@@ -1665,6 +1665,23 @@ Today the only change is a withdrawal, from `Submitted` or `Triage` to `Withdraw
 `ix_submission_transition_submission_id_created_at` serves the one read, a submission's history, oldest
 first.
 
+**The history is `GET /api/v1/submissions/{id}/transitions` (FR-28, FR-42).** It needs
+`submission.view`, as the detail does, so every caller who may view a submission sees every `reason`.
+It returns each row as `from_state`, `to_state`, `reason`, `created_at` and `actor`, ordered by
+`created_at` and then `id`, which is total even for two rows written in one instant. It is not paged,
+because one submission changes state a handful of times. A submission with no row is a 200 with an
+empty list, and an unknown submission is a 404. The route reads this table and the actor's `app_user`
+row and nothing else, so no internal comment (FR-95) can reach it, and it emits no audit event
+(NFR-08).
+
+**The actor follows the submitter-identity rule.** A caller with `submitter_identity.view` gets the
+actor's `username`, `display_name` and `organisation`, taken from the actor's profile because a
+transition has no copy of its own. Every other caller gets `username` alone, and the other two keys are
+absent and not null. A closed account's actor shows the placeholder `Closed account` for `username` and
+`display_name` and a null `organisation` (NFR-17). The `actor_id` never leaves the read layer (NFR-04).
+There is no role label: `user_role` can hold several roles, and they change, so a label would describe
+the actor today and not at the time of the move.
+
 **The permitted moves are rows in code.** `nptc.submissions.transitions.PERMITTED_TRANSITIONS` is keyed
 by `(from_state, to_state)`. Each row names the audit action and the ways an actor may make the move: a
 permission, and whether the actor must be the submitter. A move with no row is refused with a 409, so a
