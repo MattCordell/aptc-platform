@@ -4,7 +4,7 @@
 #
 #   docker build -f backend/Dockerfile -t nptc-backend .
 
-FROM ghcr.io/astral-sh/uv:0.12.23 AS uv
+FROM ghcr.io/astral-sh/uv:0.13.1 AS uv
 
 FROM python:3.14.8-slim AS build
 COPY --from=uv /uv /usr/local/bin/uv
