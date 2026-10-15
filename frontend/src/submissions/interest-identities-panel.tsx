@@ -1,10 +1,8 @@
-import { refusalDetail } from "../api/conflicts.ts";
 import { useHasPermission, useInterestIdentities } from "../api/queries.ts";
 import type { components } from "../api/schema.ts";
-import { ApiError } from "../api/unwrap.ts";
 import { EntrySection } from "../catalogue/entry-section.tsx";
 import { formatDate } from "../catalogue/format-date.ts";
-import { Button } from "../components/button.tsx";
+import { SectionFailure } from "./section-failure.tsx";
 
 type Identities = components["schemas"]["InterestIdentitiesResponse"];
 
@@ -80,25 +78,6 @@ function Breakdown({ identities }: { identities: Identities }) {
   );
 }
 
-function Failure({ error, retry }: { error: unknown; retry: () => void }) {
-  // A refusal is the server saying this caller may not see the list, so a
-  // retry cannot succeed and its own sentence says why.
-  const refused =
-    error instanceof ApiError && (error.status === 401 || error.status === 403);
-  return (
-    <div className="flex flex-col items-start gap-2">
-      <p className="m-0 text-sm text-[var(--color-danger)]">
-        {(refused ? refusalDetail(error) : null) ?? LOAD_FAILURE}
-      </p>
-      {refused ? null : (
-        <Button type="button" variant="secondary" onClick={retry}>
-          Try again
-        </Button>
-      )}
-    </div>
-  );
-}
-
 /**
  * Who registered interest, and which organisations they represent (FR-33). It
  * shows only for a caller who holds `interest.identities.view`, and for anyone
@@ -118,7 +97,13 @@ export function InterestIdentitiesPanel({ submissionId }: { submissionId: string
   if (identities.data !== undefined) {
     body = <Breakdown identities={identities.data} />;
   } else if (identities.isError) {
-    body = <Failure error={identities.error} retry={() => void identities.refetch()} />;
+    body = (
+      <SectionFailure
+        error={identities.error}
+        message={LOAD_FAILURE}
+        retry={() => void identities.refetch()}
+      />
+    );
   }
   return <EntrySection title="Who registered interest">{body}</EntrySection>;
 }

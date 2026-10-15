@@ -605,6 +605,70 @@ describe("submission detail triage (FR-28, FR-81)", () => {
     await expectNoA11yViolations(container);
   });
 
+  it("adds the move to History without a reload", async () => {
+    const moved = {
+      from_state: "Triage",
+      to_state: "Rejected",
+      reason: "Out of scope.",
+      created_at: "2026-10-02T02:00:00Z",
+      actor: { username: "jo" },
+    };
+    const history = (items: unknown[]): Route => ({
+      method: "GET",
+      path: MOVES,
+      status: 200,
+      body: { items },
+    });
+    let calls: ReturnType<typeof stubApi> = [];
+    calls = stubApi(
+      [
+        REVIEWER,
+        DEFINITIONS,
+        detail({ state: "Triage", available_transitions: ["Under review", "Rejected"] }),
+        history([]),
+        {
+          method: "POST",
+          path: MOVES,
+          status: 200,
+          body: {
+            id: ID,
+            state: "Rejected",
+            row_version: 2,
+            available_transitions: ["Triage"],
+          },
+        },
+      ],
+      {
+        // Only a read after the write sees the move, so a read that reuses the
+        // cache would never show it.
+        vary: (call) =>
+          call.method === "GET" &&
+          call.path === MOVES &&
+          calls.some((sent) => sent.method === "POST")
+            ? history([moved])
+            : null,
+      },
+    );
+    await renderRoute(`/submissions/${ID}`, SIGNED_IN);
+
+    expect(
+      await screen.findByText("This submission has not changed state yet."),
+    ).toBeVisible();
+    await userEvent.click(await screen.findByRole("button", { name: "Reject" }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.type(
+      within(dialog).getByRole("textbox", { name: /Reason/ }),
+      "Out of scope.",
+    );
+    await userEvent.click(within(dialog).getByRole("button", { name: "Confirm move" }));
+
+    const historySection = screen.getByRole("heading", {
+      name: "History",
+    }).parentElement!;
+    expect(await within(historySection).findByText("Out of scope.")).toBeVisible();
+    expect(within(historySection).getByText("Triage to Rejected")).toBeVisible();
+  });
+
   it("offers a Member no Triage panel", async () => {
     await open([MEMBER, DEFINITIONS, detail({ available_transitions: ["Withdrawn"] })]);
 
