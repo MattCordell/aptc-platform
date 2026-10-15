@@ -54,6 +54,7 @@ _CODE = "391483001"
 _FSN = "Microscopy (acid fast bacilli) (procedure)"
 _INACTIVE_CODE = "119364003"
 _REASON = "Corrected against the lab's own sheet."
+_ORIGINAL_NOTES = "Seen on the new analyser panel"
 ZERO_WIDTH_SPACE = chr(0x200B)
 
 
@@ -105,7 +106,7 @@ def _new_test(
     *,
     state: SubmissionState = SubmissionState.TRIAGE,
     synonyms: tuple[str, ...] = ("Sodium, serum",),
-    notes: str | None = "Seen on the new analyser panel",
+    notes: str | None = _ORIGINAL_NOTES,
 ) -> Submission:
     submission = Submission(
         kind=SubmissionKind.NEW_TEST.value,
@@ -884,3 +885,52 @@ def test_a_refused_edit_takes_no_append_lock(app_session: Session, capture_state
         _edit(app_session, submission, WorkingCopyChanges(snomed_code=_INACTIVE_CODE))
 
     assert locks == []
+
+
+@pytest.mark.req("FR-63")
+@pytest.mark.req("NFR-08")
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "changes",
+    [
+        WorkingCopyChanges(synonyms=["   "]),
+        WorkingCopyChanges(synonyms=["Na" + ZERO_WIDTH_SPACE]),
+        WorkingCopyChanges(preferred_term="Se" + ZERO_WIDTH_SPACE + "rum"),
+        WorkingCopyChanges(notes="No" + ZERO_WIDTH_SPACE + "te"),
+    ],
+    ids=["blank_synonym", "invisible_synonym", "invisible_term", "invisible_notes"],
+)
+def test_text_that_cannot_be_cleaned_is_refused_before_the_append_lock(
+    app_session: Session, capture_statements: Any, changes: WorkingCopyChanges
+) -> None:
+    submission = _new_test(app_session)
+
+    def is_lock(statement: str, _parameters: object) -> bool:
+        return "pg_advisory_xact_lock" in statement
+
+    with (
+        capture_statements(app_session.get_bind(), keep=is_lock) as locks,
+        pytest.raises((TermCleaningError, FreeTextRefusedError)),
+    ):
+        _edit(app_session, submission, changes)
+
+    assert locks == []
+
+
+@pytest.mark.req("NFR-08")
+@pytest.mark.integration
+def test_an_edit_that_changes_nothing_still_takes_the_append_lock(
+    app_session: Session, capture_statements: Any
+) -> None:
+    """The state and version are checked under the lock, so a no-op is judged against the committed
+    row. This pins that the docstring's statement is true."""
+    submission = _new_test(app_session)
+
+    def is_lock(statement: str, _parameters: object) -> bool:
+        return "pg_advisory_xact_lock" in statement
+
+    with capture_statements(app_session.get_bind(), keep=is_lock) as locks:
+        result = _edit(app_session, submission, WorkingCopyChanges(notes=_ORIGINAL_NOTES))
+
+    assert result.changed is False
+    assert locks

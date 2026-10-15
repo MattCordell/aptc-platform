@@ -28,8 +28,11 @@ global advisory lock, so holding it across a slow server would stall every audit
 `populate_existing`.
 
 **An edit that changes nothing writes nothing.** No row is created, `row_version` is not bumped and
-no audit event is appended. The state and version are still checked first, so a stale caller learns
-that it is stale.
+no audit event is appended. It still takes the append lock, because the state, the version and the
+content it is measured against are read under it, so a stale caller learns that it is stale.
+
+**No duplicate check.** A reviewer may give a term the catalogue already holds. Duplicates are
+checked when a submission is created, and a working copy has no confirmation column to record one.
 
 **One audit event, about the submission.** An effective edit appends one `UPDATED` event with
 `entity_type` `submission`, whose `before` and `after` hold only the content fields that changed. The
@@ -127,6 +130,7 @@ class _Prepared:
     a code, resolved."""
 
     preferred_term: str | None
+    synonyms: list[str] | None
     notes_given: bool
     notes: str | None
     snomed: tuple[str, str] | None
@@ -185,7 +189,7 @@ def edit_working_copy(
         )
     copy = session.get(SubmissionWorkingCopy, submission.id, populate_existing=True)
     base = _content_of(submission if copy is None else copy)
-    new = _merge(base, changes, prepared)
+    new = _merge(base, prepared)
     if kind is SubmissionKind.AMENDMENT and not new.synonyms and new.snomed_code is None:
         raise AmendmentRefusedError(AmendmentRefusal.NOTHING_PROPOSED)
 
@@ -262,6 +266,11 @@ def _prepare(
         if changes.preferred_term is None
         else clean_submission_term(changes.preferred_term, TermField.PREFERRED_TERM)
     )
+    synonyms = (
+        None
+        if changes.synonyms is None
+        else [clean_submission_term(term, TermField.SYNONYMS) for term in changes.synonyms]
+    )
     notes = (
         clean_free_text(changes.notes, field=FreeTextField.NOTES, multiline=True)
         if changes.notes is not None
@@ -284,6 +293,7 @@ def _prepare(
     )
     return _Prepared(
         preferred_term=preferred_term,
+        synonyms=synonyms,
         notes_given=changes.notes is not None,
         notes=notes,
         snomed=snomed,
@@ -302,18 +312,16 @@ def _content_of(source: Submission | SubmissionWorkingCopy) -> WorkingContent:
     )
 
 
-def _merge(
-    base: WorkingContent, changes: WorkingCopyChanges, prepared: _Prepared
-) -> WorkingContent:
+def _merge(base: WorkingContent, prepared: _Prepared) -> WorkingContent:
     """`base` with the request applied. Synonyms are re-checked against the preferred term when
     either changes, so a term that becomes the same as a synonym drops that synonym."""
     preferred_term = (
         base.preferred_term if prepared.preferred_term is None else prepared.preferred_term
     )
     synonyms = base.synonyms
-    if changes.synonyms is not None or preferred_term != base.preferred_term:
+    if prepared.synonyms is not None or preferred_term != base.preferred_term:
         synonyms = distinct_synonyms(
-            preferred_term, base.synonyms if changes.synonyms is None else changes.synonyms
+            preferred_term, base.synonyms if prepared.synonyms is None else prepared.synonyms
         )
     snomed_code, snomed_fsn = (base.snomed_code, base.snomed_fsn)
     if prepared.snomed is not None:

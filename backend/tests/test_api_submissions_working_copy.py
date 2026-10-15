@@ -375,6 +375,21 @@ def test_the_submitter_cannot_edit_their_own_submission(api: ApiTestApp) -> None
     _assert_unchanged(api, submission)
 
 
+@pytest.mark.req("FR-23")
+@pytest.mark.req("FR-44")
+@pytest.mark.integration
+@pytest.mark.parametrize("role", _REVIEWING_ROLES)
+def test_a_reviewing_role_may_edit_a_submission_it_made_itself(api: ApiTestApp, role: Role) -> None:
+    """The PRD sets no separation of duties for an edit: the permission alone decides (FR-44)."""
+    token, user = _sign_in(api, role)
+    submission = _submission(api, user)
+
+    response = _edit(api, token, submission.id, notes="Edited")
+
+    assert response.status_code == 200, response.text
+    assert _copy(api, submission) is not None
+
+
 @pytest.mark.req("FR-44")
 @pytest.mark.integration
 def test_a_caller_without_the_permission_is_refused_before_the_submission_is_looked_up(

@@ -295,7 +295,9 @@ applied it (NFR-20).
 Reviewer and Administrator hold. A Member, including the submitter, a Provisional user and an Observer
 get a 403, and an anonymous caller gets a 401. The gate runs before the submission is looked up, so a
 caller without the permission learns nothing about which identifiers exist. The service never reads a
-role name (FR-44).
+role name (FR-44). There is no separation of duties: a Reviewer or Administrator who is also the
+submitter may edit their own submission's working copy, because the PRD (section 4.7) sets no such
+rule for an edit.
 
 `GET /api/v1/submissions/{id}` applies a second rule on the same permission. A caller who holds it gets
 `working_copy` beside the submitted content, which is `null` until a reviewer has edited the
