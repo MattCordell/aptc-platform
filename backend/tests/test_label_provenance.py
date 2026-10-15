@@ -293,6 +293,9 @@ def test_label_field_name_set_is_not_stale() -> None:
         # FR-33: a registrant's name, shown only to a caller who holds
         # `interest.identities.view` - identity data, never a label.
         "InterestPerson": frozenset({"display_name"}),
+        # FR-95: the author or withdrawer of an internal comment, shown only to a caller who holds
+        # `comment.internal.read` - identity data, never a label.
+        "CommentPerson": frozenset({"display_name"}),
         # A coded property's offerable value (issue #247) - `display` here
         # is a value-set *option's* label, sourced from whichever code
         # system defined it (SNOMED CT or a local code system, the model's
