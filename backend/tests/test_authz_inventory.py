@@ -177,6 +177,10 @@ COVERED_WRITE_ROUTES = frozenset(
         # refuses anyone but the submitter. Negative-auth coverage lives in
         # `test_api_submissions_withdraw.py`.
         RouteKey(method="POST", path="/submissions/{submission_id}/withdraw"),
+        # The general transition route (FR-28, FR-81). Its gate is any permission a move names, so
+        # Observer is refused there, and the service refuses the rest per move. Negative-auth
+        # coverage lives in `test_api_submissions_transitions.py`.
+        RouteKey(method="POST", path="/submissions/{submission_id}/transitions"),
         # issue #249: the entry's own core-column write route - status.
         # Negative-auth coverage lives in
         # `test_api_catalogue_entries.py`.

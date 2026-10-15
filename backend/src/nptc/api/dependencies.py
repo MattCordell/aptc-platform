@@ -31,7 +31,7 @@ from sqlalchemy.orm import Session
 
 from nptc.audit.writer import AuditContext
 from nptc.auth.authentication import authenticate_identity
-from nptc.auth.authorisation import require_permission
+from nptc.auth.authorisation import require_any_permission, require_permission
 from nptc.auth.errors_authorisation import PermissionDeniedError
 from nptc.auth.permissions import Permission
 from nptc.auth.principal import ANONYMOUS, Principal, principal_for
@@ -356,6 +356,21 @@ def permission_dep(permission: Permission) -> Callable[[Principal], Principal]:
                 raise CredentialRequiredError(
                     f"{permission.value} requires an authenticated user"
                 ) from None
+            raise
+
+    return dep
+
+
+def any_permission_dep(permissions: frozenset[Permission]) -> Callable[[Principal], Principal]:
+    """`permission_dep` for a route that several permissions open, each for a different request.
+    It only turns away a caller who holds none of them; the service judges the request itself."""
+
+    def dep(principal: CurrentPrincipal) -> Principal:
+        try:
+            return require_any_permission(permissions)(principal)
+        except PermissionDeniedError:
+            if principal.user_id is None:
+                raise CredentialRequiredError("this route requires an authenticated user") from None
             raise
 
     return dep

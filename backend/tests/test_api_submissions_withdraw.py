@@ -227,7 +227,7 @@ def test_interest_in_a_withdrawn_submission_is_refused(api: ApiTestApp) -> None:
 
 @pytest.mark.req("FR-28")
 @pytest.mark.integration
-@pytest.mark.parametrize("state", ["Withdrawn", "Rejected", "Published in release"])
+@pytest.mark.parametrize("state", ["Withdrawn", "Rejected"])
 def test_a_closed_submission_is_refused_with_409_and_nothing_is_written(
     api: ApiTestApp, state: str
 ) -> None:
@@ -291,9 +291,9 @@ def test_an_observer_is_refused_with_403_before_the_submission_is_looked_up(
 
 @pytest.mark.req("FR-44")
 @pytest.mark.integration
-def test_an_administrator_cannot_withdraw_even_their_own_submission_yet(api: ApiTestApp) -> None:
-    """The Administrator holds `submission.withdraw.any` and not `.own`, and the permitted-moves
-    table has no `.any` row yet. Adding it is a new row, not new code."""
+def test_the_withdraw_route_stays_closed_to_an_administrator(api: ApiTestApp) -> None:
+    """The route is gated on `submission.withdraw.own`, which the Administrator lacks. They withdraw
+    through `POST /submissions/{id}/transitions`, where the table's `.any` rows apply."""
     token, administrator = _sign_in(api, Role.ADMINISTRATOR)
     submission = _submission(api, administrator)
 

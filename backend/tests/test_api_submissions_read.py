@@ -69,7 +69,11 @@ def _sign_in(api: ApiTestApp, role: Role) -> tuple[str, User]:
     profile organisation, so a response that leaked either would show it."""
     subject = f"sub-read-{uuid.uuid4().hex[:10]}"
     token = api.token_for_role(
-        subject=subject, role=role, replace_roles=True, email=f"{subject}@example.test"
+        subject=subject,
+        role=role,
+        with_mfa=role is Role.ADMINISTRATOR,
+        replace_roles=True,
+        email=f"{subject}@example.test",
     )
     user = api.session.execute(
         select(User)
@@ -155,6 +159,30 @@ def test_the_default_list_omits_every_closed_state_and_keeps_the_rest(api: ApiTe
 
     assert _ids(items, open_one) == {str(open_one.id)}
     assert _ids(items, *closed) == set()
+
+
+@pytest.mark.req("FR-28")
+@pytest.mark.req("FR-29")
+@pytest.mark.integration
+def test_the_review_states_and_approved_are_open_in_the_default_list(api: ApiTestApp) -> None:
+    """`Approved` is open on purpose: an approved submission still waits for a release (FR-29), so
+    it stays in the default list and `Rejected` leaves it."""
+    token, member = _sign_in(api, Role.MEMBER)
+    open_states = ["Triage", "Under review", "Ready for approval", "Approved"]
+    open_rows = [_add(api, member, state=state) for state in open_states]
+    rejected = _add(api, member, state="Rejected")
+
+    items = _listed(api, token)
+
+    assert _ids(items, *open_rows) == {str(row.id) for row in open_rows}
+    assert _ids(items, rejected) == set()
+    assert _ids(_listed(api, token, state="Approved"), *open_rows) == {str(open_rows[3].id)}
+
+
+@pytest.mark.req("FR-28")
+def test_approved_is_not_a_closed_state() -> None:
+    assert SubmissionState.APPROVED.value not in CLOSED_SUBMISSION_STATES
+    assert SubmissionState.REJECTED.value in CLOSED_SUBMISSION_STATES
 
 
 @pytest.mark.req("FR-28")
@@ -543,3 +571,73 @@ def test_mine_with_no_viewer_returns_nothing_rather_than_another_users_rows(
 
     assert page.records == ()
     assert page.next_cursor is None
+
+
+# --- what the caller may do next (FR-28) ----------------------------------------------------
+
+
+def _available(api: ApiTestApp, token: str, submission: Submission) -> list[str]:
+    response = api.get(f"{_PATH}/{submission.id}", token=token)
+    assert response.status_code == 200, response.text
+    available: list[str] = response.json()["available_transitions"]
+    return available
+
+
+@pytest.mark.req("FR-28")
+@pytest.mark.integration
+def test_a_member_is_offered_withdrawal_of_their_own_open_submission_only(api: ApiTestApp) -> None:
+    token, member = _sign_in(api, Role.MEMBER)
+    _, other = _sign_in(api, Role.MEMBER)
+
+    assert _available(api, token, _add(api, member)) == ["Withdrawn"]
+    assert _available(api, token, _add(api, member, state="Triage")) == ["Withdrawn"]
+    assert _available(api, token, _add(api, member, state="Under review")) == []
+    assert _available(api, token, _add(api, other)) == []
+
+
+@pytest.mark.req("FR-28")
+@pytest.mark.integration
+@pytest.mark.parametrize("state", ["Rejected", "Withdrawn", "Published in release"])
+def test_a_member_is_offered_nothing_on_their_own_closed_submission(
+    api: ApiTestApp, state: str
+) -> None:
+    token, member = _sign_in(api, Role.MEMBER)
+
+    assert _available(api, token, _add(api, member, state=state)) == []
+
+
+@pytest.mark.req("FR-28")
+@pytest.mark.integration
+def test_a_reviewer_is_offered_the_review_moves(api: ApiTestApp) -> None:
+    token, reviewer = _sign_in(api, Role.REVIEWER)
+    _, member = _sign_in(api, Role.MEMBER)
+
+    assert _available(api, token, _add(api, member)) == ["Triage"]
+    assert _available(api, token, _add(api, member, state="Triage")) == ["Under review", "Rejected"]
+    assert _available(api, token, _add(api, member, state="Rejected")) == ["Triage"]
+    assert _available(api, token, _add(api, member, state="Under review")) == ["Ready for approval"]
+    assert _available(api, token, _add(api, member, state="Approved")) == []
+    assert _available(api, token, _add(api, reviewer)) == ["Triage", "Withdrawn"]
+
+
+@pytest.mark.req("FR-28")
+@pytest.mark.integration
+def test_an_administrator_is_offered_withdrawal_from_an_approved_submission(
+    api: ApiTestApp,
+) -> None:
+    token, administrator = _sign_in(api, Role.ADMINISTRATOR)
+    _, member = _sign_in(api, Role.MEMBER)
+
+    assert _available(api, token, _add(api, member, state="Approved")) == ["Withdrawn"]
+    assert _available(api, token, _add(api, member, state="Published in release")) == ["Withdrawn"]
+    assert _available(api, token, _add(api, administrator)) == ["Triage", "Withdrawn"]
+    assert _available(api, token, _add(api, member, state="Withdrawn")) == []
+
+
+@pytest.mark.req("FR-28")
+@pytest.mark.integration
+def test_an_observer_is_offered_no_move(api: ApiTestApp) -> None:
+    token, _ = _sign_in(api, Role.OBSERVER)
+    _, member = _sign_in(api, Role.MEMBER)
+
+    assert _available(api, token, _add(api, member)) == []
