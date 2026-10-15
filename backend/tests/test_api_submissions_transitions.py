@@ -639,3 +639,82 @@ def test_a_withdrawal_answers_with_no_further_move(api: ApiTestApp) -> None:
 
     assert withdrawn.status_code == 200, withdrawn.text
     assert withdrawn.json()["available_transitions"] == []
+
+
+# --- an Administrator who has not stepped up (FR-44, NFR-20) ---------------------------------
+
+
+def _member_and_administrator(api: ApiTestApp, *, with_mfa: bool) -> tuple[str, User]:
+    """A user who holds Member and Administrator. Without MFA the Administrator role is suppressed,
+    so the token carries Member's permissions only and passes the route gate through `.own`."""
+    subject = f"sub-transition-{uuid.uuid4().hex[:10]}"
+    email = f"{subject}@example.test"
+    api.token_for_role(
+        subject=subject, role=Role.MEMBER, with_mfa=False, replace_roles=True, email=email
+    )
+    token = api.token_for_role(
+        subject=subject, role=Role.ADMINISTRATOR, with_mfa=with_mfa, email=email
+    )
+    user = api.session.execute(
+        select(User)
+        .join(UserIdentity, UserIdentity.user_id == User.id)
+        .where(UserIdentity.subject == subject)
+    ).scalar_one()
+    return token, user
+
+
+@pytest.mark.req("FR-44")
+@pytest.mark.req("FR-81")
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    ("state", "to_state"),
+    [("Approved", "Withdrawn"), ("Published in release", "Withdrawn"), ("Submitted", "Triage")],
+)
+def test_an_administrator_who_holds_another_role_is_told_to_step_up(
+    api: ApiTestApp, state: str, to_state: str
+) -> None:
+    """The route gate lets them in through Member's `.own`. The move needs a permission only the
+    suppressed Administrator role grants, so the refusal is the step-up challenge and not a plain
+    403, and nothing is written."""
+    token, user = _member_and_administrator(api, with_mfa=False)
+    submission = _submission(api, user, state=state)
+
+    response = _move(api, token, submission.id, to_state)
+
+    assert response.status_code == 403, response.text
+    assert 'error="insufficient_user_authentication"' in response.headers["WWW-Authenticate"]
+    _assert_unchanged(api, submission, state)
+
+
+@pytest.mark.req("FR-44")
+@pytest.mark.integration
+def test_the_same_user_withdraws_from_approved_once_they_have_stepped_up(api: ApiTestApp) -> None:
+    token, user = _member_and_administrator(api, with_mfa=True)
+    submission = _submission(api, user, state="Approved")
+
+    response = _move(api, token, submission.id, "Withdrawn")
+
+    assert response.status_code == 200, response.text
+    assert _state(api, submission) == "Withdrawn"
+
+
+@pytest.mark.req("FR-44")
+@pytest.mark.integration
+def test_an_administrator_without_another_role_is_told_to_step_up_at_the_gate(
+    api: ApiTestApp,
+) -> None:
+    subject = f"sub-transition-{uuid.uuid4().hex[:10]}"
+    token = api.token_for_role(
+        subject=subject,
+        role=Role.ADMINISTRATOR,
+        with_mfa=False,
+        replace_roles=True,
+        email=f"{subject}@example.test",
+    )
+    submission = _submission(api, _sign_in(api, Role.MEMBER)[1], state="Approved")
+
+    response = _move(api, token, submission.id, "Withdrawn")
+
+    assert response.status_code == 403, response.text
+    assert 'error="insufficient_user_authentication"' in response.headers["WWW-Authenticate"]
+    _assert_unchanged(api, submission, "Approved")

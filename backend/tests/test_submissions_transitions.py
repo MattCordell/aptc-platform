@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 
 import nptc.submissions.transitions as transitions_module
 from nptc.audit.writer import AuditContext
-from nptc.auth.errors_authorisation import PermissionDeniedError
+from nptc.auth.errors_authorisation import MfaRequiredError, PermissionDeniedError
 from nptc.auth.permissions import Permission, Role, permissions_for_roles
 from nptc.auth.principal import Principal
 from nptc.db.models.audit import AuditEvent
@@ -51,7 +51,9 @@ def _context(user_id: uuid.UUID) -> AuditContext:
     )
 
 
-def _principal(user: User, *roles: Role) -> Principal:
+def _principal(user: User, *roles: Role, suppressed: frozenset[Role] = frozenset()) -> Principal:
+    """`suppressed` is a role the user holds but whose permissions are withheld for want of MFA, as
+    `principal_for` does for an Administrator who has not stepped up."""
     held = frozenset(roles)
     return Principal(
         user_id=user.id,
@@ -59,8 +61,8 @@ def _principal(user: User, *roles: Role) -> Principal:
         status=None,
         roles=held,
         permissions=permissions_for_roles(held),
-        mfa_satisfied=True,
-        mfa_suppressed_roles=frozenset(),
+        mfa_satisfied=not suppressed,
+        mfa_suppressed_roles=suppressed,
     )
 
 
@@ -354,6 +356,82 @@ def test_no_move_enters_approved_until_the_approval_move_exists() -> None:
     """Approval also writes the catalogue entry, so it is its own move and not a row of the review
     graph. Until it lands, `Approved` is a state a submission can hold but no move reaches."""
     assert SubmissionState.APPROVED not in {target for _, target in PERMITTED_TRANSITIONS}
+
+
+# --- a suppressed Administrator who holds another role (FR-44) -----------------------------
+
+
+@pytest.mark.req("FR-44")
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    ("state", "to_state", "own"),
+    [
+        ("Approved", "Withdrawn", True),
+        ("Published in release", "Withdrawn", True),
+        ("Triage", "Withdrawn", False),
+        ("Submitted", "Triage", False),
+    ],
+    ids=["approved", "published", "someone-elses-triage", "review-move"],
+)
+def test_a_caller_whose_administrator_role_awaits_mfa_is_told_to_step_up(
+    app_session: Session, state: str, to_state: str, own: bool
+) -> None:
+    """The user also holds Member, so the route gate lets them in. The move needs a permission only
+    the suppressed Administrator role grants, so the refusal says stepping up would help."""
+    submitter = _user(app_session)
+    actor = submitter if own else _user(app_session)
+    submission = _submission(app_session, submitter, state=state)
+    principal = _principal(actor, Role.MEMBER, suppressed=frozenset({Role.ADMINISTRATOR}))
+
+    with pytest.raises(MfaRequiredError):
+        transition_submission(
+            app_session,
+            _context(actor.id),
+            principal,
+            submission_id=submission.id,
+            to_state=SubmissionState(to_state),
+            reason=_REASON,
+            expected_row_version=submission.row_version,
+        )
+
+    _assert_nothing_written(app_session, submission.id, state)
+
+
+@pytest.mark.req("FR-44")
+@pytest.mark.integration
+def test_a_caller_with_no_suppressed_role_gets_the_plain_refusal(app_session: Session) -> None:
+    submitter = _user(app_session)
+    submission = _submission(app_session, submitter, state="Approved")
+
+    with pytest.raises(PermissionDeniedError) as refused:
+        _withdraw(app_session, submitter, submission, roles=(Role.MEMBER,))
+
+    assert not isinstance(refused.value, MfaRequiredError)
+    _assert_nothing_written(app_session, submission.id, "Approved")
+
+
+@pytest.mark.req("FR-44")
+@pytest.mark.integration
+def test_a_suppressed_administrator_still_withdraws_their_own_open_submission(
+    app_session: Session,
+) -> None:
+    """The Member role grants `.own`, so the move needs no step-up and the suppressed role is not
+    what decides it."""
+    submitter = _user(app_session)
+    submission = _submission(app_session, submitter)
+    principal = _principal(submitter, Role.MEMBER, suppressed=frozenset({Role.ADMINISTRATOR}))
+
+    result = transition_submission(
+        app_session,
+        _context(submitter.id),
+        principal,
+        submission_id=submission.id,
+        to_state=SubmissionState.WITHDRAWN,
+        reason=_REASON,
+        expected_row_version=submission.row_version,
+    )
+
+    assert result.state == "Withdrawn"
 
 
 # --- what a caller may do now (FR-28) ------------------------------------------------------

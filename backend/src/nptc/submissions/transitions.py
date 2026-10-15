@@ -34,8 +34,8 @@ from sqlalchemy.orm.exc import ObjectDeletedError, StaleDataError
 from nptc.audit.diffing import ChangeKind
 from nptc.audit.recording import record_change
 from nptc.audit.writer import AuditContext, acquire_append_lock
-from nptc.auth.errors_authorisation import PermissionDeniedError
-from nptc.auth.permissions import Permission
+from nptc.auth.errors_authorisation import MfaRequiredError, PermissionDeniedError
+from nptc.auth.permissions import Permission, permissions_for_roles
 from nptc.auth.principal import Principal
 from nptc.db.models.submission import Submission, SubmissionState
 from nptc.db.models.submission_transition import SubmissionTransition
@@ -171,8 +171,9 @@ def transition_submission(
     Raises `TransitionReasonRequiredError` for a blank reason, `FreeTextRefusedError` for one with an
     invisible character, `SubmissionNotFoundError` for an unknown submission,
     `IllegalSubmissionTransitionError` for a move with no row, `PermissionDeniedError` for a caller
-    who meets none of the move's requirements, and `SubmissionVersionConflictError` for a stale
-    `expected_row_version`. A refusal writes nothing.
+    who meets none of the move's requirements (`MfaRequiredError` when a role suppressed for want of
+    MFA would grant one), and `SubmissionVersionConflictError` for a stale `expected_row_version`.
+    A refusal writes nothing.
     """
     cleaned = clean_transition_reason(reason)
     acquire_append_lock(session)
@@ -186,7 +187,7 @@ def transition_submission(
         _met(requirement, principal, submission.submitter_id)
         for requirement in permitted.requirements
     ):
-        raise PermissionDeniedError(_refusal_message(permitted, principal))
+        raise _denial(permitted, principal)
     if submission.row_version != expected_row_version:
         raise SubmissionVersionConflictError(
             expected_row_version=expected_row_version, current_row_version=submission.row_version
@@ -245,6 +246,17 @@ def _met(requirement: TransitionRequirement, principal: Principal, submitter_id:
     return not requirement.submitter_only or (
         principal.user_id is not None and principal.user_id == submitter_id
     )
+
+
+def _denial(permitted: PermittedTransition, principal: Principal) -> PermissionDeniedError:
+    """`MfaRequiredError` when a role suppressed for want of MFA would grant a permission the move
+    names, so a caller who holds another role, and so passes the route gate, is still told that
+    stepping up would help. A plain refusal otherwise, as `require_permission` decides."""
+    message = _refusal_message(permitted, principal)
+    suppressed = permissions_for_roles(principal.mfa_suppressed_roles)
+    if any(requirement.permission in suppressed for requirement in permitted.requirements):
+        return MfaRequiredError(message)
+    return PermissionDeniedError(message)
 
 
 def _refusal_message(permitted: PermittedTransition, principal: Principal) -> str:
