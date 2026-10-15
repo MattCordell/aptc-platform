@@ -290,6 +290,8 @@ def test_label_field_name_set_is_not_stale() -> None:
         # FR-42: the submitter's name, shown only to a caller who holds
         # `submitter_identity.view` - identity data, never a label.
         "IdentifiedSubmitter": frozenset({"display_name"}),
+        # FR-42: the actor of a change of state, shown by the same rule as the submitter.
+        "IdentifiedActor": frozenset({"display_name"}),
         # FR-33: a registrant's name, shown only to a caller who holds
         # `interest.identities.view` - identity data, never a label.
         "InterestPerson": frozenset({"display_name"}),
