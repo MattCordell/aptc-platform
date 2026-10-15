@@ -851,6 +851,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/submissions/{submission_id}/transitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Show a submission's history of changes of state
+         * @description Every change of state, oldest first, with the reason and who made it. There is no paging: one
+         *     submission changes state a handful of times, and ADR-0024 covers lists that grow without bound.
+         *
+         *     A caller with `submitter_identity.view` gets each actor's display name and organisation. Every
+         *     other caller gets the username only. Each caller sees every reason.
+         */
+        get: operations["get_submission_transitions_api_v1_submissions__submission_id__transitions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/submissions/{submission_id}/interest": {
         parameters: {
             query?: never;
@@ -2329,6 +2353,20 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
+        /**
+         * IdentifiedActor
+         * @description Who made a change of state, as a caller with `submitter_identity.view` sees them.
+         *     `organisation` is the actor's profile, which is null when they gave none. A closed account's
+         *     `username` and `display_name` are the placeholder.
+         */
+        IdentifiedActor: {
+            /** Username */
+            username: string;
+            /** Display Name */
+            display_name: string;
+            /** Organisation */
+            organisation: string | null;
+        };
         /** IdentifiedSubmissionDetail */
         IdentifiedSubmissionDetail: {
             /**
@@ -2442,6 +2480,29 @@ export interface components {
             display_name: string;
             /** Organisation */
             organisation: string | null;
+        };
+        /**
+         * IdentifiedTransitionHistory
+         * @description `TransitionHistory` for a caller with `submitter_identity.view`.
+         */
+        IdentifiedTransitionHistory: {
+            /** Items */
+            items: components["schemas"]["IdentifiedTransitionItem"][];
+        };
+        /** IdentifiedTransitionItem */
+        IdentifiedTransitionItem: {
+            /** From State */
+            from_state: string;
+            /** To State */
+            to_state: string;
+            /** Reason */
+            reason: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            actor: components["schemas"]["IdentifiedActor"];
         };
         /**
          * InterestIdentitiesResponse
@@ -2606,6 +2667,15 @@ export interface components {
             reason: string;
             /** Expected Row Version */
             expected_row_version: number;
+        };
+        /**
+         * PlainActor
+         * @description Who made a change of state, as a caller without `submitter_identity.view` sees them: a
+         *     username only.
+         */
+        PlainActor: {
+            /** Username */
+            username: string;
         };
         /**
          * PlainSubmitter
@@ -3387,6 +3457,29 @@ export interface components {
             code: "terms_version_stale";
             /** Current Version */
             current_version: string;
+        };
+        /**
+         * TransitionHistory
+         * @description Every change of state, oldest first. Empty for a submission that has not changed state.
+         */
+        TransitionHistory: {
+            /** Items */
+            items: components["schemas"]["TransitionItem"][];
+        };
+        /** TransitionItem */
+        TransitionItem: {
+            /** From State */
+            from_state: string;
+            /** To State */
+            to_state: string;
+            /** Reason */
+            reason: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            actor: components["schemas"]["PlainActor"];
         };
         /**
          * UserRef
@@ -6560,6 +6653,75 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SubmissionDetail"] | components["schemas"]["IdentifiedSubmissionDetail"];
+                };
+            };
+            /** @description No credential, or one that could not be verified. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The caller is authenticated but does not hold `submission.view`, or has not accepted the current terms of use (the body then carries a `code` that says so). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No submission has the identifier. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The identifier is not a UUID. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description An address exceeded its request budget (FR-22): an anonymous caller its anonymous budget, or a caller whose credentials the API kept rejecting its budget for rejected credentials. Wait for the number of seconds in `Retry-After`, then try again. A valid credential is never counted. The body's `bulk_artefacts` names where to fetch the whole catalogue instead. */
+            429: {
+                headers: {
+                    /** @description Whole seconds until the caller's request budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateLimitedResponse"];
+                };
+            };
+        };
+    };
+    get_submission_transitions_api_v1_submissions__submission_id__transitions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransitionHistory"] | components["schemas"]["IdentifiedTransitionHistory"];
                 };
             };
             /** @description No credential, or one that could not be verified. */

@@ -264,9 +264,10 @@ the request through or returns a refusal.
 
 ## Submitter identity (FR-42, NFR-20)
 
-`GET /api/v1/submissions` and `GET /api/v1/submissions/{id}` are gated on `submission.view`. A second
-permission, `submitter_identity.view`, decides one field group inside the response, so a handler
-reads it with `principal.has(...)` and never a role name (FR-44).
+`GET /api/v1/submissions`, `GET /api/v1/submissions/{id}` and
+`GET /api/v1/submissions/{id}/transitions` are gated on `submission.view`. A second permission,
+`submitter_identity.view`, decides one field group inside the response, so a handler reads it with
+`principal.has(...)` and never a role name (FR-44).
 
 - **With it** (Reviewer, Administrator): `submitter` carries `username`, `display_name` and
   `organisation`.
@@ -276,6 +277,10 @@ reads it with `principal.has(...)` and never a role name (FR-44).
   field that is never set cannot leak by being serialised.
 - **A closed account** shows `Closed account` for the username and, to a caller with the
   permission, for the display name. The organisation is the submission's own copy, so it still shows.
+
+The transition history applies the same rule to `actor` in each item: `username` alone without the
+permission, and `username`, `display_name` and the actor's profile `organisation` with it. A closed
+account shows the same placeholder, with a null `organisation`. Every caller sees every `reason`.
 
 The rule covers these identity fields only. The submission's `notes` and `reference_url` reach every
 holder of `submission.view`, and a submitter can type their own name into `notes`; the server does not
