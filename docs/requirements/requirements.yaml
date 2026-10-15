@@ -603,8 +603,8 @@
   priority: MUST
   phase: p2
   title: "Administrators and Reviewers can post free-text comments against a submission or a catalogue entry"
-  status: planned
-  notes: ""
+  status: implemented
+  notes: "GET and POST /api/v1/submissions/{id}/comments and /api/v1/catalogue/entries/{business_key}/comments, and POST .../comments/{comment_id}/withdraw under each (backend/src/nptc/api/routers/comments.py, backend/src/nptc/comments/service.py, migration 0034). Reads need comment.internal.read and writes comment.internal.write, held by Reviewer and Administrator only. The permission is a route dependency, so a caller without it gets the same 403 before the target is looked up, whether or not it exists or has comments. A comment is append-only by privilege (UPDATE only on the three withdrawn_* columns, no DELETE). A withdrawal needs a reason, keeps the text, and any writer may withdraw any comment; a second withdrawal is a 409. The body is cleaned like a note (FR-63), capped at 2000 characters and returned as literal text. Each post and withdrawal emits one audit event under entity_type internal_comment, never catalogue_entry, so the public history cannot publish it; the body is withheld from it. No submission, entry, list or public response mentions comments, and a comment write never touches the parent row. Tests: backend/tests/test_db_internal_comment.py, backend/tests/test_migration_internal_comment.py, backend/tests/test_comments_service.py, backend/tests/test_api_comments.py, backend/tests/test_api_comments_non_leak.py. The screens are not built; @mentions and notifications are FR-96."
 - id: "FR-96"
   priority: SHOULD
   phase: p2

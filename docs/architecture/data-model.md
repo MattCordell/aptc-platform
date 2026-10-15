@@ -1691,6 +1691,51 @@ A stale value is a 409 that carries `current_row_version`.
 A withdrawal emits one `submission.withdrawn` audit event on the `submission`, carrying `state` in
 `before` and `after` and the reason (NFR-08). The transition row is not a second event.
 
+## `internal_comment` (FR-95, NFR-08, NFR-23)
+
+A staff-only comment on one submission or one catalogue entry. Reviewers and Administrators write and
+read them through `nptc.comments.service`, which backs the routes in
+[`routers/comments.py`](../../backend/src/nptc/api/routers/comments.py). A submitter, a member or the
+public never sees one, and never learns that one exists.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `UUID` | PK, `gen_random_uuid()` |
+| `submission_id` | `UUID` | FK to `submission.id`, null when the comment is on an entry |
+| `entry_id` | `UUID` | FK to `catalogue_entry.id`, null when the comment is on a submission. `CHECK ((submission_id IS NULL) <> (entry_id IS NULL))`, so a comment has exactly one target |
+| `author_id` | `UUID` | `NOT NULL`, FK to `app_user.id`. The internal id, which account closure keeps (NFR-17) |
+| `body` | `TEXT` | `NOT NULL`, `CHECK` not blank. Plain text, cleaned like a note (FR-63), capped at 2,000 characters by the API |
+| `created_at` | `TIMESTAMPTZ` | `NOT NULL`, `clock_timestamp()`, so two comments in one transaction still order |
+| `withdrawn_at` | `TIMESTAMPTZ` | Null while the comment stands |
+| `withdrawn_by` | `UUID` | FK to `app_user.id`. `CHECK` that this, `withdrawn_at` and `withdrawn_reason` are all null or all set |
+| `withdrawn_reason` | `TEXT` | `CHECK` not blank when set |
+
+`ix_internal_comment_submission_id_created_at` and `ix_internal_comment_entry_id_created_at` serve the
+one read, a target's comments, oldest first.
+
+**A comment is append-only, fixed by privilege.** `nptc_app` holds `SELECT, INSERT` and a column-level
+`UPDATE` on the three `withdrawn_*` columns only. It holds no `UPDATE` on `body`, `author_id`,
+`created_at` or either target column, and no `DELETE` or `TRUNCATE`, so what was said, by whom and when
+cannot be edited or removed.
+
+**A withdrawal retracts and does not hide.** It sets the three `withdrawn_*` columns together, once, and
+keeps `body`. Every caller who may read comments still sees the text, beside who withdrew it, when and
+why. A second withdrawal is a 409 and leaves the first reason in place. Any holder of
+`comment.internal.write` may withdraw any comment, and a comment named under a target it is not on is a
+404.
+
+**Nothing on the parent row.** `submission` and `catalogue_entry` have no relationship, count or column
+for comments, and a comment write only reads them. A submitter can read `row_version` and `updated_at`
+on their submission, so a write there would show that a comment exists. A comment on an entry works for
+an entry of any status, a draft included.
+
+**The audit event is about the comment.** Posting emits `comment.created` and withdrawing emits
+`comment.withdrawn`, each with `entity_type` `internal_comment` and the comment's id as `entity_id`,
+never `catalogue_entry` or `submission`. The public history of an entry selects its events by those
+two entity types, so an event recorded under them would publish the comment. `body` is withheld, so the
+event names it in `_redacted` and never carries the text (NFR-08). The audit log, which only an
+Administrator may read, records the event. The withdrawal's reason is in `reason`.
+
 ## Extensions
 
 `pg_trgm` and `unaccent` are created in `0001_extensions_and_app_role.py` - the public
