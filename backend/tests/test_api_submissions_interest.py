@@ -312,6 +312,26 @@ def test_registering_on_a_closed_submission_is_refused_with_409(
     assert _events(api, member) == []
 
 
+@pytest.mark.req("FR-29")
+@pytest.mark.req("FR-32")
+@pytest.mark.integration
+@pytest.mark.parametrize("state", ["Triage", "Under review", "Ready for approval", "Approved"])
+def test_interest_can_be_registered_and_revoked_while_the_submission_is_open(
+    api: ApiTestApp, state: str
+) -> None:
+    """`Approved` is open on purpose: an approved submission still waits for a release (FR-29), and
+    interest in it still tells reviewers how many would use the test."""
+    token, _ = _sign_in(api, Role.MEMBER)
+    submission = _submission(api, _sign_in(api, Role.MEMBER)[1], state=state)
+
+    registered = _put(api, token, submission.id)
+    revoked = _delete(api, token, submission.id)
+
+    assert registered.status_code == 200, registered.text
+    assert revoked.status_code == 200, revoked.text
+    assert _live_count(api, submission) == 0
+
+
 @pytest.mark.req("FR-32")
 @pytest.mark.integration
 @pytest.mark.parametrize("state", CLOSED_SUBMISSION_STATES)

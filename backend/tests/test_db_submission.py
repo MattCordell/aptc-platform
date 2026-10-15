@@ -180,7 +180,7 @@ def test_a_submission_must_reference_a_real_user(db: Connection) -> None:
 #: statement is otherwise valid.
 _CHECK_VIOLATIONS: dict[str, dict[str, object]] = {
     "unknown_kind": {"kind": "retraction"},
-    "unknown_state": {"state": "Approved"},
+    "unknown_state": {"state": "Awaiting terminology"},
     "amendment_without_entry": {"kind": "amendment"},
     "empty_preferred_term": {"preferred_term": ""},
     "blank_preferred_term": {"preferred_term": "   "},

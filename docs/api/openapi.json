@@ -5129,6 +5129,132 @@
             }
           }
         }
+      },
+      "post": {
+        "tags": [
+          "submissions"
+        ],
+        "summary": "Move a submission to another state",
+        "description": "Moves the submission to `to_state` when the table of permitted moves has a row for it and the\ncaller may make it, with the reason, in one transaction with its transition row and audit\nevent. `available_transitions` on `GET /submissions/{id}` says which moves the caller may make.",
+        "operationId": "transition_submission_state_api_v1_submissions__submission_id__transitions_post",
+        "parameters": [
+          {
+            "name": "submission_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Submission Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransitionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmissionTransitionResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No credential, or one that could not be verified.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller holds none of the permissions any move needs, or lacks the one this move needs: `submission.transition.review` for a review move, `submission.withdraw.own` for the submitter's own withdrawal from `Submitted` or `Triage`, and `submission.withdraw.any` for any other withdrawal. Or the caller has not accepted the current terms of use (the body then carries a `code` that says so). The current terms of use have not been accepted. The body carries `code: terms_acceptance_required`. Accept them with `POST /auth/terms/acceptance` and try again. Never carries `WWW-Authenticate`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/TermsAcceptanceRequiredResponse"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No submission has the identifier.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The table has no move from the submission's current state to `to_state`, so a closed submission is refused, a second withdrawal is too, and so is any request for a state no move reaches yet, such as `Approved`. Or `expected_row_version` is not the current one, because someone else changed the submission after it was read; the body then carries `current_row_version`. A stale `expected_row_version` sent after someone else has moved the submission gets the first reason, so a client should treat both as \"reload the submission\". Nothing was changed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SubmissionVersionConflictResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ErrorResponse"
+                    }
+                  ],
+                  "title": "Response 409 Transition Submission State Api V1 Submissions  Submission Id  Transitions Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`reason` is blank, or carries an invisible character such as a zero-width space (`field` is `reason`). An identifier that is not a UUID, a `to_state` that is not a submission state, a `reason` over the size bound or a field the request should not carry fails validation before the route runs.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmissionFieldRefusalResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "An address exceeded its request budget (FR-22): an anonymous caller its anonymous budget, or a caller whose credentials the API kept rejecting its budget for rejected credentials. Wait for the number of seconds in `Retry-After`, then try again. A valid credential is never counted. The body's `bulk_artefacts` names where to fetch the whole catalogue instead.",
+            "headers": {
+              "Retry-After": {
+                "description": "Whole seconds until the caller's request budget is available again.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimitedResponse"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/submissions/{submission_id}/interest": {
@@ -5504,7 +5630,7 @@
             }
           },
           "403": {
-            "description": "The caller does not hold `submission.withdraw.own`, or is not the submitter of this submission, or has not accepted the current terms of use (the body then carries a `code` that says so). The current terms of use have not been accepted. The body carries `code: terms_acceptance_required`. Accept them with `POST /auth/terms/acceptance` and try again. Never carries `WWW-Authenticate`.",
+            "description": "The caller does not hold `submission.withdraw.own`, or is not the submitter of this submission, or the submission has been approved and only `submission.withdraw.any` reaches it, or the caller has not accepted the current terms of use (the body then carries a `code` that says so). The current terms of use have not been accepted. The body carries `code: terms_acceptance_required`. Accept them with `POST /auth/terms/acceptance` and try again. Never carries `WWW-Authenticate`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -9679,6 +9805,13 @@
             "type": "integer",
             "title": "Row Version"
           },
+          "available_transitions": {
+            "items": {
+              "$ref": "#/components/schemas/SubmissionState"
+            },
+            "type": "array",
+            "title": "Available Transitions"
+          },
           "synonyms": {
             "items": {
               "type": "string"
@@ -9772,6 +9905,7 @@
           "interest_count",
           "label_provenance",
           "row_version",
+          "available_transitions",
           "synonyms",
           "property_values",
           "notes",
@@ -11327,6 +11461,13 @@
             "type": "integer",
             "title": "Row Version"
           },
+          "available_transitions": {
+            "items": {
+              "$ref": "#/components/schemas/SubmissionState"
+            },
+            "type": "array",
+            "title": "Available Transitions"
+          },
           "synonyms": {
             "items": {
               "type": "string"
@@ -11420,6 +11561,7 @@
           "interest_count",
           "label_provenance",
           "row_version",
+          "available_transitions",
           "synonyms",
           "property_values",
           "notes",
@@ -11751,6 +11893,9 @@
         "enum": [
           "Submitted",
           "Triage",
+          "Under review",
+          "Ready for approval",
+          "Approved",
           "Published in release",
           "Rejected",
           "Withdrawn"
@@ -11876,16 +12021,24 @@
           "row_version": {
             "type": "integer",
             "title": "Row Version"
+          },
+          "available_transitions": {
+            "items": {
+              "$ref": "#/components/schemas/SubmissionState"
+            },
+            "type": "array",
+            "title": "Available Transitions"
           }
         },
         "type": "object",
         "required": [
           "id",
           "state",
-          "row_version"
+          "row_version",
+          "available_transitions"
         ],
         "title": "SubmissionTransitionResponse",
-        "description": "Where the submission now stands: its `state` and the `row_version` to send with the next\nchange."
+        "description": "Where the submission now stands: its `state` and the `row_version` to send with the next\nchange. `available_transitions` is what the caller may do next, as on `GET /submissions/{id}`, so\na screen that holds the submission can update itself without a second read."
       },
       "SubmissionVersionConflictResponse": {
         "properties": {
@@ -12068,6 +12221,32 @@
           "actor"
         ],
         "title": "TransitionItem"
+      },
+      "TransitionRequest": {
+        "properties": {
+          "to_state": {
+            "$ref": "#/components/schemas/SubmissionState"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Reason"
+          },
+          "expected_row_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Row Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "to_state",
+          "reason",
+          "expected_row_version"
+        ],
+        "title": "TransitionRequest",
+        "description": "`to_state` is the state to move to. `reason` is required and is kept with the move.\n`expected_row_version` is the `row_version` the caller read on the submission, so a move never\nlands on a submission that changed after the caller looked at it. `available_transitions` on\nthe submission lists the states the caller may ask for."
       },
       "UserRef": {
         "properties": {

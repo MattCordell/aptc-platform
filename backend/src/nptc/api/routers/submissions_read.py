@@ -40,6 +40,10 @@ second axis of response classes beside the identity one, four item and page clas
 by `_PAGES`. It is on the list only. The same grouped-statement rule applies, and the people are on
 `GET /submissions/{id}/interest`.
 
+**The detail says what the caller may do next (FR-28).** `available_transitions` comes from the same
+table the transition route consults, so the two cannot disagree. `Approved` is an open state: the
+default list shows it, because an approved submission still waits for a release (FR-29).
+
 **The transition history names its actor by the same rule (FR-28, FR-42).** `PlainActor` carries the
 username alone and `IdentifiedActor` adds the display name and the organisation from the actor's
 profile, because a transition has no copy of its own to show. A closed account's actor shows the same
@@ -75,12 +79,14 @@ from nptc.api.routers.auth import ErrorResponse
 from nptc.api.routers.submissions import SessionDep, SubmittedPropertyValue
 from nptc.auth.identity import UserRef
 from nptc.auth.permissions import Permission
+from nptc.auth.principal import Principal
 from nptc.db.models.submission import SubmissionKind, SubmissionState
 from nptc.settings import ApiSettings
 from nptc.submissions import queries
 from nptc.submissions.interest import InterestSummary, interest_summaries
 from nptc.submissions.interest_identities import distinct_organisation_counts
 from nptc.submissions.queries import SubmissionRecord, TransitionRecord
+from nptc.submissions.transitions import available_transitions
 
 router = APIRouter(prefix="/submissions", tags=["submissions"])
 
@@ -202,9 +208,12 @@ class _DetailFields(_SummaryFields):
     """The full submitted content. The three `reference_*` fields describe one check and are all
     present or all absent. `duplicate_confirmed_at` is when a submitter confirmed a match was a
     different test (FR-25), and null otherwise. `row_version` is the value a change of state sends
-    back as `expected_row_version`."""
+    back as `expected_row_version`. `available_transitions` is the states this caller may move the
+    submission to now, so a screen offers only moves the server would accept and keeps no copy of
+    the state graph; it is empty when the caller has no move."""
 
     row_version: int
+    available_transitions: list[SubmissionState]
     synonyms: list[str]
     property_values: dict[str, list[SubmittedPropertyValue]]
     notes: str | None
@@ -376,6 +385,7 @@ def _detail_fields(
     record: SubmissionRecord,
     settings: ApiSettings,
     interest: InterestSummary,
+    principal: Principal,
     *,
     counts_visible: bool,
 ) -> dict[str, Any]:
@@ -383,6 +393,11 @@ def _detail_fields(
     return {
         **_summary_fields(record, settings, interest, counts_visible=counts_visible),
         "row_version": submission.row_version,
+        "available_transitions": available_transitions(
+            principal,
+            from_state=SubmissionState(submission.state),
+            submitter_id=submission.submitter_id,
+        ),
         "synonyms": list(submission.synonyms),
         "property_values": {
             key: [
@@ -546,7 +561,7 @@ def get_submission(
         submission_id
     ]
     counts_visible = principal.has(Permission.INTEREST_VIEW_COUNTS)
-    fields = _detail_fields(record, settings, interest, counts_visible=counts_visible)
+    fields = _detail_fields(record, settings, interest, principal, counts_visible=counts_visible)
     if principal.has(Permission.SUBMITTER_IDENTITY_VIEW):
         return IdentifiedSubmissionDetail(**fields, submitter=_identified_submitter(record))
     return SubmissionDetail(**fields, submitter=_plain_submitter(record))

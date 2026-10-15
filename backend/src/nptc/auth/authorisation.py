@@ -58,6 +58,22 @@ def require_permission(permission: Permission) -> PermissionCheck:
     return check
 
 
+def require_any_permission(permissions: frozenset[Permission]) -> PermissionCheck:
+    """Like `require_permission`, but a principal who holds any one of `permissions` passes. The
+    denial is `MfaRequiredError` when a role suppressed for want of MFA would have granted one of
+    them, so the caller learns that stepping up would help."""
+    names = " or ".join(sorted(repr(permission.value) for permission in permissions))
+
+    def check(principal: Principal) -> Principal:
+        if any(principal.has(permission) for permission in permissions):
+            return principal
+        if permissions & permissions_for_roles(principal.mfa_suppressed_roles):
+            raise MfaRequiredError(f"permission {names} requires step-up authentication")
+        raise PermissionDeniedError(f"permission {names} is required")
+
+    return check
+
+
 def may_act_on(
     principal: Principal,
     *,

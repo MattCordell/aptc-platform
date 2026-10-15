@@ -279,6 +279,9 @@ describe("state filter (FR-28)", () => {
       "All states",
       "Submitted",
       "Triage",
+      "Under review",
+      "Ready for approval",
+      "Approved",
       "Published in release",
       "Rejected",
       "Withdrawn",
@@ -331,6 +334,9 @@ describe("state filter (FR-28)", () => {
       expect(lastListCall(calls)?.searchParams.getAll("state")).toEqual([
         "Submitted",
         "Triage",
+        "Under review",
+        "Ready for approval",
+        "Approved",
       ]),
     );
   });

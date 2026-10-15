@@ -46,8 +46,10 @@ the identifier to open that entry.
 Beside the main column, **Details** shows:
 
 - **Kind**: New test, or Amendment to an entry.
-- **State**: Submitted, Triage, Published in release, Rejected or Withdrawn. Submitted and
-  Triage are the open states. The state is written out in words as well as shown in colour.
+- **State**: Submitted, Triage, Under review, Ready for approval, Approved, Published in
+  release, Rejected or Withdrawn. The first five are the open states. Published in release,
+  Rejected and Withdrawn are closed. The state is written out in words as well as shown in
+  colour.
 - **Submitted**: the date, in your own time zone.
 - **Submitter**: most people see a username. Reviewers and Administrators also see the
   submitter's name and the organisation they gave with the submission. The page shows only
@@ -69,7 +71,8 @@ The **Register interest** button appears only when all three of these are true:
 1. Your role may register interest. Members, Reviewers and Administrators may. Provisional
    users and Observers may not, so they see the count but no button.
 2. The submission is not your own.
-3. The submission is open: its state is Submitted or Triage.
+3. The submission is open: its state is Submitted, Triage, Under review, Ready for approval
+   or Approved.
 
 To register, choose **Register interest**. The button then reads **Withdraw interest**.
 Choose it to withdraw. The count changes at once, without reloading the page, and a screen
@@ -98,13 +101,16 @@ leave the list. The panel shows for submissions in any state, including closed o
 
 ## Withdraw your own submission
 
-If you sent a submission and it is still open, you can take it back. The **Your submission**
-panel shows a **Withdraw submission** button only when all three of these are true:
+If you sent a submission and the platform still lets you take it back, you can withdraw it.
+The **Your submission** panel shows a **Withdraw submission** button only when all three of
+these are true:
 
 1. The submission is yours.
-2. It is open: its state is Submitted or Triage.
+2. Its state is Submitted or Triage. Once a reviewer has moved it on, the platform no longer
+   offers the button, because only an Administrator can withdraw it from then on.
 3. Your role may withdraw a submission. Provisional users, Members and Reviewers may. An
-   Administrator cannot withdraw a submission yet, even their own.
+   Administrator does not see this button. Administrators withdraw through the platform's
+   transition route, and no screen for that exists yet.
 
 To withdraw:
 

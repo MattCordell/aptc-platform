@@ -1518,9 +1518,10 @@ export function useRevokeInterest(submissionId: string) {
 }
 
 /**
- * The submitter withdraws their own open submission (FR-28). The answer holds
- * the new state and `row_version`, so it goes straight into the cached detail
- * and the page shows Withdrawn without a reload. Any 409 re-reads the detail:
+ * The submitter withdraws their own submission (FR-28). The answer holds the
+ * new state, `row_version` and `available_transitions`, so it goes straight
+ * into the cached detail and the page shows Withdrawn, with no withdraw button
+ * left, without a reload. Any 409 re-reads the detail:
  * a stale version and a state that has already closed both mean the page that
  * offered the action was out of date. A 422 for the reason is left to the
  * caller, because the page it describes has not changed.
@@ -1537,9 +1538,13 @@ export function useWithdrawSubmission(submissionId: string) {
         }),
       ),
     onSuccess: (answer: TransitionAnswer) => {
-      const transition: Pick<SubmissionDetailAnswer, "state" | "row_version"> = {
+      const transition: Pick<
+        SubmissionDetailAnswer,
+        "state" | "row_version" | "available_transitions"
+      > = {
         state: answer.state,
         row_version: answer.row_version,
+        available_transitions: answer.available_transitions,
       };
       queryClient.setQueryData<SubmissionDetailAnswer>(
         submissionDetailKey(submissionId),

@@ -13,6 +13,7 @@ import pytest
 from nptc.auth.authorisation import (
     has_permission,
     may_act_on,
+    require_any_permission,
     require_ownership_or_permission,
     require_permission,
     resolve_quota,
@@ -93,6 +94,47 @@ def test_require_permission_does_not_raise_mfa_required_for_an_unrelated_denial(
     with pytest.raises(PermissionDeniedError) as excinfo:
         require_permission(Permission.RELEASE_PUBLISH)(observer)
     assert not isinstance(excinfo.value, MfaRequiredError)
+
+
+_REVIEW_OR_WITHDRAW = frozenset(
+    {Permission.SUBMISSION_TRANSITION_REVIEW, Permission.SUBMISSION_WITHDRAW_OWN}
+)
+
+
+@pytest.mark.parametrize("role", [Role.MEMBER, Role.REVIEWER])
+def test_require_any_permission_passes_a_principal_who_holds_one(role: Role) -> None:
+    principal = _principal(user_id=_USER_A, roles=frozenset({role}))
+    assert require_any_permission(_REVIEW_OR_WITHDRAW)(principal) is principal
+
+
+def test_require_any_permission_denies_a_principal_who_holds_none() -> None:
+    observer = _principal(user_id=_USER_A, roles=frozenset({Role.OBSERVER}))
+    with pytest.raises(PermissionDeniedError) as excinfo:
+        require_any_permission(_REVIEW_OR_WITHDRAW)(observer)
+    message = str(excinfo.value)
+    assert "submission.transition.review" in message
+    assert "submission.withdraw.own" in message
+    assert not isinstance(excinfo.value, MfaRequiredError)
+    for role in Role:
+        assert role.value not in message
+
+
+def test_require_any_permission_denies_an_anonymous_principal() -> None:
+    with pytest.raises(PermissionDeniedError):
+        require_any_permission(_REVIEW_OR_WITHDRAW)(ANONYMOUS)
+
+
+def test_require_any_permission_raises_mfa_required_when_a_suppressed_role_would_grant_one() -> (
+    None
+):
+    suppressed_admin = _principal(
+        user_id=_USER_A,
+        roles=frozenset(),
+        mfa_satisfied=False,
+        mfa_suppressed_roles=frozenset({Role.ADMINISTRATOR}),
+    )
+    with pytest.raises(MfaRequiredError):
+        require_any_permission(_REVIEW_OR_WITHDRAW)(suppressed_admin)
 
 
 def test_may_act_on_grants_via_any_regardless_of_ownership() -> None:

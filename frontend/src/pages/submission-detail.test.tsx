@@ -74,6 +74,7 @@ function detail(overrides: Record<string, unknown> = {}): Route {
       interest_count: 2,
       label_provenance: {},
       row_version: 1,
+      available_transitions: [],
       synonyms: ["Serum ferritin", "Ferritin assay"],
       property_values: {
         assay_method: [{ value: "Immunoassay", justification: "Most labs use it" }],
@@ -350,17 +351,18 @@ describe("submission detail withdraw (FR-28)", () => {
   const SUBMITTER = me(["submission.withdraw.own", "interest.register"]);
   const detailReads = (calls: { method: string; path: string }[]) =>
     calls.filter((call) => call.method === "GET" && call.path === DETAIL).length;
+  const WITHDRAWABLE = { is_own: true, available_transitions: ["Withdrawn"] };
 
   it("withdraws the submission and shows it as Withdrawn without a reload", async () => {
     const { calls, container } = await open([
       SUBMITTER,
       DEFINITIONS,
-      detail({ is_own: true, row_version: 5 }),
+      detail({ ...WITHDRAWABLE, row_version: 5 }),
       {
         method: "POST",
         path: WITHDRAW,
         status: 200,
-        body: { id: ID, state: "Withdrawn", row_version: 6 },
+        body: { id: ID, state: "Withdrawn", row_version: 6, available_transitions: [] },
       },
     ]);
 
@@ -392,7 +394,7 @@ describe("submission detail withdraw (FR-28)", () => {
     const { calls } = await open([
       SUBMITTER,
       DEFINITIONS,
-      detail({ is_own: true }),
+      detail(WITHDRAWABLE),
       {
         method: "POST",
         path: WITHDRAW,
@@ -426,7 +428,7 @@ describe("submission detail withdraw (FR-28)", () => {
       [
         SUBMITTER,
         DEFINITIONS,
-        detail({ is_own: true, row_version: 1 }),
+        detail({ ...WITHDRAWABLE, row_version: 1 }),
         {
           method: "POST",
           path: WITHDRAW,
@@ -444,11 +446,16 @@ describe("submission detail withdraw (FR-28)", () => {
                   method: "POST",
                   path: WITHDRAW,
                   status: 200,
-                  body: { id: ID, state: "Withdrawn", row_version: 3 },
+                  body: {
+                    id: ID,
+                    state: "Withdrawn",
+                    row_version: 3,
+                    available_transitions: [],
+                  },
                 };
           }
           return refused && call.method === "GET" && call.path === DETAIL
-            ? detail({ is_own: true, row_version: 2 })
+            ? detail({ ...WITHDRAWABLE, row_version: 2 })
             : null;
         },
       },
@@ -488,7 +495,7 @@ describe("submission detail withdraw (FR-28)", () => {
       [
         SUBMITTER,
         DEFINITIONS,
-        detail({ is_own: true }),
+        detail(WITHDRAWABLE),
         {
           method: "POST",
           path: WITHDRAW,
@@ -503,7 +510,12 @@ describe("submission detail withdraw (FR-28)", () => {
             return null;
           }
           return refused && call.method === "GET" && call.path === DETAIL
-            ? detail({ is_own: true, state: "Rejected", row_version: 2 })
+            ? detail({
+                is_own: true,
+                state: "Rejected",
+                row_version: 2,
+                available_transitions: [],
+              })
             : null;
         },
       },
@@ -533,9 +545,7 @@ describe("submission detail withdraw (FR-28)", () => {
     );
 
     expect(
-      await within(dialog).findAllByText(
-        /This submission is no longer open, so it cannot be withdrawn./,
-      ),
+      await within(dialog).findAllByText(/This submission can no longer be withdrawn./),
     ).not.toHaveLength(0);
     expect(calls.filter((call) => call.method === "POST")).toHaveLength(1);
     expect(screen.getByRole("dialog")).toBeVisible();

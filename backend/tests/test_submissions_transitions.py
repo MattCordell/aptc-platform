@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 
 import nptc.submissions.transitions as transitions_module
 from nptc.audit.writer import AuditContext
-from nptc.auth.errors_authorisation import PermissionDeniedError
+from nptc.auth.errors_authorisation import MfaRequiredError, PermissionDeniedError
 from nptc.auth.permissions import Permission, Role, permissions_for_roles
 from nptc.auth.principal import Principal
 from nptc.db.models.audit import AuditEvent
@@ -35,7 +35,12 @@ from nptc.submissions.errors import (
     SubmissionVersionConflictError,
     TransitionReasonRequiredError,
 )
-from nptc.submissions.transitions import PERMITTED_TRANSITIONS, transition_submission
+from nptc.submissions.transitions import (
+    PERMITTED_TRANSITIONS,
+    TRANSITION_PERMISSIONS,
+    available_transitions,
+    transition_submission,
+)
 
 _REASON = "Entered by mistake"
 
@@ -46,7 +51,9 @@ def _context(user_id: uuid.UUID) -> AuditContext:
     )
 
 
-def _principal(user: User, *roles: Role) -> Principal:
+def _principal(user: User, *roles: Role, suppressed: frozenset[Role] = frozenset()) -> Principal:
+    """`suppressed` is a role the user holds but whose permissions are withheld for want of MFA, as
+    `principal_for` does for an Administrator who has not stepped up."""
     held = frozenset(roles)
     return Principal(
         user_id=user.id,
@@ -54,8 +61,8 @@ def _principal(user: User, *roles: Role) -> Principal:
         status=None,
         roles=held,
         permissions=permissions_for_roles(held),
-        mfa_satisfied=True,
-        mfa_suppressed_roles=frozenset(),
+        mfa_satisfied=not suppressed,
+        mfa_suppressed_roles=suppressed,
     )
 
 
@@ -197,12 +204,381 @@ def test_the_reason_is_stored_cleaned(app_session: Session) -> None:
     assert event.reason == "Entered by mistake"
 
 
-# --- a move that is not allowed (FR-28) ----------------------------------------------------
+# --- the review moves (FR-28, FR-81) -------------------------------------------------------
+
+_REVIEW_MOVES = [
+    ("Submitted", "Triage", "submission.triaged"),
+    ("Triage", "Under review", "submission.review_started"),
+    ("Triage", "Rejected", "submission.rejected"),
+    ("Rejected", "Triage", "submission.reopened"),
+    ("Under review", "Ready for approval", "submission.readied_for_approval"),
+]
+_REVIEWING_ROLES = [Role.REVIEWER, Role.ADMINISTRATOR]
+_NON_REVIEWING_ROLES = [Role.OBSERVER, Role.PROVISIONAL, Role.MEMBER]
+
+
+def _move(
+    session: Session,
+    submission: Submission,
+    actor: User,
+    role: Role,
+    to_state: str,
+    *,
+    reason: str = _REASON,
+) -> Submission:
+    return transition_submission(
+        session,
+        _context(actor.id),
+        _principal(actor, role),
+        submission_id=submission.id,
+        to_state=SubmissionState(to_state),
+        reason=reason,
+        expected_row_version=submission.row_version,
+    )
+
+
+@pytest.mark.req("FR-28")
+@pytest.mark.req("NFR-08")
+@pytest.mark.integration
+@pytest.mark.parametrize("role", _REVIEWING_ROLES)
+@pytest.mark.parametrize(("from_state", "to_state", "action"), _REVIEW_MOVES)
+def test_a_reviewer_and_an_administrator_make_each_review_move(
+    app_session: Session, role: Role, from_state: str, to_state: str, action: str
+) -> None:
+    submitter = _user(app_session)
+    reviewer = _user(app_session)
+    submission = _submission(app_session, submitter, state=from_state)
+
+    result = _move(app_session, submission, reviewer, role, to_state)
+
+    assert result.state == to_state
+    [row] = _transitions(app_session, submission.id)
+    assert (row.from_state, row.to_state, row.actor_id, row.reason) == (
+        from_state,
+        to_state,
+        reviewer.id,
+        _REASON,
+    )
+    [event] = _events(app_session, submission.id)
+    assert event.action == action
+    assert event.actor_user_id == reviewer.id
+    assert event.before == {"state": from_state}
+    assert event.after == {"state": to_state}
+
+
+@pytest.mark.req("FR-28")
+@pytest.mark.integration
+def test_a_reopened_submission_keeps_its_history_and_stays_the_same_record(
+    app_session: Session,
+) -> None:
+    submitter = _user(app_session)
+    reviewer = _user(app_session)
+    submission = _submission(app_session, submitter)
+
+    _move(app_session, submission, reviewer, Role.REVIEWER, "Triage", reason="Looks complete")
+    _move(app_session, submission, reviewer, Role.REVIEWER, "Rejected", reason="Out of scope")
+    reopened = _move(app_session, submission, reviewer, Role.REVIEWER, "Triage", reason="Appeal")
+
+    assert reopened.id == submission.id
+    assert reopened.state == "Triage"
+    history = sorted(_transitions(app_session, submission.id), key=lambda row: row.created_at)
+    assert [(row.from_state, row.to_state, row.reason) for row in history] == [
+        ("Submitted", "Triage", "Looks complete"),
+        ("Triage", "Rejected", "Out of scope"),
+        ("Rejected", "Triage", "Appeal"),
+    ]
+    assert [event.action for event in _events(app_session, submission.id)] == [
+        "submission.triaged",
+        "submission.rejected",
+        "submission.reopened",
+    ]
+    submissions_of_submitter = app_session.execute(
+        select(func.count()).select_from(Submission).where(Submission.submitter_id == submitter.id)
+    ).scalar_one()
+    assert submissions_of_submitter == 1
+
+
+@pytest.mark.req("FR-81")
+@pytest.mark.req("FR-44")
+@pytest.mark.integration
+@pytest.mark.parametrize("role", _NON_REVIEWING_ROLES)
+@pytest.mark.parametrize(("from_state", "to_state", "action"), _REVIEW_MOVES)
+def test_a_role_without_the_review_permission_is_refused_every_review_move(
+    app_session: Session, role: Role, from_state: str, to_state: str, action: str
+) -> None:
+    submitter = _user(app_session)
+    submission = _submission(app_session, submitter, state=from_state)
+    assert Permission.SUBMISSION_TRANSITION_REVIEW not in permissions_for_roles(frozenset({role}))
+    assert action
+
+    with pytest.raises(PermissionDeniedError, match=r"submission\.transition\.review"):
+        _move(app_session, submission, submitter, role, to_state)
+
+    _assert_nothing_written(app_session, submission.id, from_state)
+
+
+@pytest.mark.req("FR-28")
+@pytest.mark.integration
+@pytest.mark.parametrize("role", _REVIEWING_ROLES)
+@pytest.mark.parametrize(
+    ("from_state", "to_state"),
+    [
+        ("Submitted", "Ready for approval"),
+        ("Submitted", "Under review"),
+        ("Submitted", "Rejected"),
+        ("Triage", "Ready for approval"),
+        ("Under review", "Rejected"),
+        ("Under review", "Triage"),
+        ("Ready for approval", "Under review"),
+        ("Ready for approval", "Triage"),
+        ("Rejected", "Under review"),
+        ("Triage", "Approved"),
+        ("Ready for approval", "Approved"),
+        ("Published in release", "Triage"),
+        ("Withdrawn", "Triage"),
+    ],
+)
+def test_a_move_the_table_has_no_row_for_is_refused_for_a_reviewer(
+    app_session: Session, role: Role, from_state: str, to_state: str
+) -> None:
+    submitter = _user(app_session)
+    reviewer = _user(app_session)
+    submission = _submission(app_session, submitter, state=from_state)
+
+    with pytest.raises(IllegalSubmissionTransitionError):
+        _move(app_session, submission, reviewer, role, to_state)
+
+    _assert_nothing_written(app_session, submission.id, from_state)
+
+
+@pytest.mark.req("FR-28")
+def test_no_move_enters_approved_until_the_approval_move_exists() -> None:
+    """Approval also writes the catalogue entry, so it is its own move and not a row of the review
+    graph. Until it lands, `Approved` is a state a submission can hold but no move reaches."""
+    assert SubmissionState.APPROVED not in {target for _, target in PERMITTED_TRANSITIONS}
+
+
+# --- a suppressed Administrator who holds another role (FR-44) -----------------------------
+
+
+@pytest.mark.req("FR-44")
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    ("state", "to_state", "own"),
+    [
+        ("Approved", "Withdrawn", True),
+        ("Published in release", "Withdrawn", True),
+        ("Triage", "Withdrawn", False),
+        ("Submitted", "Triage", False),
+    ],
+    ids=["approved", "published", "someone-elses-triage", "review-move"],
+)
+def test_a_caller_whose_administrator_role_awaits_mfa_is_told_to_step_up(
+    app_session: Session, state: str, to_state: str, own: bool
+) -> None:
+    """The user also holds Member, so the route gate lets them in. The move needs a permission only
+    the suppressed Administrator role grants, so the refusal says stepping up would help."""
+    submitter = _user(app_session)
+    actor = submitter if own else _user(app_session)
+    submission = _submission(app_session, submitter, state=state)
+    principal = _principal(actor, Role.MEMBER, suppressed=frozenset({Role.ADMINISTRATOR}))
+
+    with pytest.raises(MfaRequiredError):
+        transition_submission(
+            app_session,
+            _context(actor.id),
+            principal,
+            submission_id=submission.id,
+            to_state=SubmissionState(to_state),
+            reason=_REASON,
+            expected_row_version=submission.row_version,
+        )
+
+    _assert_nothing_written(app_session, submission.id, state)
+
+
+@pytest.mark.req("FR-44")
+@pytest.mark.integration
+def test_a_caller_with_no_suppressed_role_gets_the_plain_refusal(app_session: Session) -> None:
+    submitter = _user(app_session)
+    submission = _submission(app_session, submitter, state="Approved")
+
+    with pytest.raises(PermissionDeniedError) as refused:
+        _withdraw(app_session, submitter, submission, roles=(Role.MEMBER,))
+
+    assert not isinstance(refused.value, MfaRequiredError)
+    _assert_nothing_written(app_session, submission.id, "Approved")
+
+
+@pytest.mark.req("FR-44")
+@pytest.mark.integration
+def test_a_suppressed_administrator_still_withdraws_their_own_open_submission(
+    app_session: Session,
+) -> None:
+    """The Member role grants `.own`, so the move needs no step-up and the suppressed role is not
+    what decides it."""
+    submitter = _user(app_session)
+    submission = _submission(app_session, submitter)
+    principal = _principal(submitter, Role.MEMBER, suppressed=frozenset({Role.ADMINISTRATOR}))
+
+    result = transition_submission(
+        app_session,
+        _context(submitter.id),
+        principal,
+        submission_id=submission.id,
+        to_state=SubmissionState.WITHDRAWN,
+        reason=_REASON,
+        expected_row_version=submission.row_version,
+    )
+
+    assert result.state == "Withdrawn"
+
+
+# --- what a caller may do now (FR-28) ------------------------------------------------------
+
+
+def _available(user: User, role: Role, state: str, *, submitter: User) -> list[str]:
+    return [
+        target.value
+        for target in available_transitions(
+            _principal(user, role), from_state=SubmissionState(state), submitter_id=submitter.id
+        )
+    ]
+
+
+@pytest.mark.req("FR-28")
+@pytest.mark.integration
+def test_a_member_may_withdraw_their_own_open_submission_and_nothing_else(
+    app_session: Session,
+) -> None:
+    member = _user(app_session)
+
+    assert _available(member, Role.MEMBER, "Submitted", submitter=member) == ["Withdrawn"]
+    assert _available(member, Role.MEMBER, "Triage", submitter=member) == ["Withdrawn"]
+    assert _available(member, Role.MEMBER, "Under review", submitter=member) == []
+    assert _available(member, Role.MEMBER, "Approved", submitter=member) == []
+
+
+@pytest.mark.req("FR-28")
+@pytest.mark.integration
+@pytest.mark.parametrize("state", ["Submitted", "Triage", "Under review", "Ready for approval"])
+def test_a_member_may_make_no_move_on_someone_elses_submission(
+    app_session: Session, state: str
+) -> None:
+    member = _user(app_session)
+    other = _user(app_session)
+
+    assert _available(member, Role.MEMBER, state, submitter=other) == []
 
 
 @pytest.mark.req("FR-28")
 @pytest.mark.integration
 @pytest.mark.parametrize("state", ["Withdrawn", "Rejected", "Published in release"])
+def test_a_member_has_no_move_on_a_closed_submission_of_their_own(
+    app_session: Session, state: str
+) -> None:
+    member = _user(app_session)
+
+    assert _available(member, Role.MEMBER, state, submitter=member) == []
+
+
+@pytest.mark.req("FR-28")
+@pytest.mark.integration
+def test_a_reviewer_is_offered_the_review_moves_and_withdrawal_only_of_their_own(
+    app_session: Session,
+) -> None:
+    reviewer = _user(app_session)
+    other = _user(app_session)
+
+    assert _available(reviewer, Role.REVIEWER, "Submitted", submitter=other) == ["Triage"]
+    assert _available(reviewer, Role.REVIEWER, "Submitted", submitter=reviewer) == [
+        "Triage",
+        "Withdrawn",
+    ]
+    assert _available(reviewer, Role.REVIEWER, "Triage", submitter=other) == [
+        "Under review",
+        "Rejected",
+    ]
+    assert _available(reviewer, Role.REVIEWER, "Rejected", submitter=other) == ["Triage"]
+    assert _available(reviewer, Role.REVIEWER, "Under review", submitter=other) == [
+        "Ready for approval"
+    ]
+    assert _available(reviewer, Role.REVIEWER, "Approved", submitter=other) == []
+    assert _available(reviewer, Role.REVIEWER, "Published in release", submitter=other) == []
+
+
+@pytest.mark.req("FR-28")
+@pytest.mark.integration
+def test_an_administrator_is_offered_withdrawal_from_every_open_and_approved_state(
+    app_session: Session,
+) -> None:
+    admin = _user(app_session)
+    other = _user(app_session)
+
+    assert _available(admin, Role.ADMINISTRATOR, "Submitted", submitter=other) == [
+        "Triage",
+        "Withdrawn",
+    ]
+    assert _available(admin, Role.ADMINISTRATOR, "Triage", submitter=admin) == [
+        "Under review",
+        "Rejected",
+        "Withdrawn",
+    ]
+    assert _available(admin, Role.ADMINISTRATOR, "Approved", submitter=other) == ["Withdrawn"]
+    assert _available(admin, Role.ADMINISTRATOR, "Published in release", submitter=other) == [
+        "Withdrawn"
+    ]
+    assert _available(admin, Role.ADMINISTRATOR, "Withdrawn", submitter=other) == []
+
+
+@pytest.mark.req("FR-44")
+@pytest.mark.integration
+@pytest.mark.parametrize("role", list(Role))
+@pytest.mark.parametrize("state", [s.value for s in SubmissionState])
+def test_every_offered_move_is_one_the_service_accepts_and_no_other_is(
+    app_session: Session, role: Role, state: str
+) -> None:
+    """The list and the endpoint apply one test, so each state a caller is offered succeeds and each
+    state they are not offered is refused, whichever reason the refusal has."""
+    submitter = _user(app_session)
+    actor = _user(app_session)
+    offered = set(
+        available_transitions(
+            _principal(actor, role), from_state=SubmissionState(state), submitter_id=submitter.id
+        )
+    )
+
+    for target in SubmissionState:
+        if target.value == state:
+            continue
+        submission = _submission(app_session, submitter, state=state)
+        savepoint = app_session.begin_nested()
+        try:
+            _move(app_session, submission, actor, role, target.value)
+        except IllegalSubmissionTransitionError, PermissionDeniedError:
+            assert target not in offered
+        else:
+            assert target in offered
+        finally:
+            savepoint.rollback()
+
+
+@pytest.mark.req("FR-44")
+def test_the_route_gate_is_every_permission_the_table_names() -> None:
+    named = {
+        Permission.SUBMISSION_TRANSITION_REVIEW,
+        Permission.SUBMISSION_WITHDRAW_OWN,
+        Permission.SUBMISSION_WITHDRAW_ANY,
+    }
+    assert named == TRANSITION_PERMISSIONS
+
+
+# --- a move that is not allowed (FR-28) ----------------------------------------------------
+
+
+@pytest.mark.req("FR-28")
+@pytest.mark.integration
+@pytest.mark.parametrize("state", ["Withdrawn", "Rejected"])
 def test_a_closed_submission_cannot_be_withdrawn(app_session: Session, state: str) -> None:
     submitter = _user(app_session)
     submission = _submission(app_session, submitter, state=state)
@@ -249,11 +625,24 @@ def test_a_move_with_no_row_in_the_table_is_refused(app_session: Session) -> Non
 
 
 @pytest.mark.req("FR-28")
-def test_the_table_seeds_only_the_two_withdrawals() -> None:
+def test_the_table_holds_exactly_the_moves_of_the_review_graph() -> None:
+    S = SubmissionState
     assert set(PERMITTED_TRANSITIONS) == {
-        (SubmissionState.SUBMITTED, SubmissionState.WITHDRAWN),
-        (SubmissionState.TRIAGE, SubmissionState.WITHDRAWN),
+        (S.SUBMITTED, S.TRIAGE),
+        (S.TRIAGE, S.UNDER_REVIEW),
+        (S.TRIAGE, S.REJECTED),
+        (S.REJECTED, S.TRIAGE),
+        (S.UNDER_REVIEW, S.READY_FOR_APPROVAL),
+        (S.SUBMITTED, S.WITHDRAWN),
+        (S.TRIAGE, S.WITHDRAWN),
+        (S.APPROVED, S.WITHDRAWN),
+        (S.PUBLISHED_IN_RELEASE, S.WITHDRAWN),
     }
+
+
+@pytest.mark.req("FR-28")
+def test_a_withdrawn_submission_has_no_way_out() -> None:
+    assert SubmissionState.WITHDRAWN not in {source for source, _ in PERMITTED_TRANSITIONS}
 
 
 # --- who may move it (FR-44) ---------------------------------------------------------------
@@ -274,20 +663,91 @@ def test_another_member_cannot_withdraw_someone_elses_submission(app_session: Se
 
 @pytest.mark.req("FR-44")
 @pytest.mark.integration
-@pytest.mark.parametrize("role", [Role.OBSERVER, Role.ADMINISTRATOR])
-def test_a_role_without_the_own_permission_cannot_withdraw_even_its_own(
-    app_session: Session, role: Role
+def test_a_role_with_neither_withdraw_permission_cannot_withdraw_even_its_own(
+    app_session: Session,
 ) -> None:
-    """The Administrator holds `submission.withdraw.any` and not `.own`, and the table has no `.any`
-    row yet, so the Administrator cannot withdraw their own submission either."""
     submitter = _user(app_session)
     submission = _submission(app_session, submitter)
-    assert Permission.SUBMISSION_WITHDRAW_OWN not in permissions_for_roles(frozenset({role}))
+    held = permissions_for_roles(frozenset({Role.OBSERVER}))
+    assert Permission.SUBMISSION_WITHDRAW_OWN not in held
+    assert Permission.SUBMISSION_WITHDRAW_ANY not in held
 
     with pytest.raises(PermissionDeniedError, match="is required for this move"):
-        _withdraw(app_session, submitter, submission, roles=(role,))
+        _withdraw(app_session, submitter, submission, roles=(Role.OBSERVER,))
 
     _assert_nothing_written(app_session, submission.id, "Submitted")
+
+
+@pytest.mark.req("FR-44")
+@pytest.mark.integration
+@pytest.mark.parametrize("state", ["Submitted", "Triage"])
+def test_an_administrator_withdraws_their_own_submission(app_session: Session, state: str) -> None:
+    """The Administrator holds `submission.withdraw.any` and not `.own`, so the `.any` requirement on
+    the open-state rows is what lets them withdraw a submission of their own."""
+    admin = _user(app_session)
+    submission = _submission(app_session, admin, state=state)
+    assert Permission.SUBMISSION_WITHDRAW_OWN not in permissions_for_roles(
+        frozenset({Role.ADMINISTRATOR})
+    )
+
+    result = _withdraw(app_session, admin, submission, roles=(Role.ADMINISTRATOR,))
+
+    assert result.state == "Withdrawn"
+    [row] = _transitions(app_session, submission.id)
+    assert (row.from_state, row.to_state, row.actor_id) == (state, "Withdrawn", admin.id)
+
+
+@pytest.mark.req("FR-28")
+@pytest.mark.req("FR-44")
+@pytest.mark.integration
+@pytest.mark.parametrize("state", ["Submitted", "Triage", "Approved", "Published in release"])
+def test_an_administrator_withdraws_someone_elses_submission(
+    app_session: Session, state: str
+) -> None:
+    submitter = _user(app_session)
+    admin = _user(app_session)
+    submission = _submission(app_session, submitter, state=state)
+
+    result = _withdraw(app_session, submitter, submission, actor=admin, roles=(Role.ADMINISTRATOR,))
+
+    assert result.state == "Withdrawn"
+    [row] = _transitions(app_session, submission.id)
+    assert (row.from_state, row.to_state, row.actor_id) == (state, "Withdrawn", admin.id)
+    [event] = _events(app_session, submission.id)
+    assert event.action == "submission.withdrawn"
+    assert event.actor_user_id == admin.id
+
+
+@pytest.mark.req("FR-44")
+@pytest.mark.integration
+@pytest.mark.parametrize("role", [Role.PROVISIONAL, Role.MEMBER, Role.REVIEWER])
+@pytest.mark.parametrize("state", ["Approved", "Published in release"])
+def test_the_submitter_cannot_withdraw_once_the_submission_is_approved(
+    app_session: Session, role: Role, state: str
+) -> None:
+    submitter = _user(app_session)
+    submission = _submission(app_session, submitter, state=state)
+
+    with pytest.raises(PermissionDeniedError, match=r"submission\.withdraw\.any"):
+        _withdraw(app_session, submitter, submission, roles=(role,))
+
+    _assert_nothing_written(app_session, submission.id, state)
+
+
+@pytest.mark.req("FR-44")
+@pytest.mark.integration
+@pytest.mark.parametrize("state", ["Approved", "Published in release"])
+def test_a_reviewer_cannot_withdraw_someone_elses_approved_submission(
+    app_session: Session, state: str
+) -> None:
+    submitter = _user(app_session)
+    reviewer = _user(app_session)
+    submission = _submission(app_session, submitter, state=state)
+
+    with pytest.raises(PermissionDeniedError):
+        _withdraw(app_session, submitter, submission, actor=reviewer, roles=(Role.REVIEWER,))
+
+    _assert_nothing_written(app_session, submission.id, state)
 
 
 @pytest.mark.req("FR-44")

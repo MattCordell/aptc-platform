@@ -8,12 +8,14 @@ import { useSession } from "../api/queries.ts";
 import { AuthContext, type AuthContextValue } from "../auth/session.ts";
 import { expectNoA11yViolations } from "../test/a11y.ts";
 import { stubApi, type Route } from "../test/stub-api.ts";
+import type { SubmissionState } from "./state-options.ts";
 import { WithdrawSubmission } from "./withdraw-submission.tsx";
 
 /**
  * The withdraw action (FR-28, FR-44, NFR-20, NFR-31). It shows only for the
- * submitter holding `submission.withdraw.own`, on an open submission, and every
- * refusal the server still makes reaches the dialog.
+ * submitter holding `submission.withdraw.own`, on a submission whose
+ * `available_transitions` include `Withdrawn`, and every refusal the server
+ * still makes reaches the dialog.
  */
 
 const ID = "6f1d2c3e-0000-4000-8000-000000000031";
@@ -57,6 +59,7 @@ function submission(overrides: Record<string, unknown> = {}) {
     id: ID,
     is_own: true,
     state: "Submitted",
+    available_transitions: ["Withdrawn"] as SubmissionState[],
     row_version: 3,
     preferred_term: "Ferritin level",
     ...overrides,
@@ -121,11 +124,20 @@ describe("WithdrawSubmission visibility", () => {
     },
   );
 
-  it.each([["Published in release"], ["Rejected"], ["Withdrawn"]])(
-    "is absent in the %s state",
+  it.each([
+    ["Under review"],
+    ["Ready for approval"],
+    ["Approved"],
+    ["Published in release"],
+    ["Rejected"],
+    ["Withdrawn"],
+  ])(
+    "is absent in the %s state, where the server offers no withdrawal",
     async (state) => {
       stubApi([SUBMITTER]);
-      const { container } = renderWithdraw(submission({ state }));
+      const { container } = renderWithdraw(
+        submission({ state, available_transitions: [] }),
+      );
 
       await settled();
       expect(screen.queryByRole("button")).toBeNull();
@@ -133,6 +145,14 @@ describe("WithdrawSubmission visibility", () => {
       await expectNoA11yViolations(container);
     },
   );
+
+  it("follows the server's list and not the name of the state", async () => {
+    stubApi([SUBMITTER]);
+    renderWithdraw(submission({ state: "Triage", available_transitions: [] }));
+
+    await settled();
+    expect(screen.queryByRole("button")).toBeNull();
+  });
 
   it("is absent for another Member, who is not the submitter", async () => {
     stubApi([SUBMITTER]);
