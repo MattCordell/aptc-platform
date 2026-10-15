@@ -1598,6 +1598,10 @@ function useStateChangeMutation<Body>(
         void queryClient.invalidateQueries({
           queryKey: submissionDetailKey(submissionId),
         });
+        // Whoever moved the submission first added a row the history lacks.
+        void queryClient.invalidateQueries({
+          queryKey: submissionTransitionsKey(submissionId),
+        });
       }
     },
   });

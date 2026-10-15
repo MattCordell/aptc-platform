@@ -884,24 +884,30 @@ describe("useTransitionSubmission (FR-28, FR-81)", () => {
       { detail: "Reload.", expected_row_version: 3, current_row_version: 4 },
     ],
     ["a move the state no longer allows", { detail: "Not a permitted move." }],
-  ])("re-reads the detail on a 409 for %s", async (_name, refusal) => {
+  ])("re-reads the detail and the history on a 409 for %s", async (_name, refusal) => {
     const calls = stubApi([
       { method: "GET", path: DETAIL, status: 200, body: detail },
+      { method: "GET", path: HISTORY, status: 200, body: { items: [] } },
       { method: "POST", path: HISTORY, status: 409, body: refusal },
     ]);
     const { Wrapper } = sharedClientWrapper();
     const { result } = renderHook(
-      () => ({ read: useSubmissionDetail(ID), write: useTransitionSubmission(ID) }),
+      () => ({
+        read: useSubmissionDetail(ID),
+        history: useSubmissionTransitions(ID),
+        write: useTransitionSubmission(ID),
+      }),
       { wrapper: Wrapper },
     );
-    await waitFor(() => expect(result.current.read.isSuccess).toBe(true));
+    await waitFor(() => expect(result.current.history.isSuccess).toBe(true));
+    const reads = (path: string) =>
+      calls.filter((call) => call.method === "GET" && call.path === path).length;
 
     result.current.write.mutate(BODY);
 
     await waitFor(() => expect(result.current.write.isError).toBe(true));
-    await waitFor(() =>
-      expect(calls.filter((call) => call.method === "GET").length).toBeGreaterThan(1),
-    );
+    await waitFor(() => expect(reads(DETAIL)).toBeGreaterThan(1));
+    await waitFor(() => expect(reads(HISTORY)).toBeGreaterThan(1));
     expect(result.current.read.data?.state).toBe("Triage");
   });
 

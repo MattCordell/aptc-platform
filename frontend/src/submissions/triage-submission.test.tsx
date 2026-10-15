@@ -339,6 +339,49 @@ describe("TriageSubmission dialog", () => {
     expect(calls.filter((call) => call.method === "POST")).toHaveLength(1);
   });
 
+  it("offers no second attempt when the re-read moved the submission to another state that still lists the target", async () => {
+    const calls = stubApi(
+      [
+        detailRoute(),
+        {
+          method: "POST",
+          path: TRANSITIONS,
+          status: 409,
+          body: { detail: "Changed.", expected_row_version: 3, current_row_version: 4 },
+        },
+      ],
+      {
+        // Awaiting terminology also lists Under review (Resume review), which
+        // is not the move the open dialog describes.
+        vary: (call, prior) =>
+          call.method === "GET" && call.path === DETAIL && prior > 0
+            ? detailRoute({
+                state: "Awaiting terminology",
+                row_version: 4,
+                available_transitions: ["Under review"],
+              })
+            : null,
+      },
+    );
+    renderPanel();
+    const dialog = await openDialog("Start review");
+
+    await typeReason(dialog, "Complete enough to assess.");
+    await confirm(dialog);
+    await waitFor(() =>
+      expect(
+        within(dialog).getByRole("button", { name: "Confirm move" }),
+      ).toHaveAttribute("aria-disabled", "true"),
+    );
+    await confirm(dialog);
+
+    expect(
+      await within(dialog).findAllByText(/The platform no longer offers this move/),
+    ).not.toHaveLength(0);
+    expect(within(dialog).getByText(/from Triage to Under review/)).toBeVisible();
+    expect(calls.filter((call) => call.method === "POST")).toHaveLength(1);
+  });
+
   it.each([
     [403, "You may not make this move."],
     [409, "This move is not permitted from the current state."],

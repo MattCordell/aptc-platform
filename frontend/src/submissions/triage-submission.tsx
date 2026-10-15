@@ -54,7 +54,9 @@ function MoveDialog({
       pendingLabel="Moving"
       reasonAction="this move"
       reasonHint={REASON_READERS_HINT}
-      blocked={!submission.available_transitions.includes(to)}
+      blocked={
+        submission.state !== from || !submission.available_transitions.includes(to)
+      }
       blockedReason={NO_LONGER_OFFERED}
       fallbackRefusal={FALLBACK_REFUSAL}
       write={move}
