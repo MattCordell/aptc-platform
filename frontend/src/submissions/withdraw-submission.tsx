@@ -1,19 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 
-import {
-  asReasonRefusal,
-  asSubmissionVersionConflict,
-  refusalDetail,
-} from "../api/conflicts.ts";
 import { useHasPermission, useWithdrawSubmission } from "../api/queries.ts";
 import type { components } from "../api/schema.ts";
 import { Button } from "../components/button.tsx";
-import { Dialog } from "../components/dialog.tsx";
-import type { FormError } from "../components/error-summary.tsx";
-import { Form } from "../components/form.tsx";
 import { EntrySection } from "../catalogue/entry-section.tsx";
-import { reasonProblem } from "../registry/property-form.ts";
-import { ReasonField } from "../registry/reason-field.tsx";
+import { REASON_READERS_HINT } from "./transition-actions.ts";
+import { TransitionDialog } from "./transition-dialog.tsx";
 
 type SubmissionDetail = components["schemas"]["SubmissionDetail"];
 
@@ -32,22 +24,10 @@ function mayWithdrawNow(submission: Withdrawable): boolean {
 
 const WITHDRAW_PERMISSION = "submission.withdraw.own";
 
-const REASON_FIELD_ID = "withdraw-reason";
-
-const STALE_VERSION =
-  "This submission changed since you opened it. The page now shows the latest version. Check it, then confirm again.";
-
 const CLOSED = "This submission can no longer be withdrawn.";
 
 const FALLBACK_REFUSAL =
   "The submission could not be withdrawn. Try again, or contact an administrator if the problem persists.";
-
-function refusalSentence(error: unknown): string {
-  if (asSubmissionVersionConflict(error) !== null) {
-    return STALE_VERSION;
-  }
-  return refusalDetail(error) ?? FALLBACK_REFUSAL;
-}
 
 function WithdrawDialog({
   submission,
@@ -58,69 +38,30 @@ function WithdrawDialog({
   onClose: () => void;
   onWithdrawn: () => void;
 }) {
-  const [reason, setReason] = useState("");
-  const [errors, setErrors] = useState<FormError[]>([]);
   const withdraw = useWithdrawSubmission(submission.id);
-
-  const reasonRefusal = withdraw.isError ? asReasonRefusal(withdraw.error) : null;
-  const fieldErrors: FormError[] =
-    reasonRefusal === null
-      ? errors
-      : [{ fieldId: REASON_FIELD_ID, message: reasonRefusal.detail }];
-  const refusal = withdraw.isError && reasonRefusal === null ? withdraw.error : null;
-
   return (
-    <Dialog open onClose={onClose} title="Withdraw submission">
-      <Form
-        submitLabel="Confirm withdrawal"
-        pendingLabel="Withdrawing"
-        pending={withdraw.isPending}
-        submitBlocked={!mayWithdrawNow(submission)}
-        blockedReason={CLOSED}
-        errors={fieldErrors}
-        formError={refusal === null ? undefined : refusalSentence(refusal)}
-        errorSummaryHeadingLevel={3}
-        secondaryActions={
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-        }
-        onSubmit={() => {
-          const missing = reasonProblem(reason, "withdrawing this submission");
-          setErrors(
-            missing === null ? [] : [{ fieldId: REASON_FIELD_ID, message: missing }],
-          );
-          if (missing !== null) {
-            // An earlier server refusal no longer describes this attempt.
-            withdraw.reset();
-            return;
-          }
-          return withdraw
-            .mutateAsync({
-              expected_row_version: submission.row_version,
-              reason: reason.trim(),
-            })
-            .then(
-              () => {
-                onWithdrawn();
-                return { ok: true };
-              },
-              () => ({ ok: false }),
-            );
-        }}
-      >
+    <TransitionDialog
+      title="Withdraw submission"
+      intro={
         <p>
           Withdrawing {submission.preferred_term} closes it, and you cannot reopen it. To
           propose it again, send a new submission.
         </p>
-        <ReasonField
-          id={REASON_FIELD_ID}
-          value={reason}
-          onChange={setReason}
-          error={fieldErrors.find((error) => error.fieldId === REASON_FIELD_ID)?.message}
-        />
-      </Form>
-    </Dialog>
+      }
+      submitLabel="Confirm withdrawal"
+      pendingLabel="Withdrawing"
+      reasonAction="withdrawing this submission"
+      reasonHint={REASON_READERS_HINT}
+      blocked={!mayWithdrawNow(submission)}
+      blockedReason={CLOSED}
+      fallbackRefusal={FALLBACK_REFUSAL}
+      write={withdraw}
+      send={(reason) =>
+        withdraw.mutateAsync({ expected_row_version: submission.row_version, reason })
+      }
+      onClose={onClose}
+      onDone={onWithdrawn}
+    />
   );
 }
 
