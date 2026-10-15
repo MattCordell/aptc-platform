@@ -23,10 +23,6 @@ are the checker's, never the caller's.
 preferred term, is dropped, as `nptc.catalogue.designations.add_synonyms` drops it. The first
 spelling is kept, in the order given.
 
-**Free text is checked for invisible characters (FR-63).** `notes` may span lines. `organisation` is
-one line. Both are normalised like a term, and both refuse a zero-width space, a text-direction
-override or any other character with no single repair.
-
 **The FSN is the server's, never the caller's (FR-82).** The request carries a code only. The stored
 label is stored exactly as served.
 

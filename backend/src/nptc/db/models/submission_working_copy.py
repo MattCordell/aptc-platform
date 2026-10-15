@@ -9,16 +9,10 @@ edit. A submission with no row has not been edited, and its working content is i
 `submission.row_version`, so an edit and a state transition cannot cross (FR-23). The service in
 `nptc.submissions.working_copy` is the only writer.
 
-**Same content, same rules.** The columns and checks mirror the content columns of `submission`
-(`preferred_term`, `synonyms`, `snomed_code` with `snomed_fsn`, `property_values`, `notes`), so a
-working copy can never hold a value the original could not. `snomed_code` is `TEXT` and passes
-`nptc_sctid_is_valid` (FR-06, ADR-0023). `snomed_fsn` comes from the terminology server and a request
-never supplies it (FR-82). Reference, duplicate and submitter columns are not here: a reviewer does
-not edit the evidence the submitter sent, and an amendment keeps its `entry_id` on the submission.
-
-**Audit.** An edit is recorded as an `UPDATED` event on the *submission*, with the changed content
-fields in its diff (NFR-08). The columns are declared here so that `nptc.audit.policy` classifies
-every column of the table. `notes` is free text and is audited like the submission's own copy.
+**Same content, same rules.** The columns and checks repeat those of `submission`, so a working copy
+cannot hold a value the original could not. `snomed_fsn` comes from the terminology server and a
+request never supplies it (FR-82). The reference, duplicate and submitter columns are not here: a
+reviewer does not edit the evidence the submitter sent.
 
 **`synonyms` and `property_values` are plain `JSONB`,** for the reason on `Submission`: a write
 replaces the whole attribute.

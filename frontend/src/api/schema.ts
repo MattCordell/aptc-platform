@@ -841,6 +841,9 @@ export interface paths {
          * Show one submission
          * @description One submission in any state, with the content the submitter sent. The submitter appears as
          *     on the list: a username only, unless the caller holds `submitter_identity.view`.
+         *
+         *     A caller with `submission.transition.review` also gets `working_copy`, the reviewer's edited
+         *     copy of that content, or null when it has not been edited. Every other caller gets no such key.
          */
         get: operations["get_submission_api_v1_submissions__submission_id__get"];
         put?: never;
@@ -931,6 +934,28 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/submissions/{submission_id}/working-copy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit a submission's working copy
+         * @description Applies the fields sent to the working copy, creating it on the first effective edit. The
+         *     submitter's own content never changes. An effective edit bumps the submission's `row_version`
+         *     and appends one audit event, in one transaction.
+         */
+        patch: operations["edit_submission_working_copy_api_v1_submissions__submission_id__working_copy_patch"];
         trace?: never;
     };
     "/api/v1/submissions/{submission_id}/comments": {
@@ -2507,6 +2532,63 @@ export interface components {
             /** Organisation */
             organisation: string | null;
         };
+        /** IdentifiedReviewSubmissionDetail */
+        IdentifiedReviewSubmissionDetail: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** State */
+            state: string;
+            /** Entry Business Key */
+            entry_business_key: string | null;
+            /** Preferred Term */
+            preferred_term: string;
+            /** Snomed Code */
+            snomed_code: string | null;
+            /** Snomed Fsn */
+            snomed_fsn: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Is Own */
+            is_own: boolean;
+            /** Has Registered Interest */
+            has_registered_interest: boolean;
+            /** Interest Count */
+            interest_count: number | null;
+            /** Label Provenance */
+            label_provenance: {
+                [key: string]: components["schemas"]["LabelProvenance"];
+            };
+            /** Row Version */
+            row_version: number;
+            /** Available Transitions */
+            available_transitions: components["schemas"]["SubmissionState"][];
+            /** Synonyms */
+            synonyms: string[];
+            /** Property Values */
+            property_values: {
+                [key: string]: components["schemas"]["SubmittedPropertyValue"][];
+            };
+            /** Notes */
+            notes: string | null;
+            /** Reference Url */
+            reference_url: string | null;
+            /** Reference Checked At */
+            reference_checked_at: string | null;
+            /** Reference Status */
+            reference_status: number | null;
+            /** Duplicate Confirmed At */
+            duplicate_confirmed_at: string | null;
+            working_copy: components["schemas"]["WorkingCopyView"] | null;
+            submitter: components["schemas"]["IdentifiedSubmitter"];
+        };
         /** IdentifiedSubmissionDetail */
         IdentifiedSubmissionDetail: {
             /**
@@ -3149,6 +3231,63 @@ export interface components {
             /** Row Version */
             row_version: number;
         };
+        /** ReviewSubmissionDetail */
+        ReviewSubmissionDetail: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** State */
+            state: string;
+            /** Entry Business Key */
+            entry_business_key: string | null;
+            /** Preferred Term */
+            preferred_term: string;
+            /** Snomed Code */
+            snomed_code: string | null;
+            /** Snomed Fsn */
+            snomed_fsn: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Is Own */
+            is_own: boolean;
+            /** Has Registered Interest */
+            has_registered_interest: boolean;
+            /** Interest Count */
+            interest_count: number | null;
+            /** Label Provenance */
+            label_provenance: {
+                [key: string]: components["schemas"]["LabelProvenance"];
+            };
+            /** Row Version */
+            row_version: number;
+            /** Available Transitions */
+            available_transitions: components["schemas"]["SubmissionState"][];
+            /** Synonyms */
+            synonyms: string[];
+            /** Property Values */
+            property_values: {
+                [key: string]: components["schemas"]["SubmittedPropertyValue"][];
+            };
+            /** Notes */
+            notes: string | null;
+            /** Reference Url */
+            reference_url: string | null;
+            /** Reference Checked At */
+            reference_checked_at: string | null;
+            /** Reference Status */
+            reference_status: number | null;
+            /** Duplicate Confirmed At */
+            duplicate_confirmed_at: string | null;
+            working_copy: components["schemas"]["WorkingCopyView"] | null;
+            submitter: components["schemas"]["PlainSubmitter"];
+        };
         /**
          * SavePropertyValuesRequest
          * @description The body of `PUT /catalogue/entries/{business_key}/properties/{key}`.
@@ -3729,6 +3868,100 @@ export interface components {
             reason: string;
             /** Expected Row Version */
             expected_row_version: number;
+        };
+        /**
+         * WorkingCopyRequest
+         * @description The body of `PATCH /submissions/{id}/working-copy`.
+         *
+         *     Send at least one of `preferred_term`, `synonyms`, `snomed_code`, `property_values` and `notes`.
+         *     A field left out stays as it is. A field sent as `null` is refused. `synonyms` and
+         *     `property_values` replace the whole field, and a blank `notes` clears the note. `reason` says
+         *     why, and `expected_row_version` is the `row_version` the caller read, so an edit never lands on
+         *     a submission that changed after the caller looked at it. An amendment accepts only `synonyms`
+         *     and `snomed_code`.
+         */
+        WorkingCopyRequest: {
+            /** Preferred Term */
+            preferred_term?: string | null;
+            /** Synonyms */
+            synonyms?: string[] | null;
+            /** Snomed Code */
+            snomed_code?: string | null;
+            /** Property Values */
+            property_values?: {
+                [key: string]: components["schemas"]["SubmissionPropertyValueRequest"][];
+            } | null;
+            /** Notes */
+            notes?: string | null;
+            /** Reason */
+            reason: string;
+            /** Expected Row Version */
+            expected_row_version: number;
+        };
+        /**
+         * WorkingCopyResponse
+         * @description The working content after an edit, with the `row_version` to send with the next change.
+         *     `changed` is false when the edit left the content as it was and nothing was written, and then
+         *     the content may be the submission's original, because a first no-op creates no working copy.
+         */
+        WorkingCopyResponse: {
+            /** Preferred Term */
+            preferred_term: string;
+            /** Synonyms */
+            synonyms: string[];
+            /** Snomed Code */
+            snomed_code: string | null;
+            /** Snomed Fsn */
+            snomed_fsn: string | null;
+            /** Property Values */
+            property_values: {
+                [key: string]: components["schemas"]["SubmittedPropertyValue"][];
+            };
+            /** Notes */
+            notes: string | null;
+            /** Label Provenance */
+            label_provenance: {
+                [key: string]: components["schemas"]["LabelProvenance"];
+            };
+            /**
+             * Submission Id
+             * Format: uuid
+             */
+            submission_id: string;
+            /** Row Version */
+            row_version: number;
+            /** Changed */
+            changed: boolean;
+        };
+        /**
+         * WorkingCopyView
+         * @description A working copy as `GET /submissions/{id}` shows it to a holder of
+         *     `submission.transition.review`. `updated_at` is the latest effective edit.
+         */
+        WorkingCopyView: {
+            /** Preferred Term */
+            preferred_term: string;
+            /** Synonyms */
+            synonyms: string[];
+            /** Snomed Code */
+            snomed_code: string | null;
+            /** Snomed Fsn */
+            snomed_fsn: string | null;
+            /** Property Values */
+            property_values: {
+                [key: string]: components["schemas"]["SubmittedPropertyValue"][];
+            };
+            /** Notes */
+            notes: string | null;
+            /** Label Provenance */
+            label_provenance: {
+                [key: string]: components["schemas"]["LabelProvenance"];
+            };
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /**
          * TermsAcceptanceRequiredResponse
@@ -6826,7 +7059,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SubmissionDetail"] | components["schemas"]["IdentifiedSubmissionDetail"];
+                    "application/json": components["schemas"]["SubmissionDetail"] | components["schemas"]["IdentifiedSubmissionDetail"] | components["schemas"]["ReviewSubmissionDetail"] | components["schemas"]["IdentifiedReviewSubmissionDetail"];
                 };
             };
             /** @description No credential, or one that could not be verified. */
@@ -7332,6 +7565,106 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RateLimitedResponse"];
+                };
+            };
+        };
+    };
+    edit_submission_working_copy_api_v1_submissions__submission_id__working_copy_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkingCopyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkingCopyResponse"];
+                };
+            };
+            /** @description No credential, or one that could not be verified. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The caller does not hold `submission.transition.review`, or has not accepted the current terms of use (the body then carries a `code` that says so). The current terms of use have not been accepted. The body carries `code: terms_acceptance_required`. Accept them with `POST /auth/terms/acceptance` and try again. Never carries `WWW-Authenticate`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"] | components["schemas"]["TermsAcceptanceRequiredResponse"];
+                };
+            };
+            /** @description No submission has the identifier. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The submission is not in `Triage`, `Under review` or `Ready for approval`, so it cannot be edited. Or `expected_row_version` is not the current one, because someone else changed the submission after it was read; the body then carries `current_row_version`. Nothing was changed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionVersionConflictResponse"] | components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request is not acceptable. `detail` says why for a blank reason, a term that cannot be cleaned, a SNOMED CT code that is malformed, unknown to the AU edition, inactive, has no reported status or has no fully specified name, free text that carries an invisible character, and an amendment edit that names a field an amendment does not propose or would leave it with no synonym and no code. `issues[]` names each property problem. A refusal of one field carries `field`. A field sent as `null`, an unrecognised field, a request with no content field, or a part of the request over its size bound fails validation before the route runs. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionFieldRefusalResponse"] | components["schemas"]["ErrorResponse"] | components["schemas"]["PropertyValidationResponse"];
+                };
+            };
+            /** @description An address exceeded its request budget (FR-22): an anonymous caller its anonymous budget, or a caller whose credentials the API kept rejecting its budget for rejected credentials. Wait for the number of seconds in `Retry-After`, then try again. A valid credential is never counted. The body's `bulk_artefacts` names where to fetch the whole catalogue instead. */
+            429: {
+                headers: {
+                    /** @description Whole seconds until the caller's request budget is available again. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateLimitedResponse"];
+                };
+            };
+            /** @description The terminology server's response could not be used. `field` is `snomed_code` when it was checking the `snomed_code`. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionFieldRefusalResponse"] | components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The terminology server could not be reached, or a rate limit persisted through retries. Nothing was changed, and the same request can be sent again. May carry a `Retry-After` header. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionFieldRefusalResponse"] | components["schemas"]["ErrorResponse"];
                 };
             };
         };

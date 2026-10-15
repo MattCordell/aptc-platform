@@ -289,6 +289,25 @@ search free text for one.
 The rule runs on the server for every request. A client that hides a field it was sent has not
 applied it (NFR-20).
 
+## Working copy of a submission (FR-23)
+
+`PATCH /api/v1/submissions/{id}/working-copy` needs `submission.transition.review`, which only
+Reviewer and Administrator hold. A Member, including the submitter, a Provisional user and an Observer
+get a 403, and an anonymous caller gets a 401. The gate runs before the submission is looked up, so a
+caller without the permission learns nothing about which identifiers exist. The service never reads a
+role name (FR-44).
+
+`GET /api/v1/submissions/{id}` applies a second rule on the same permission. A caller who holds it gets
+`working_copy` beside the submitted content, which is `null` until a reviewer has edited the
+submission. Every other caller gets no `working_copy` key at all, not even a null one, so the submitter
+never learns that an edit exists. That is a second axis of response classes beside the identity one,
+four detail classes in all, and the route's `response_model` is their union, as for the identity rule
+above. `row_version` is visible to the submitter, and every effective edit bumps it. That is accepted:
+the submission's `row_version` is the one lock for an edit and a change of state alike.
+
+The list and the transition history never carry a working copy. The edit's audit event is
+`submission.working_copy_edited` on the submission, and the audit log is Administrator-only.
+
 ## FR-80 and FR-81: provable without a single endpoint
 
 Both are worded per-endpoint. Since issue #41 `backend/src/nptc/api/` serves one real
