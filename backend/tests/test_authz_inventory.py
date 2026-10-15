@@ -181,6 +181,10 @@ COVERED_WRITE_ROUTES = frozenset(
         # Observer is refused there, and the service refuses the rest per move. Negative-auth
         # coverage lives in `test_api_submissions_transitions.py`.
         RouteKey(method="POST", path="/submissions/{submission_id}/transitions"),
+        # The working-copy edit (FR-23). It needs `submission.transition.review`, which only
+        # Reviewer and Administrator hold, so the submitter is refused too. Negative-auth coverage
+        # lives in `test_api_submissions_working_copy.py`.
+        RouteKey(method="PATCH", path="/submissions/{submission_id}/working-copy"),
         # Internal comments (FR-95): post and withdraw, under a submission and under an entry. All
         # need `comment.internal.write`, which only Reviewer and Administrator hold. Negative-auth
         # coverage lives in `test_api_comments.py`.

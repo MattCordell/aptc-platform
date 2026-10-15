@@ -15,6 +15,10 @@ to what this module returns.
 Keyset paging on `(created_at, id)`, newest first, never `OFFSET` (ADR-0024). `id` breaks a tie
 between two rows saved in one instant, so the order is total. The cursor is opaque to a client.
 
+**The working copy is a separate read (FR-23).** `get_working_copy` returns the reviewer's edited
+copy or `None`. Only a caller who may see it asks, so a response for anyone else never reads the
+table.
+
 **A submission's transition history is not paged.** One submission changes state a handful of times,
 so `list_transitions` returns every row, oldest first, in one joined statement. It reads
 `submission_transition` and the actor's user row and nothing else, so no comment text can reach it
@@ -38,6 +42,7 @@ from nptc.auth.identity import UserRef
 from nptc.db.models.catalogue_entry import CatalogueEntry
 from nptc.db.models.submission import CLOSED_SUBMISSION_STATES, Submission
 from nptc.db.models.submission_transition import SubmissionTransition
+from nptc.db.models.submission_working_copy import SubmissionWorkingCopy
 from nptc.db.models.user import User
 from nptc.submissions.errors import MalformedSubmissionCursorError, SubmissionNotFoundError
 
@@ -46,6 +51,7 @@ __all__ = [
     "SubmissionRecordPage",
     "TransitionRecord",
     "get_submission",
+    "get_working_copy",
     "list_submissions",
     "list_transitions",
 ]
@@ -203,3 +209,8 @@ def list_transitions(session: Session, submission_id: uuid.UUID) -> tuple[Transi
         )
         for transition, user in rows
     )
+
+
+def get_working_copy(session: Session, submission_id: uuid.UUID) -> SubmissionWorkingCopy | None:
+    """The submission's working copy, or `None` when no reviewer has edited it."""
+    return session.get(SubmissionWorkingCopy, submission_id)
