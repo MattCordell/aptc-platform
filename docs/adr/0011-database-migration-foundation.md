@@ -201,9 +201,10 @@ to prevent (ADR-0002; NFR-25/NFR-26 are existing precedent for the same restrain
 - `nptc.db.roles` becomes the one place a future least-privilege role's grants are defined -
   the pattern (constants imported by both a migration and its tests) is meant to repeat, not
   be special-cased to `nptc_app`.
-- The `backend-integration` CI job runs `backend/tests` a second time (the `python` job
-  already ran it, with network, for the coverage gate) - roughly 90 extra seconds of CI time,
-  the same trade-off `transform-offline` already makes for `transform/tests`/`shared/tests`.
+- The `backend-integration` CI job runs `backend/tests` under the egress block, the same
+  trade-off `transform-offline` makes for `transform/tests`/`shared/tests`. The `python` job
+  skips the container tests, so each container test runs once; the coverage floor is held on
+  the combined data of both jobs (`docs/operations/ci-backend-tests.md`).
 - `docs/architecture/data-model.md` and `docs/operations/upgrade.md` exist from this point
   on as the canonical references for the schema baseline and the migration/role-provisioning
   procedure, respectively - see their own documents for detail this ADR does not repeat.

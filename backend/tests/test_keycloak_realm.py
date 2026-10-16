@@ -2,7 +2,7 @@
 
 Offline group: fast assertions over the committed
 deploy/keycloak/realm/nptc-realm.json and the compose.yml bind mount that
-imports it - no Docker needed, runs in the `python` job's coverage gate.
+imports it - no Docker needed, runs in the `python` job.
 
 Integration group (@pytest.mark.integration): starts the pinned Keycloak
 image for real and asserts against its discovery document and admin API -
