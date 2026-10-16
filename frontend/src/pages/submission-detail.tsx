@@ -136,6 +136,7 @@ function SubmissionView({
             <EditWorkingCopyForm
               submission={submission}
               opened={opened}
+              latest={review === null ? opened : workingContentOf(review)}
               onSaved={(sentence) => {
                 setSaved(sentence);
                 setOpened(null);

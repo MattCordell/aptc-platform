@@ -24,6 +24,7 @@ import { SubmissionCodeField } from "./code-field.tsx";
 import {
   CODE_UNAVAILABLE_KEEPING_MESSAGE,
   FIELD_IDS,
+  rebaseValues,
   submissionRows,
   submittedIndexesByKey,
   validateWorkingCopy,
@@ -34,6 +35,7 @@ import type { SubmissionValues, WorkingCopyChanges } from "./form-state.ts";
 import { OtherNamesField } from "./other-names-field.tsx";
 import { readRefusal } from "./refusals.ts";
 import { NotesField } from "./support-fields.tsx";
+import { hasDifference, workingCopyDiff } from "./working-copy-diff.ts";
 import type { WorkingContent } from "./working-copy-diff.ts";
 
 type PropertyCardinality = components["schemas"]["PropertyCardinality"];
@@ -63,7 +65,7 @@ const REASON_HINT =
   "Recorded in the audit log with this edit. It does not appear in this submission's history.";
 
 const STALE_VERSION =
-  "This submission changed since you opened the form. Your changes and reason are kept. Save again to apply them to the latest version, or cancel to read it first.";
+  "This submission changed since you opened the form. The form now holds the latest content with your changes on top, and your reason is kept. Where someone else changed the same field, your version stays. Check it, then save again, or cancel to leave it as it is.";
 
 const NOT_EDITABLE = "This submission can no longer be edited.";
 
@@ -159,32 +161,46 @@ export function EditWorkingCopySection({
  * edits. It reuses the submission form's fields and refusals, and an amendment shows
  * only its other names and its code, because the server accepts no more.
  *
- * `opened` is the content the form started from. The form sends only the fields the
- * user changed against it, so an edit never overwrites a field someone else changed
- * since. The write carries the submission's current `row_version`: a stale one is
- * refused, the page reads the submission again, and the user's changes and reason
- * stay in the form for another try. The form stays open when the state stops being
- * editable, so the user's text is not lost, and Save says why it is blocked.
+ * `opened` is the content the form started from, and `latest` is the content the page
+ * holds now. The form sends only the fields the user changed against its baseline, so
+ * an edit never overwrites a field someone else changed since. When `latest` moves away
+ * from the baseline, because another reviewer saved, the form takes the latest content
+ * for every field the user left alone and keeps the user's own changes, then measures
+ * from the latest content. Without that, a whole-field save such as the properties
+ * would send old values for the fields the user never touched. The write carries the
+ * submission's current `row_version`: a stale one is refused, the page reads the
+ * submission again, and the user's changes and reason stay in the form for another
+ * try. The form stays open when the state stops being editable, so the user's text is
+ * not lost, and Save says why it is blocked.
  */
 export function EditWorkingCopyForm({
   submission,
   opened,
+  latest,
   onSaved,
   onCancel,
 }: {
   submission: { id: string; kind: string; state: string; row_version: number };
   opened: WorkingContent;
+  latest: WorkingContent;
   onSaved: (sentence: string) => void;
   onCancel: () => void;
 }) {
   const amendment = submission.kind === "amendment";
   const definitions = useSubmissionPropertyDefinitions(!amendment);
   const write = useEditWorkingCopy(submission.id);
+  const [base, setBase] = useState<WorkingContent>(opened);
   const [values, setValues] = useState<SubmissionValues>(() => valuesFromContent(opened));
   const [reason, setReason] = useState("");
   const [errors, setErrors] = useState<FormError[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const selection = useCodeSelection(values.code);
+
+  if (hasDifference(workingCopyDiff(base, latest))) {
+    // Adjusted during render, as the entry form does when its entry is read again.
+    setValues(rebaseValues(values, base, latest));
+    setBase(latest);
+  }
 
   useEffect(() => {
     // The Edit button that opened the form has gone, so focus moves to the first field.
@@ -195,9 +211,9 @@ export function EditWorkingCopyForm({
 
   const rows = submissionRows(definitions.data?.items ?? []);
   const current =
-    opened.snomed_code === null
+    base.snomed_code === null
       ? undefined
-      : { code: opened.snomed_code, fsn: opened.snomed_fsn };
+      : { code: base.snomed_code, fsn: base.snomed_fsn };
 
   function errorFor(fieldId: string): string | undefined {
     return errors.find((error) => error.fieldId === fieldId)?.message;
@@ -258,7 +274,7 @@ export function EditWorkingCopyForm({
     setFormError(null);
     const missingReason = reasonProblem(reason, "this edit");
     const found = [
-      ...validateWorkingCopy(values, opened, rows, selection, submission.kind),
+      ...validateWorkingCopy(values, base, rows, selection, submission.kind),
       ...(missingReason === null
         ? []
         : [{ fieldId: REASON_FIELD_ID, message: missingReason }]),
@@ -267,7 +283,7 @@ export function EditWorkingCopyForm({
     if (found.length > 0) {
       return { ok: false };
     }
-    const changes = workingCopyChanges(values, opened, selection, submission.kind);
+    const changes = workingCopyChanges(values, base, selection, submission.kind);
     if (Object.keys(changes).length === 0) {
       setFormError(NOTHING_CHANGED);
       return { ok: false };

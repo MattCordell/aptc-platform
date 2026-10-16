@@ -720,6 +720,96 @@ describe("editing a new test's working copy (FR-23)", () => {
     ).toEqual([4, 5]);
   });
 
+  describe("when another reviewer saves first", () => {
+    const stale = refused(409, {
+      detail: "The submission changed after you read it.",
+      current_row_version: 5,
+    });
+
+    async function saveAfterOtherSaved(
+      other: Record<string, unknown>,
+      edit: (user: User) => Promise<void>,
+    ) {
+      const calls = stubEditing(stale, {
+        then: [OK],
+        after: { row_version: 5, working_copy: workingCopy(other) },
+      });
+      const { user } = await openForm();
+      await edit(user);
+      await save(user, "My edit.");
+      await screen.findByText(/This submission changed since you opened the form\./);
+      return { calls, user };
+    }
+
+    it("sends the other reviewer's property again instead of reverting it", async () => {
+      const { calls, user } = await saveAfterOtherSaved(
+        {
+          property_values: {
+            assay_method: [{ value: "Immunoassay", justification: "Most labs use it" }],
+            specimen: [{ value: "Plasma", justification: null }],
+          },
+        },
+        (user) => replace(user, "Assay method (required)", "Chemiluminescence"),
+      );
+
+      await waitFor(() =>
+        expect(screen.getByLabelText("Specimen")).toHaveValue("Plasma"),
+      );
+      expect(screen.getByLabelText("Assay method (required)")).toHaveValue(
+        "Chemiluminescence",
+      );
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      await screen.findByText("Saved. Changed: Properties.");
+      expect(writes(calls)[1].body).toEqual({
+        property_values: {
+          assay_method: [
+            { value: "Chemiluminescence", justification: "Most labs use it" },
+          ],
+          specimen: [{ value: "Plasma", justification: null }],
+        },
+        reason: "My edit.",
+        expected_row_version: 5,
+      });
+    });
+
+    it("keeps both people's other names", async () => {
+      const { calls, user } = await saveAfterOtherSaved(
+        { synonyms: ["Serum ferritin", "Ferritin assay", "Added elsewhere"] },
+        async (user) => {
+          await user.type(
+            screen.getByRole("textbox", { name: "Other names" }),
+            "Mine{Enter}",
+          );
+        },
+      );
+
+      await waitFor(() =>
+        expect(
+          screen.getByRole("button", { name: "Remove Added elsewhere" }),
+        ).toBeVisible(),
+      );
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      await screen.findByText("Saved. Changed: Other names.");
+      expect((writes(calls)[1].body as { synonyms: string[] }).synonyms.sort()).toEqual(
+        ["Added elsewhere", "Ferritin assay", "Mine", "Serum ferritin"].sort(),
+      );
+    });
+
+    it("shows the code the other reviewer chose as the current code", async () => {
+      const { user } = await saveAfterOtherSaved(
+        { snomed_code: NEW_CODE, snomed_fsn: NEW_FSN },
+        (user) => replace(user, "Notes", "My note."),
+      );
+
+      await waitFor(() => expect(screen.getByText(NEW_FSN)).toBeVisible());
+      expect(screen.getByText("Current code")).toBeVisible();
+      await user.click(screen.getByRole("button", { name: "Save" }));
+      await screen.findByText("Saved. Changed: Notes.");
+    });
+  });
+
   it("keeps the form and blocks Save once the submission has left an editable state", async () => {
     const calls = stubEditing(
       refused(409, { detail: "A submission in Approved cannot be edited." }),

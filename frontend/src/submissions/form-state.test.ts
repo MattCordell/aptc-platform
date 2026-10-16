@@ -14,6 +14,7 @@ import {
   initialValues,
   validate,
   validateAmendment,
+  rebaseValues,
   validateWorkingCopy,
   valuesFromContent,
   workingCopyChanges,
@@ -548,6 +549,91 @@ describe("the working copy form (FR-23)", () => {
       const values = { ...seeded(), preferredTerm: "" };
 
       expect(validateWorkingCopy(values, OPENED, [], NONE, "amendment")).toEqual([]);
+    });
+  });
+  describe("rebaseValues", () => {
+    const LATEST: WorkingContent = {
+      ...OPENED,
+      property_values: {
+        specimen: [{ value: "Plasma", justification: null }],
+        method: [{ value: "Immunoassay", justification: "Common" }],
+      },
+    };
+
+    it("takes the latest content for every field the user left alone", () => {
+      const latest: WorkingContent = {
+        ...LATEST,
+        preferred_term: "Serum ferritin",
+        notes: "Edited elsewhere.",
+        synonyms: ["Serum ferritin", "Ferritin level"],
+      };
+
+      const values = rebaseValues(seeded(), OPENED, latest);
+
+      expect(values.preferredTerm).toBe("Serum ferritin");
+      expect(values.notes).toBe("Edited elsewhere.");
+      expect(values.names.map((row) => row.term)).toEqual([
+        "Serum ferritin",
+        "Ferritin level",
+      ]);
+      expect(values.slots.specimen[0].value).toBe("Plasma");
+    });
+
+    it("keeps the property the user changed and takes the other from the latest content", () => {
+      const mine = seeded();
+      mine.slots.method = [{ ...mine.slots.method[0], value: "Chemiluminescence" }];
+
+      const values = rebaseValues(mine, OPENED, LATEST);
+      const body = workingCopyChanges(values, LATEST, NONE, "new_test");
+
+      expect(body.property_values).toEqual({
+        specimen: [{ value: "Plasma", justification: null }],
+        method: [{ value: "Chemiluminescence", justification: "Common" }],
+      });
+    });
+
+    it("lets the user's version win where both changed the same property", () => {
+      const mine = seeded();
+      mine.slots.specimen = [{ ...mine.slots.specimen[0], value: "Urine" }];
+
+      const values = rebaseValues(mine, OPENED, LATEST);
+
+      expect(values.slots.specimen[0].value).toBe("Urine");
+    });
+
+    it("merges the other names, keeping both people's additions and the user's removals", () => {
+      const base: WorkingContent = { ...OPENED, synonyms: ["A", "B", "C"] };
+      const mine = { ...valuesFromContent(base) };
+      mine.names = mine.names.filter((row) => row.term !== "B");
+      mine.names = [...mine.names, { id: "fixture-1", term: "Mine" }];
+
+      const values = rebaseValues(mine, base, {
+        ...base,
+        synonyms: ["A", "B", "C", "Theirs"],
+      });
+
+      expect(values.names.map((row) => row.term)).toEqual(["A", "C", "Theirs", "Mine"]);
+    });
+
+    it("does not add a name twice when both people added it", () => {
+      const mine = seeded();
+      mine.names = [...mine.names, { id: "fixture-1", term: "Same" }];
+
+      const values = rebaseValues(mine, OPENED, {
+        ...OPENED,
+        synonyms: ["Serum ferritin", "same"],
+      });
+
+      expect(values.names.map((row) => row.term)).toEqual(["Serum ferritin", "same"]);
+    });
+
+    it("leaves the picked code and the text in the names box alone", () => {
+      const mine = { ...seeded(), code: "0391483002", nameDraft: "Half typed" };
+
+      const values = rebaseValues(mine, OPENED, LATEST);
+
+      expect(values.code).toBe("0391483002");
+      expect(values.nameDraft).toBe("Half typed");
     });
   });
 });

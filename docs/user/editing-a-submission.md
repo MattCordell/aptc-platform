@@ -92,9 +92,12 @@ The form stays open, and your changes and reason stay in it:
 - **The reason is not accepted.** The Reason field is marked, for example when it holds a
   character that cannot be shown.
 - **The submission changed since you opened the form.** Someone else changed or moved it. The page
-  reads the latest version, and the form says your changes are kept. Choose **Cancel** to read
-  the latest version first, or choose **Save** again to apply your changes on top of it. Only the
-  fields you changed are sent.
+  reads the latest version, and the form updates to hold it. Every field you did not change shows
+  the latest content, the code shown as **Current code** is the latest one, and your own changes
+  and reason stay on top. The other names are merged: the names you added and removed are applied
+  to the latest list. Where someone else changed the same field as you, such as the test name,
+  the notes or the same property, your version stays. Check the form, then choose **Save** again,
+  or choose **Cancel** to leave the submission as it is. Only the fields you changed are sent.
 - **The submission can no longer be edited.** Another reviewer has moved it to a state that does
   not allow edits, such as Approved. **Save** stops working, and the form explains why. Your text
   stays so you can copy it. Choose **Cancel** to close the form.

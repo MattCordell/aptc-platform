@@ -461,6 +461,59 @@ function contentOfValues(
 }
 
 /**
+ * The other names after someone else changed the list. The reviewer's own additions and
+ * removals, measured against the content they started from, are applied to the latest
+ * list, so neither person's change to the names is lost.
+ */
+function mergeNames(base: string[], mine: NameRow[], latest: string[]): NameRow[] {
+  const baseKeys = new Set(base.map(nameKey));
+  const mineKeys = new Set(mine.map((row) => nameKey(row.term)));
+  const removed = new Set([...baseKeys].filter((key) => !mineKeys.has(key)));
+  const kept = latest
+    .filter((term) => !removed.has(nameKey(term)))
+    .map((term) => ({ id: newSlotId(), term }));
+  const keptKeys = new Set(kept.map((row) => nameKey(row.term)));
+  const added = mine.filter(
+    (row) => !baseKeys.has(nameKey(row.term)) && !keptKeys.has(nameKey(row.term)),
+  );
+  return [...kept, ...added];
+}
+
+/**
+ * The form's values after the content it was opened on changed under it, which is what
+ * a stale version means. A field the reviewer left alone takes the latest content, so
+ * saving never sends an old value over a newer one, and the whole-field properties and
+ * other names of an untouched field are not rebuilt from old text. A field the reviewer
+ * changed keeps their change, and where both people changed the same text field or the
+ * same property, the reviewer's version stays. The other names are merged by name.
+ */
+export function rebaseValues(
+  values: SubmissionValues,
+  base: WorkingContent,
+  latest: WorkingContent,
+): SubmissionValues {
+  const mine = workingCopyDiff(base, contentOfValues(values, base, { status: "none" }));
+  const fresh = valuesFromContent(latest);
+  const keys = new Set([...Object.keys(values.slots), ...Object.keys(fresh.slots)]);
+  return {
+    ...values,
+    preferredTerm: mine.preferredTerm ? values.preferredTerm : fresh.preferredTerm,
+    notes: mine.notes ? values.notes : fresh.notes,
+    names: mine.synonyms
+      ? mergeNames(base.synonyms, values.names, latest.synonyms)
+      : fresh.names,
+    slots: Object.fromEntries(
+      [...keys].map((key) => [
+        key,
+        mine.properties.includes(key)
+          ? (values.slots[key] ?? [])
+          : (fresh.slots[key] ?? []),
+      ]),
+    ),
+  };
+}
+
+/**
  * The fields the reviewer changed since the form opened. A field they left alone is
  * not sent, so an edit never overwrites a change someone else made to it in the
  * meantime. `synonyms` and `property_values` go whole, because the server replaces
