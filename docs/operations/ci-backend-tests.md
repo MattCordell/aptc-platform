@@ -39,7 +39,8 @@ path, so the files combine without path remapping. The report is uploaded as the
 
 ## When a timeout hits
 
-Read the job's duration in the run summary first. The timeouts are set to the measured time
-plus about 50%, so a cancellation usually means a test hangs or the runner shrank. Do not raise
+Read the job's duration in the run summary first. The timeouts sit well above the times measured on
+2026-10-16 (`python` 1.4 minutes, `backend-integration` 5.7, `coverage` 0.3 against 8, 10 and
+5), so a cancellation usually means a test hangs or the runner shrank. Do not raise
 a timeout before you find which. To reproduce the sharded run on your machine, use the command
 in [`CLAUDE.md`](../../CLAUDE.md) (`uv run pytest -n auto --dist loadscope`).
