@@ -356,6 +356,13 @@ grant changes, and nothing to backfill: `upgrade head` is all that is required. 
 index itself - the reconciler builds a property's index at runtime, once it is flagged
 filterable, referencing this function.
 
+**The function body changed after release (issue #643).** `0014` now creates a `plpgsql`
+body, because the original `sql` body raised on a non-numeric value on a fresh Postgres 18
+connection. No new migration replaces it. A development database created before this change
+keeps the `sql` body, so recreate it (`docker compose -f deploy/compose.yml down -v`, then
+`up`). A database you cannot recreate can run the `CREATE OR REPLACE FUNCTION` statement in
+`nptc.db.functions.CREATE_NUMERIC_OR_NULL_FUNCTION_SQL` by hand as the owner role.
+
 **Downgrade obligation, the mirror of the trigram indexes' obligation above.** Postgres
 tracks a dependency from a generated expression index to this function, so `downgrade()`
 (`DROP FUNCTION`) fails if a reconciler-built `decimal`/`positiveInt` index still exists.
