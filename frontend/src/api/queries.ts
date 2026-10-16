@@ -1698,6 +1698,46 @@ export function useApproveSubmission(submissionId: string) {
   );
 }
 
+type WorkingCopyBody = components["schemas"]["WorkingCopyRequest"];
+
+/**
+ * A reviewer edits a submission's working copy (FR-23). An edit is not a change of
+ * state, so the answer carries no state to cache: the detail is read again, which
+ * brings the new `row_version` and `working_copy`, and the list's pages are marked
+ * stale. An edit that changed nothing wrote nothing, so nothing is read again. Any
+ * 409 re-reads the detail, because a stale version and a state that is no longer
+ * editable both mean the page that offered the edit was out of date.
+ */
+export function useEditWorkingCopy(submissionId: string) {
+  const client = useApiClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: WorkingCopyBody) =>
+      unwrap(
+        await client.PATCH("/api/v1/submissions/{submission_id}/working-copy", {
+          params: { path: { submission_id: submissionId } },
+          body,
+        }),
+      ),
+    onSuccess: (answer) =>
+      answer.changed
+        ? Promise.all([
+            queryClient.invalidateQueries({
+              queryKey: submissionDetailKey(submissionId),
+            }),
+            queryClient.invalidateQueries({ queryKey: SUBMISSIONS_LIST_KEY }),
+          ])
+        : undefined,
+    onError: (error: unknown) => {
+      if (error instanceof ApiError && error.status === 409) {
+        void queryClient.invalidateQueries({
+          queryKey: submissionDetailKey(submissionId),
+        });
+      }
+    },
+  });
+}
+
 /**
  * Ask which catalogue entries and open submissions a new test may duplicate
  * (FR-25), before it is sent. A mutation, not a query: it is an action the
