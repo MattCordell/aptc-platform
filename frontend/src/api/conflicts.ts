@@ -277,3 +277,15 @@ export function refusalDetail(error: unknown): string | null {
   // and the caller falls back to its own wording.
   return typeof detail === "string" ? detail : null;
 }
+
+/**
+ * The 422 that names an internal comment's `body`, or `null` if this refusal is
+ * anything else. Keyed on `field`, never on the wording of `detail`.
+ */
+export function asBodyRefusal(error: unknown): { detail: string } | null {
+  const body = bodyOf(error, [422]);
+  if (body === null || typeof body.detail !== "string" || body.field !== "body") {
+    return null;
+  }
+  return { detail: body.detail };
+}

@@ -1777,3 +1777,117 @@ export function useCreateAmendment() {
       unwrap(await client.POST("/api/v1/submissions/amendments", { body })),
   });
 }
+
+/** The submission or the catalogue entry an internal comment belongs to. */
+export type CommentTarget =
+  { kind: "submission"; id: string } | { kind: "entry"; businessKey: string };
+
+type CommentAnswer = components["schemas"]["CommentResponse"];
+type PostCommentBody = components["schemas"]["PostCommentRequest"];
+
+function commentTargetId(target: CommentTarget): string {
+  return target.kind === "submission" ? target.id : target.businessKey;
+}
+
+function commentsKey(target: CommentTarget) {
+  return target.kind === "submission"
+    ? ["api", "/api/v1/submissions/{submission_id}/comments", target.id]
+    : ["api", "/api/v1/catalogue/entries/{business_key}/comments", target.businessKey];
+}
+
+/**
+ * The internal comments on a submission or an entry, oldest first, withdrawn
+ * ones included (FR-95). The server answers a caller without
+ * `comment.internal.read` with a 403, so a caller passes `enabled: false` for
+ * them and the request is never sent (NFR-20).
+ */
+export function useInternalComments(target: CommentTarget, enabled: boolean) {
+  const client = useApiClient();
+  return useQuery({
+    queryKey: commentsKey(target),
+    queryFn: async ({ signal }) =>
+      unwrap(
+        target.kind === "submission"
+          ? await client.GET("/api/v1/submissions/{submission_id}/comments", {
+              params: { path: { submission_id: target.id } },
+              signal,
+            })
+          : await client.GET("/api/v1/catalogue/entries/{business_key}/comments", {
+              params: { path: { business_key: target.businessKey } },
+              signal,
+            }),
+      ),
+    enabled: enabled && commentTargetId(target).length > 0,
+  });
+}
+
+/**
+ * A comment write leaves its submission or entry unchanged, so only the
+ * comment list is re-read. A 409 is a second withdrawal of one comment, which
+ * means the list on screen was out of date, so it is re-read too.
+ */
+function useCommentMutation<Variables>(
+  target: CommentTarget,
+  write: (client: ApiClient, variables: Variables) => Promise<CommentAnswer>,
+) {
+  const client = useApiClient();
+  const queryClient = useQueryClient();
+  const refresh = () => queryClient.invalidateQueries({ queryKey: commentsKey(target) });
+  return useMutation({
+    mutationFn: (variables: Variables) => write(client, variables),
+    onSuccess: refresh,
+    onError: (error) =>
+      error instanceof ApiError && error.status === 409 ? refresh() : undefined,
+  });
+}
+
+/** Post an internal comment (FR-95). A refusal is thrown as an `ApiError`. */
+export function usePostInternalComment(target: CommentTarget) {
+  return useCommentMutation(target, async (client, body: PostCommentBody) =>
+    unwrap(
+      target.kind === "submission"
+        ? await client.POST("/api/v1/submissions/{submission_id}/comments", {
+            params: { path: { submission_id: target.id } },
+            body,
+          })
+        : await client.POST("/api/v1/catalogue/entries/{business_key}/comments", {
+            params: { path: { business_key: target.businessKey } },
+            body,
+          }),
+    ),
+  );
+}
+
+/** Withdraw an internal comment with a reason (FR-95). The comment keeps its text. */
+export function useWithdrawInternalComment(target: CommentTarget) {
+  return useCommentMutation(
+    target,
+    async (client, variables: { commentId: string; reason: string }) => {
+      const body = { reason: variables.reason };
+      return unwrap(
+        target.kind === "submission"
+          ? await client.POST(
+              "/api/v1/submissions/{submission_id}/comments/{comment_id}/withdraw",
+              {
+                params: {
+                  path: { submission_id: target.id, comment_id: variables.commentId },
+                },
+                body,
+              },
+            )
+          : await client.POST(
+              "/api/v1/catalogue/entries/{business_key}/comments/{comment_id}/withdraw",
+              {
+                params: {
+                  path: {
+                    business_key: target.businessKey,
+                    comment_id: variables.commentId,
+                  },
+                },
+                body,
+              },
+            ),
+      );
+    },
+  );
+}
