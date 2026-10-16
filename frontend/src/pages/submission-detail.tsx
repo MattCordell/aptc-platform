@@ -1,9 +1,8 @@
 import { Link, useParams } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { refusalDetail } from "../api/conflicts.ts";
 import { useSubmissionDetail } from "../api/queries.ts";
-import type { components } from "../api/schema.ts";
 import { ApiError } from "../api/unwrap.ts";
 import { Breadcrumb } from "../components/breadcrumb.tsx";
 import { Button } from "../components/button.tsx";
@@ -14,6 +13,10 @@ import { PageHeader } from "../components/page-header.tsx";
 import { useAnnounce } from "../components/use-announce.ts";
 import { NotFoundPage } from "../shell/not-found-page.tsx";
 import { useDocumentTitle } from "../shell/use-document-title.ts";
+import {
+  EditWorkingCopyForm,
+  EditWorkingCopySection,
+} from "../submissions/edit-working-copy.tsx";
 import { InterestIdentitiesPanel } from "../submissions/interest-identities-panel.tsx";
 import { SubmissionContent } from "../submissions/submission-content.tsx";
 import {
@@ -23,6 +26,11 @@ import {
 import { TransitionHistory } from "../submissions/transition-history.tsx";
 import { TriageSubmission } from "../submissions/triage-submission.tsx";
 import { WithdrawSubmission } from "../submissions/withdraw-submission.tsx";
+import { isReviewDetail, workingContentOf } from "../submissions/working-copy-diff.ts";
+import type {
+  AnySubmissionDetail,
+  WorkingContent,
+} from "../submissions/working-copy-diff.ts";
 
 /**
  * One submission in any state (FR-28, FR-34): what the submitter sent, who they
@@ -35,8 +43,6 @@ import { WithdrawSubmission } from "../submissions/withdraw-submission.tsx";
  * identities panel and the triage actions can join the sidebar without
  * reshaping the page.
  */
-
-type SubmissionDetail = components["schemas"]["SubmissionDetail"];
 
 const HEADING_ID = "submission-detail-heading";
 
@@ -76,11 +82,15 @@ function SubmissionView({
   submission,
   refreshFailed,
 }: {
-  submission: SubmissionDetail;
+  submission: AnySubmissionDetail;
   refreshFailed: boolean;
 }) {
   useDocumentTitle(`${submission.preferred_term} — NPTC Catalogue`);
   const { message, politeness, announce } = useAnnounce();
+  // The content the form opened on, which the form compares its fields against.
+  const [opened, setOpened] = useState<WorkingContent | null>(null);
+  const [saved, setSaved] = useState<string | null>(null);
+  const review = isReviewDetail(submission) ? submission : null;
 
   useEffect(() => {
     if (refreshFailed) {
@@ -105,13 +115,36 @@ function SubmissionView({
               <SubmissionDetails submission={submission} />
               <SubmissionInterest submission={submission} />
               <InterestIdentitiesPanel submissionId={submission.id} />
+              <EditWorkingCopySection
+                state={submission.state}
+                editing={opened !== null}
+                saved={saved}
+                onEdit={() => {
+                  if (review !== null) {
+                    setSaved(null);
+                    setOpened(workingContentOf(review));
+                  }
+                }}
+              />
               <TriageSubmission submission={submission} />
               <WithdrawSubmission submission={submission} />
               <TransitionHistory submissionId={submission.id} />
             </>
           }
         >
-          <SubmissionContent submission={submission} />
+          {opened !== null ? (
+            <EditWorkingCopyForm
+              submission={submission}
+              opened={opened}
+              onSaved={(sentence) => {
+                setSaved(sentence);
+                setOpened(null);
+              }}
+              onCancel={() => setOpened(null)}
+            />
+          ) : (
+            <SubmissionContent submission={submission} />
+          )}
         </DetailLayout>
       </PageContainer>
     </section>
@@ -143,7 +176,11 @@ export function SubmissionDetailPage() {
 
   if (submission.data !== undefined) {
     return (
-      <SubmissionView submission={submission.data} refreshFailed={submission.isError} />
+      <SubmissionView
+        key={submission.data.id}
+        submission={submission.data}
+        refreshFailed={submission.isError}
+      />
     );
   }
 
