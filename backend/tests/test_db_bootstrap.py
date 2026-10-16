@@ -20,6 +20,7 @@ from nptc.registry import BUILTIN_DATATYPES
 
 @pytest.mark.req("FR-09")
 @pytest.mark.integration
+@pytest.mark.usefixtures("pristine_system_properties")
 def test_seeds_the_four_built_in_properties(app_session: Session) -> None:
     inserted = seed_system_properties(app_session)
     app_session.commit()
@@ -39,6 +40,7 @@ def test_seeds_the_four_built_in_properties(app_session: Session) -> None:
 
 @pytest.mark.req("FR-09")
 @pytest.mark.integration
+@pytest.mark.usefixtures("pristine_system_properties")
 def test_is_idempotent_on_a_repeat_call(app_session: Session) -> None:
     """FR-09's own acceptance test starts here: seeding must be safely
     re-runnable with no migration and no restart between calls."""
@@ -120,6 +122,7 @@ def test_system_properties_travel_the_same_write_path_as_an_admin_property(
 
 @pytest.mark.req("FR-09")
 @pytest.mark.integration
+@pytest.mark.usefixtures("pristine_system_properties")
 def test_seed_system_properties_is_safe_under_a_concurrent_caller(
     app_engine: Engine, owner_engine: Engine
 ) -> None:

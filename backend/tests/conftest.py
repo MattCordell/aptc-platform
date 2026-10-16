@@ -371,6 +371,36 @@ def pristine_catalogue(owner_engine: Engine, migrated: None) -> Iterator[None]:
     _wipe_committed_catalogue(owner_engine)
 
 
+def _wipe_committed_system_properties(owner_engine: Engine) -> None:
+    """Deletes the four built-in `property_definition` rows and any `property_value` row naming
+    one, as the owner. `seed_system_properties` is a no-op once they exist, and the seed CLI tests
+    commit them for real, so a test asserting what a seeding call inserts needs them absent."""
+    with owner_engine.connect() as connection:
+        connection.execute(
+            text(
+                "DELETE FROM property_value WHERE property_key IN "
+                "('discipline', 'subgroup', 'specimen', 'usage_guidance')"
+            )
+        )
+        connection.execute(
+            text(
+                "DELETE FROM property_definition WHERE key IN "
+                "('discipline', 'subgroup', 'specimen', 'usage_guidance')"
+            )
+        )
+        connection.commit()
+
+
+@pytest.fixture
+def pristine_system_properties(owner_engine: Engine, migrated: None) -> Iterator[None]:
+    """Explicit isolation for an assertion about what `seed_system_properties` inserts, which is
+    empty whenever an earlier test in this worker left the built-in properties committed. Cleans
+    before yielding as well as after, so scheduling order stops mattering."""
+    _wipe_committed_system_properties(owner_engine)
+    yield
+    _wipe_committed_system_properties(owner_engine)
+
+
 @pytest.fixture(scope="session")
 def app_login_credentials(migrated: None) -> tuple[str, str]:
     """`(APP_LOGIN_ROLE, APP_LOGIN_PASSWORD)`, for a test module that needs
