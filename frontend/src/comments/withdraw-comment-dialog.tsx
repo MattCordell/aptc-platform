@@ -12,6 +12,10 @@ import { ReasonField } from "../registry/reason-field.tsx";
 /** One dialog is open at a time, so the field's id can be fixed. */
 const REASON_FIELD_ID = "withdraw-comment-reason";
 
+/** The server's limit on a withdrawal reason. The generated schema does not
+ * carry it, so it is copied here. */
+const MAX_LENGTH = 2000;
+
 const FALLBACK_REFUSAL =
   "The comment could not be withdrawn. Try again, or contact an administrator if the problem persists.";
 
@@ -25,11 +29,14 @@ const FALLBACK_REFUSAL =
 export function WithdrawCommentDialog({
   target,
   commentId,
+  alreadyWithdrawn = false,
   onClose,
   onDone,
 }: {
   target: CommentTarget;
   commentId: string;
+  /** True once the list shows the comment withdrawn, so confirming is pointless. */
+  alreadyWithdrawn?: boolean;
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -50,6 +57,8 @@ export function WithdrawCommentDialog({
         submitLabel="Confirm withdrawal"
         pendingLabel="Withdrawing"
         pending={withdraw.isPending}
+        submitBlocked={alreadyWithdrawn}
+        blockedReason="This comment was already withdrawn."
         errors={fieldErrors}
         formError={
           refusal === null ? undefined : (refusalDetail(refusal) ?? FALLBACK_REFUSAL)
@@ -86,8 +95,15 @@ export function WithdrawCommentDialog({
         <ReasonField
           id={REASON_FIELD_ID}
           value={reason}
-          onChange={setReason}
-          hint="Say why the comment no longer stands."
+          onChange={(value) => {
+            setReason(value);
+            // A refusal of the earlier text no longer describes this text.
+            if (withdraw.isError) {
+              withdraw.reset();
+            }
+          }}
+          maxLength={MAX_LENGTH}
+          hint={`Say why the comment no longer stands. Up to ${MAX_LENGTH.toLocaleString("en-AU")} characters.`}
           error={fieldErrors.find((error) => error.fieldId === REASON_FIELD_ID)?.message}
         />
       </Form>

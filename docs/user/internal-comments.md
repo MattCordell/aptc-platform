@@ -54,7 +54,8 @@ Withdraw a comment when it is wrong or no longer applies. Any Reviewer or Admini
 withdraw any comment, not only their own.
 
 1. Choose **Withdraw** under the comment.
-2. Write a reason. It is required, and spaces alone do not count.
+2. Write a reason. It is required, spaces alone do not count, and it holds up to 2,000
+   characters.
 3. Choose **Confirm withdrawal**.
 
 The comment stays on the page with its text. It now carries a **Withdrawn** label, and it shows
@@ -68,7 +69,8 @@ Choose **Cancel** to close the box without withdrawing the comment.
 The box stays open or keeps your text, and the page shows why:
 
 - **The comment was already withdrawn.** Another reviewer withdrew it first. The page reads the
-  list again, so you see the withdrawal. Choose **Cancel**.
+  list again, so you see the withdrawal. **Confirm withdrawal** stops working. Choose
+  **Cancel**.
 - **You may not do this.** The platform's own sentence appears. This happens when your
   permissions changed after you opened the page.
 - **You have not accepted the current terms of use.** Accept the terms when the page asks, then
@@ -82,7 +84,7 @@ If you cannot tell why something is refused, ask an Administrator.
 ## Using it with a keyboard or screen reader
 
 Press Tab to move through the panel: each **Withdraw** button, the comment box, then
-**Post comment**. Each **Withdraw** button names the author and the date of its comment, so a
+**Post comment**. Each **Withdraw** button names the author, the date and the start of its comment, so a
 screen reader can tell them apart. The panel has its own heading, **Internal comments**. A
 screen reader announces "Comment posted." and "Comment withdrawn." After you withdraw a comment,
 focus moves to that comment. Status is always written in words as well as shown in colour.

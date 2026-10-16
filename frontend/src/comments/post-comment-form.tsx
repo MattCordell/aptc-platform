@@ -9,7 +9,8 @@ import { INPUT_CLASSES } from "../components/input-classes.ts";
 
 const BODY_FIELD_ID = "internal-comment-body";
 
-/** The server's limit on one comment's text. */
+/** The server's limit on one comment's text. The generated schema does not
+ * carry it, so it is copied here. */
 const MAX_LENGTH = 2000;
 
 const FALLBACK_REFUSAL =
@@ -79,7 +80,13 @@ export function PostCommentForm({
             rows={4}
             maxLength={MAX_LENGTH}
             value={body}
-            onChange={(event) => setBody(event.target.value)}
+            onChange={(event) => {
+              setBody(event.target.value);
+              // A refusal of the earlier text no longer describes this text.
+              if (post.isError) {
+                post.reset();
+              }
+            }}
           />
         )}
       </Field>

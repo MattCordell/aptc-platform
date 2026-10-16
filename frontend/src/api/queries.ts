@@ -1827,8 +1827,9 @@ export function useInternalComments(target: CommentTarget, enabled: boolean) {
  * comment list changes. The answer is the one comment as it now stands, so it
  * goes straight into the cached list. The list is not re-read after a success,
  * because the server commits after it sends the answer and a read sent at once
- * can still return the list as it was. A list that is not cached yet is read
- * instead. A 409 is a second withdrawal of one comment, which means the list on
+ * can still return the list as it was. A later read, such as one on window
+ * focus, can still fall in that short gap and bring the old list back until the
+ * next read. A list that is not cached yet is read instead. A 409 is a second withdrawal of one comment, which means the list on
  * screen was out of date, so it is re-read.
  */
 function useCommentMutation<Variables>(

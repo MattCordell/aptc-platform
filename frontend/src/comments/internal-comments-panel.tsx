@@ -31,6 +31,17 @@ const MUTED = "text-[var(--color-text-muted)]";
  * as markup (NFR-23), and the line breaks the writer typed are kept. */
 const PLAIN_TEXT = "m-0 whitespace-pre-line [overflow-wrap:anywhere]";
 
+const NAME_SNIPPET_LENGTH = 40;
+
+/** The start of a comment, so two Withdraw buttons for one author on one day
+ * still have different names. */
+function snippet(body: string): string {
+  const flat = body.replace(/\s+/g, " ").trim();
+  return flat.length > NAME_SNIPPET_LENGTH
+    ? `${flat.slice(0, NAME_SNIPPET_LENGTH)}…`
+    : flat;
+}
+
 function PersonName({ person }: { person: Person }) {
   return (
     <>
@@ -73,23 +84,32 @@ function CommentItem({
         {withdrawn ? <StatusBadge tone="deprecated" label="Withdrawn" /> : null}
       </span>
       <p className={PLAIN_TEXT}>{comment.body}</p>
-      {comment.withdrawn_at !== null && comment.withdrawn_by !== null ? (
+      {comment.withdrawn_at === null ? null : (
         <>
           <span className={MUTED}>
-            Withdrawn by <PersonName person={comment.withdrawn_by} /> on{" "}
+            Withdrawn
+            {comment.withdrawn_by === null ? null : (
+              <>
+                {" "}
+                by <PersonName person={comment.withdrawn_by} />
+              </>
+            )}{" "}
+            on{" "}
             <time dateTime={comment.withdrawn_at}>
               {formatDate(comment.withdrawn_at)}
             </time>
           </span>
-          <p className={`${PLAIN_TEXT} ${MUTED}`}>Reason: {comment.withdrawn_reason}</p>
+          {comment.withdrawn_reason === null ? null : (
+            <p className={`${PLAIN_TEXT} ${MUTED}`}>Reason: {comment.withdrawn_reason}</p>
+          )}
         </>
-      ) : null}
+      )}
       {!withdrawn && canWithdraw ? (
         <Button
           type="button"
           variant="secondary"
           className="self-start"
-          aria-label={`Withdraw the comment by ${comment.author.display_name} on ${formatDate(comment.created_at)}`}
+          aria-label={`Withdraw the comment by ${comment.author.display_name} on ${formatDate(comment.created_at)}: ${snippet(comment.body)}`}
           onClick={onWithdraw}
         >
           Withdraw
@@ -165,8 +185,7 @@ function SignedInPanel({ target }: { target: CommentTarget }) {
     <EntrySection title="Internal comments">
       <LiveRegion message={message} politeness={politeness} />
       <p className={`m-0 text-sm ${MUTED}`}>
-        Only Reviewers and Administrators can read these comments. The submitter and the
-        public cannot.
+        Only staff who can read internal comments see them. They are never published.
       </p>
       {body}
       {mayWrite ? (
@@ -176,6 +195,9 @@ function SignedInPanel({ target }: { target: CommentTarget }) {
         <WithdrawCommentDialog
           target={target}
           commentId={withdrawing}
+          alreadyWithdrawn={comments.data?.comments.some(
+            (comment) => comment.id === withdrawing && comment.withdrawn_at !== null,
+          )}
           onClose={() => setWithdrawing(null)}
           onDone={() => {
             setJustWithdrawn(withdrawing);

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { refusalDetail } from "../api/conflicts.ts";
 import { useSubmissionDetail } from "../api/queries.ts";
 import { ApiError } from "../api/unwrap.ts";
+import { InternalCommentsPanel } from "../comments/internal-comments-panel.tsx";
 import { Breadcrumb } from "../components/breadcrumb.tsx";
 import { Button } from "../components/button.tsx";
 import { DetailLayout } from "../components/detail-layout.tsx";
@@ -11,7 +12,6 @@ import { LiveRegion } from "../components/live-region.tsx";
 import { PageContainer } from "../components/page-container.tsx";
 import { PageHeader } from "../components/page-header.tsx";
 import { useAnnounce } from "../components/use-announce.ts";
-import { InternalCommentsPanel } from "../comments/internal-comments-panel.tsx";
 import { NotFoundPage } from "../shell/not-found-page.tsx";
 import { useDocumentTitle } from "../shell/use-document-title.ts";
 import {

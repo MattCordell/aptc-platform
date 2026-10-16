@@ -4,10 +4,11 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createQueryClient } from "../api/query-client.ts";
-import { useSession, type CommentTarget } from "../api/queries.ts";
+import type { CommentTarget } from "../api/queries.ts";
 import { AuthContext, type AuthContextValue } from "../auth/session.ts";
 import { expectNoA11yViolations } from "../test/a11y.ts";
 import { stubApi, type Route } from "../test/stub-api.ts";
+import { waitForSession } from "../test/wait-for-session.ts";
 import { InternalCommentsPanel } from "./internal-comments-panel.tsx";
 
 /**
@@ -113,26 +114,16 @@ function listRoute(path: string, comments: unknown[]): Route {
   return { method: "GET", path, status: 200, body: { comments } };
 }
 
-/** Renders once the session has landed, so an assertion that something is absent
- * cannot pass merely because the session was still loading. */
-function SessionProbe() {
-  const session = useSession();
-  return session.data === undefined ? null : <span data-testid="session-ready" hidden />;
-}
-
 function renderPanel(target: CommentTarget) {
-  return render(
-    <QueryClientProvider client={createQueryClient()}>
+  const client = createQueryClient();
+  const view = render(
+    <QueryClientProvider client={client}>
       <AuthContext.Provider value={AUTH}>
-        <SessionProbe />
         <InternalCommentsPanel target={target} />
       </AuthContext.Provider>
     </QueryClientProvider>,
   );
-}
-
-async function settled() {
-  await screen.findByTestId("session-ready");
+  return { ...view, client };
 }
 
 async function openWithdrawDialog() {
@@ -162,7 +153,7 @@ describe.each(TARGETS)("InternalCommentsPanel on $name", ({ target, path }) => {
     expect(within(item).getByText("1 October 2026")).toBeVisible();
     expect(
       within(item).getByRole("button", {
-        name: "Withdraw the comment by Rae Reviewer on 1 October 2026",
+        name: "Withdraw the comment by Rae Reviewer on 1 October 2026: Check the specimen type before approving…",
       }),
     ).toBeVisible();
     expect(within(section).getByLabelText("Add an internal comment")).toBeVisible();
@@ -200,9 +191,9 @@ describe.each(TARGETS)("InternalCommentsPanel on $name", ({ target, path }) => {
     ["an anonymous reader", ANONYMOUS],
   ])("is absent for %s, and sends no comments request", async (_who, route) => {
     const calls = stubApi([route, listRoute(path, [comment()])]);
-    const { container } = renderPanel(target);
+    const { container, client } = renderPanel(target);
 
-    await settled();
+    await waitForSession(client);
     expect(screen.queryByRole("heading")).toBeNull();
     expect(screen.queryByText(/internal comment/i)).toBeNull();
     expect(calls.some((call) => call.path === path)).toBe(false);
@@ -258,6 +249,62 @@ describe.each(TARGETS)("InternalCommentsPanel on $name", ({ target, path }) => {
 
     expect(await screen.findByText("Reason: <script>alert(1)</script>")).toBeVisible();
     expect(container.querySelector("script")).toBeNull();
+  });
+
+  it("tells two comments by one author on one day apart by the start of their text", async () => {
+    stubApi([
+      STAFF,
+      listRoute(path, [
+        comment({ id: "6f1d2c3e-0000-4000-8000-000000000062", body: "First note." }),
+        comment({ id: "6f1d2c3e-0000-4000-8000-000000000063", body: "Second note." }),
+      ]),
+    ]);
+    renderPanel(target);
+
+    const buttons = await screen.findAllByRole("button", {
+      name: /^Withdraw the comment/,
+    });
+    const names = buttons.map((button) => button.getAttribute("aria-label"));
+    expect(new Set(names).size).toBe(2);
+  });
+
+  it("still shows the reason when the server names no one who withdrew the comment", async () => {
+    stubApi([
+      STAFF,
+      listRoute(path, [
+        comment({
+          withdrawn_at: "2026-10-02T09:00:00Z",
+          withdrawn_by: null,
+          withdrawn_reason: "Posted on the wrong submission.",
+        }),
+      ]),
+    ]);
+    renderPanel(target);
+
+    const item = await screen.findByRole("listitem");
+    expect(within(item).getByText("Withdrawn", { exact: true })).toBeVisible();
+    expect(
+      within(item).getByText("Reason: Posted on the wrong submission."),
+    ).toBeVisible();
+    expect(within(item).queryByText(/Withdrawn by/)).toBeNull();
+  });
+
+  it("shows no empty Reason line when the server sends no reason", async () => {
+    stubApi([
+      STAFF,
+      listRoute(path, [
+        comment({
+          withdrawn_at: "2026-10-02T09:00:00Z",
+          withdrawn_by: ALEX,
+          withdrawn_reason: null,
+        }),
+      ]),
+    ]);
+    renderPanel(target);
+
+    const item = await screen.findByRole("listitem");
+    expect(within(item).getByText("Withdrawn", { exact: true })).toBeVisible();
+    expect(within(item).queryByText(/Reason:/)).toBeNull();
   });
 
   describe("posting", () => {
@@ -359,6 +406,30 @@ describe.each(TARGETS)("InternalCommentsPanel on $name", ({ target, path }) => {
       ).toBeGreaterThan(0);
       expect(box).toHaveValue("Please look");
     });
+  });
+
+  it("clears the refusal of the earlier text once the user edits a comment", async () => {
+    stubApi([
+      STAFF,
+      listRoute(path, []),
+      {
+        method: "POST",
+        path,
+        status: 403,
+        body: { detail: "You may not post internal comments." },
+      },
+    ]);
+    renderPanel(target);
+
+    const box = await screen.findByLabelText("Add an internal comment");
+    await userEvent.type(box, "Please look");
+    await userEvent.click(screen.getByRole("button", { name: "Post comment" }));
+    await screen.findAllByText("You may not post internal comments.");
+    await userEvent.type(box, " again");
+
+    await waitFor(() =>
+      expect(screen.queryByText("You may not post internal comments.")).toBeNull(),
+    );
   });
 
   describe("withdrawing", () => {
@@ -492,6 +563,83 @@ describe.each(TARGETS)("InternalCommentsPanel on $name", ({ target, path }) => {
         ).toBe(2),
       );
       expect(screen.getByRole("dialog")).toBeVisible();
+    });
+
+    it("stops a reason longer than the server accepts", async () => {
+      stubApi([STAFF, listRoute(path, [comment()])]);
+      renderPanel(target);
+
+      const dialog = await openWithdrawDialog();
+      expect(within(dialog).getByLabelText("Reason")).toHaveAttribute(
+        "maxlength",
+        "2000",
+      );
+    });
+
+    it("clears the refusal of the earlier reason once the user edits it", async () => {
+      stubApi([
+        STAFF,
+        listRoute(path, [comment()]),
+        {
+          method: "POST",
+          path: `${path}/${COMMENT_ID}/withdraw`,
+          status: 403,
+          body: { detail: "You may not withdraw internal comments." },
+        },
+      ]);
+      renderPanel(target);
+
+      const dialog = await openWithdrawDialog();
+      await userEvent.type(within(dialog).getByLabelText("Reason"), "Wrong");
+      await userEvent.click(
+        within(dialog).getByRole("button", { name: "Confirm withdrawal" }),
+      );
+      await within(dialog).findAllByText("You may not withdraw internal comments.");
+      await userEvent.type(within(dialog).getByLabelText("Reason"), " place");
+
+      await waitFor(() =>
+        expect(
+          within(dialog).queryByText("You may not withdraw internal comments."),
+        ).toBeNull(),
+      );
+    });
+
+    it("does not send a second withdrawal once the list shows the comment withdrawn", async () => {
+      const calls = stubApi(
+        [
+          STAFF,
+          {
+            method: "POST",
+            path: `${path}/${COMMENT_ID}/withdraw`,
+            status: 409,
+            body: { detail: "This comment was already withdrawn." },
+          },
+        ],
+        {
+          vary: (call, priorSameCalls) =>
+            call.method === "GET" && call.path === path
+              ? listRoute(path, [priorSameCalls === 0 ? comment() : WITHDRAWN])
+              : null,
+        },
+      );
+      renderPanel(target);
+
+      const dialog = await openWithdrawDialog();
+      await userEvent.type(within(dialog).getByLabelText("Reason"), "Again");
+      await userEvent.click(
+        within(dialog).getByRole("button", { name: "Confirm withdrawal" }),
+      );
+      await within(dialog).findAllByText("This comment was already withdrawn.");
+      await waitFor(() =>
+        expect(
+          within(dialog).getByRole("button", { name: "Confirm withdrawal" }),
+        ).toHaveAttribute("aria-disabled", "true"),
+      );
+      await userEvent.click(
+        within(dialog).getByRole("button", { name: "Confirm withdrawal" }),
+      );
+
+      expect(calls.filter((call) => call.method === "POST")).toHaveLength(1);
     });
 
     it("closes the dialog without a request when the user cancels", async () => {
