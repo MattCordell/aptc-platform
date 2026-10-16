@@ -77,9 +77,9 @@ _RESPONSES: Final[dict[int | str, dict[str, Any]]] = {
         "description": (
             "The submission cannot be withdrawn from its current state: only a submission that is "
             "`Submitted`, in `Triage` or `Under review` can be withdrawn by its submitter, so a "
-            "closed one is refused and a second withdrawal is too. Or `expected_row_version` is not the "
-            "current one, because someone else changed the submission after it was read; the body "
-            "then carries `current_row_version`. "
+            "closed one is refused and a second withdrawal is too. Or `expected_row_version` is "
+            "not the current one, because someone else changed the submission after it was read; "
+            "the body then carries `current_row_version`. "
             "A stale `expected_row_version` sent after someone else has already withdrawn the "
             "submission gets the first reason, not the second, so a client should treat both as "
             '"reload the submission". Nothing was changed.'

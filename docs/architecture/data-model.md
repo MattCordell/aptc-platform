@@ -1712,12 +1712,13 @@ state or move is a new row and not a second code path. The table holds sixteen m
 A reopened submission keeps its transition rows and is never a new record. The Administrator holds
 `.any` and not `.own`, so the `.any` requirement on the open-state withdrawal rows is what lets an
 Administrator withdraw a submission of their own. The submitter's own withdrawal ends once the
-submission leaves `Under review`, because no later state has an `.own` row. Only `.any` reaches `Approved`
-and `Published in release`. A reviewer can reject a submission from `Under review` and from `Ready for approval`, so neither state is a
-dead end. A submission leaves `Awaiting terminology` in one of two ways: an Administrator attaches the
-code, or a reviewer takes it back to `Under review` when the request is declined or abandoned. The table
-has no row from `Awaiting terminology` to `Rejected` or `Withdrawn`, and none from `Ready for approval`
-to `Withdrawn`, so the submitter cannot withdraw from either state.
+submission leaves `Under review`, because no later state has an `.own` row. Only `.any` reaches
+`Approved` and `Published in release`. A reviewer can reject a submission from `Under review` and from
+`Ready for approval`, so neither state is a dead end. A submission leaves `Awaiting terminology` in one
+of two ways: an Administrator attaches the code, or a reviewer takes it back to `Under review` when the
+request is declined or abandoned. The table has no row from `Awaiting terminology` to `Rejected` or
+`Withdrawn`, and none from `Ready for approval` to `Withdrawn`, so the submitter cannot withdraw from
+either state.
 
 **A move that needs more than a reason is flagged in the table** (`PermittedTransition.needs_payload`).
 The two moves of `Awaiting terminology` and the approval are rows like any other, so the graph, the
