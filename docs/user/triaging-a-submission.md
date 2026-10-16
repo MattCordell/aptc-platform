@@ -28,6 +28,9 @@ buttons on the same submission.
 | Rejected | **Reopen** | Triage |
 | Under review | **Mark ready for approval** | Ready for approval |
 | Awaiting terminology | **Resume review** | Under review |
+| Ready for approval | **Approve** | Approved |
+
+Only an Administrator sees **Approve**. See [Approve a submission](#approve-a-submission).
 
 **Reject** is available from Triage, Under review and Ready for approval, so no state before
 approval is a dead end. A rejected submission can be reopened to Triage, and it keeps its history.
@@ -36,8 +39,8 @@ approval is a dead end. A rejected submission can be reopened to Triage, and it 
 nobody is pursuing. The record of the request stays.
 
 Some moves are not on the panel because they need more than a reason: asking for a new SNOMED CT
-code, attaching that code, and approving a submission. Each will have its own form. Withdrawing
-a submission is also separate. See
+code and attaching that code. Each will have its own form. Withdrawing a submission is also
+separate. See
 [Withdraw your own submission](reading-a-submission.md#withdraw-your-own-submission).
 
 ## Make a move
@@ -51,6 +54,35 @@ Under review.", and the panel then shows the moves that are now possible. The mo
 bottom of **History**.
 
 Choose **Cancel** to close the box without moving the submission.
+
+## Approve a submission
+
+Approving is the Administrator's decision. It writes to the catalogue, so it differs from the
+other moves in three ways:
+
+- A **new test** becomes a new active entry in the catalogue.
+- An **amendment** changes the entry it names. The box shows that entry's identifier, for
+  example NPTC-000247.
+- The reason you write becomes the entry's changelog note. It appears in the entry's
+  **History**, and the platform also records it in the audit log and in this submission's
+  history. Write a note that explains the change to the next person who reads the entry.
+
+To approve:
+
+1. Choose **Approve**.
+2. Write a reason. The platform decides whether the reason is good enough, so it may refuse a
+   short or stock phrase. The box then shows the platform's explanation, and your reason stays.
+3. Choose **Confirm approval**.
+
+The state changes to Approved at once, without reloading the page. Focus moves to a line such as
+"Approved. Created entry NPTC-000123." For an amendment the line reads "Approved. Amended entry"
+and the identifier. Choose the identifier to open the entry. The **Kind** line in **Details**
+links to the same entry, and it still does after you reload the page.
+
+If the platform refuses, the box stays open and shows its own sentence. This happens, for
+example, when the entry is no longer active, when an amendment no longer applies to the entry,
+or when another reviewer has changed the submission. **Confirm approval** stops working when
+the platform no longer offers approval. Choose **Cancel**.
 
 ## Who reads the reason
 

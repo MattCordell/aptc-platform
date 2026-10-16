@@ -48,7 +48,8 @@ the identifier to open that entry.
 
 Beside the main column, **Details** shows:
 
-- **Kind**: New test, or Amendment to an entry.
+- **Kind**: New test, or Amendment to an entry. After an Administrator approves a new test,
+  the line reads "New test, created as" and the entry's identifier, which opens the entry.
 - **State**: Submitted, Triage, Under review, Awaiting terminology, Ready for approval,
   Approved, Published in release, Rejected or Withdrawn. The first six are the open states.
   Published in release, Rejected and Withdrawn are closed. Awaiting terminology means a
