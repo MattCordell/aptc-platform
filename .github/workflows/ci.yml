@@ -60,7 +60,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 8
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -85,20 +85,21 @@ jobs:
       - name: mypy --strict
         run: uv run mypy
 
-      # Coverage floor: 80%. Revisit as real modules replace the Foundation
-      # scaffolding - see backend/src/nptc/__init__.py for what's still stubbed.
-      - name: pytest with coverage
-        run: >
-          uv run pytest
-          --cov --cov-report=term-missing --cov-report=xml
-          --cov-fail-under=80
+      # The container tests run in backend-integration, so this job selects
+      # everything else. The `coverage` job combines both data files and holds
+      # the 80% floor.
+      - name: pytest (no container tests) with coverage
+        run: uv run pytest -m "not integration" --cov
+        env:
+          COVERAGE_FILE: .coverage.python
 
-      - name: Upload coverage report
+      - name: Upload coverage data
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: coverage-xml
-          path: coverage.xml
+          name: coverage-data-python
+          path: .coverage.python
+          include-hidden-files: true
           retention-days: 14
 
   transform-offline:
@@ -153,7 +154,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     env:
       # An ephemeral runner is discarded either way once the job ends, so
       # Ryuk's usual crash-cleanup role buys nothing here, and disabling it
@@ -221,19 +222,82 @@ jobs:
           sudo iptables -A OUTPUT -o docker0 -j ACCEPT
           sudo iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
 
-      # backend/tests also runs, with network, inside the `python` job's
-      # coverage gate above - this job's job is proving NFR-37, not
-      # covering backend/tests a second time for coverage. Adding
-      # scripts/tests here too means every one of testpaths' four
-      # directories has now run under a network-egress block at least once
-      # between this job and transform-offline, which is what actually
-      # lets NFR-37 move to `implemented` (docs/requirements/requirements.yaml).
+      # This job runs every test in backend/tests and scripts/tests under the
+      # egress block. Together with transform-offline, every one of testpaths'
+      # four directories has run under a network-egress block at least once,
+      # which is what lets NFR-37 stand as `implemented`
+      # (docs/requirements/requirements.yaml). The `python` job runs the
+      # tests that need no container, with network; its coverage data and
+      # this job's are combined in the `coverage` job.
+      #
+      # -n auto gives one worker per vCPU, and each worker starts its own
+      # Postgres container (the container fixtures are session-scoped per
+      # worker). --dist loadscope keeps a module on one worker, so a module's
+      # tests share the container they were written against.
       - name: Run backend + scripts tests against a real Postgres container
-        run: uv run pytest backend/tests scripts/tests
+        run: uv run pytest backend/tests scripts/tests -n auto --dist loadscope --cov
+        env:
+          COVERAGE_FILE: .coverage.integration
 
       - name: Restore network egress
         if: always()
         run: sudo iptables -P OUTPUT ACCEPT
+
+      # After egress is back: the upload needs the network.
+      - name: Upload coverage data
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-data-integration
+          path: .coverage.integration
+          include-hidden-files: true
+          retention-days: 14
+
+  # Combines the two backend jobs' coverage data and holds the floor. Neither
+  # job alone sees the whole suite: python skips the container tests, and
+  # backend-integration skips transform/tests and shared/tests.
+  coverage:
+    name: Coverage floor (80%, combined)
+    needs: [changes, python, backend-integration]
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: "0.13.1"
+          python-version: "3.14.8"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Install workspace
+        run: uv sync --all-packages --locked
+
+      - name: Download coverage data
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: coverage-data-*
+          merge-multiple: true
+
+      # `relative_files = true` in pyproject.toml stores paths relative to the
+      # repo root, so the data files combine without path remapping.
+      - name: Combine, report and enforce the floor
+        run: |
+          uv run coverage combine .coverage.python .coverage.integration
+          uv run coverage xml
+          uv run coverage report --show-missing --fail-under=80
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          retention-days: 14
 
   frontend:
     name: Frontend (lint, typecheck, test, build)
@@ -313,7 +377,7 @@ jobs:
   required:
     name: Required (CI)
     if: always()
-    needs: [changes, python, transform-offline, backend-integration, frontend]
+    needs: [changes, python, transform-offline, backend-integration, coverage, frontend]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
@@ -324,6 +388,7 @@ jobs:
             "${{ needs.python.result }}" \
             "${{ needs.transform-offline.result }}" \
             "${{ needs.backend-integration.result }}" \
+            "${{ needs.coverage.result }}" \
             "${{ needs.frontend.result }}"; do
             if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
               echo "::error::A required job did not succeed (result: $result)"

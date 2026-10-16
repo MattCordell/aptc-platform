@@ -98,10 +98,9 @@ uv run pytest -n auto --dist loadscope                    # full sweep before pu
 `backend/tests`: `postgres_container`/`owner_engine`/`app_engine` are session-scoped per
 *worker process*, so grouping by module is what keeps each module's tests on the one
 container `-n` gives that worker, rather than xdist spreading a module's tests (and their
-shared container assumptions) across workers. This is local-dev tooling only: CI's own
-`pytest` invocations stay serial, because one container per worker is a heavier ask of a
-CI runner than of a dev machine. The two CI jobs that run `backend/tests` each took about
-8 minutes on 2026-09-29, against a 15-minute timeout (`.github/workflows/ci.yml`).
+shared container assumptions) across workers. CI's `backend-integration` job runs the same
+way, and the `python` job runs `-m "not integration"`, so no container test runs twice.
+`docs/operations/ci-backend-tests.md` explains the split and the combined coverage floor.
 
 Repo governance scripts (Python, at repo root, tested under `scripts/tests/`):
 

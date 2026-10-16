@@ -15,6 +15,9 @@ suite, with colour contrast checked in a real browser, against the compose stack
 [`backend-test-container-split.md`](backend-test-container-split.md) records which backend
 tests need a Postgres container, with counts per file and timings (issue #363).
 
+[`ci-backend-tests.md`](ci-backend-tests.md) explains which CI job runs which backend tests,
+how the integration job is sharded, and where the 80% coverage floor is enforced (issue #641).
+
 [`code-size-remeasurement.md`](code-size-remeasurement.md) compares prose density and
 function length with the milestone-one review, and records which long functions to split
 (issue #366).

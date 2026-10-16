@@ -114,6 +114,7 @@ markers = [
 
 [tool.coverage.run]
 branch = true
+relative_files = true
 source = ["backend/src", "transform/src", "shared/src", "scripts"]
 omit = ["scripts/tests/*"]
 
