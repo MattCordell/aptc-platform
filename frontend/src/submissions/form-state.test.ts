@@ -14,7 +14,12 @@ import {
   initialValues,
   validate,
   validateAmendment,
+  rebaseValues,
+  validateWorkingCopy,
+  valuesFromContent,
+  workingCopyChanges,
 } from "./form-state.ts";
+import type { WorkingContent } from "./working-copy-diff.ts";
 
 type Definition = components["schemas"]["PropertyDefinitionResponse"];
 
@@ -327,6 +332,308 @@ describe("amendmentBody (FR-35)", () => {
       reference_url: "https://example.org/x",
       notes: "Seen in the RCPA manual.",
       organisation: "Example Lab",
+    });
+  });
+});
+
+describe("the working copy form (FR-23)", () => {
+  const OPENED: WorkingContent = {
+    preferred_term: "Ferritin",
+    synonyms: ["Serum ferritin"],
+    snomed_code: "0391483001",
+    snomed_fsn: "Microscopy (procedure)",
+    property_values: {
+      specimen: [{ value: "Serum", justification: null }],
+      method: [{ value: "Immunoassay", justification: "Common" }],
+    },
+    notes: "Seen in primary care.",
+  };
+  const PICKED: CodeSelection = {
+    status: "ready",
+    concept: { ...READY.concept, code: "0391483002" },
+  };
+
+  function seeded() {
+    return valuesFromContent(OPENED);
+  }
+
+  describe("valuesFromContent", () => {
+    it("fills each field from the content and leaves the code to be picked", () => {
+      const values = seeded();
+
+      expect(values.preferredTerm).toBe("Ferritin");
+      expect(values.names.map((row) => row.term)).toEqual(["Serum ferritin"]);
+      expect(values.notes).toBe("Seen in primary care.");
+      expect(values.code).toBeNull();
+      expect(values.slots.specimen.map((slot) => slot.value)).toEqual(["Serum"]);
+      expect(values.slots.method[0].justification).toBe("Common");
+    });
+
+    it("gives each name and slot an id of its own and reads a missing note as blank", () => {
+      const values = valuesFromContent({
+        ...OPENED,
+        synonyms: ["A", "B"],
+        notes: null,
+      });
+
+      expect(new Set(values.names.map((row) => row.id)).size).toBe(2);
+      expect(values.notes).toBe("");
+    });
+  });
+
+  describe("workingCopyChanges", () => {
+    it("sends nothing for a form nobody changed", () => {
+      expect(workingCopyChanges(seeded(), OPENED, NONE, "new_test")).toEqual({});
+    });
+
+    it("sends only the field that changed", () => {
+      const values = { ...seeded(), preferredTerm: "Serum ferritin" };
+
+      expect(workingCopyChanges(values, OPENED, NONE, "new_test")).toEqual({
+        preferred_term: "Serum ferritin",
+      });
+    });
+
+    it("sends every other name once any of them changes, with the text left in the box", () => {
+      const values = { ...seeded(), nameDraft: "Ferritin level" };
+
+      expect(workingCopyChanges(values, OPENED, NONE, "new_test")).toEqual({
+        synonyms: ["Serum ferritin", "Ferritin level"],
+      });
+    });
+
+    it("sends a code only once the terminology server has named a different one", () => {
+      expect(workingCopyChanges(seeded(), OPENED, PICKED, "new_test")).toEqual({
+        snomed_code: "0391483002",
+      });
+      expect(
+        workingCopyChanges(
+          seeded(),
+          OPENED,
+          { status: "checking", code: "0391483002" },
+          "new_test",
+        ),
+      ).toEqual({});
+      expect(
+        workingCopyChanges(
+          seeded(),
+          { ...OPENED, snomed_code: "0391483002" },
+          PICKED,
+          "new_test",
+        ),
+      ).toEqual({});
+    });
+
+    it("sends every property once any of them changes, and drops one that was emptied", () => {
+      const values = seeded();
+      values.slots.specimen = [{ ...values.slots.specimen[0], value: "Plasma" }];
+      values.slots.method = [{ ...values.slots.method[0], value: "" }];
+
+      expect(workingCopyChanges(values, OPENED, NONE, "new_test")).toEqual({
+        property_values: { specimen: [{ value: "Plasma", justification: null }] },
+      });
+    });
+
+    it("keeps a property the registry no longer lists, which the form cannot show", () => {
+      const withRetired: WorkingContent = {
+        ...OPENED,
+        property_values: {
+          ...OPENED.property_values,
+          retired: [{ value: "Kept", justification: null }],
+        },
+      };
+      const values = valuesFromContent(withRetired);
+      values.slots.specimen = [{ ...values.slots.specimen[0], value: "Plasma" }];
+
+      expect(
+        workingCopyChanges(values, withRetired, NONE, "new_test").property_values,
+      ).toMatchObject({ retired: [{ value: "Kept", justification: null }] });
+    });
+
+    it("clears the note by sending it blank", () => {
+      const values = { ...seeded(), notes: "" };
+
+      expect(workingCopyChanges(values, OPENED, NONE, "new_test")).toEqual({ notes: "" });
+    });
+
+    it("sends only names and a code for an amendment, whatever else the form holds", () => {
+      const values = {
+        ...seeded(),
+        preferredTerm: "Something else",
+        notes: "Another note",
+        nameDraft: "Ferritin level",
+      };
+
+      expect(workingCopyChanges(values, OPENED, PICKED, "amendment")).toEqual({
+        synonyms: ["Serum ferritin", "Ferritin level"],
+        snomed_code: "0391483002",
+      });
+    });
+  });
+
+  describe("validateWorkingCopy", () => {
+    it("accepts the form as it opened", () => {
+      expect(validateWorkingCopy(seeded(), OPENED, [], NONE, "new_test")).toEqual([]);
+    });
+
+    it("asks for a test name", () => {
+      const values = { ...seeded(), preferredTerm: "  " };
+
+      expect(
+        validateWorkingCopy(values, OPENED, [], NONE, "new_test").map((e) => e.fieldId),
+      ).toEqual([FIELD_IDS.preferred_term]);
+    });
+
+    it("holds the form back while a picked code is being checked", () => {
+      expect(
+        validateWorkingCopy(
+          seeded(),
+          OPENED,
+          [],
+          { status: "checking", code: "0391483002" },
+          "new_test",
+        ).map((e) => e.fieldId),
+      ).toEqual([FIELD_IDS.snomed_code]);
+    });
+
+    it("does not ask for a property the registry marks required", () => {
+      const values = seeded();
+      values.slots.specimen = [];
+
+      expect(
+        validateWorkingCopy(
+          values,
+          OPENED,
+          [definition("specimen", true)],
+          NONE,
+          "new_test",
+        ),
+      ).toEqual([]);
+    });
+
+    it("refuses a property with too many values at its first control", () => {
+      const values = seeded();
+      values.slots.specimen = Array.from({ length: 51 }, (_, index) => ({
+        id: `fixture-${index}`,
+        value: `Value ${index}`,
+        justification: null,
+      }));
+
+      expect(
+        validateWorkingCopy(
+          values,
+          OPENED,
+          [definition("specimen", false)],
+          NONE,
+          "new_test",
+        ).map((e) => e.fieldId),
+      ).toEqual([slotFieldId("specimen", 0)]);
+    });
+
+    it("leaves an amendment its code when the last name is removed", () => {
+      const values = { ...seeded(), names: [] };
+
+      expect(validateWorkingCopy(values, OPENED, [], NONE, "amendment")).toEqual([]);
+    });
+
+    it("asks an amendment with no name and no code to keep one", () => {
+      const noCode = { ...OPENED, snomed_code: null };
+      const values = { ...valuesFromContent(noCode), names: [] };
+
+      expect(
+        validateWorkingCopy(values, noCode, [], NONE, "amendment").map((e) => e.fieldId),
+      ).toEqual([FIELD_IDS.synonyms]);
+    });
+
+    it("does not check an amendment's test name or properties", () => {
+      const values = { ...seeded(), preferredTerm: "" };
+
+      expect(validateWorkingCopy(values, OPENED, [], NONE, "amendment")).toEqual([]);
+    });
+  });
+  describe("rebaseValues", () => {
+    const LATEST: WorkingContent = {
+      ...OPENED,
+      property_values: {
+        specimen: [{ value: "Plasma", justification: null }],
+        method: [{ value: "Immunoassay", justification: "Common" }],
+      },
+    };
+
+    it("takes the latest content for every field the user left alone", () => {
+      const latest: WorkingContent = {
+        ...LATEST,
+        preferred_term: "Serum ferritin",
+        notes: "Edited elsewhere.",
+        synonyms: ["Serum ferritin", "Ferritin level"],
+      };
+
+      const values = rebaseValues(seeded(), OPENED, latest);
+
+      expect(values.preferredTerm).toBe("Serum ferritin");
+      expect(values.notes).toBe("Edited elsewhere.");
+      expect(values.names.map((row) => row.term)).toEqual([
+        "Serum ferritin",
+        "Ferritin level",
+      ]);
+      expect(values.slots.specimen[0].value).toBe("Plasma");
+    });
+
+    it("keeps the property the user changed and takes the other from the latest content", () => {
+      const mine = seeded();
+      mine.slots.method = [{ ...mine.slots.method[0], value: "Chemiluminescence" }];
+
+      const values = rebaseValues(mine, OPENED, LATEST);
+      const body = workingCopyChanges(values, LATEST, NONE, "new_test");
+
+      expect(body.property_values).toEqual({
+        specimen: [{ value: "Plasma", justification: null }],
+        method: [{ value: "Chemiluminescence", justification: "Common" }],
+      });
+    });
+
+    it("lets the user's version win where both changed the same property", () => {
+      const mine = seeded();
+      mine.slots.specimen = [{ ...mine.slots.specimen[0], value: "Urine" }];
+
+      const values = rebaseValues(mine, OPENED, LATEST);
+
+      expect(values.slots.specimen[0].value).toBe("Urine");
+    });
+
+    it("merges the other names, keeping both people's additions and the user's removals", () => {
+      const base: WorkingContent = { ...OPENED, synonyms: ["A", "B", "C"] };
+      const mine = { ...valuesFromContent(base) };
+      mine.names = mine.names.filter((row) => row.term !== "B");
+      mine.names = [...mine.names, { id: "fixture-1", term: "Mine" }];
+
+      const values = rebaseValues(mine, base, {
+        ...base,
+        synonyms: ["A", "B", "C", "Theirs"],
+      });
+
+      expect(values.names.map((row) => row.term)).toEqual(["A", "C", "Theirs", "Mine"]);
+    });
+
+    it("does not add a name twice when both people added it", () => {
+      const mine = seeded();
+      mine.names = [...mine.names, { id: "fixture-1", term: "Same" }];
+
+      const values = rebaseValues(mine, OPENED, {
+        ...OPENED,
+        synonyms: ["Serum ferritin", "same"],
+      });
+
+      expect(values.names.map((row) => row.term)).toEqual(["Serum ferritin", "same"]);
+    });
+
+    it("leaves the picked code and the text in the names box alone", () => {
+      const mine = { ...seeded(), code: "0391483002", nameDraft: "Half typed" };
+
+      const values = rebaseValues(mine, OPENED, LATEST);
+
+      expect(values.code).toBe("0391483002");
+      expect(values.nameDraft).toBe("Half typed");
     });
   });
 });

@@ -12,28 +12,52 @@ import { FIELD_IDS, unresolvedCodeMessage } from "./form-state.ts";
  * without a code, which an editor of an existing entry has no reason to say.
  * The code is sent only once the server has named it, and never typed in
  * full by the user (FR-06).
+ *
+ * A reviewer editing a working copy passes the `current` code. It is shown as it
+ * stands, with no lookup, and the user can pick another. A code cannot be cleared
+ * once a submission holds one, so the way back from a pick is to keep the current
+ * code, and the wording says so.
  */
 
 const OUTAGE_NOTE = "You can still send the rest of this form without a code.";
+const OUTAGE_NOTE_KEEPING = "You can still save the other changes.";
 
 export function SubmissionCodeField({
   selection,
   error,
+  current,
   onPick,
   onClear,
 }: {
   selection: CodeSelection;
   error?: string;
+  current?: { code: string; fsn: string | null };
   onPick: (code: string) => void;
   onClear: () => void;
 }) {
+  const keeping = current !== undefined;
+  const clearLabel = keeping ? "Keep the current code" : "Clear the code";
   return (
     <div className="flex flex-col gap-3">
+      {current !== undefined && selection.status === "none" && (
+        <dl className="m-0 grid grid-cols-[max-content_1fr] gap-x-6 gap-y-1">
+          <dt className="text-[var(--color-text-muted)]">Current code</dt>
+          <dd className="m-0">
+            <CodeChip code={current.code} />
+          </dd>
+          {current.fsn === null ? null : (
+            <>
+              <dt className="text-[var(--color-text-muted)]">Fully specified name</dt>
+              <dd className="m-0">{current.fsn}</dd>
+            </>
+          )}
+        </dl>
+      )}
       <ProcedurePicker
         id={FIELD_IDS.snomed_code}
-        label="SNOMED CT code"
+        label={keeping ? "Choose a different SNOMED CT code" : "SNOMED CT code"}
         error={error}
-        outageNote={OUTAGE_NOTE}
+        outageNote={keeping ? OUTAGE_NOTE_KEEPING : OUTAGE_NOTE}
         onPick={onPick}
       />
       {selection.status === "checking" && (
@@ -41,10 +65,10 @@ export function SubmissionCodeField({
       )}
       {selection.status === "unresolved" && (
         <div className="flex flex-col gap-2">
-          <p className="m-0">{unresolvedCodeMessage(selection)}</p>
+          <p className="m-0">{unresolvedCodeMessage(selection, keeping)}</p>
           <div>
             <Button type="button" variant="secondary" onClick={onClear}>
-              Clear the code
+              {clearLabel}
             </Button>
           </div>
         </div>
@@ -63,7 +87,7 @@ export function SubmissionCodeField({
           </dl>
           <div>
             <Button type="button" variant="secondary" onClick={onClear}>
-              Clear the code
+              {clearLabel}
             </Button>
           </div>
         </div>

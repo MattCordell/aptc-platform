@@ -508,6 +508,36 @@ describe("TriageSubmission approval (FR-28, FR-35)", () => {
     await expectNoA11yViolations(container);
   });
 
+  it("names the term the working copy gives a new entry, and keeps the heading's term for the submission", async () => {
+    stubApi([
+      detailRoute({
+        ...READY,
+        working_copy: { preferred_term: "Serum ferritin level" },
+      }),
+    ]);
+    const { container } = renderPanel();
+    const dialog = await openDialog("Approve");
+
+    expect(
+      within(dialog).getByText(
+        "Approve Ferritin level. Approving creates Serum ferritin level as a new active entry in the catalogue.",
+      ),
+    ).toBeVisible();
+    await expectNoA11yViolations(container);
+  });
+
+  it("names the submitted term while no working copy exists", async () => {
+    stubApi([detailRoute({ ...READY, working_copy: null })]);
+    renderPanel();
+    const dialog = await openDialog("Approve");
+
+    expect(
+      within(dialog).getByText(
+        "Approve Ferritin level. Approving creates Ferritin level as a new active entry in the catalogue.",
+      ),
+    ).toBeVisible();
+  });
+
   it("names the entry an amendment changes", async () => {
     stubApi([
       detailRoute({ ...READY, kind: "amendment", entry_business_key: "NPTC-000247" }),

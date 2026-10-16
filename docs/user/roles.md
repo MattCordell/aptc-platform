@@ -31,6 +31,8 @@ shipped:
 
 - **[Triaging a submission](triaging-a-submission.md)** — moving a submission through Triage,
   review and rejection, with a reason the submitter can read.
+- **[Editing a submission](editing-a-submission.md)** — changing a submission's content during
+  triage, with a reason. The submitter's original stays on the page.
 
 An Administrator cannot withdraw a submission from the screen yet, even their own.
 
@@ -87,6 +89,8 @@ these capabilities that a Member lacks:
 - **[Triaging a submission](triaging-a-submission.md)** — the **Triage** panel on a
   submission's page, with a reason the submitter can read in
   [History](reading-a-submission.md#history).
+- **[Editing a submission](editing-a-submission.md)** — the **Edit** button on a submission's
+  page, with a reason that goes to the audit log.
 - **[Seeing who registered interest](reading-a-submission.md#see-who-registered-interest)**
   on a submission's page, with the organisations they gave.
 - **[Seeing who sent a submission](reading-a-submission.md#the-details-panel)** — the

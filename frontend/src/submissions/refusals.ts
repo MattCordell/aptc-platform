@@ -30,11 +30,15 @@ export const TERMS_MESSAGE =
 const FALLBACK_MESSAGE =
   "The test could not be submitted. Check your connection and try again, or contact an administrator if the problem persists.";
 
-/** `fallback` is the sentence for a refusal that carries none, worded for what was sent. */
+/**
+ * `fallback` is the sentence for a refusal that carries none, worded for what was sent.
+ * `codeUnavailable` is the sentence for a code the terminology server could not check.
+ */
 export function readRefusal(
   error: unknown,
   submittedIndexes: Record<string, number[]>,
   fallback: string = FALLBACK_MESSAGE,
+  codeUnavailable: string = CODE_UNAVAILABLE_MESSAGE,
 ): Outcome {
   const duplicates = asDuplicateMatches(error);
   if (duplicates !== null) {
@@ -57,7 +61,7 @@ export function readRefusal(
       fieldErrors: [
         {
           fieldId: FIELD_IDS[field.field],
-          message: outage ? CODE_UNAVAILABLE_MESSAGE : field.detail,
+          message: outage ? codeUnavailable : field.detail,
         },
       ],
       message: null,

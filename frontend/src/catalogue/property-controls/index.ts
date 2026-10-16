@@ -3,6 +3,7 @@ export {
   groupFieldId,
   isEmptySlotValue,
   newSlotId,
+  sameSlotValue,
   slotFieldId,
   slotValue,
   submittedSlotIndexes,

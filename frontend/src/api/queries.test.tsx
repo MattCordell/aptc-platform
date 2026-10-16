@@ -22,6 +22,7 @@ import {
   useCreateProperty,
   useDatatypes,
   useDeprecateProperty,
+  useEditWorkingCopy,
   useEntriesList,
   useEntryBindings,
   useEntryByCode,
@@ -1174,6 +1175,142 @@ describe("useApproveSubmission (FR-28, FR-35)", () => {
       expect(refusalDetail(result.current.write.error)).toBe(refusal.detail);
       expect(calls.filter((call) => call.method === "GET")).toHaveLength(1);
       expect(result.current.read.data?.state).toBe("Ready for approval");
+    },
+  );
+});
+
+describe("useEditWorkingCopy (FR-23)", () => {
+  const ID = "0b8a5c7e-6a43-4f56-9d1b-2f4f5a4e1c16";
+  const DETAIL = `/api/v1/submissions/${ID}`;
+  const PATCH = `${DETAIL}/working-copy`;
+  const detail = {
+    id: ID,
+    preferred_term: "Ferritin",
+    state: "Triage",
+    row_version: 3,
+    working_copy: null,
+  };
+  const BODY = {
+    preferred_term: "Serum ferritin",
+    reason: "Matches the pathology provider's wording.",
+    expected_row_version: 3,
+  };
+  const answer = {
+    preferred_term: "Serum ferritin",
+    synonyms: [],
+    snomed_code: null,
+    snomed_fsn: null,
+    property_values: {},
+    notes: null,
+    label_provenance: {},
+    submission_id: ID,
+    row_version: 4,
+  };
+
+  function sharedClientWrapper() {
+    const queryClient = createQueryClient();
+    const Wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>
+        <AuthContext.Provider value={AUTH}>{children}</AuthContext.Provider>
+      </QueryClientProvider>
+    );
+    return { Wrapper, queryClient };
+  }
+
+  it("sends the partial body, then reads the detail and marks the list stale", async () => {
+    const calls = stubApi([
+      { method: "GET", path: DETAIL, status: 200, body: detail },
+      { method: "PATCH", path: PATCH, status: 200, body: { ...answer, changed: true } },
+    ]);
+    const { Wrapper, queryClient } = sharedClientWrapper();
+    const listKey = ["api", "/api/v1/submissions", {}];
+    queryClient.setQueryData(listKey, { items: [] });
+    const { result } = renderHook(
+      () => ({ read: useSubmissionDetail(ID), write: useEditWorkingCopy(ID) }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.read.isSuccess).toBe(true));
+
+    result.current.write.mutate(BODY);
+
+    await waitFor(() => expect(result.current.write.isSuccess).toBe(true));
+    expect(calls.find((call) => call.method === "PATCH")?.body).toEqual(BODY);
+    await waitFor(() =>
+      expect(calls.filter((call) => call.method === "GET")).toHaveLength(2),
+    );
+    expect(queryClient.getQueryState(listKey)?.isInvalidated).toBe(true);
+  });
+
+  it("reads nothing again when the edit changed nothing", async () => {
+    const calls = stubApi([
+      { method: "GET", path: DETAIL, status: 200, body: detail },
+      { method: "PATCH", path: PATCH, status: 200, body: { ...answer, changed: false } },
+    ]);
+    const { Wrapper, queryClient } = sharedClientWrapper();
+    const listKey = ["api", "/api/v1/submissions", {}];
+    queryClient.setQueryData(listKey, { items: [] });
+    const { result } = renderHook(
+      () => ({ read: useSubmissionDetail(ID), write: useEditWorkingCopy(ID) }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.read.isSuccess).toBe(true));
+
+    result.current.write.mutate(BODY);
+
+    await waitFor(() => expect(result.current.write.isSuccess).toBe(true));
+    expect(calls.filter((call) => call.method === "GET")).toHaveLength(1);
+    expect(queryClient.getQueryState(listKey)?.isInvalidated).toBe(false);
+  });
+
+  it.each([
+    [409, { detail: "This submission changed.", current_row_version: 5 }],
+    [409, { detail: "The submission is not in a state that can be edited." }],
+  ])(
+    "re-reads the detail on a 409 and passes the refusal on",
+    async (status, refusal) => {
+      const calls = stubApi([
+        { method: "GET", path: DETAIL, status: 200, body: detail },
+        { method: "PATCH", path: PATCH, status, body: refusal },
+      ]);
+      const { Wrapper } = sharedClientWrapper();
+      const { result } = renderHook(
+        () => ({ read: useSubmissionDetail(ID), write: useEditWorkingCopy(ID) }),
+        { wrapper: Wrapper },
+      );
+      await waitFor(() => expect(result.current.read.isSuccess).toBe(true));
+
+      result.current.write.mutate(BODY);
+
+      await waitFor(() => expect(result.current.write.isError).toBe(true));
+      expect(refusalDetail(result.current.write.error)).toBe(refusal.detail);
+      await waitFor(() =>
+        expect(calls.filter((call) => call.method === "GET").length).toBeGreaterThan(1),
+      );
+    },
+  );
+
+  it.each([
+    [403, { detail: "You may not edit this submission." }],
+    [422, { detail: "The reason is blank.", field: "reason" }],
+  ])(
+    "leaves the detail alone on a %s and passes the refusal on",
+    async (status, refusal) => {
+      const calls = stubApi([
+        { method: "GET", path: DETAIL, status: 200, body: detail },
+        { method: "PATCH", path: PATCH, status, body: refusal },
+      ]);
+      const { Wrapper } = sharedClientWrapper();
+      const { result } = renderHook(
+        () => ({ read: useSubmissionDetail(ID), write: useEditWorkingCopy(ID) }),
+        { wrapper: Wrapper },
+      );
+      await waitFor(() => expect(result.current.read.isSuccess).toBe(true));
+
+      result.current.write.mutate(BODY);
+
+      await waitFor(() => expect(result.current.write.isError).toBe(true));
+      expect(refusalDetail(result.current.write.error)).toBe(refusal.detail);
+      expect(calls.filter((call) => call.method === "GET")).toHaveLength(1);
     },
   );
 });

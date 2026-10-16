@@ -1348,9 +1348,10 @@ type DuplicateCheckBody = components["schemas"]["DuplicateCheckRequest"];
  * Its own query key, not `usePropertyDefinitions`' list, so an admin editing a
  * definition and a submitter filling the form never share a cache entry. The
  * server decides which properties are in scope and which are required for
- * submission, so no property key is named here (FR-09).
+ * submission, so no property key is named here (FR-09). A screen that has no use for
+ * them, such as an amendment's edit form, passes `false` and the request is not sent.
  */
-export function useSubmissionPropertyDefinitions() {
+export function useSubmissionPropertyDefinitions(enabled = true) {
   const client = useApiClient();
   return useQuery({
     queryKey: ["api", "/api/v1/registry/properties", { scope: "submission" }],
@@ -1361,6 +1362,7 @@ export function useSubmissionPropertyDefinitions() {
           signal,
         }),
       ),
+    enabled,
   });
 }
 
@@ -1696,6 +1698,46 @@ export function useApproveSubmission(submissionId: string) {
       alsoInvalidate: isCatalogueQuery,
     },
   );
+}
+
+type WorkingCopyBody = components["schemas"]["WorkingCopyRequest"];
+
+/**
+ * A reviewer edits a submission's working copy (FR-23). An edit is not a change of
+ * state, so the answer carries no state to cache: the detail is read again, which
+ * brings the new `row_version` and `working_copy`, and the list's pages are marked
+ * stale. An edit that changed nothing wrote nothing, so nothing is read again. Any
+ * 409 re-reads the detail, because a stale version and a state that is no longer
+ * editable both mean the page that offered the edit was out of date.
+ */
+export function useEditWorkingCopy(submissionId: string) {
+  const client = useApiClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: WorkingCopyBody) =>
+      unwrap(
+        await client.PATCH("/api/v1/submissions/{submission_id}/working-copy", {
+          params: { path: { submission_id: submissionId } },
+          body,
+        }),
+      ),
+    onSuccess: (answer) =>
+      answer.changed
+        ? Promise.all([
+            queryClient.invalidateQueries({
+              queryKey: submissionDetailKey(submissionId),
+            }),
+            queryClient.invalidateQueries({ queryKey: SUBMISSIONS_LIST_KEY }),
+          ])
+        : undefined,
+    onError: (error: unknown) => {
+      if (error instanceof ApiError && error.status === 409) {
+        void queryClient.invalidateQueries({
+          queryKey: submissionDetailKey(submissionId),
+        });
+      }
+    },
+  });
 }
 
 /**

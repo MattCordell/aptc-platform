@@ -5,8 +5,10 @@ explains what the page for one submission shows, how you register interest in it
 reviewers see who registered, and how a submitter withdraws their own submission. You must be
 signed in to open it.
 
-The page also lists the submission's history, and gives reviewers a panel to move it on. Those
-are covered in [History](#history) and in [Triaging a submission](triaging-a-submission.md).
+The page also lists the submission's history, and gives reviewers a panel to move it on and an
+**Edit** button to change its content. Those are covered in [History](#history),
+[Triaging a submission](triaging-a-submission.md) and
+[Editing a submission](editing-a-submission.md).
 
 ## Open a submission
 
@@ -31,6 +33,11 @@ The heading is the submission's term. The main column shows what the submitter s
 - **Supporting reference**: the link the submitter gave. Below it, the page says when the
   server checked the link and which HTTP status the page answered with. It says so plainly
   when there is no reference, or when the link has not been checked.
+
+A Reviewer or an Administrator can change a submission's content during triage. The page then
+shows the changed content, and beneath each changed field a line **Changed from the original:**
+with what the submitter sent. Everyone else sees what the submitter sent. See
+[Editing a submission](editing-a-submission.md).
 
 The reference link opens the submitter's own page. The check shows that the page answered,
 not that it supports the proposal. Some sites refuse automated visits and answer with status
