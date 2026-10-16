@@ -927,8 +927,8 @@ export interface paths {
         put?: never;
         /**
          * Withdraw your own submission
-         * @description Moves a `Submitted` or `Triage` submission to `Withdrawn`, with the reason, in one
-         *     transaction with its transition row and audit event.
+         * @description Moves a `Submitted`, `Triage` or `Under review` submission to `Withdrawn`, with the reason,
+         *     in one transaction with its transition row and audit event.
          */
         post: operations["withdraw_submission_api_v1_submissions__submission_id__withdraw_post"];
         delete?: never;
@@ -7512,7 +7512,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description The caller holds none of the permissions any move needs, or lacks the one this move needs: `submission.transition.review` for a review move, `submission.withdraw.own` for the submitter's own withdrawal from `Submitted` or `Triage`, and `submission.withdraw.any` for any other withdrawal. Or the caller has not accepted the current terms of use (the body then carries a `code` that says so). The current terms of use have not been accepted. The body carries `code: terms_acceptance_required`. Accept them with `POST /auth/terms/acceptance` and try again. Never carries `WWW-Authenticate`. */
+            /** @description The caller holds none of the permissions any move needs, or lacks the one this move needs: `submission.transition.review` for a review move, `submission.withdraw.own` for the submitter's own withdrawal from `Submitted`, `Triage` or `Under review`, and `submission.withdraw.any` for any other withdrawal. Or the caller has not accepted the current terms of use (the body then carries a `code` that says so). The current terms of use have not been accepted. The body carries `code: terms_acceptance_required`. Accept them with `POST /auth/terms/acceptance` and try again. Never carries `WWW-Authenticate`. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -7837,7 +7837,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description The submission cannot be withdrawn from its current state: only a submission that is `Submitted` or in `Triage` can be, so a closed one is refused and a second withdrawal is too. Or `expected_row_version` is not the current one, because someone else changed the submission after it was read; the body then carries `current_row_version`. A stale `expected_row_version` sent after someone else has already withdrawn the submission gets the first reason, not the second, so a client should treat both as "reload the submission". Nothing was changed. */
+            /** @description The submission cannot be withdrawn from its current state: only a submission that is `Submitted`, in `Triage` or `Under review` can be withdrawn by its submitter, so a closed one is refused and a second withdrawal is too. Or `expected_row_version` is not the current one, because someone else changed the submission after it was read; the body then carries `current_row_version`. A stale `expected_row_version` sent after someone else has already withdrawn the submission gets the first reason, not the second, so a client should treat both as "reload the submission". Nothing was changed. */
             409: {
                 headers: {
                     [name: string]: unknown;

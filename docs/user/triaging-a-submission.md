@@ -23,9 +23,14 @@ buttons on the same submission.
 | Submitted | **Start triage** | Triage |
 | Triage | **Start review** | Under review |
 | Triage | **Reject** | Rejected |
+| Under review | **Reject** | Rejected |
+| Ready for approval | **Reject** | Rejected |
 | Rejected | **Reopen** | Triage |
 | Under review | **Mark ready for approval** | Ready for approval |
 | Awaiting terminology | **Resume review** | Under review |
+
+**Reject** is available from Triage, Under review and Ready for approval, so no state before
+approval is a dead end. A rejected submission can be reopened to Triage, and it keeps its history.
 
 **Resume review** is for a request for a SNOMED CT code that the authority declined, or that
 nobody is pursuing. The record of the request stays.

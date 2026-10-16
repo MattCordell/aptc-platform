@@ -583,7 +583,8 @@ Two further facts already established in Appendix A reinforce this. The classifi
 
 State rules:
 
-- `Withdrawn` MUST be reachable from `Approved` and `Published`, and also by the original submitter from `Submitted` or `Triage`. The brief presents it as a terminal state at the end of a linear chain; in practice withdrawal is something that happens to content already in circulation, and that is the case that matters.
+- `Withdrawn` MUST be reachable from `Approved` and `Published`, and also by the original submitter from `Submitted`, `Triage` or `Under review`. The brief presents it as a terminal state at the end of a linear chain; in practice withdrawal is something that happens to content already in circulation, and that is the case that matters.
+- `Rejected` MUST be reachable by a reviewer from `Triage`, `Under review` and `Ready for approval`, so no state before approval is a dead end.
 - `Rejected` MUST be reopenable. Rejections are sometimes wrong, and circumstances change. A rejected submission that is reopened retains its original history rather than being resubmitted as a new record.
 - Every transition MUST record actor, timestamp, and a mandatory reason note. No silent transitions.
 - Transitions MUST be validated server-side against the permitted state graph. A client that requests an illegal transition receives an error, not a best-effort interpretation.
