@@ -1459,6 +1459,11 @@ type InterestResponse = components["schemas"]["InterestResponse"];
 type WithdrawBody = components["schemas"]["WithdrawRequest"];
 type TransitionBody = components["schemas"]["TransitionRequest"];
 type TransitionAnswer = components["schemas"]["SubmissionTransitionResponse"];
+type ApproveBody = components["schemas"]["ApproveRequest"];
+type ApproveAnswer = components["schemas"]["ApproveResponse"];
+
+/** The detail fields a state change may write besides the three every one writes. */
+type CachedByAnswer = "created_entry_business_key";
 
 /** What `useSubmissionDetail` caches. The cache update below picks its two
  * fields from this type, because an object spread is not checked for a field
@@ -1563,17 +1568,19 @@ export function useSubmissionTransitions(submissionId: string) {
  * submission's history are marked stale. Any 409 re-reads the detail: a stale
  * version and a state that has already moved both mean the page that offered
  * the action was out of date. A 422 for the reason is left to the caller,
- * because the page it describes has not changed.
+ * because the page it describes has not changed. A write whose answer carries
+ * more of the detail passes `alsoCache` to pick those fields out.
  */
-function useStateChangeMutation<Body>(
+function useStateChangeMutation<Body, Answer extends TransitionAnswer = TransitionAnswer>(
   submissionId: string,
-  write: (client: ApiClient, body: Body) => Promise<TransitionAnswer>,
+  write: (client: ApiClient, body: Body) => Promise<Answer>,
+  alsoCache?: (answer: Answer) => Partial<Pick<SubmissionDetailAnswer, CachedByAnswer>>,
 ) {
   const client = useApiClient();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: Body) => write(client, body),
-    onSuccess: (answer: TransitionAnswer) => {
+    onSuccess: (answer: Answer) => {
       const transition: Pick<
         SubmissionDetailAnswer,
         "state" | "row_version" | "available_transitions"
@@ -1584,7 +1591,10 @@ function useStateChangeMutation<Body>(
       };
       queryClient.setQueryData<SubmissionDetailAnswer>(
         submissionDetailKey(submissionId),
-        (detail) => (detail === undefined ? undefined : { ...detail, ...transition }),
+        (detail) =>
+          detail === undefined
+            ? undefined
+            : { ...detail, ...transition, ...alsoCache?.(answer) },
       );
       return Promise.all([
         queryClient.invalidateQueries({ queryKey: SUBMISSIONS_LIST_KEY }),
@@ -1633,6 +1643,28 @@ export function useTransitionSubmission(submissionId: string) {
         body,
       }),
     ),
+  );
+}
+
+/**
+ * An Administrator approves a submission (FR-28, FR-35). The server creates the
+ * entry for a new test or amends the named one, and the reason becomes its
+ * changelog note (FR-37). The answer names the entry, so a new test's
+ * `created_entry_business_key` goes into the cached detail with the new state
+ * and the page links to the entry without a reload.
+ */
+export function useApproveSubmission(submissionId: string) {
+  return useStateChangeMutation(
+    submissionId,
+    async (client, body: ApproveBody): Promise<ApproveAnswer> =>
+      unwrap(
+        await client.POST("/api/v1/submissions/{submission_id}/approve", {
+          params: { path: { submission_id: submissionId } },
+          body,
+        }),
+      ),
+    (answer) =>
+      answer.entry_created ? { created_entry_business_key: answer.business_key } : {},
   );
 }
 
