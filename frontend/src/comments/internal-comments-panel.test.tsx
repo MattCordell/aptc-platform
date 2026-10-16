@@ -261,16 +261,14 @@ describe.each(TARGETS)("InternalCommentsPanel on $name", ({ target, path }) => {
   });
 
   describe("posting", () => {
-    it("sends the text, empties the box and announces it, then shows the new comment", async () => {
-      const calls = stubApi(
-        [STAFF, { method: "POST", path, status: 201, body: comment() }],
-        {
-          vary: (call, priorSameCalls) =>
-            call.method === "GET" && call.path === path
-              ? listRoute(path, priorSameCalls === 0 ? [] : [comment()])
-              : null,
-        },
-      );
+    // Every read answers with the list as it was before the post: the server can
+    // still be committing when the browser reads straight after its answer.
+    it("sends the text, empties the box, announces it and shows the new comment even if a read right after still answers with the old list", async () => {
+      const calls = stubApi([
+        STAFF,
+        listRoute(path, []),
+        { method: "POST", path, status: 201, body: comment() },
+      ]);
       const { container } = renderPanel(target);
 
       const box = await screen.findByLabelText("Add an internal comment");
@@ -389,24 +387,18 @@ describe.each(TARGETS)("InternalCommentsPanel on $name", ({ target, path }) => {
       await expectNoA11yViolations(dialog);
     });
 
-    it("sends the reason, closes the dialog, announces it and marks the comment withdrawn", async () => {
-      const calls = stubApi(
-        [
-          STAFF,
-          {
-            method: "POST",
-            path: `${path}/${COMMENT_ID}/withdraw`,
-            status: 200,
-            body: WITHDRAWN,
-          },
-        ],
+    // Every read answers with the standing comment, as for the post above.
+    it("sends the reason, closes the dialog, announces it and marks the comment withdrawn even if a read right after still answers with the standing comment", async () => {
+      const calls = stubApi([
+        STAFF,
+        listRoute(path, [comment()]),
         {
-          vary: (call, priorSameCalls) =>
-            call.method === "GET" && call.path === path
-              ? listRoute(path, [priorSameCalls === 0 ? comment() : WITHDRAWN])
-              : null,
+          method: "POST",
+          path: `${path}/${COMMENT_ID}/withdraw`,
+          status: 200,
+          body: WITHDRAWN,
         },
-      );
+      ]);
       const { container } = renderPanel(target);
 
       const dialog = await openWithdrawDialog();

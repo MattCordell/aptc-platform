@@ -1783,6 +1783,7 @@ export type CommentTarget =
   { kind: "submission"; id: string } | { kind: "entry"; businessKey: string };
 
 type CommentAnswer = components["schemas"]["CommentResponse"];
+type CommentListAnswer = components["schemas"]["CommentListResponse"];
 type PostCommentBody = components["schemas"]["PostCommentRequest"];
 
 function commentTargetId(target: CommentTarget): string {
@@ -1823,8 +1824,12 @@ export function useInternalComments(target: CommentTarget, enabled: boolean) {
 
 /**
  * A comment write leaves its submission or entry unchanged, so only the
- * comment list is re-read. A 409 is a second withdrawal of one comment, which
- * means the list on screen was out of date, so it is re-read too.
+ * comment list changes. The answer is the one comment as it now stands, so it
+ * goes straight into the cached list. The list is not re-read after a success,
+ * because the server commits after it sends the answer and a read sent at once
+ * can still return the list as it was. A list that is not cached yet is read
+ * instead. A 409 is a second withdrawal of one comment, which means the list on
+ * screen was out of date, so it is re-read.
  */
 function useCommentMutation<Variables>(
   target: CommentTarget,
@@ -1832,12 +1837,28 @@ function useCommentMutation<Variables>(
 ) {
   const client = useApiClient();
   const queryClient = useQueryClient();
-  const refresh = () => queryClient.invalidateQueries({ queryKey: commentsKey(target) });
+  const key = commentsKey(target);
+  const reread = () => queryClient.invalidateQueries({ queryKey: key });
   return useMutation({
     mutationFn: (variables: Variables) => write(client, variables),
-    onSuccess: refresh,
+    onSuccess: async (answer) => {
+      // A read that started before the write would put the old list back.
+      await queryClient.cancelQueries({ queryKey: key });
+      const cached = queryClient.getQueryData<CommentListAnswer>(key);
+      if (cached === undefined) {
+        return reread();
+      }
+      const known = cached.comments.some((comment) => comment.id === answer.id);
+      queryClient.setQueryData<CommentListAnswer>(key, {
+        comments: known
+          ? cached.comments.map((comment) =>
+              comment.id === answer.id ? answer : comment,
+            )
+          : [...cached.comments, answer],
+      });
+    },
     onError: (error) =>
-      error instanceof ApiError && error.status === 409 ? refresh() : undefined,
+      error instanceof ApiError && error.status === 409 ? reread() : undefined,
   });
 }
 

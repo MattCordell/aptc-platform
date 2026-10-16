@@ -637,7 +637,7 @@ describe("internal comment hooks (FR-95)", () => {
       expect(calls).toHaveLength(0);
     });
 
-    it("posts the body, then reads the list again", async () => {
+    it("posts the body, and adds the answer to the cached list without reading it again", async () => {
       const calls = stubApi([
         { method: "GET", path, status: 200, body: { comments: [] } },
         { method: "POST", path, status: 201, body: COMMENT },
@@ -660,18 +660,61 @@ describe("internal comment hooks (FR-95)", () => {
       expect(post?.path).toBe(path);
       expect(post?.body).toEqual({ body: "Check the specimen." });
       await waitFor(() =>
-        expect(calls.filter((call) => call.method === "GET")).toHaveLength(2),
+        expect(result.current.list.data?.comments.map((c) => c.id)).toEqual([COMMENT_ID]),
       );
+      // The server may not have committed yet, so a read now could miss the write.
+      expect(calls.filter((call) => call.method === "GET")).toHaveLength(1);
     });
 
-    it("withdraws one comment with its reason, then reads the list again", async () => {
+    it("reads the list when a write is answered while the list holds no data", async () => {
+      const calls = stubApi([{ method: "POST", path, status: 201, body: COMMENT }], {
+        vary: (call, priorSameCalls) =>
+          call.method === "GET" && call.path === path
+            ? {
+                method: "GET",
+                path,
+                status: priorSameCalls === 0 ? 500 : 200,
+                body: priorSameCalls === 0 ? { detail: "boom" } : { comments: [COMMENT] },
+              }
+            : null,
+      });
+      const { Wrapper } = sharedClientWrapper();
+
+      const { result } = renderHook(
+        () => ({
+          list: useInternalComments(target, true),
+          post: usePostInternalComment(target),
+        }),
+        { wrapper: Wrapper },
+      );
+      await waitFor(() => expect(result.current.list.isError).toBe(true));
+      await act(async () => {
+        await result.current.post.mutateAsync({ body: "Check the specimen." });
+      });
+
+      await waitFor(() => expect(result.current.list.data?.comments).toHaveLength(1));
+      expect(calls.filter((call) => call.method === "GET")).toHaveLength(2);
+    });
+
+    it("withdraws one comment with its reason, and replaces it in the cached list with the answer", async () => {
+      const other = {
+        ...COMMENT,
+        id: "0b8a5c7e-6a43-4f56-9d1b-2f4f5a4e1c22",
+        body: "Other.",
+      };
+      const withdrawn = {
+        ...COMMENT,
+        withdrawn_at: "2026-10-02T09:00:00Z",
+        withdrawn_by: PERSON,
+        withdrawn_reason: "Wrong submission.",
+      };
       const calls = stubApi([
-        { method: "GET", path, status: 200, body: { comments: [COMMENT] } },
+        { method: "GET", path, status: 200, body: { comments: [COMMENT, other] } },
         {
           method: "POST",
           path: `${path}/${COMMENT_ID}/withdraw`,
           status: 200,
-          body: COMMENT,
+          body: withdrawn,
         },
       ]);
       const { Wrapper } = sharedClientWrapper();
@@ -695,8 +738,14 @@ describe("internal comment hooks (FR-95)", () => {
       expect(withdraw?.path).toBe(`${path}/${COMMENT_ID}/withdraw`);
       expect(withdraw?.body).toEqual({ reason: "Wrong submission." });
       await waitFor(() =>
-        expect(calls.filter((call) => call.method === "GET")).toHaveLength(2),
+        expect(
+          result.current.list.data?.comments.map((c) => [c.id, c.withdrawn_reason]),
+        ).toEqual([
+          [COMMENT_ID, "Wrong submission."],
+          [other.id, null],
+        ]),
       );
+      expect(calls.filter((call) => call.method === "GET")).toHaveLength(1);
     });
 
     it("reads the list again after a second withdrawal is refused, and throws the refusal", async () => {
