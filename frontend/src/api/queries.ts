@@ -1,5 +1,6 @@
 import {
   keepPreviousData,
+  type Query,
   type QueryClient,
   useMutation,
   useQueries,
@@ -1569,12 +1570,20 @@ export function useSubmissionTransitions(submissionId: string) {
  * version and a state that has already moved both mean the page that offered
  * the action was out of date. A 422 for the reason is left to the caller,
  * because the page it describes has not changed. A write whose answer carries
- * more of the detail passes `alsoCache` to pick those fields out.
+ * more of the detail passes `alsoCache` to pick those fields out, and a write
+ * that changes something other than the submission passes `alsoInvalidate` for
+ * the reads that now show it out of date.
  */
 function useStateChangeMutation<Body, Answer extends TransitionAnswer = TransitionAnswer>(
   submissionId: string,
   write: (client: ApiClient, body: Body) => Promise<Answer>,
-  alsoCache?: (answer: Answer) => Partial<Pick<SubmissionDetailAnswer, CachedByAnswer>>,
+  {
+    alsoCache,
+    alsoInvalidate,
+  }: {
+    alsoCache?: (answer: Answer) => Partial<Pick<SubmissionDetailAnswer, CachedByAnswer>>;
+    alsoInvalidate?: (query: Query) => boolean;
+  } = {},
 ) {
   const client = useApiClient();
   const queryClient = useQueryClient();
@@ -1596,6 +1605,10 @@ function useStateChangeMutation<Body, Answer extends TransitionAnswer = Transiti
             ? undefined
             : { ...detail, ...transition, ...alsoCache?.(answer) },
       );
+      if (alsoInvalidate !== undefined) {
+        // Not awaited: the dialog closes on the write, not on a catalogue refetch.
+        void queryClient.invalidateQueries({ predicate: alsoInvalidate });
+      }
       return Promise.all([
         queryClient.invalidateQueries({ queryKey: SUBMISSIONS_LIST_KEY }),
         queryClient.invalidateQueries({
@@ -1647,11 +1660,25 @@ export function useTransitionSubmission(submissionId: string) {
 }
 
 /**
+ * Every cached catalogue read, whatever its entry, page or filter. An approval
+ * changes the catalogue, and no cache key says which reads show the entry, so
+ * none can be trusted until it is read again.
+ */
+function isCatalogueQuery(query: Query): boolean {
+  const [scope, path] = query.queryKey;
+  return (
+    scope === "api" && typeof path === "string" && path.startsWith("/api/v1/catalogue/")
+  );
+}
+
+/**
  * An Administrator approves a submission (FR-28, FR-35). The server creates the
  * entry for a new test or amends the named one, and the reason becomes its
  * changelog note (FR-37). The answer names the entry, so a new test's
  * `created_entry_business_key` goes into the cached detail with the new state
- * and the page links to the entry without a reload.
+ * and the page links to the entry without a reload. The catalogue reads are
+ * marked stale, so the entry the link opens is never one cached before the
+ * approval.
  */
 export function useApproveSubmission(submissionId: string) {
   return useStateChangeMutation(
@@ -1663,8 +1690,11 @@ export function useApproveSubmission(submissionId: string) {
           body,
         }),
       ),
-    (answer) =>
-      answer.entry_created ? { created_entry_business_key: answer.business_key } : {},
+    {
+      alsoCache: (answer) =>
+        answer.entry_created ? { created_entry_business_key: answer.business_key } : {},
+      alsoInvalidate: isCatalogueQuery,
+    },
   );
 }
 

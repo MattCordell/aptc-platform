@@ -533,7 +533,7 @@ describe("TriageSubmission approval (FR-28, FR-35)", () => {
     [
       "a kind the screen does not know",
       { kind: "merge", entry_business_key: null },
-      "Approving writes this submission to the catalogue.",
+      "Approving writes the submission to the catalogue.",
     ],
   ])("still words the effect for %s", async (_name, overrides, sentence) => {
     stubApi([detailRoute({ ...READY, ...overrides })]);

@@ -879,6 +879,28 @@ describe("useTransitionSubmission (FR-28, FR-81)", () => {
     },
   );
 
+  it("leaves the catalogue reads alone after a move that writes no entry", async () => {
+    stubApi([
+      {
+        method: "POST",
+        path: HISTORY,
+        status: 200,
+        body: { id: ID, state: "Rejected", row_version: 4, available_transitions: [] },
+      },
+    ]);
+    const { Wrapper, queryClient } = sharedClientWrapper();
+    const entryKey = ["api", "/api/v1/catalogue/entries/{business_key}", "NPTC-000123"];
+    queryClient.setQueryData(entryKey, {});
+    const { result } = renderHook(() => useTransitionSubmission(ID), {
+      wrapper: Wrapper,
+    });
+
+    result.current.mutate({ ...BODY, to_state: "Rejected" });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(queryClient.getQueryState(entryKey)?.isInvalidated).toBe(false);
+  });
+
   it.each([
     [
       "a stale version",
@@ -1060,6 +1082,38 @@ describe("useApproveSubmission (FR-28, FR-35)", () => {
     expect(
       queryClient.getQueryState(["api", "/api/v1/submissions", {}])?.isInvalidated,
     ).toBe(true);
+  });
+
+  it("marks every cached catalogue read stale, and leaves other reads alone", async () => {
+    stubApi([
+      {
+        method: "POST",
+        path: APPROVE,
+        status: 200,
+        body: { ...answer, entry_created: false },
+      },
+    ]);
+    const { Wrapper, queryClient } = sharedClientWrapper();
+    const catalogueKeys = [
+      ["api", "/api/v1/catalogue/entries/{business_key}", "NPTC-000123"],
+      ["api", "/api/v1/catalogue/entries/{business_key}/designations", "NPTC-000123"],
+      ["api", "/api/v1/catalogue/entries", {}],
+      ["api", "/api/v1/catalogue/search", { q: "ferritin" }],
+      ["api", "/api/v1/catalogue/admin/entries", {}],
+    ];
+    const otherKey = ["api", "/api/v1/registry/properties", {}];
+    for (const key of [...catalogueKeys, otherKey]) {
+      queryClient.setQueryData(key, {});
+    }
+    const { result } = renderHook(() => useApproveSubmission(ID), { wrapper: Wrapper });
+
+    result.current.mutate(BODY);
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    for (const key of catalogueKeys) {
+      expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true);
+    }
+    expect(queryClient.getQueryState(otherKey)?.isInvalidated).toBe(false);
   });
 
   it("re-reads the detail and the history on a 409 and passes the sentence on", async () => {

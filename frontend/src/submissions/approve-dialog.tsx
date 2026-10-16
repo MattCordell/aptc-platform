@@ -32,7 +32,8 @@ const NO_LONGER_OFFERED = "The platform no longer offers approval for this submi
 const FALLBACK_REFUSAL =
   "The submission could not be approved. Try again, or contact an administrator if the problem persists.";
 
-function effectOf(submission: Approvable): string {
+/** `fallback` words a kind the screen does not name, so no kind is left without a sentence. */
+function effectOf(submission: Approvable, fallback: string): string {
   if (submission.kind === "new_test") {
     return `Approving creates ${submission.preferred_term} as a new active entry in the catalogue.`;
   }
@@ -42,7 +43,7 @@ function effectOf(submission: Approvable): string {
       ? "Approving changes the catalogue entry this amendment names."
       : `Approving changes the catalogue entry ${entry}.`;
   }
-  return "Approving writes this submission to the catalogue.";
+  return fallback;
 }
 
 /**
@@ -67,12 +68,13 @@ export function ApproveDialog({
 }) {
   const approve = useApproveSubmission(submission.id);
   const approved = useRef<ApprovedEntry | null>(null);
+  const wording = moveWording(from, "Approved", "Approved");
   return (
     <TransitionDialog
-      title={moveWording(from, "Approved", "Approved").label}
+      title={wording.label}
       intro={
         <p>
-          Approve {submission.preferred_term}. {effectOf(submission)}
+          Approve {submission.preferred_term}. {effectOf(submission, wording.effect)}
         </p>
       }
       submitLabel="Confirm approval"
