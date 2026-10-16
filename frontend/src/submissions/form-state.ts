@@ -135,12 +135,23 @@ export function submittedIndexesByKey(
 export const CODE_UNAVAILABLE_MESSAGE =
   "The terminology server could not be reached, so the code could not be checked. Clear the code to send the form without one, or try again shortly.";
 
-/** Why a picked code cannot be sent, and what the user can do about it. */
+/** The same outage, worded for a form that already holds a code the user can keep. */
+export const CODE_UNAVAILABLE_KEEPING_MESSAGE =
+  "The terminology server could not be reached, so the new code could not be checked. Keep the current code to save the other changes, or try again shortly.";
+
+/**
+ * Why a picked code cannot be sent, and what the user can do about it. `keeping` is
+ * set where the form already holds a code, so the way out is to keep it.
+ */
 export function unresolvedCodeMessage(
   selection: Extract<CodeSelection, { status: "unresolved" }>,
+  keeping = false,
 ): string {
-  return selection.unavailable
-    ? CODE_UNAVAILABLE_MESSAGE
+  if (selection.unavailable) {
+    return keeping ? CODE_UNAVAILABLE_KEEPING_MESSAGE : CODE_UNAVAILABLE_MESSAGE;
+  }
+  return keeping
+    ? `${selection.message} Keep the current code to save the other changes.`
     : `${selection.message} Clear the code to send the form without one.`;
 }
 

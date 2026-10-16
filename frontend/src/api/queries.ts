@@ -1348,9 +1348,10 @@ type DuplicateCheckBody = components["schemas"]["DuplicateCheckRequest"];
  * Its own query key, not `usePropertyDefinitions`' list, so an admin editing a
  * definition and a submitter filling the form never share a cache entry. The
  * server decides which properties are in scope and which are required for
- * submission, so no property key is named here (FR-09).
+ * submission, so no property key is named here (FR-09). A screen that has no use for
+ * them, such as an amendment's edit form, passes `false` and the request is not sent.
  */
-export function useSubmissionPropertyDefinitions() {
+export function useSubmissionPropertyDefinitions(enabled = true) {
   const client = useApiClient();
   return useQuery({
     queryKey: ["api", "/api/v1/registry/properties", { scope: "submission" }],
@@ -1361,6 +1362,7 @@ export function useSubmissionPropertyDefinitions() {
           signal,
         }),
       ),
+    enabled,
   });
 }
 
