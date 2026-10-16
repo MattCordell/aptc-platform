@@ -16,7 +16,10 @@ export type Approvable = Pick<
   | "preferred_term"
   | "kind"
   | "entry_business_key"
->;
+> & {
+  /** Present only for a caller who may review. The approval writes this content, not the original. */
+  working_copy?: { preferred_term: string } | null;
+};
 
 /** The entry the approval wrote, as the server named it. */
 export interface ApprovedEntry {
@@ -35,7 +38,8 @@ const FALLBACK_REFUSAL =
 /** `fallback` words a kind the screen does not name, so no kind is left without a sentence. */
 function effectOf(submission: Approvable, fallback: string): string {
   if (submission.kind === "new_test") {
-    return `Approving creates ${submission.preferred_term} as a new active entry in the catalogue.`;
+    const term = submission.working_copy?.preferred_term ?? submission.preferred_term;
+    return `Approving creates ${term} as a new active entry in the catalogue.`;
   }
   if (submission.kind === "amendment") {
     const entry = submission.entry_business_key;
@@ -52,6 +56,10 @@ function effectOf(submission: Approvable, fallback: string): string {
  * one, and it says where the reason goes, because the reason becomes the
  * entry's changelog note (FR-37). The dialog applies no rule to the reason
  * itself: the server owns the note's rules and its refusal reaches the field.
+ *
+ * The first sentence names the submission as the page heading does. The effect
+ * names the working copy's term when a reviewer changed it, because that is the
+ * term the new entry takes.
  */
 export function ApproveDialog({
   submission,
