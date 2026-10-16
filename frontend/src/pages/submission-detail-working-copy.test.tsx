@@ -389,15 +389,18 @@ function stubEditing(
     then = [],
     after = {},
     base = {},
+    before = [],
   }: {
     then?: Route[];
     after?: Record<string, unknown>;
     base?: Record<string, unknown>;
+    /** Routes that answer ahead of the usual ones, to change one of them. */
+    before?: Route[];
   } = {},
 ): Calls {
   const answers = [first, ...then];
   const calls: Calls = stubApi(
-    [REVIEWER, DEFINITIONS, PROCEDURES, NEW_CONCEPT, detail(base)],
+    [...before, REVIEWER, DEFINITIONS, PROCEDURES, NEW_CONCEPT, detail(base)],
     {
       vary: (call, prior) => {
         if (call.method === "PATCH" && call.path === PATCH) {
@@ -732,6 +735,74 @@ describe("editing a new test's working copy (FR-23)", () => {
       await screen.findByText(/This submission can no longer be edited\./),
     ).toBeVisible();
     expect(writes(calls)).toHaveLength(1);
+  });
+
+  it("says the terminology server is down, and offers the current code back, when a picked code cannot be checked", async () => {
+    stubEditing(OK, {
+      before: [
+        {
+          method: "GET",
+          path: `/terminology/concepts/${NEW_CODE}`,
+          status: 503,
+          body: { detail: "The terminology server could not be reached." },
+        },
+      ],
+    });
+    const { user } = await openForm();
+
+    await user.type(screen.getByLabelText("Choose a different SNOMED CT code"), "micro");
+    await user.click(
+      await screen.findByRole(
+        "option",
+        { name: new RegExp(NEW_CODE) },
+        { timeout: 2000 },
+      ),
+    );
+
+    expect(
+      await screen.findByText(
+        /The terminology server could not be reached, so the new code could not be checked\. Keep the current code to save the other changes/,
+        {},
+        { timeout: 2000 },
+      ),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Keep the current code" }));
+    expect(screen.getByText("Current code")).toBeVisible();
+  });
+
+  it("words a terminology outage at save for a form that holds a code", async () => {
+    stubEditing(
+      refused(503, {
+        detail: "The terminology server could not be reached.",
+        field: "snomed_code",
+      }),
+    );
+    const { user } = await openForm();
+
+    await replace(user, "Notes", "A new note.");
+    await save(user, "A reason.");
+
+    expect(
+      await screen.findByRole("link", {
+        name: /Keep the current code to save the other changes/,
+      }),
+    ).toBeVisible();
+  });
+
+  it("sends an empty list when the reviewer removes every other name", async () => {
+    const calls = stubEditing(OK);
+    const { user } = await openForm();
+
+    await user.click(screen.getByRole("button", { name: "Remove Serum ferritin" }));
+    await user.click(screen.getByRole("button", { name: "Remove Ferritin assay" }));
+    await save(user, "Neither name is in use.");
+
+    await screen.findByText("Saved. Changed: Other names.");
+    expect(writes(calls)[0].body).toEqual({
+      synonyms: [],
+      reason: "Neither name is in use.",
+      expected_row_version: 4,
+    });
   });
 
   it("shows the server's sentence when the caller may not edit", async () => {
