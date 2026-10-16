@@ -110,7 +110,8 @@ _APPROVED = "submission.approved"
 
 # The Administrator holds `.any` and not `.own`, so an Administrator's own submission needs `.any`
 # on the same row as the submitter's `.own`. Only `.any` reaches `Approved` and `Published in
-# release`: the submitter's withdrawal ends once a reviewer has accepted the proposal.
+# release`. The submitter's withdrawal also stops at `Under review`, because `Awaiting terminology`
+# and `Ready for approval` have no `Withdrawn` row.
 _WITHDRAW_OPEN = (_WITHDRAW_OWN, _WITHDRAW_ANY)
 
 PERMITTED_TRANSITIONS: Final[
@@ -138,6 +139,14 @@ PERMITTED_TRANSITIONS: Final[
     (SubmissionState.READY_FOR_APPROVAL, SubmissionState.APPROVED): PermittedTransition(
         _APPROVED, (_APPROVE,), needs_payload=True
     ),
+    # A reviewer can close a proposal they have taken up, and one waiting for approval that an
+    # Administrator will not give, so neither state is a dead end.
+    (SubmissionState.UNDER_REVIEW, SubmissionState.REJECTED): PermittedTransition(
+        _REJECTED, (_REVIEW,)
+    ),
+    (SubmissionState.READY_FOR_APPROVAL, SubmissionState.REJECTED): PermittedTransition(
+        _REJECTED, (_REVIEW,)
+    ),
     # A request the authority declines, or one nobody pursues, must not strand the submission: the
     # reviewer takes it back to `Under review`. The record stays as the history of the request.
     (SubmissionState.AWAITING_TERMINOLOGY, SubmissionState.UNDER_REVIEW): PermittedTransition(
@@ -147,6 +156,9 @@ PERMITTED_TRANSITIONS: Final[
         _WITHDRAWN, _WITHDRAW_OPEN
     ),
     (SubmissionState.TRIAGE, SubmissionState.WITHDRAWN): PermittedTransition(
+        _WITHDRAWN, _WITHDRAW_OPEN
+    ),
+    (SubmissionState.UNDER_REVIEW, SubmissionState.WITHDRAWN): PermittedTransition(
         _WITHDRAWN, _WITHDRAW_OPEN
     ),
     (SubmissionState.APPROVED, SubmissionState.WITHDRAWN): PermittedTransition(

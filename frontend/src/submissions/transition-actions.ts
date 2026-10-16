@@ -40,6 +40,11 @@ interface MoveWording {
   effect: string;
 }
 
+const REJECT_WORDING: MoveWording = {
+  label: "Reject",
+  effect: "The submitter reads your reason. You can reopen a rejected submission later.",
+};
+
 const MOVE_WORDING: Readonly<Record<string, MoveWording>> = {
   "Submitted>Triage": {
     label: "Start triage",
@@ -49,11 +54,9 @@ const MOVE_WORDING: Readonly<Record<string, MoveWording>> = {
     label: "Start review",
     effect: "Under review means the working group is assessing the proposal in detail.",
   },
-  "Triage>Rejected": {
-    label: "Reject",
-    effect:
-      "The submitter reads your reason. You can reopen a rejected submission later.",
-  },
+  "Triage>Rejected": REJECT_WORDING,
+  "Under review>Rejected": REJECT_WORDING,
+  "Ready for approval>Rejected": REJECT_WORDING,
   "Rejected>Triage": {
     label: "Reopen",
     effect: "The submission goes back to Triage for another look.",

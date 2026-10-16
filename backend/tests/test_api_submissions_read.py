@@ -591,7 +591,8 @@ def test_a_member_is_offered_withdrawal_of_their_own_open_submission_only(api: A
 
     assert _available(api, token, _add(api, member)) == ["Withdrawn"]
     assert _available(api, token, _add(api, member, state="Triage")) == ["Withdrawn"]
-    assert _available(api, token, _add(api, member, state="Under review")) == []
+    assert _available(api, token, _add(api, member, state="Under review")) == ["Withdrawn"]
+    assert _available(api, token, _add(api, member, state="Ready for approval")) == []
     assert _available(api, token, _add(api, other)) == []
 
 
@@ -618,7 +619,9 @@ def test_a_reviewer_is_offered_the_review_moves(api: ApiTestApp) -> None:
     assert _available(api, token, _add(api, member, state="Under review")) == [
         "Ready for approval",
         "Awaiting terminology",
+        "Rejected",
     ]
+    assert _available(api, token, _add(api, member, state="Ready for approval")) == ["Rejected"]
     assert _available(api, token, _add(api, member, state="Approved")) == []
     assert _available(api, token, _add(api, reviewer)) == ["Triage", "Withdrawn"]
 

@@ -1693,28 +1693,32 @@ the actor today and not at the time of the move.
 by `(from_state, to_state)`. Each row names the audit action and the ways an actor may make the move: a
 permission, and whether the actor must be the submitter. A move with no row is refused with a 409, so a
 closed submission is never reinterpreted, and a second withdrawal is refused and not repeated. A new
-state or move is a new row and not a second code path. The table holds thirteen moves:
+state or move is a new row and not a second code path. The table holds sixteen moves:
 
 | From | To | Needs |
 |---|---|---|
 | `Submitted` | `Triage` | `submission.transition.review` |
 | `Triage` | `Under review` | `submission.transition.review` |
-| `Triage` | `Rejected` | `submission.transition.review` |
+| `Triage`, `Under review`, `Ready for approval` | `Rejected` | `submission.transition.review` |
 | `Rejected` | `Triage` (reopen) | `submission.transition.review` |
 | `Under review` | `Ready for approval` | `submission.transition.review` |
 | `Under review` | `Awaiting terminology` | `submission.transition.review`. Needs a terminology request, so it has its own route |
 | `Awaiting terminology` | `Ready for approval` | `submission.transition.approve`, which only the Administrator holds. Needs a code, so it has its own route |
 | `Ready for approval` | `Approved` | `submission.transition.approve`, which only the Administrator holds. Writes the catalogue entry, so it has its own route |
 | `Awaiting terminology` | `Under review` (take back) | `submission.transition.review`. A plain move, so `POST /api/v1/submissions/{id}/transitions` makes it. The request stays as history |
-| `Submitted`, `Triage` | `Withdrawn` | `submission.withdraw.own` and the submitter, or `submission.withdraw.any` |
+| `Submitted`, `Triage`, `Under review` | `Withdrawn` | `submission.withdraw.own` and the submitter, or `submission.withdraw.any` |
 | `Approved`, `Published in release` | `Withdrawn` | `submission.withdraw.any` |
 
 A reopened submission keeps its transition rows and is never a new record. The Administrator holds
 `.any` and not `.own`, so the `.any` requirement on the open-state withdrawal rows is what lets an
-Administrator withdraw a submission of their own. Only `.any` reaches `Approved` and `Published in
-release`, so the submitter's own withdrawal ends once a reviewer has accepted the proposal. A submission leaves `Awaiting terminology`
-in one of two ways: an Administrator attaches the code, or a reviewer takes it back to `Under review` when
-the request is declined or abandoned. The table has no row from the state to `Rejected` or `Withdrawn`.
+Administrator withdraw a submission of their own. The submitter's own withdrawal ends once the
+submission leaves `Under review`, because no later state has an `.own` row. Only `.any` reaches
+`Approved` and `Published in release`. A reviewer can reject a submission from `Under review` and from
+`Ready for approval`, so neither state is a dead end. A submission leaves `Awaiting terminology` in one
+of two ways: an Administrator attaches the code, or a reviewer takes it back to `Under review` when the
+request is declined or abandoned. The table has no row from `Awaiting terminology` to `Rejected` or
+`Withdrawn`, and none from `Ready for approval` to `Withdrawn`, so the submitter cannot withdraw from
+either state.
 
 **A move that needs more than a reason is flagged in the table** (`PermittedTransition.needs_payload`).
 The two moves of `Awaiting terminology` and the approval are rows like any other, so the graph, the

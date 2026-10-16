@@ -142,7 +142,7 @@ def _assert_unchanged(api: ApiTestApp, submission: Submission, state: str = "Sub
 @pytest.mark.req("FR-28")
 @pytest.mark.req("NFR-08")
 @pytest.mark.integration
-@pytest.mark.parametrize("state", ["Submitted", "Triage"])
+@pytest.mark.parametrize("state", ["Submitted", "Triage", "Under review"])
 def test_the_submitter_withdraws_from_an_open_state(api: ApiTestApp, state: str) -> None:
     token, submitter = _sign_in(api, Role.MEMBER)
     submission = _submission(api, submitter, state=state)

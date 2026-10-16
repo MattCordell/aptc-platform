@@ -111,7 +111,7 @@ afterEach(() => {
 });
 
 describe("WithdrawSubmission visibility", () => {
-  it.each([["Submitted"], ["Triage"]])(
+  it.each([["Submitted"], ["Triage"], ["Under review"]])(
     "offers the button to the submitter in the %s state",
     async (state) => {
       stubApi([SUBMITTER]);
@@ -125,7 +125,6 @@ describe("WithdrawSubmission visibility", () => {
   );
 
   it.each([
-    ["Under review"],
     ["Awaiting terminology"],
     ["Ready for approval"],
     ["Approved"],

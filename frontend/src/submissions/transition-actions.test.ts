@@ -23,6 +23,8 @@ describe("isMadeOnTheTriagePanel", () => {
     ["Submitted", "Triage"],
     ["Triage", "Under review"],
     ["Triage", "Rejected"],
+    ["Under review", "Rejected"],
+    ["Ready for approval", "Rejected"],
     ["Rejected", "Triage"],
     ["Under review", "Ready for approval"],
     ["Awaiting terminology", "Under review"],
@@ -54,6 +56,17 @@ describe("moveWording", () => {
     for (const [from, to] of moves) {
       expect(moveWording(from, to, to).label).not.toMatch(/^Move to /);
     }
+  });
+
+  it.each<[string, SubmissionState]>([
+    ["Triage", "Rejected"],
+    ["Under review", "Rejected"],
+    ["Ready for approval", "Rejected"],
+  ])("words the rejection from %s as Reject", (from, to) => {
+    const wording = moveWording(from, to, to);
+
+    expect(wording.label).toBe("Reject");
+    expect(wording.effect).toMatch(/reopen a rejected submission/);
   });
 
   it("labels a move it has no words for with its target, so no move is hidden", () => {

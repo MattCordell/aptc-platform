@@ -128,8 +128,10 @@ The **Your submission** panel shows a **Withdraw submission** button only when a
 these are true:
 
 1. The submission is yours.
-2. Its state is Submitted or Triage. Once a reviewer has moved it on, the platform no longer
-   offers the button, because only an Administrator can withdraw it from then on.
+2. Its state is Submitted, Triage or Under review. Once it waits for a SNOMED CT code or waits
+   for approval, the platform offers the button to no one. After approval, only an
+   Administrator can withdraw it. A reviewer can reject a submission that waits for approval,
+   or take one that waits for a code back to Under review and then reject it.
 3. Your role may withdraw a submission. Provisional users, Members and Reviewers may. An
    Administrator role alone does not include this permission, so an Administrator who holds
    no other role does not see this button. No screen lets an Administrator withdraw someone

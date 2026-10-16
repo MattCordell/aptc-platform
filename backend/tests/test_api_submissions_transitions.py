@@ -52,6 +52,8 @@ _REVIEW_MOVES = [
     ("Triage", "Rejected", "submission.rejected"),
     ("Rejected", "Triage", "submission.reopened"),
     ("Under review", "Ready for approval", "submission.readied_for_approval"),
+    ("Under review", "Rejected", "submission.rejected"),
+    ("Ready for approval", "Rejected", "submission.rejected"),
 ]
 _REVIEWING_ROLES = [Role.REVIEWER, Role.ADMINISTRATOR]
 #: Roles that may sign in and ask, and hold no review permission.
@@ -242,7 +244,7 @@ def test_a_rejected_submission_leaves_the_default_list_and_returns_when_reopened
 @pytest.mark.req("FR-28")
 @pytest.mark.req("FR-44")
 @pytest.mark.integration
-@pytest.mark.parametrize("state", ["Submitted", "Triage"])
+@pytest.mark.parametrize("state", ["Submitted", "Triage", "Under review"])
 def test_an_administrator_withdraws_their_own_open_submission(api: ApiTestApp, state: str) -> None:
     token, administrator = _sign_in(api, Role.ADMINISTRATOR)
     submission = _submission(api, administrator, state=state)
@@ -279,11 +281,12 @@ def test_an_administrator_withdraws_an_approved_or_published_submission(
 
 @pytest.mark.req("FR-28")
 @pytest.mark.integration
+@pytest.mark.parametrize("state", ["Submitted", "Under review"])
 def test_a_member_withdraws_their_own_submission_through_the_general_route(
-    api: ApiTestApp,
+    api: ApiTestApp, state: str
 ) -> None:
     token, member = _sign_in(api, Role.MEMBER)
-    submission = _submission(api, member)
+    submission = _submission(api, member, state=state)
 
     response = _move(api, token, submission.id, "Withdrawn")
 
@@ -418,7 +421,9 @@ def test_a_reviewer_who_has_not_accepted_the_current_terms_is_refused(api: ApiTe
         ("Submitted", "Ready for approval"),
         ("Submitted", "Rejected"),
         ("Triage", "Ready for approval"),
-        ("Under review", "Rejected"),
+        ("Awaiting terminology", "Rejected"),
+        ("Awaiting terminology", "Withdrawn"),
+        ("Ready for approval", "Withdrawn"),
         ("Ready for approval", "Under review"),
         ("Triage", "Approved"),
         ("Published in release", "Triage"),
