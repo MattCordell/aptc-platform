@@ -10,9 +10,12 @@ outright.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+
 import pytest
-from sqlalchemy import text
-from sqlalchemy.engine import Connection
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import Connection, Engine
+from sqlalchemy.pool import NullPool
 
 #: `1e400` is a genuinely valid `numeric` literal - Postgres's `numeric` is
 #: arbitrary-precision and scientific notation is accepted regardless of
@@ -25,6 +28,22 @@ _VALID_NUMERIC_LITERALS = ["5", "-3.14", "0", "1e400", "  5  ", "+42"]
 
 #: Format junk `pg_input_is_valid(..., 'numeric')` rejects.
 _INVALID_NUMERIC_LITERALS = ["abc", "", "1,234", "1.2.3", "NaN and more", "5 apples"]
+
+
+@pytest.fixture
+def fresh_engine(owner_engine: Engine, migrated: None) -> Iterator[Engine]:
+    """An engine that opens a new connection for every `connect()`.
+
+    Postgres 18 plans the body of an inlinable SQL function afresh for roughly
+    the first five calls on a connection. The pooled `db` fixture has usually
+    spent those calls by the time a test runs, so only a new connection
+    exercises them (ADR-0027).
+    """
+    engine = create_engine(owner_engine.url, poolclass=NullPool)
+    try:
+        yield engine
+    finally:
+        engine.dispose()
 
 
 @pytest.mark.integration
@@ -86,4 +105,47 @@ def test_expression_index_survives_a_non_castable_retained_value(db: Connection)
         .scalars()
         .all()
     )
+    assert sorted(values, key=lambda v: (v is None, v)) == [5, None, None]
+
+
+@pytest.mark.req("FR-13")
+@pytest.mark.integration
+@pytest.mark.parametrize("literal", _INVALID_NUMERIC_LITERALS)
+def test_non_castable_literal_returns_null_on_a_fresh_connection(
+    fresh_engine: Engine, literal: str
+) -> None:
+    """The first call on a connection must return NULL, not raise."""
+    with fresh_engine.connect() as connection:
+        actual = connection.execute(
+            text("SELECT nptc_numeric_or_null(:v)"), {"v": literal}
+        ).scalar_one()
+
+    assert actual is None
+
+
+@pytest.mark.req("FR-13")
+@pytest.mark.integration
+def test_create_index_survives_a_non_castable_value_on_a_fresh_connection(
+    fresh_engine: Engine,
+) -> None:
+    """ADR-0027's scenario on the connection a reconciler would have just
+    opened, where the function has not yet been called."""
+    with fresh_engine.connect() as connection:
+        connection.execute(text("CREATE TEMPORARY TABLE t_fresh_numeric_or_null (v text)"))
+        connection.execute(
+            text("INSERT INTO t_fresh_numeric_or_null (v) VALUES ('about 5 mg'), ('5'), (NULL)")
+        )
+
+        connection.execute(
+            text(
+                "CREATE INDEX ix_t_fresh_numeric_or_null "
+                "ON t_fresh_numeric_or_null (nptc_numeric_or_null(v))"
+            )
+        )
+
+        values = (
+            connection.execute(text("SELECT nptc_numeric_or_null(v) FROM t_fresh_numeric_or_null"))
+            .scalars()
+            .all()
+        )
     assert sorted(values, key=lambda v: (v is None, v)) == [5, None, None]

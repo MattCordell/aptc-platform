@@ -1086,7 +1086,8 @@ queries), an expression btree with the `text_pattern_ops` opclass on `(value #>>
 serves `EQUALS`/`IN` *and* a `PREFIX`/`LIKE 'foo%'` filter from the same index under a
 non-`C` collation, so no second index is needed), and one on
 `nptc_numeric_or_null(value #>> '{}')` (see `nptc.db.functions` and
-[ADR-0027](../adr/0027-cast-safe-numeric-index-expression.md)) for `decimal`/`positiveInt` -
+[ADR-0027](../adr/0027-cast-safe-numeric-index-expression.md); a `plpgsql` function, because a
+`sql` body raises on a fresh Postgres 18 connection) for `decimal`/`positiveInt` -
 **without a hand-written migration**, matching FR-09's own "a property definition is a plain
 row insert" property one level up.
 

@@ -1,4 +1,4 @@
-# ADR-0027: Cast-safe numeric index expression via a SQL function
+# ADR-0027: Cast-safe numeric index expression via a database function
 
 **Status:** Accepted
 **Date:** 2026-08-27
@@ -37,20 +37,29 @@ index expression, count as the stored business logic PRD §14.1 bans?
 new finding this function's own construction turned up.**
 
 `backend/src/nptc/db/functions.py` defines `nptc_numeric_or_null(v text) RETURNS
-numeric`, `LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE`, created by migration `0014`
-before any numeric-shaped generated index can reference it:
+numeric`, `LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE`, created by migration
+`0014` before any numeric-shaped generated index can reference it:
 
 ```sql
-CREATE OR REPLACE FUNCTION nptc_numeric_or_null(v text)
+CREATE OR REPLACE FUNCTION public.nptc_numeric_or_null(v text)
 RETURNS numeric
-LANGUAGE sql
+LANGUAGE plpgsql
 IMMUTABLE
 STRICT
 PARALLEL SAFE
 AS $$
-SELECT CASE WHEN pg_input_is_valid(v, 'numeric') THEN v::numeric END
+BEGIN
+  IF pg_input_is_valid(v, 'numeric') THEN
+    RETURN v::numeric;
+  END IF;
+  RETURN NULL;
+END
 $$;
 ```
+
+The first version of this ADR specified a `LANGUAGE sql` body,
+`SELECT CASE WHEN pg_input_is_valid(v, 'numeric') THEN v::numeric END`. That body is not
+safe on Postgres 18; see the amendment below for why it is `plpgsql`.
 
 The generated index expression becomes `nptc_numeric_or_null(value #>> '{}')`. A row
 whose value cannot be interpreted as `numeric` indexes as `NULL` - the index builds
@@ -94,10 +103,11 @@ rather than a fixed dictionary.
 
 Should this ever need revisiting - if a future Postgres version's `pg_input_is_valid`
 turns out to have some numeric-specific state-dependency this ADR did not anticipate -
-the documented fallback is a `LANGUAGE plpgsql` function with an `EXCEPTION WHEN others
-THEN RETURN NULL` block around `v::numeric`. Not used here because it opens a
-subtransaction per row on every index build and every insert; `pg_input_is_valid`
-avoids that cost entirely.
+the documented fallback is a function with an `EXCEPTION WHEN others THEN RETURN NULL`
+block around `v::numeric`. Not used here because it opens a subtransaction per row on
+every index build and every insert; `pg_input_is_valid` avoids that cost entirely. The
+`plpgsql` body above is a different thing: it has no `EXCEPTION` block, so it opens no
+subtransaction.
 
 ### `IndexShape.requires_conformance_sweep` is not made redundant by this
 
@@ -123,7 +133,7 @@ would not even be visible until an administrator added one, at which point index
 would silently do nothing rather than fail loudly. A cast-safe expression means all
 three shapes are real, tested, and load-bearing from this issue on.
 
-### A `plpgsql` exception-block function as the default, not just the documented fallback
+### An `EXCEPTION`-block function as the default, not just the documented fallback
 
 Reject `pg_input_is_valid` up front and always wrap `v::numeric` in `LANGUAGE plpgsql`
 with `EXCEPTION WHEN others THEN RETURN NULL`.
@@ -151,6 +161,37 @@ ADR's "no numeric-specific state dependency" argument no longer holds for.
   since these indexes are reconciler-managed rather than migration-managed and so cannot
   be dropped by the migration's own `downgrade()` the way `0012` drops its own indexes
   before dropping `nptc_search_text`.
+- Editing the function body in `nptc.db.functions` changes what migration `0014` creates,
+  and `0014` is not re-run on an existing database. A database created before the
+  amendment below keeps the `sql` body until it is recreated (`docs/operations/upgrade.md`).
 - FR-13 is fully implemented from issue #54 on: all three of ADR-0012's index shapes are
   real, generated, and exercised by `test_db_property_index_plan.py`'s `EXPLAIN` proof -
   none is deferred to a later issue as untested scaffolding.
+
+## Amendment (2026-10-16, issue #643)
+
+**The `LANGUAGE sql` body in the original Decision raises on a fresh connection, so the
+function is now `plpgsql`.**
+
+On Postgres 18 (verified on `postgres:18.6`), a `sql`-language body that the planner can
+inline is planned afresh for each call during the first five or so calls on a
+connection. Those plans see the argument as a constant, so the planner folds
+`'abc'::numeric` while it plans, before the `CASE` guard can skip it. The call raises
+`invalid input syntax for type numeric`. After about five calls the plan becomes generic,
+the cast sits behind the guard, and the function returns `NULL` as designed. A connection
+that already ran the function a few times never sees the failure.
+
+That is the scenario this ADR exists to prevent, on the connection least likely to have
+warmed up: a `CREATE INDEX` over a retained non-castable row, run by the reconciler on a
+new connection, fails. The pooled test fixture hid it, because earlier tests had spent
+the custom-plan calls. It surfaced as a test that failed in about three of ten CI runs
+once the backend suite was sharded across workers.
+
+A `plpgsql` body plans each statement only when it first runs. The `RETURN v::numeric`
+is reached only after `pg_input_is_valid` returned true, so the cast is never planned for
+a non-castable value. This is not the exception-block fallback above: there is no
+`EXCEPTION` clause, so no subtransaction per call. The `IMMUTABLE` argument, the `public.`
+qualification and the `STRICT` NULL handling are unchanged.
+
+`backend/tests/test_db_numeric_or_null_function.py` now runs each invalid literal, and a
+`CREATE INDEX` over a non-castable row, on a connection opened for that case alone.
