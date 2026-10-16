@@ -36,11 +36,14 @@ import {
   useRetireDesignation,
   useSavePropertyValues,
   useSession,
+  useHasPermission,
   useInterestIdentities,
   useRegisterInterest,
   useRevokeInterest,
   useSubmissionDetail,
+  useSubmissionTransitions,
   useSubmissionsList,
+  useTransitionSubmission,
   useWithdrawSubmission,
 } from "./queries.ts";
 import type { ApiError } from "./unwrap.ts";
@@ -689,6 +692,252 @@ describe("useWithdrawSubmission (FR-28)", () => {
     expect(refusalDetail(result.current.write.error)).toBe("Enter a reason.");
     expect(calls.filter((call) => call.method === "GET")).toHaveLength(1);
   });
+});
+
+describe("useHasPermission (FR-44, NFR-20)", () => {
+  function session(permissions: string[]) {
+    return {
+      method: "GET" as const,
+      path: "/auth/me",
+      status: 200,
+      body: {
+        authenticated: true,
+        user: {
+          username: "jo",
+          display_name: "Jo",
+          organisation: null,
+          status: "active",
+        },
+        roles: [],
+        permissions,
+        mfa_satisfied: false,
+      },
+    };
+  }
+
+  it("is false while the session loads, then true for a permission the caller holds", async () => {
+    stubApi([session(["interest.register"])]);
+    const { result } = renderHook(() => useHasPermission("interest.register"), {
+      wrapper,
+    });
+
+    expect(result.current).toBe(false);
+    await waitFor(() => expect(result.current).toBe(true));
+  });
+
+  it("stays false for a permission the caller does not hold", async () => {
+    stubApi([session(["interest.register"])]);
+    const { result } = renderHook(
+      () => ({ held: useHasPermission("submission.transition"), session: useSession() }),
+      { wrapper },
+    );
+
+    await waitFor(() => expect(result.current.session.isSuccess).toBe(true));
+    expect(result.current.held).toBe(false);
+  });
+});
+
+describe("useSubmissionTransitions (FR-81)", () => {
+  const ID = "0b8a5c7e-6a43-4f56-9d1b-2f4f5a4e1c14";
+  const HISTORY = `/api/v1/submissions/${ID}/transitions`;
+
+  it("reads the history of the submission it names", async () => {
+    const history = {
+      items: [
+        {
+          from_state: "Submitted",
+          to_state: "Triage",
+          reason: "Looks complete.",
+          created_at: "2026-10-01T02:00:00Z",
+          actor: { username: "rev" },
+        },
+      ],
+    };
+    const calls = stubApi([{ method: "GET", path: HISTORY, status: 200, body: history }]);
+
+    const { result } = renderHook(() => useSubmissionTransitions(ID), { wrapper });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toEqual(history);
+    expect(calls).toHaveLength(1);
+  });
+
+  it("sends nothing for a blank id", () => {
+    const calls = stubApi([]);
+
+    renderHook(() => useSubmissionTransitions(""), { wrapper });
+
+    expect(calls).toHaveLength(0);
+  });
+
+  it("surfaces a refusal as an error", async () => {
+    stubApi([
+      { method: "GET", path: HISTORY, status: 404, body: { detail: "No such." } },
+    ]);
+
+    const { result } = renderHook(() => useSubmissionTransitions(ID), { wrapper });
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(refusalDetail(result.current.error)).toBe("No such.");
+  });
+});
+
+describe("useTransitionSubmission (FR-28, FR-81)", () => {
+  const ID = "0b8a5c7e-6a43-4f56-9d1b-2f4f5a4e1c15";
+  const DETAIL = `/api/v1/submissions/${ID}`;
+  const HISTORY = `${DETAIL}/transitions`;
+  const detail = {
+    id: ID,
+    preferred_term: "Ferritin",
+    state: "Triage",
+    row_version: 3,
+    available_transitions: ["Under review", "Rejected"],
+  };
+  const BODY = {
+    to_state: "Under review" as const,
+    reason: "Looks complete.",
+    expected_row_version: 3,
+  };
+
+  function sharedClientWrapper() {
+    const queryClient = createQueryClient();
+    const Wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>
+        <AuthContext.Provider value={AUTH}>{children}</AuthContext.Provider>
+      </QueryClientProvider>
+    );
+    return { Wrapper, queryClient };
+  }
+
+  it("posts the target, reason and version, and writes the answer into the cached detail", async () => {
+    const calls = stubApi([
+      { method: "GET", path: DETAIL, status: 200, body: detail },
+      {
+        method: "POST",
+        path: HISTORY,
+        status: 200,
+        body: {
+          id: ID,
+          state: "Under review",
+          row_version: 4,
+          available_transitions: ["Triage", "Rejected"],
+        },
+      },
+    ]);
+    const { Wrapper } = sharedClientWrapper();
+    const { result } = renderHook(
+      () => ({ read: useSubmissionDetail(ID), write: useTransitionSubmission(ID) }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.read.isSuccess).toBe(true));
+
+    result.current.write.mutate(BODY);
+
+    await waitFor(() => expect(result.current.read.data?.state).toBe("Under review"));
+    expect(result.current.read.data).toMatchObject({
+      preferred_term: "Ferritin",
+      row_version: 4,
+      available_transitions: ["Triage", "Rejected"],
+    });
+    expect(calls.find((call) => call.method === "POST")?.body).toEqual(BODY);
+    expect(calls.filter((call) => call.path === DETAIL)).toHaveLength(1);
+  });
+
+  it.each([
+    ["a transition", useTransitionSubmission, HISTORY, BODY],
+    [
+      "a withdrawal",
+      useWithdrawSubmission,
+      `${DETAIL}/withdraw`,
+      { reason: "Sent in error.", expected_row_version: 3 },
+    ],
+  ])(
+    "marks the history and the list stale after %s",
+    async (_name, useWrite, path, body) => {
+      stubApi([
+        {
+          method: "POST",
+          path,
+          status: 200,
+          body: { id: ID, state: "Withdrawn", row_version: 4, available_transitions: [] },
+        },
+      ]);
+      const { Wrapper, queryClient } = sharedClientWrapper();
+      const historyKey = ["api", "/api/v1/submissions/{submission_id}/transitions", ID];
+      queryClient.setQueryData(historyKey, { items: [] });
+      queryClient.setQueryData(["api", "/api/v1/submissions", {}], { items: [] });
+      const { result } = renderHook(() => useWrite(ID), { wrapper: Wrapper });
+
+      result.current.mutate(body as never);
+
+      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+      expect(queryClient.getQueryState(historyKey)?.isInvalidated).toBe(true);
+      expect(
+        queryClient.getQueryState(["api", "/api/v1/submissions", {}])?.isInvalidated,
+      ).toBe(true);
+    },
+  );
+
+  it.each([
+    [
+      "a stale version",
+      { detail: "Reload.", expected_row_version: 3, current_row_version: 4 },
+    ],
+    ["a move the state no longer allows", { detail: "Not a permitted move." }],
+  ])("re-reads the detail and the history on a 409 for %s", async (_name, refusal) => {
+    const calls = stubApi([
+      { method: "GET", path: DETAIL, status: 200, body: detail },
+      { method: "GET", path: HISTORY, status: 200, body: { items: [] } },
+      { method: "POST", path: HISTORY, status: 409, body: refusal },
+    ]);
+    const { Wrapper } = sharedClientWrapper();
+    const { result } = renderHook(
+      () => ({
+        read: useSubmissionDetail(ID),
+        history: useSubmissionTransitions(ID),
+        write: useTransitionSubmission(ID),
+      }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.history.isSuccess).toBe(true));
+    const reads = (path: string) =>
+      calls.filter((call) => call.method === "GET" && call.path === path).length;
+
+    result.current.write.mutate(BODY);
+
+    await waitFor(() => expect(result.current.write.isError).toBe(true));
+    await waitFor(() => expect(reads(DETAIL)).toBeGreaterThan(1));
+    await waitFor(() => expect(reads(HISTORY)).toBeGreaterThan(1));
+    expect(result.current.read.data?.state).toBe("Triage");
+  });
+
+  it.each([
+    [403, { detail: "You may not move this submission." }],
+    [
+      422,
+      { detail: "The reason has a character that cannot be shown.", field: "reason" },
+    ],
+  ])(
+    "leaves the detail alone on a %s and passes the refusal on",
+    async (status, refusal) => {
+      const calls = stubApi([
+        { method: "GET", path: DETAIL, status: 200, body: detail },
+        { method: "POST", path: HISTORY, status, body: refusal },
+      ]);
+      const { Wrapper } = sharedClientWrapper();
+      const { result } = renderHook(
+        () => ({ read: useSubmissionDetail(ID), write: useTransitionSubmission(ID) }),
+        { wrapper: Wrapper },
+      );
+      await waitFor(() => expect(result.current.read.isSuccess).toBe(true));
+
+      result.current.write.mutate(BODY);
+
+      await waitFor(() => expect(result.current.write.isError).toBe(true));
+      expect(refusalDetail(result.current.write.error)).toBe(refusal.detail);
+      expect(calls.filter((call) => call.method === "GET")).toHaveLength(1);
+    },
+  );
 });
 
 describe("useAdminSearch", () => {

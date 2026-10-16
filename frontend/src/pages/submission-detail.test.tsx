@@ -558,6 +558,125 @@ describe("submission detail withdraw (FR-28)", () => {
   });
 });
 
+describe("submission detail triage (FR-28, FR-81)", () => {
+  const MOVES = `${DETAIL}/transitions`;
+  const REVIEWER = me(["submission.transition.review", "interest.register"]);
+
+  it("moves the submission and shows the new state and the next move without a reload", async () => {
+    const { calls, container } = await open([
+      REVIEWER,
+      DEFINITIONS,
+      detail({
+        state: "Triage",
+        row_version: 5,
+        available_transitions: ["Under review", "Rejected", "Withdrawn"],
+      }),
+      {
+        method: "POST",
+        path: MOVES,
+        status: 200,
+        body: {
+          id: ID,
+          state: "Under review",
+          row_version: 6,
+          available_transitions: ["Ready for approval", "Awaiting terminology"],
+        },
+      },
+    ]);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Start review" }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.type(
+      within(dialog).getByRole("textbox", { name: /Reason/ }),
+      "Complete enough to assess.",
+    );
+    await userEvent.click(within(dialog).getByRole("button", { name: "Confirm move" }));
+
+    expect(await screen.findByText("Moved to Under review.")).toBeVisible();
+    const details = screen.getByRole("complementary", { name: "Submission details" });
+    expect(within(details).getByText("Under review", { selector: "span" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Mark ready for approval" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Start review" })).toBeNull();
+    expect(calls.find((call) => call.method === "POST")?.body).toEqual({
+      to_state: "Under review",
+      reason: "Complete enough to assess.",
+      expected_row_version: 5,
+    });
+    await expectNoA11yViolations(container);
+  });
+
+  it("adds the move to History without a reload", async () => {
+    const moved = {
+      from_state: "Triage",
+      to_state: "Rejected",
+      reason: "Out of scope.",
+      created_at: "2026-10-02T02:00:00Z",
+      actor: { username: "jo" },
+    };
+    const history = (items: unknown[]): Route => ({
+      method: "GET",
+      path: MOVES,
+      status: 200,
+      body: { items },
+    });
+    let calls: ReturnType<typeof stubApi> = [];
+    calls = stubApi(
+      [
+        REVIEWER,
+        DEFINITIONS,
+        detail({ state: "Triage", available_transitions: ["Under review", "Rejected"] }),
+        history([]),
+        {
+          method: "POST",
+          path: MOVES,
+          status: 200,
+          body: {
+            id: ID,
+            state: "Rejected",
+            row_version: 2,
+            available_transitions: ["Triage"],
+          },
+        },
+      ],
+      {
+        // Only a read after the write sees the move, so a read that reuses the
+        // cache would never show it.
+        vary: (call) =>
+          call.method === "GET" &&
+          call.path === MOVES &&
+          calls.some((sent) => sent.method === "POST")
+            ? history([moved])
+            : null,
+      },
+    );
+    await renderRoute(`/submissions/${ID}`, SIGNED_IN);
+
+    expect(
+      await screen.findByText("This submission has not changed state yet."),
+    ).toBeVisible();
+    await userEvent.click(await screen.findByRole("button", { name: "Reject" }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.type(
+      within(dialog).getByRole("textbox", { name: /Reason/ }),
+      "Out of scope.",
+    );
+    await userEvent.click(within(dialog).getByRole("button", { name: "Confirm move" }));
+
+    const historySection = screen.getByRole("heading", {
+      name: "History",
+    }).parentElement!;
+    expect(await within(historySection).findByText("Out of scope.")).toBeVisible();
+    expect(within(historySection).getByText("Triage to Rejected")).toBeVisible();
+  });
+
+  it("offers a Member no Triage panel", async () => {
+    await open([MEMBER, DEFINITIONS, detail({ available_transitions: ["Withdrawn"] })]);
+
+    await screen.findByRole("heading", { name: "Ferritin level" });
+    expect(screen.queryByRole("heading", { name: "Triage" })).toBeNull();
+  });
+});
+
 describe("submission detail interest identities (FR-33, FR-44, NFR-20)", () => {
   const IDENTITIES: Route = {
     method: "GET",

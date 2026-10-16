@@ -29,7 +29,10 @@ shipped:
 - **[Seeing who registered interest](reading-a-submission.md#see-who-registered-interest)** —
   on a submission's page, with the organisations they gave.
 
-An Administrator cannot withdraw a submission yet, even their own.
+- **[Triaging a submission](triaging-a-submission.md)** — moving a submission through Triage,
+  review and rejection, with a reason the submitter can read.
+
+An Administrator cannot withdraw a submission from the screen yet, even their own.
 
 ### Reaching each screen
 
@@ -71,8 +74,9 @@ wrong" section for what a missing permission looks like from inside a screen).
 ## Reviewer
 
 A working group member with editorial authority over the submission pipeline described in
-the PRD, but **not** over the published catalogue — the screens for the submission
-pipeline itself (reviewing and approving submissions) have not shipped yet.
+the PRD, but **not** over the published catalogue. A Reviewer can move a submission through
+Triage and review. The screens for asking for a new SNOMED CT code and for approving a
+submission have not shipped yet.
 
 A Reviewer can use every submission screen a Member can: [submit a new
 test](submitting-a-new-test.md), [propose a change to an entry](proposing-an-amendment.md),
@@ -80,6 +84,9 @@ test](submitting-a-new-test.md), [propose a change to an entry](proposing-an-ame
 submission](reading-a-submission.md). On the screens that have shipped, a Reviewer also has
 these capabilities that a Member lacks:
 
+- **[Triaging a submission](triaging-a-submission.md)** — the **Triage** panel on a
+  submission's page, with a reason the submitter can read in
+  [History](reading-a-submission.md#history).
 - **[Seeing who registered interest](reading-a-submission.md#see-who-registered-interest)**
   on a submission's page, with the organisations they gave.
 - **[Seeing who sent a submission](reading-a-submission.md#the-details-panel)** — the

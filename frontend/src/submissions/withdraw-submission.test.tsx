@@ -197,6 +197,15 @@ describe("WithdrawSubmission dialog", () => {
     await expectNoA11yViolations(container);
   });
 
+  it("says who reads the reason, and does not call it unpublished", async () => {
+    stubApi([SUBMITTER]);
+    renderWithdraw(submission());
+    const dialog = await openDialog();
+
+    expect(within(dialog).getByText(/shown in this submission's history/)).toBeVisible();
+    expect(within(dialog).queryByText(/not published/)).toBeNull();
+  });
+
   it("refuses a reason of spaces and sends nothing", async () => {
     const calls = stubApi([SUBMITTER]);
     renderWithdraw(submission());

@@ -5,6 +5,9 @@ explains what the page for one submission shows, how you register interest in it
 reviewers see who registered, and how a submitter withdraws their own submission. You must be
 signed in to open it.
 
+The page also lists the submission's history, and gives reviewers a panel to move it on. Those
+are covered in [History](#history) and in [Triaging a submission](triaging-a-submission.md).
+
 ## Open a submission
 
 On the Submissions page, choose a **Requesting term**. See
@@ -101,6 +104,23 @@ do not see it, and their browser never asks the platform for it. The panel shows
 The panel shows the people who hold interest now. When someone withdraws their interest, they
 leave the list. The panel shows for submissions in any state, including closed ones.
 
+## History
+
+**History** lists every change of state the submission has made, oldest first. Each entry shows:
+
+- **The move**, for example "Submitted to Triage".
+- **The reason** the person gave. Line breaks in the reason are kept.
+- **The date**, in your own time zone.
+- **Who made the move.** Most people see a username. Reviewers and Administrators see the
+  person's name and the organisation on their profile. A closed account shows the placeholder
+  name the platform sends.
+
+A submission that has not changed state says so. Anyone who can open the submission can read its
+History, including the submitter, because the reason is how the working group explains a decision.
+If the list cannot be loaded, the section says so and offers **Try again**. Reviewers and
+Administrators make these moves from the **Triage** panel. See
+[Triaging a submission](triaging-a-submission.md).
+
 ## Withdraw your own submission
 
 If you sent a submission and the platform still lets you take it back, you can withdraw it.
@@ -111,14 +131,16 @@ these are true:
 2. Its state is Submitted or Triage. Once a reviewer has moved it on, the platform no longer
    offers the button, because only an Administrator can withdraw it from then on.
 3. Your role may withdraw a submission. Provisional users, Members and Reviewers may. An
-   Administrator does not see this button. Administrators withdraw through the platform's
-   transition route, and no screen for that exists yet.
+   Administrator role alone does not include this permission, so an Administrator who holds
+   no other role does not see this button. No screen lets an Administrator withdraw someone
+   else's submission yet.
 
 To withdraw:
 
 1. Choose **Withdraw submission**.
 2. Write a reason. It is required, and spaces alone do not count. The platform records it in
-   the audit log with the change. It is not published.
+   the audit log with the change. **History** also shows it to everyone who can open the
+   submission.
 3. Choose **Confirm withdrawal**.
 
 The state changes to Withdrawn at once, without reloading the page, and focus moves to the

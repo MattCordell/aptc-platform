@@ -1,5 +1,9 @@
 import { refusalDetail } from "../api/conflicts.ts";
-import { useRegisterInterest, useRevokeInterest, useSession } from "../api/queries.ts";
+import {
+  useHasPermission,
+  useRegisterInterest,
+  useRevokeInterest,
+} from "../api/queries.ts";
 import type { components } from "../api/schema.ts";
 import { Button } from "../components/button.tsx";
 import { LiveRegion } from "../components/live-region.tsx";
@@ -37,12 +41,11 @@ export function InterestButton({
     "id" | "is_own" | "state" | "has_registered_interest"
   >;
 }) {
-  const session = useSession();
+  const mayRegister = useHasPermission(REGISTER_PERMISSION);
   const register = useRegisterInterest(submission.id);
   const revoke = useRevokeInterest(submission.id);
   const { message, politeness, announce } = useAnnounce();
 
-  const mayRegister = session.data?.permissions?.includes(REGISTER_PERMISSION) === true;
   if (!mayRegister || submission.is_own || !isOpenSubmissionState(submission.state)) {
     return null;
   }

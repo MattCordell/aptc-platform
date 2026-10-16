@@ -36,6 +36,10 @@
   issues #589 and #590. The page at `/submissions/<id>`: what the submitter sent, the
   reference check, the interest button and count, the reviewers' list of who registered, and
   the submitter's **Withdraw submission** button.
+- [Triaging a submission](triaging-a-submission.md) — issue #626. The **Triage** panel on
+  `/submissions/<id>`, for Reviewers and Administrators: each move, the reason it needs, and
+  what the page does when the platform refuses. The page's **History** section is described
+  in [Reading a submission](reading-a-submission.md#history).
 - [Reading the preferred-term length distribution report](reading-the-length-distribution-report.md)
   — issue #152, API-only; there is no admin screen for this report yet.
 

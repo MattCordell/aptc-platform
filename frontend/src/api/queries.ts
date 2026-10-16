@@ -79,6 +79,17 @@ export function useSession() {
 }
 
 /**
+ * Whether the signed-in caller holds `permission`. False until the session
+ * has loaded, so a control gated on it never flashes in and out. The server
+ * checks every request again, so a screen that hides an action on this answer
+ * is offering a convenience, never the check (NFR-20, FR-44).
+ */
+export function useHasPermission(permission: string): boolean {
+  const session = useSession();
+  return session.data?.permissions?.includes(permission) === true;
+}
+
+/**
  * The current terms of use and whether the caller has accepted them (NFR-45,
  * NFR-47). Open to anonymous callers, who always read `accepted: false`.
  *
@@ -1446,6 +1457,7 @@ export function useInterestIdentities(submissionId: string, enabled: boolean) {
 
 type InterestResponse = components["schemas"]["InterestResponse"];
 type WithdrawBody = components["schemas"]["WithdrawRequest"];
+type TransitionBody = components["schemas"]["TransitionRequest"];
 type TransitionAnswer = components["schemas"]["SubmissionTransitionResponse"];
 
 /** What `useSubmissionDetail` caches. The cache update below picks its two
@@ -1517,26 +1529,50 @@ export function useRevokeInterest(submissionId: string) {
   );
 }
 
+function submissionTransitionsKey(submissionId: string) {
+  return ["api", "/api/v1/submissions/{submission_id}/transitions", submissionId];
+}
+
 /**
- * The submitter withdraws their own submission (FR-28). The answer holds the
- * new state, `row_version` and `available_transitions`, so it goes straight
- * into the cached detail and the page shows Withdrawn, with no withdraw button
- * left, without a reload. Any 409 re-reads the detail:
- * a stale version and a state that has already closed both mean the page that
- * offered the action was out of date. A 422 for the reason is left to the
- * caller, because the page it describes has not changed.
+ * Every change of state a submission has made, oldest first (FR-81). The
+ * server answers any caller who may open the submission, so no permission gates
+ * the request. The actor is a username alone or a name with an organisation,
+ * depending on `submitter_identity.view`, so a consumer narrows by field rather
+ * than by role.
  */
-export function useWithdrawSubmission(submissionId: string) {
+export function useSubmissionTransitions(submissionId: string) {
+  const client = useApiClient();
+  return useQuery({
+    queryKey: submissionTransitionsKey(submissionId),
+    queryFn: async ({ signal }) =>
+      unwrap(
+        await client.GET("/api/v1/submissions/{submission_id}/transitions", {
+          params: { path: { submission_id: submissionId } },
+          signal,
+        }),
+      ),
+    enabled: submissionId.length > 0,
+  });
+}
+
+/**
+ * The two writes that change a submission's state share what follows one. The
+ * answer holds the new state, `row_version` and `available_transitions`, so it
+ * goes straight into the cached detail and the page shows the new state, with
+ * the right actions, without a reload. The list's State column and the
+ * submission's history are marked stale. Any 409 re-reads the detail: a stale
+ * version and a state that has already moved both mean the page that offered
+ * the action was out of date. A 422 for the reason is left to the caller,
+ * because the page it describes has not changed.
+ */
+function useStateChangeMutation<Body>(
+  submissionId: string,
+  write: (client: ApiClient, body: Body) => Promise<TransitionAnswer>,
+) {
   const client = useApiClient();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (body: WithdrawBody) =>
-      unwrap(
-        await client.POST("/api/v1/submissions/{submission_id}/withdraw", {
-          params: { path: { submission_id: submissionId } },
-          body,
-        }),
-      ),
+    mutationFn: (body: Body) => write(client, body),
     onSuccess: (answer: TransitionAnswer) => {
       const transition: Pick<
         SubmissionDetailAnswer,
@@ -1550,16 +1586,54 @@ export function useWithdrawSubmission(submissionId: string) {
         submissionDetailKey(submissionId),
         (detail) => (detail === undefined ? undefined : { ...detail, ...transition }),
       );
-      return queryClient.invalidateQueries({ queryKey: SUBMISSIONS_LIST_KEY });
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: SUBMISSIONS_LIST_KEY }),
+        queryClient.invalidateQueries({
+          queryKey: submissionTransitionsKey(submissionId),
+        }),
+      ]);
     },
     onError: (error: unknown) => {
       if (error instanceof ApiError && error.status === 409) {
         void queryClient.invalidateQueries({
           queryKey: submissionDetailKey(submissionId),
         });
+        // Whoever moved the submission first added a row the history lacks.
+        void queryClient.invalidateQueries({
+          queryKey: submissionTransitionsKey(submissionId),
+        });
       }
     },
   });
+}
+
+/** The submitter withdraws their own submission (FR-28). */
+export function useWithdrawSubmission(submissionId: string) {
+  return useStateChangeMutation(submissionId, async (client, body: WithdrawBody) =>
+    unwrap(
+      await client.POST("/api/v1/submissions/{submission_id}/withdraw", {
+        params: { path: { submission_id: submissionId } },
+        body,
+      }),
+    ),
+  );
+}
+
+/**
+ * A reviewer moves a submission to another state with a reason (FR-28, FR-81).
+ * The body names the target, so one hook serves every move the server lists in
+ * `available_transitions`. The server refuses a move that needs more than a
+ * reason, such as the terminology request, with a 409 of its own.
+ */
+export function useTransitionSubmission(submissionId: string) {
+  return useStateChangeMutation(submissionId, async (client, body: TransitionBody) =>
+    unwrap(
+      await client.POST("/api/v1/submissions/{submission_id}/transitions", {
+        params: { path: { submission_id: submissionId } },
+        body,
+      }),
+    ),
+  );
 }
 
 /**

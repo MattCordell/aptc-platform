@@ -20,6 +20,8 @@ import {
   SubmissionDetails,
   SubmissionInterest,
 } from "../submissions/submission-sidebar.tsx";
+import { TransitionHistory } from "../submissions/transition-history.tsx";
+import { TriageSubmission } from "../submissions/triage-submission.tsx";
 import { WithdrawSubmission } from "../submissions/withdraw-submission.tsx";
 
 /**
@@ -103,7 +105,9 @@ function SubmissionView({
               <SubmissionDetails submission={submission} />
               <SubmissionInterest submission={submission} />
               <InterestIdentitiesPanel submissionId={submission.id} />
+              <TriageSubmission submission={submission} />
               <WithdrawSubmission submission={submission} />
+              <TransitionHistory submissionId={submission.id} />
             </>
           }
         >
