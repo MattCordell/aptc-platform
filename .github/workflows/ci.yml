@@ -283,8 +283,8 @@ jobs:
           pattern: coverage-data-*
           merge-multiple: true
 
-      # Every job checks out to the same path, so the data files need no
-      # path remapping before they combine.
+      # `relative_files = true` in pyproject.toml stores paths relative to the
+      # repo root, so the data files combine without path remapping.
       - name: Combine, report and enforce the floor
         run: |
           uv run coverage combine .coverage.python .coverage.integration

@@ -62,12 +62,13 @@ import pytest
 import yaml
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import create_engine, event, text
+from sqlalchemy import bindparam, create_engine, event, text
 from sqlalchemy.engine import Connection, Engine, make_url
 from sqlalchemy.orm import Session
 from testcontainers.community.postgres import PostgresContainer
 
 from nptc.db import property_reconciler_dispatch
+from nptc.db.bootstrap import _build_system_property_definitions
 from nptc.db.provision_login import APP_LOGIN_ROLE, provision_app_login
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -372,21 +373,23 @@ def pristine_catalogue(owner_engine: Engine, migrated: None) -> Iterator[None]:
 
 
 def _wipe_committed_system_properties(owner_engine: Engine) -> None:
-    """Deletes the four built-in `property_definition` rows and any `property_value` row naming
-    one, as the owner. `seed_system_properties` is a no-op once they exist, and the seed CLI tests
-    commit them for real, so a test asserting what a seeding call inserts needs them absent."""
+    """Deletes every built-in `property_definition` row and any `property_value` row naming one,
+    as the owner. `seed_system_properties` is a no-op once they exist, and the seed CLI tests
+    commit them for real, so a test asserting what a seeding call inserts needs them absent. The
+    keys come from the seeding code itself, so a new built-in property is covered automatically."""
+    keys = [definition.key for definition in _build_system_property_definitions()]
     with owner_engine.connect() as connection:
         connection.execute(
-            text(
-                "DELETE FROM property_value WHERE property_key IN "
-                "('discipline', 'subgroup', 'specimen', 'usage_guidance')"
-            )
+            text("DELETE FROM property_value WHERE property_key IN :keys").bindparams(
+                bindparam("keys", expanding=True)
+            ),
+            {"keys": keys},
         )
         connection.execute(
-            text(
-                "DELETE FROM property_definition WHERE key IN "
-                "('discipline', 'subgroup', 'specimen', 'usage_guidance')"
-            )
+            text("DELETE FROM property_definition WHERE key IN :keys").bindparams(
+                bindparam("keys", expanding=True)
+            ),
+            {"keys": keys},
         )
         connection.commit()
 

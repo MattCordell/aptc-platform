@@ -123,9 +123,7 @@ def test_system_properties_travel_the_same_write_path_as_an_admin_property(
 @pytest.mark.req("FR-09")
 @pytest.mark.integration
 @pytest.mark.usefixtures("pristine_system_properties")
-def test_seed_system_properties_is_safe_under_a_concurrent_caller(
-    app_engine: Engine, owner_engine: Engine
-) -> None:
+def test_seed_system_properties_is_safe_under_a_concurrent_caller(app_engine: Engine) -> None:
     """Reproduces the actual race `seed_system_properties`'s per-row
     `SAVEPOINT` exists to handle - two independent sessions that both see
     every key missing, not merely a serial repeat call
@@ -141,8 +139,8 @@ def test_seed_system_properties_is_safe_under_a_concurrent_caller(
     with a row A already committed - Postgres detects this write-write
     conflict against the committed row regardless of B's read snapshot,
     the same first-committer-wins behaviour two genuinely concurrent
-    processes would hit. Real commits land in the shared container, so a
-    `finally` block cleans them up via `owner_engine` (issue #190).
+    processes would hit. Real commits land in the shared container, so
+    `pristine_system_properties` cleans them up.
     """
     connection_a = app_engine.connect().execution_options(isolation_level="REPEATABLE READ")
     connection_b = app_engine.connect().execution_options(isolation_level="REPEATABLE READ")
@@ -179,14 +177,6 @@ def test_seed_system_properties_is_safe_under_a_concurrent_caller(
             session_b.close()
         connection_a.close()
         connection_b.close()
-        with owner_engine.connect() as cleanup_connection:
-            cleanup_connection.execute(
-                text(
-                    "DELETE FROM property_definition WHERE key IN "
-                    "('discipline', 'subgroup', 'specimen', 'usage_guidance')"
-                )
-            )
-            cleanup_connection.commit()
 
 
 @pytest.mark.req("FR-77")

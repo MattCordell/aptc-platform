@@ -30,12 +30,13 @@ share a database, and lock-ordering and race tests cannot collide across workers
 
 ## Coverage floor
 
-The 80% floor (`--cov-fail-under=80`) applies to the combined data, not to either job alone.
-Neither job sees the whole suite: `python` skips the container tests, and
-`backend-integration` skips `transform/tests` and `shared/tests`. The `coverage` job downloads
-both data files, runs `coverage combine`, and fails below 80%. Every job checks out to the same
-path, so the files combine without path remapping. The report is uploaded as the
-`coverage-xml` artifact.
+The 80% floor applies to the combined data, not to either job alone. Neither job sees the whole
+suite: `python` skips the container tests, and `backend-integration` skips `transform/tests` and
+`shared/tests`. The `coverage` job downloads both data files, runs `coverage combine`, and runs
+`coverage report --fail-under=80`. The setting `relative_files = true` in `pyproject.toml` stores
+paths relative to the repo root, so the files combine without path remapping. If you remove it,
+the combine depends on both jobs checking out to the same absolute path. The report is uploaded
+as the `coverage-xml` artifact.
 
 ## When a timeout hits
 
