@@ -38,6 +38,9 @@ approval is a dead end. A rejected submission can be reopened to Triage, and it 
 **Resume review** is for a request for a SNOMED CT code that the authority declined, or that
 nobody is pursuing. The record of the request stays.
 
+To change what a submission proposes, such as a test name or a code, use the **Edit** button
+above the panel. See [Editing a submission](editing-a-submission.md).
+
 Some moves are not on the panel because they need more than a reason: asking for a new SNOMED CT
 code and attaching that code. Each will have its own form. Withdrawing a submission is also
 separate. See
@@ -60,7 +63,9 @@ Choose **Cancel** to close the box without moving the submission.
 Approving is the Administrator's decision. It writes to the catalogue, so it differs from the
 other moves in three ways:
 
-- A **new test** becomes a new active entry in the catalogue.
+- A **new test** becomes a new active entry in the catalogue. If a reviewer edited the
+  submission, the entry takes the working copy's content, and the box names that term. See
+  [Editing a submission](editing-a-submission.md).
 - An **amendment** changes the entry it names. The box shows that entry's identifier, for
   example NPTC-000247.
 - The reason you write becomes the entry's changelog note. It appears in the entry's

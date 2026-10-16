@@ -40,6 +40,9 @@
   `/submissions/<id>`, for Reviewers and Administrators: each move, the reason it needs, and
   what the page does when the platform refuses. The page's **History** section is described
   in [Reading a submission](reading-a-submission.md#history).
+- [Editing a submission](editing-a-submission.md) — issue #627. The **Edit** button on
+  `/submissions/<id>` for Reviewers and Administrators: what you can change, the reason, and how
+  the page marks each change from the original.
 - [Reading the preferred-term length distribution report](reading-the-length-distribution-report.md)
   — issue #152, API-only; there is no admin screen for this report yet.
 
