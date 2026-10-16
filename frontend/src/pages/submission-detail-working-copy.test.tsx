@@ -344,6 +344,13 @@ describe("the Edit action (FR-23, FR-44, NFR-20)", () => {
     await screen.findByRole("heading", { level: 1, name: "Ferritin level" });
     expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
   });
+
+  it("offers no Edit button when the server sent no working copy, whatever the session says", async () => {
+    await open([REVIEWER, DEFINITIONS, detail({}, { review: false })]);
+
+    await screen.findByRole("heading", { level: 1, name: "Ferritin level" });
+    expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
+  });
 });
 
 type Calls = ReturnType<typeof stubApi>;

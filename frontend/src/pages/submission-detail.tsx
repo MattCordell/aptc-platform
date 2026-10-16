@@ -115,17 +115,17 @@ function SubmissionView({
               <SubmissionDetails submission={submission} />
               <SubmissionInterest submission={submission} />
               <InterestIdentitiesPanel submissionId={submission.id} />
-              <EditWorkingCopySection
-                state={submission.state}
-                editing={opened !== null}
-                saved={saved}
-                onEdit={() => {
-                  if (review !== null) {
+              {review === null ? null : (
+                <EditWorkingCopySection
+                  state={submission.state}
+                  editing={opened !== null}
+                  saved={saved}
+                  onEdit={() => {
                     setSaved(null);
                     setOpened(workingContentOf(review));
-                  }
-                }}
-              />
+                  }}
+                />
+              )}
               <TriageSubmission submission={submission} />
               <WithdrawSubmission submission={submission} />
               <TransitionHistory submissionId={submission.id} />
