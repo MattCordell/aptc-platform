@@ -14,7 +14,6 @@ describe("isMadeOnTheTriagePanel", () => {
     ["Triage", "Withdrawn"],
     ["Under review", "Awaiting terminology"],
     ["Awaiting terminology", "Ready for approval"],
-    ["Ready for approval", "Approved"],
   ])("leaves %s to %s to another screen", (from, to) => {
     expect(isMadeOnTheTriagePanel(from, to)).toBe(false);
   });
@@ -28,6 +27,7 @@ describe("isMadeOnTheTriagePanel", () => {
     ["Rejected", "Triage"],
     ["Under review", "Ready for approval"],
     ["Awaiting terminology", "Under review"],
+    ["Ready for approval", "Approved"],
   ])("keeps %s to %s on the panel", (from, to) => {
     expect(isMadeOnTheTriagePanel(from, to)).toBe(true);
   });
@@ -49,6 +49,7 @@ describe("moveWording", () => {
       ["Rejected", "Triage"],
       ["Under review", "Ready for approval"],
       ["Awaiting terminology", "Under review"],
+      ["Ready for approval", "Approved"],
     ];
     const labels = moves.map(([from, to]) => moveWording(from, to, to).label);
 
@@ -67,6 +68,12 @@ describe("moveWording", () => {
 
     expect(wording.label).toBe("Reject");
     expect(wording.effect).toMatch(/reopen a rejected submission/);
+  });
+
+  it("words the approval as Approve", () => {
+    expect(moveWording("Ready for approval", "Approved", "Approved").label).toBe(
+      "Approve",
+    );
   });
 
   it("labels a move it has no words for with its target, so no move is hidden", () => {

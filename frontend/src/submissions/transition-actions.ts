@@ -23,8 +23,6 @@ const MOVES_ON_OTHER_ROUTES: readonly { from?: SubmissionState; to: SubmissionSt
     // Each needs a request or a code of its own.
     { to: "Awaiting terminology" },
     { from: "Awaiting terminology", to: "Ready for approval" },
-    // Approval writes the catalogue entry.
-    { to: "Approved" },
   ];
 
 export function isMadeOnTheTriagePanel(from: string, to: SubmissionState): boolean {
@@ -64,6 +62,10 @@ const MOVE_WORDING: Readonly<Record<string, MoveWording>> = {
   "Under review>Ready for approval": {
     label: "Mark ready for approval",
     effect: "An Administrator then decides whether to approve it.",
+  },
+  "Ready for approval>Approved": {
+    label: "Approve",
+    effect: "Approving writes the submission to the catalogue.",
   },
   "Awaiting terminology>Under review": {
     label: "Resume review",
