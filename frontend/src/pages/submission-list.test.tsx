@@ -24,6 +24,7 @@ function summary(overrides: Record<string, unknown>) {
     kind: "new_test",
     state: "Submitted",
     entry_business_key: null,
+    created_entry_business_key: null,
     preferred_term: "Placeholder",
     snomed_code: null,
     snomed_fsn: null,

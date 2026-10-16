@@ -65,6 +65,7 @@ function detail(overrides: Record<string, unknown> = {}): Route {
       kind: "new_test",
       state: "Submitted",
       entry_business_key: null,
+      created_entry_business_key: null,
       preferred_term: "Ferritin level",
       snomed_code: "0123456789",
       snomed_fsn: "Ferritin measurement (procedure)",
@@ -674,6 +675,130 @@ describe("submission detail triage (FR-28, FR-81)", () => {
 
     await screen.findByRole("heading", { name: "Ferritin level" });
     expect(screen.queryByRole("heading", { name: "Triage" })).toBeNull();
+  });
+});
+
+describe("submission detail approval (FR-28, FR-35)", () => {
+  const APPROVE = `${DETAIL}/approve`;
+  const ADMINISTRATOR = me([
+    "submission.transition.approve",
+    "submission.transition.review",
+    "interest.register",
+  ]);
+  const REVIEWER = me(["submission.transition.review", "interest.register"]);
+
+  function approved(entryCreated: boolean, businessKey: string): Route {
+    return {
+      method: "POST",
+      path: APPROVE,
+      status: 200,
+      body: {
+        id: ID,
+        state: "Approved",
+        row_version: 8,
+        available_transitions: [],
+        entry_id: "9a1b2c3d-0000-4000-8000-000000000099",
+        business_key: businessKey,
+        entry_created: entryCreated,
+        entry_row_version: 1,
+      },
+    };
+  }
+
+  async function approve(reason: string) {
+    await userEvent.click(await screen.findByRole("button", { name: "Approve" }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.type(within(dialog).getByRole("textbox", { name: /Reason/ }), reason);
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Confirm approval" }),
+    );
+  }
+
+  it("approves a new test and links the entry it created, in the confirmation and in Details", async () => {
+    const { calls, container } = await open([
+      ADMINISTRATOR,
+      DEFINITIONS,
+      detail({
+        state: "Ready for approval",
+        row_version: 7,
+        available_transitions: ["Approved", "Rejected"],
+      }),
+      approved(true, "NPTC-000123"),
+    ]);
+
+    await approve("  Checked against the source.  ");
+
+    const confirmation = await screen.findByText(/^Approved\. Created entry/);
+    expect(confirmation).toHaveFocus();
+    const details = screen.getByRole("complementary", { name: "Submission details" });
+    expect(within(details).getByText("Approved", { selector: "span" })).toBeVisible();
+    const links = screen.getAllByRole("link", { name: "NPTC-000123" });
+    expect(links).toHaveLength(2);
+    for (const link of links) {
+      expect(link).toHaveAttribute("href", "/catalogue/NPTC-000123");
+      expect(link).toHaveClass("underline");
+    }
+    expect(within(details).getByText(/New test, created as/)).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
+    expect(calls.find((call) => call.method === "POST")?.body).toEqual({
+      reason: "Checked against the source.",
+      expected_row_version: 7,
+    });
+    await expectNoA11yViolations(container);
+  });
+
+  it("approves an amendment and links the entry it changed", async () => {
+    const { container } = await open([
+      ADMINISTRATOR,
+      DEFINITIONS,
+      detail({
+        kind: "amendment",
+        entry_business_key: "NPTC-000247",
+        state: "Ready for approval",
+        row_version: 7,
+        available_transitions: ["Approved", "Rejected"],
+        property_values: {},
+      }),
+      approved(false, "NPTC-000247"),
+    ]);
+
+    await approve("Checked against the source.");
+
+    expect(await screen.findByText(/^Approved\. Amended entry/)).toBeVisible();
+    const links = screen.getAllByRole("link", { name: "NPTC-000247" });
+    expect(links).toHaveLength(2);
+    for (const link of links) {
+      expect(link).toHaveAttribute("href", "/catalogue/NPTC-000247");
+    }
+    await expectNoA11yViolations(container);
+  });
+
+  it("shows the created entry's link on a reload, when nothing remains to approve", async () => {
+    const { container } = await open([
+      ADMINISTRATOR,
+      DEFINITIONS,
+      detail({
+        state: "Approved",
+        created_entry_business_key: "NPTC-000123",
+        available_transitions: [],
+      }),
+    ]);
+
+    const link = await screen.findByRole("link", { name: "NPTC-000123" });
+    expect(link).toHaveAttribute("href", "/catalogue/NPTC-000123");
+    expect(screen.queryByRole("heading", { name: "Triage" })).toBeNull();
+    await expectNoA11yViolations(container);
+  });
+
+  it("offers a Reviewer no Approve button, because the server leaves Approved out of the list", async () => {
+    await open([
+      REVIEWER,
+      DEFINITIONS,
+      detail({ state: "Ready for approval", available_transitions: ["Rejected"] }),
+    ]);
+
+    expect(await screen.findByRole("button", { name: "Reject" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
   });
 });
 

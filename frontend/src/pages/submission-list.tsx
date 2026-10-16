@@ -262,6 +262,7 @@ export function SubmissionListPage() {
                       <SubmissionKind
                         kind={row.kind}
                         entryBusinessKey={row.entry_business_key}
+                        createdEntryBusinessKey={row.created_entry_business_key}
                       />
                     ),
                   },
