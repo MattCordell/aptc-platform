@@ -12,8 +12,11 @@ table. A permission-gated route there would need an exception in both guard test
 per audience also lets a reviewer permission-audit each route on its own.
 
 **Gated on `Permission.CATALOGUE_EDIT_PUBLISHED`, not a new read permission.** The
-audience that loads an entry to edit it is the audience that saves the edit, so it needs
-one credential posture, MFA step-up included. A narrower `catalogue.read_unpublished` was
+listing, search and history routes need that permission alone: the audience that loads
+an entry to edit it is the audience that saves the edit, so it needs one credential
+posture, MFA step-up included. The one-entry read also admits
+`Permission.COMMENT_INTERNAL_READ`, so a Reviewer can open a draft to comment on it
+(FR-95); the page then hides its edit form. A narrower `catalogue.read_unpublished` was
 rejected: `test_permission_matrix.py` asserts `ROLE_PERMISSIONS` cell by cell against the
 PRD table, so a new permission needs a PRD change.
 
@@ -116,9 +119,9 @@ _RESPONSES_ADMIN_READ: Final[dict[int | str, dict[str, Any]]] = {
         "model": ErrorResponse,
         "description": (
             "The caller is authenticated but holds neither `catalogue.edit_published` "
-            "nor `comment.internal.read`, or holds only a role that has not completed "
-            "the MFA step-up (the response then also carries a `WWW-Authenticate` "
-            "step-up challenge)."
+            "nor `comment.internal.read`, or holds one of them only through a role that "
+            "needs the MFA step-up, which the caller has not completed (the response "
+            "then also carries a `WWW-Authenticate` step-up challenge)."
         ),
     },
     404: _RESPONSE_404,

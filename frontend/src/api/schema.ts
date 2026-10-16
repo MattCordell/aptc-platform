@@ -577,8 +577,8 @@ export interface paths {
         };
         /**
          * One catalogue entry, any status, with everything attached to it
-         * @description The `catalogue.edit_published`-gated counterpart to `catalogue.py`'s
-         *     public `read_entry`: no status filter on the entry itself, and - unlike
+         * @description The `catalogue.edit_published`- or `comment.internal.read`-gated counterpart to
+         *     `catalogue.py`'s public `read_entry`: no status filter on the entry itself, and - unlike
          *     the public route - `designations` includes retired rows too. The other
          *     two sub-resources are unfiltered on both routes: `bindings` publishes
          *     retired rows on both (FR-08), and `properties` has no per-row status of
@@ -6221,7 +6221,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description The caller is authenticated but does not hold `catalogue.edit_published`, or holds it but has not completed the MFA step-up this permission requires (the response then also carries a `WWW-Authenticate` step-up challenge). */
+            /** @description The caller is authenticated but holds neither `catalogue.edit_published` nor `comment.internal.read`, or holds one of them only through a role that needs the MFA step-up, which the caller has not completed (the response then also carries a `WWW-Authenticate` step-up challenge). */
             403: {
                 headers: {
                     [name: string]: unknown;

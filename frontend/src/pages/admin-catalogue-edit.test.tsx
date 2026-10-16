@@ -654,4 +654,21 @@ describe("the internal comments panel (FR-95, FR-44, NFR-20)", () => {
     expect(calls.some((call) => call.path === COMMENTS)).toBe(false);
     await expectNoA11yViolations(container);
   });
+
+  it("says why the form is missing when the session cannot be read, and announces it", async () => {
+    stubRoutes([
+      READ_OK,
+      COMMENTS_OK,
+      { method: "GET", path: "/auth/me", status: 500, body: { detail: "boom" } },
+    ]);
+    await renderRoute(EDIT_URL, SIGNED_IN);
+    await screen.findByRole("heading", { name: "Ferritin", level: 1 });
+
+    const message = /Your permissions could not be checked/;
+    await waitFor(() => {
+      expect(screen.getAllByText(message).length).toBeGreaterThan(0);
+    });
+    expect(screen.queryByRole("region", { name: "Edit entry" })).toBeNull();
+    expect(announced()).toMatch(message);
+  });
 });

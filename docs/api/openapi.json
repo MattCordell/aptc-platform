@@ -3149,7 +3149,7 @@
             }
           },
           "403": {
-            "description": "The caller is authenticated but holds neither `catalogue.edit_published` nor `comment.internal.read`, or holds only a role that has not completed the MFA step-up (the response then also carries a `WWW-Authenticate` step-up challenge).",
+            "description": "The caller is authenticated but holds neither `catalogue.edit_published` nor `comment.internal.read`, or holds one of them only through a role that needs the MFA step-up, which the caller has not completed (the response then also carries a `WWW-Authenticate` step-up challenge).",
             "content": {
               "application/json": {
                 "schema": {

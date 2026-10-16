@@ -231,8 +231,10 @@ def test_a_reviewer_can_read_a_draft_to_comment_on_it(
     api: ApiTestApp, seeded: SeededCatalogue
 ) -> None:
     """A Reviewer holds `comment.internal.read` but not `catalogue.edit_published`:
-    the read admits either, and the gate is the permission, not the role."""
-    token = api.token_for_role(subject="sub-reviewer", role=Role.REVIEWER)
+    the read admits either, and the gate is the permission, not the role. The Reviewer
+    role is not MFA-gated (only Administrator-only permissions are), so a Reviewer
+    without MFA reads the draft without a step-up."""
+    token = api.token_for_role(subject="sub-reviewer", role=Role.REVIEWER, with_mfa=False)
 
     response = _admin_read(api, seeded.draft, token)
 
