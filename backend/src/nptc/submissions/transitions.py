@@ -110,7 +110,7 @@ _APPROVED = "submission.approved"
 
 # The Administrator holds `.any` and not `.own`, so an Administrator's own submission needs `.any`
 # on the same row as the submitter's `.own`. Only `.any` reaches `Approved` and `Published in
-# release`: the submitter's withdrawal ends once an Administrator has approved the proposal.
+# release`: the submitter's withdrawal ends once the submission leaves `Under review`.
 _WITHDRAW_OPEN = (_WITHDRAW_OWN, _WITHDRAW_ANY)
 
 PERMITTED_TRANSITIONS: Final[
