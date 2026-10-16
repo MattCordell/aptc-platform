@@ -10,6 +10,8 @@ import {
 import type { PropertyValueSlot } from "../catalogue/property-controls/index.ts";
 import type { CodeSelection } from "../catalogue/use-code-selection.ts";
 import type { FormError } from "../components/error-summary.tsx";
+import { workingCopyDiff } from "./working-copy-diff.ts";
+import type { WorkingContent } from "./working-copy-diff.ts";
 
 /**
  * What the new-test form holds, and how it becomes a request (FR-23, FR-24).
@@ -220,34 +222,31 @@ function notesAndOrganisationErrors(values: SubmissionValues): FormError[] {
   return found;
 }
 
-/**
- * The form's own mistakes, found before anything is sent. A code that is still
- * being checked, or that the server could not name, holds the form back: the
- * user clears it to send the form without one.
- */
-export function validate(
+function termErrors(values: SubmissionValues): FormError[] {
+  const { termLength } = SUBMISSION_LIMITS;
+  if (values.preferredTerm.trim() === "") {
+    return [{ fieldId: FIELD_IDS.preferred_term, message: "Enter the test name." }];
+  }
+  return overLimit(values.preferredTerm.length, termLength)
+    ? [
+        {
+          fieldId: FIELD_IDS.preferred_term,
+          message: `The test name is over ${termLength} characters. Shorten it.`,
+        },
+      ]
+    : [];
+}
+
+function propertyErrors(
   values: SubmissionValues,
   definitions: PropertyDefinition[],
-  selection: CodeSelection,
+  requireValues: boolean,
 ): FormError[] {
   const found: FormError[] = [];
-  const { termLength } = SUBMISSION_LIMITS;
-
-  if (values.preferredTerm.trim() === "") {
-    found.push({ fieldId: FIELD_IDS.preferred_term, message: "Enter the test name." });
-  } else if (overLimit(values.preferredTerm.length, termLength)) {
-    found.push({
-      fieldId: FIELD_IDS.preferred_term,
-      message: `The test name is over ${termLength} characters. Shorten it.`,
-    });
-  }
-
-  found.push(...nameErrors(values), ...codeErrors(selection));
-
   for (const definition of definitions) {
     const list = values.slots[definition.key] ?? [];
     const filled = filledSlotIndexes(list).length;
-    if (definition.required_for_submission && filled === 0) {
+    if (requireValues && definition.required_for_submission && filled === 0) {
       found.push({
         fieldId: slotFieldId(definition.key, 0),
         message: `Enter a value for ${definition.label}.`,
@@ -259,6 +258,25 @@ export function validate(
       });
     }
   }
+  return found;
+}
+
+/**
+ * The form's own mistakes, found before anything is sent. A code that is still
+ * being checked, or that the server could not name, holds the form back: the
+ * user clears it to send the form without one.
+ */
+export function validate(
+  values: SubmissionValues,
+  definitions: PropertyDefinition[],
+  selection: CodeSelection,
+): FormError[] {
+  const found: FormError[] = [
+    ...termErrors(values),
+    ...nameErrors(values),
+    ...codeErrors(selection),
+    ...propertyErrors(values, definitions, true),
+  ];
 
   if (values.referenceUrl.trim() === "") {
     found.push({
@@ -367,4 +385,133 @@ export function amendmentBody(
     ...(values.notes.trim() === "" ? {} : { notes: values.notes }),
     ...(values.organisation === null ? {} : { organisation: values.organisation }),
   };
+}
+
+type WorkingCopyBody = components["schemas"]["WorkingCopyRequest"];
+
+/** The content fields of an edit. The reason and the version are the caller's. */
+export type WorkingCopyChanges = Omit<WorkingCopyBody, "reason" | "expected_row_version">;
+
+/**
+ * What the edit form starts with, taken from the content the reviewer opened it on.
+ * `code` stays `null` because it holds only a code the reviewer picks: the code the
+ * submission already has is shown from `opened`, and needs no lookup to be kept.
+ */
+export function valuesFromContent(opened: WorkingContent): SubmissionValues {
+  return {
+    ...initialValues(),
+    preferredTerm: opened.preferred_term,
+    names: opened.synonyms.map((term) => ({ id: newSlotId(), term })),
+    slots: Object.fromEntries(
+      Object.entries(opened.property_values).map(([key, items]) => [
+        key,
+        items.map((item) => ({
+          id: newSlotId(),
+          value: item.value,
+          justification: item.justification,
+        })),
+      ]),
+    ),
+    notes: opened.notes ?? "",
+  };
+}
+
+function slotItems(list: PropertyValueSlot[]): WorkingContent["property_values"][string] {
+  return filledSlotIndexes(list).map((index) => ({
+    value: slotValue(list[index]),
+    justification:
+      list[index].justification === null || list[index].justification === ""
+        ? null
+        : list[index].justification,
+  }));
+}
+
+/** The content the form now holds, in the shape of the content it was opened on. */
+function contentOfValues(
+  values: SubmissionValues,
+  opened: WorkingContent,
+  selection: CodeSelection,
+): WorkingContent {
+  const propertyValues: WorkingContent["property_values"] = {};
+  for (const [key, list] of Object.entries(values.slots)) {
+    const items = slotItems(list);
+    if (items.length > 0) {
+      propertyValues[key] = items;
+    }
+  }
+  return {
+    preferred_term: values.preferredTerm,
+    synonyms: filledNames(values),
+    snomed_code: codeToSend(selection) ?? opened.snomed_code,
+    snomed_fsn: null,
+    property_values: propertyValues,
+    notes: values.notes.trim() === "" ? null : values.notes,
+  };
+}
+
+/**
+ * The fields the reviewer changed since the form opened. A field they left alone is
+ * not sent, so an edit never overwrites a change someone else made to it in the
+ * meantime. `synonyms` and `property_values` go whole, because the server replaces
+ * the whole field. An amendment proposes only names and a code, so it sends no more.
+ * An empty result means there is nothing to send.
+ */
+export function workingCopyChanges(
+  values: SubmissionValues,
+  opened: WorkingContent,
+  selection: CodeSelection,
+  kind: string,
+): WorkingCopyChanges {
+  const edited = contentOfValues(values, opened, selection);
+  const difference = workingCopyDiff(opened, edited);
+  const whole = kind !== "amendment";
+  return {
+    ...(difference.synonyms ? { synonyms: edited.synonyms } : {}),
+    ...(difference.code && edited.snomed_code !== null
+      ? { snomed_code: edited.snomed_code }
+      : {}),
+    ...(whole && difference.preferredTerm
+      ? { preferred_term: values.preferredTerm }
+      : {}),
+    ...(whole && difference.notes ? { notes: values.notes } : {}),
+    ...(whole && difference.properties.length > 0
+      ? { property_values: edited.property_values }
+      : {}),
+  };
+}
+
+/**
+ * The edit form's own mistakes, found before anything is sent. It asks for no
+ * property value that the registry marks required: a submission can predate that
+ * rule, and the server names the property it refuses.
+ */
+export function validateWorkingCopy(
+  values: SubmissionValues,
+  opened: WorkingContent,
+  definitions: PropertyDefinition[],
+  selection: CodeSelection,
+  kind: string,
+): FormError[] {
+  if (kind === "amendment") {
+    const found = [...nameErrors(values), ...codeErrors(selection)];
+    if (
+      found.length === 0 &&
+      filledNames(values).length === 0 &&
+      selection.status !== "ready" &&
+      opened.snomed_code === null
+    ) {
+      found.push({
+        fieldId: FIELD_IDS.synonyms,
+        message: "Keep at least one other name or a SNOMED CT code.",
+      });
+    }
+    return found;
+  }
+  return [
+    ...termErrors(values),
+    ...nameErrors(values),
+    ...codeErrors(selection),
+    ...propertyErrors(values, definitions, false),
+    ...notesAndOrganisationErrors(values),
+  ];
 }
