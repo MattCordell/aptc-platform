@@ -6,6 +6,7 @@ import { expectNoA11yViolations } from "../test/a11y.ts";
 import { renderRoute } from "../test/render-route.tsx";
 import type { Route } from "../test/stub-api.ts";
 import { stubApi as stubRoutes } from "../test/stub-api.ts";
+import { sessionRoute, stubEditorApi as stubApi } from "../test/session-route.ts";
 import { waitForSession } from "../test/wait-for-session.ts";
 
 /**
@@ -64,32 +65,6 @@ const READ_OK: Route = {
 const EDIT = "catalogue.edit_published";
 const COMMENT_READ = "comment.internal.read";
 const COMMENT_WRITE = "comment.internal.write";
-
-/** The signed-in session `GET /auth/me` answers with, holding `permissions`. */
-function sessionFor(permissions: string[]): Route {
-  return {
-    method: "GET",
-    path: "/auth/me",
-    status: 200,
-    body: {
-      authenticated: true,
-      user: {
-        username: "ada",
-        display_name: "Ada Admin",
-        organisation: null,
-        status: "active",
-      },
-      roles: [],
-      permissions,
-      mfa_satisfied: true,
-    },
-  };
-}
-
-/** Every screen test here is an editor unless it stubs a session of its own. */
-function stubApi(routes: Route[], options?: Parameters<typeof stubRoutes>[1]) {
-  return stubRoutes([...routes, sessionFor([EDIT])], options);
-}
 
 const ADD_PATH = `/catalogue/entries/${BUSINESS_KEY}/designations`;
 const AMEND_PATH = `${ADD_PATH}/amendment`;
@@ -640,7 +615,7 @@ describe("the internal comments panel (FR-95, FR-44, NFR-20)", () => {
   };
 
   async function renderWith(permissions: string[]) {
-    const calls = stubRoutes([READ_OK, COMMENTS_OK, sessionFor(permissions)]);
+    const calls = stubRoutes([READ_OK, COMMENTS_OK, sessionRoute(permissions)]);
     const view = await renderRoute(EDIT_URL, SIGNED_IN);
     await screen.findByRole("heading", { name: "Ferritin", level: 1 });
     return { calls, ...view };

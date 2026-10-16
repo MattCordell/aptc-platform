@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../test/a11y.ts";
 import { renderRoute } from "../test/render-route.tsx";
 import type { Route } from "../test/stub-api.ts";
-import { stubApi } from "../test/stub-api.ts";
+import { stubEditorApi as stubApi } from "../test/session-route.ts";
 
 /**
  * The SNOMED CT code picker and the RCPA Synonyms inside the edit form
