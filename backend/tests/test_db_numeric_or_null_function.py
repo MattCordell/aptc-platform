@@ -143,7 +143,9 @@ def test_create_index_survives_a_non_castable_value_on_a_fresh_connection(
             )
         )
 
-        indexed = connection.execute(
-            text("SELECT count(*) FROM pg_indexes WHERE indexname = 'ix_t_fresh_numeric_or_null'")
-        ).scalar_one()
-    assert indexed == 1
+        values = (
+            connection.execute(text("SELECT nptc_numeric_or_null(v) FROM t_fresh_numeric_or_null"))
+            .scalars()
+            .all()
+        )
+    assert sorted(values, key=lambda v: (v is None, v)) == [5, None, None]
