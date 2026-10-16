@@ -1,9 +1,10 @@
+import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 
 import { useTransitionSubmission } from "../api/queries.ts";
-import type { components } from "../api/schema.ts";
 import { Button } from "../components/button.tsx";
 import { EntrySection } from "../catalogue/entry-section.tsx";
+import { ApproveDialog, type Approvable, type ApprovedEntry } from "./approve-dialog.tsx";
 import { submissionStateLabel, type SubmissionState } from "./state-options.ts";
 import {
   isMadeOnTheTriagePanel,
@@ -12,12 +13,7 @@ import {
 } from "./transition-actions.ts";
 import { TransitionDialog } from "./transition-dialog.tsx";
 
-type SubmissionDetail = components["schemas"]["SubmissionDetail"];
-
-type Triageable = Pick<
-  SubmissionDetail,
-  "id" | "state" | "available_transitions" | "row_version" | "preferred_term"
->;
+type Triageable = Approvable;
 
 const NO_LONGER_OFFERED = "The platform no longer offers this move for this submission.";
 
@@ -97,6 +93,7 @@ function TriagePanel({ submission }: { submission: Triageable }) {
     null,
   );
   const [movedTo, setMovedTo] = useState<SubmissionState | null>(null);
+  const [approvedEntry, setApprovedEntry] = useState<ApprovedEntry | null>(null);
   const confirmation = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
@@ -124,6 +121,7 @@ function TriagePanel({ submission }: { submission: Triageable }) {
                 variant="secondary"
                 onClick={() => {
                   setMovedTo(null);
+                  setApprovedEntry(null);
                   setMoving({ from: submission.state, to });
                 }}
               >
@@ -134,10 +132,36 @@ function TriagePanel({ submission }: { submission: Triageable }) {
         ) : null}
         {movedTo !== null ? (
           <p ref={confirmation} tabIndex={-1} className="m-0 text-sm">
-            Moved to {submissionStateLabel(movedTo)}.
+            {approvedEntry === null ? (
+              `Moved to ${submissionStateLabel(movedTo)}.`
+            ) : (
+              <>
+                Approved. {approvedEntry.created ? "Created" : "Amended"} entry{" "}
+                <Link
+                  to="/catalogue/$businessKey"
+                  params={{ businessKey: approvedEntry.businessKey }}
+                  className="text-[var(--color-accent)] underline"
+                >
+                  {approvedEntry.businessKey}
+                </Link>
+                .
+              </>
+            )}
           </p>
         ) : null}
-        {moving !== null ? (
+        {moving?.to === "Approved" ? (
+          <ApproveDialog
+            submission={submission}
+            from={moving.from}
+            onClose={() => setMoving(null)}
+            onApproved={(entry) => {
+              setApprovedEntry(entry);
+              setMovedTo("Approved");
+              setMoving(null);
+            }}
+          />
+        ) : null}
+        {moving !== null && moving.to !== "Approved" ? (
           <MoveDialog
             key={moving.to}
             submission={submission}

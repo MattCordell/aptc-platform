@@ -7,19 +7,38 @@ type Submitter =
 
 const MUTED = "text-[var(--color-text-muted)]";
 
+const ENTRY_LINK_CLASS = "text-[var(--color-accent)] underline";
+
 /**
- * The kind of a submission, with a link to the entry an amendment changes. The
- * wire type is `string`, so an unknown kind degrades to its own text.
+ * The kind of a submission, with a link to the entry an amendment changes or
+ * the entry an approved new test became. The wire type is `string`, so an
+ * unknown kind degrades to its own text.
  */
 export function SubmissionKind({
   kind,
   entryBusinessKey,
+  createdEntryBusinessKey,
 }: {
   kind: string;
   entryBusinessKey: string | null;
+  createdEntryBusinessKey: string | null;
 }) {
   if (kind === "new_test") {
-    return "New test";
+    if (createdEntryBusinessKey === null) {
+      return "New test";
+    }
+    return (
+      <>
+        New test, created as{" "}
+        <Link
+          to="/catalogue/$businessKey"
+          params={{ businessKey: createdEntryBusinessKey }}
+          className={ENTRY_LINK_CLASS}
+        >
+          {createdEntryBusinessKey}
+        </Link>
+      </>
+    );
   }
   if (kind !== "amendment") {
     return kind;
@@ -33,7 +52,7 @@ export function SubmissionKind({
       <Link
         to="/catalogue/$businessKey"
         params={{ businessKey: entryBusinessKey }}
-        className="text-[var(--color-accent)] underline"
+        className={ENTRY_LINK_CLASS}
       >
         {entryBusinessKey}
       </Link>

@@ -18,6 +18,7 @@ export function SubmissionDetails({ submission }: { submission: SubmissionDetail
           <SubmissionKind
             kind={submission.kind}
             entryBusinessKey={submission.entry_business_key}
+            createdEntryBusinessKey={submission.created_entry_business_key}
           />
         </dd>
 

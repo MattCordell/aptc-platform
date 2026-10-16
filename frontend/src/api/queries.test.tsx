@@ -16,6 +16,7 @@ import {
   useAdminSearch,
   useAmendDesignation,
   useAmendProperty,
+  useApproveSubmission,
   useCatalogueFacets,
   useCatalogueSearch,
   useCreateProperty,
@@ -878,6 +879,28 @@ describe("useTransitionSubmission (FR-28, FR-81)", () => {
     },
   );
 
+  it("leaves the catalogue reads alone after a move that writes no entry", async () => {
+    stubApi([
+      {
+        method: "POST",
+        path: HISTORY,
+        status: 200,
+        body: { id: ID, state: "Rejected", row_version: 4, available_transitions: [] },
+      },
+    ]);
+    const { Wrapper, queryClient } = sharedClientWrapper();
+    const entryKey = ["api", "/api/v1/catalogue/entries/{business_key}", "NPTC-000123"];
+    queryClient.setQueryData(entryKey, {});
+    const { result } = renderHook(() => useTransitionSubmission(ID), {
+      wrapper: Wrapper,
+    });
+
+    result.current.mutate({ ...BODY, to_state: "Rejected" });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(queryClient.getQueryState(entryKey)?.isInvalidated).toBe(false);
+  });
+
   it.each([
     [
       "a stale version",
@@ -936,6 +959,221 @@ describe("useTransitionSubmission (FR-28, FR-81)", () => {
       await waitFor(() => expect(result.current.write.isError).toBe(true));
       expect(refusalDetail(result.current.write.error)).toBe(refusal.detail);
       expect(calls.filter((call) => call.method === "GET")).toHaveLength(1);
+    },
+  );
+});
+
+describe("useApproveSubmission (FR-28, FR-35)", () => {
+  const ID = "0b8a5c7e-6a43-4f56-9d1b-2f4f5a4e1c16";
+  const DETAIL = `/api/v1/submissions/${ID}`;
+  const APPROVE = `${DETAIL}/approve`;
+  const HISTORY = `${DETAIL}/transitions`;
+  const detail = {
+    id: ID,
+    preferred_term: "Ferritin",
+    state: "Ready for approval",
+    row_version: 5,
+    available_transitions: ["Approved", "Rejected"],
+    entry_business_key: null,
+    created_entry_business_key: null,
+  };
+  const BODY = { reason: "Checked against the source.", expected_row_version: 5 };
+  const answer = {
+    id: ID,
+    state: "Approved",
+    row_version: 6,
+    available_transitions: [],
+    entry_id: "6f1d2c3b-4a5e-4f60-8a71-92b3c4d5e6f7",
+    business_key: "NPTC-000123",
+    entry_row_version: 1,
+  };
+
+  function sharedClientWrapper() {
+    const queryClient = createQueryClient();
+    const Wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>
+        <AuthContext.Provider value={AUTH}>{children}</AuthContext.Provider>
+      </QueryClientProvider>
+    );
+    return { Wrapper, queryClient };
+  }
+
+  it("posts the reason and version, and caches the state with the entry a new test became", async () => {
+    const calls = stubApi([
+      { method: "GET", path: DETAIL, status: 200, body: detail },
+      {
+        method: "POST",
+        path: APPROVE,
+        status: 200,
+        body: { ...answer, entry_created: true },
+      },
+    ]);
+    const { Wrapper } = sharedClientWrapper();
+    const { result } = renderHook(
+      () => ({ read: useSubmissionDetail(ID), write: useApproveSubmission(ID) }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.read.isSuccess).toBe(true));
+
+    result.current.write.mutate(BODY);
+
+    await waitFor(() => expect(result.current.read.data?.state).toBe("Approved"));
+    expect(result.current.read.data).toMatchObject({
+      preferred_term: "Ferritin",
+      row_version: 6,
+      available_transitions: [],
+      entry_business_key: null,
+      created_entry_business_key: "NPTC-000123",
+    });
+    expect(calls.find((call) => call.method === "POST")?.body).toEqual(BODY);
+    expect(calls.filter((call) => call.path === DETAIL)).toHaveLength(1);
+  });
+
+  it("leaves the entry fields of an amendment as they were", async () => {
+    stubApi([
+      {
+        method: "GET",
+        path: DETAIL,
+        status: 200,
+        body: { ...detail, entry_business_key: "NPTC-000123" },
+      },
+      {
+        method: "POST",
+        path: APPROVE,
+        status: 200,
+        body: { ...answer, entry_created: false },
+      },
+    ]);
+    const { Wrapper } = sharedClientWrapper();
+    const { result } = renderHook(
+      () => ({ read: useSubmissionDetail(ID), write: useApproveSubmission(ID) }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.read.isSuccess).toBe(true));
+
+    result.current.write.mutate(BODY);
+
+    await waitFor(() => expect(result.current.read.data?.state).toBe("Approved"));
+    expect(result.current.read.data).toMatchObject({
+      entry_business_key: "NPTC-000123",
+      created_entry_business_key: null,
+    });
+  });
+
+  it("marks the history and the list stale after an approval", async () => {
+    stubApi([
+      {
+        method: "POST",
+        path: APPROVE,
+        status: 200,
+        body: { ...answer, entry_created: true },
+      },
+    ]);
+    const { Wrapper, queryClient } = sharedClientWrapper();
+    const historyKey = ["api", "/api/v1/submissions/{submission_id}/transitions", ID];
+    queryClient.setQueryData(historyKey, { items: [] });
+    queryClient.setQueryData(["api", "/api/v1/submissions", {}], { items: [] });
+    const { result } = renderHook(() => useApproveSubmission(ID), { wrapper: Wrapper });
+
+    result.current.mutate(BODY);
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(queryClient.getQueryState(historyKey)?.isInvalidated).toBe(true);
+    expect(
+      queryClient.getQueryState(["api", "/api/v1/submissions", {}])?.isInvalidated,
+    ).toBe(true);
+  });
+
+  it("marks every cached catalogue read stale, and leaves other reads alone", async () => {
+    stubApi([
+      {
+        method: "POST",
+        path: APPROVE,
+        status: 200,
+        body: { ...answer, entry_created: false },
+      },
+    ]);
+    const { Wrapper, queryClient } = sharedClientWrapper();
+    const catalogueKeys = [
+      ["api", "/api/v1/catalogue/entries/{business_key}", "NPTC-000123"],
+      ["api", "/api/v1/catalogue/entries/{business_key}/designations", "NPTC-000123"],
+      ["api", "/api/v1/catalogue/entries", {}],
+      ["api", "/api/v1/catalogue/search", { q: "ferritin" }],
+      ["api", "/api/v1/catalogue/admin/entries", {}],
+    ];
+    const otherKey = ["api", "/api/v1/registry/properties", {}];
+    for (const key of [...catalogueKeys, otherKey]) {
+      queryClient.setQueryData(key, {});
+    }
+    const { result } = renderHook(() => useApproveSubmission(ID), { wrapper: Wrapper });
+
+    result.current.mutate(BODY);
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    for (const key of catalogueKeys) {
+      expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true);
+    }
+    expect(queryClient.getQueryState(otherKey)?.isInvalidated).toBe(false);
+  });
+
+  it("re-reads the detail and the history on a 409 and passes the sentence on", async () => {
+    const calls = stubApi([
+      { method: "GET", path: DETAIL, status: 200, body: detail },
+      { method: "GET", path: HISTORY, status: 200, body: { items: [] } },
+      {
+        method: "POST",
+        path: APPROVE,
+        status: 409,
+        body: { detail: "The entry is no longer active." },
+      },
+    ]);
+    const { Wrapper } = sharedClientWrapper();
+    const { result } = renderHook(
+      () => ({
+        read: useSubmissionDetail(ID),
+        history: useSubmissionTransitions(ID),
+        write: useApproveSubmission(ID),
+      }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.history.isSuccess).toBe(true));
+    const reads = (path: string) =>
+      calls.filter((call) => call.method === "GET" && call.path === path).length;
+
+    result.current.write.mutate(BODY);
+
+    await waitFor(() => expect(result.current.write.isError).toBe(true));
+    expect(refusalDetail(result.current.write.error)).toBe(
+      "The entry is no longer active.",
+    );
+    await waitFor(() => expect(reads(DETAIL)).toBeGreaterThan(1));
+    await waitFor(() => expect(reads(HISTORY)).toBeGreaterThan(1));
+    expect(result.current.read.data?.state).toBe("Ready for approval");
+  });
+
+  it.each([
+    [403, { detail: "You may not approve this submission." }],
+    [422, { detail: "The reason is too short to be a changelog note." }],
+  ])(
+    "leaves the detail alone on a %s and passes the refusal on",
+    async (status, refusal) => {
+      const calls = stubApi([
+        { method: "GET", path: DETAIL, status: 200, body: detail },
+        { method: "POST", path: APPROVE, status, body: refusal },
+      ]);
+      const { Wrapper } = sharedClientWrapper();
+      const { result } = renderHook(
+        () => ({ read: useSubmissionDetail(ID), write: useApproveSubmission(ID) }),
+        { wrapper: Wrapper },
+      );
+      await waitFor(() => expect(result.current.read.isSuccess).toBe(true));
+
+      result.current.write.mutate(BODY);
+
+      await waitFor(() => expect(result.current.write.isError).toBe(true));
+      expect(refusalDetail(result.current.write.error)).toBe(refusal.detail);
+      expect(calls.filter((call) => call.method === "GET")).toHaveLength(1);
+      expect(result.current.read.data?.state).toBe("Ready for approval");
     },
   );
 });

@@ -40,6 +40,8 @@ function submission(overrides: Record<string, unknown> = {}) {
     available_transitions: ["Under review", "Rejected", "Withdrawn"] as SubmissionState[],
     row_version: 3,
     preferred_term: "Ferritin level",
+    kind: "new_test",
+    entry_business_key: null,
     ...overrides,
   };
 }
@@ -102,7 +104,7 @@ describe("TriageSubmission buttons", () => {
       ["Ready for approval", "Awaiting terminology", "Rejected", "Withdrawn"],
       ["Mark ready for approval", "Reject"],
     ],
-    ["Ready for approval", ["Approved", "Rejected"], ["Reject"]],
+    ["Ready for approval", ["Approved", "Rejected"], ["Approve", "Reject"]],
     ["Awaiting terminology", ["Under review", "Ready for approval"], ["Resume review"]],
   ])(
     "offers each move the server lists from %s, and skips the ones with their own screen",
@@ -120,7 +122,6 @@ describe("TriageSubmission buttons", () => {
   it.each([
     ["a Member, who may only withdraw", "Submitted", ["Withdrawn"]],
     ["an Administrator on an approved submission", "Approved", ["Withdrawn"]],
-    ["a submission ready for approval", "Ready for approval", ["Approved"]],
     ["a closed submission", "Withdrawn", []],
   ])("shows no panel for %s", async (_who, state, available) => {
     const calls = stubApi([detailRoute({ state, available_transitions: available })]);
@@ -237,7 +238,7 @@ describe("TriageSubmission dialog", () => {
           id: ID,
           state: "Ready for approval",
           row_version: 4,
-          available_transitions: ["Approved"],
+          available_transitions: [],
         },
       },
     ]);
@@ -458,5 +459,243 @@ describe("TriageSubmission dialog", () => {
     const second = await openDialog("Start review");
 
     expect(within(second).getByRole("textbox", { name: /Reason/ })).toHaveValue("");
+  });
+});
+
+describe("TriageSubmission approval (FR-28, FR-35)", () => {
+  const APPROVE = `${DETAIL}/approve`;
+  const READY = {
+    state: "Ready for approval",
+    available_transitions: ["Approved", "Rejected"],
+    row_version: 7,
+  };
+
+  async function confirmApproval(dialog: HTMLElement) {
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Confirm approval" }),
+    );
+  }
+
+  it("offers an Administrator Approve and Reject, and a Reviewer only Reject", async () => {
+    stubApi([detailRoute(READY)]);
+    const administrator = renderPanel();
+
+    expect(await screen.findByRole("button", { name: "Approve" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Reject" })).toBeVisible();
+    await expectNoA11yViolations(administrator.container);
+    administrator.unmount();
+
+    stubApi([detailRoute({ ...READY, available_transitions: ["Rejected"] })]);
+    const reviewer = renderPanel();
+
+    expect(await screen.findByRole("button", { name: "Reject" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
+    await expectNoA11yViolations(reviewer.container);
+  });
+
+  it("says a new test becomes a new active entry, and that the reason becomes the changelog note", async () => {
+    stubApi([detailRoute(READY)]);
+    const { container } = renderPanel();
+    const dialog = await openDialog("Approve");
+
+    expect(
+      within(dialog).getByText(
+        "Approve Ferritin level. Approving creates Ferritin level as a new active entry in the catalogue.",
+      ),
+    ).toBeVisible();
+    expect(within(dialog).getByText(/becomes the entry's changelog note/)).toBeVisible();
+    expect(within(dialog).getByText(/appears in the entry's History/)).toBeVisible();
+    await expectNoA11yViolations(container);
+  });
+
+  it("names the entry an amendment changes", async () => {
+    stubApi([
+      detailRoute({ ...READY, kind: "amendment", entry_business_key: "NPTC-000247" }),
+    ]);
+    const { container } = renderPanel();
+    const dialog = await openDialog("Approve");
+
+    expect(
+      within(dialog).getByText(
+        "Approve Ferritin level. Approving changes the catalogue entry NPTC-000247.",
+      ),
+    ).toBeVisible();
+    expect(within(dialog).queryByText(/new active entry/)).toBeNull();
+    await expectNoA11yViolations(container);
+  });
+
+  it.each([
+    [
+      "an amendment that names no entry",
+      { kind: "amendment", entry_business_key: null },
+      "Approving changes the catalogue entry this amendment names.",
+    ],
+    [
+      "a kind the screen does not know",
+      { kind: "merge", entry_business_key: null },
+      "Approving writes the submission to the catalogue.",
+    ],
+  ])("still words the effect for %s", async (_name, overrides, sentence) => {
+    stubApi([detailRoute({ ...READY, ...overrides })]);
+    renderPanel();
+    const dialog = await openDialog("Approve");
+
+    expect(within(dialog).getByText(new RegExp(sentence))).toBeVisible();
+  });
+
+  it("asks for a reason before it sends anything", async () => {
+    const calls = stubApi([detailRoute(READY)]);
+    renderPanel();
+    const dialog = await openDialog("Approve");
+
+    await confirmApproval(dialog);
+
+    expect(
+      await within(dialog).findAllByText(
+        "Enter the reason for approving this submission.",
+      ),
+    ).not.toHaveLength(0);
+    expect(calls.some((call) => call.method === "POST")).toBe(false);
+  });
+
+  it("leaves the rules for the reason to the server and sends a short reason as typed", async () => {
+    const calls = stubApi([
+      detailRoute(READY),
+      {
+        method: "POST",
+        path: APPROVE,
+        status: 422,
+        body: { detail: "The reason must be at least ten characters." },
+      },
+    ]);
+    renderPanel();
+    const dialog = await openDialog("Approve");
+
+    await typeReason(dialog, "ok");
+    await confirmApproval(dialog);
+
+    expect(
+      await within(dialog).findAllByText("The reason must be at least ten characters."),
+    ).not.toHaveLength(0);
+    expect(calls.find((call) => call.method === "POST")?.body).toEqual({
+      reason: "ok",
+      expected_row_version: 7,
+    });
+  });
+
+  it("marks the reason field with the server's sentence and keeps the reason and the dialog", async () => {
+    stubApi([
+      detailRoute(READY),
+      {
+        method: "POST",
+        path: APPROVE,
+        status: 422,
+        body: { detail: "A stock phrase is not a changelog note.", field: "reason" },
+      },
+    ]);
+    const { container } = renderPanel();
+    const dialog = await openDialog("Approve");
+
+    await typeReason(dialog, "Approved as submitted.");
+    await confirmApproval(dialog);
+
+    expect(
+      await within(dialog).findAllByText("A stock phrase is not a changelog note."),
+    ).not.toHaveLength(0);
+    expect(within(dialog).getByRole("textbox", { name: /Reason/ })).toHaveValue(
+      "Approved as submitted.",
+    );
+    expect(within(dialog).getByRole("textbox", { name: /Reason/ })).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    await expectNoA11yViolations(container);
+  });
+
+  it.each([
+    [409, "The entry is no longer active."],
+    [409, "This amendment no longer applies to the entry."],
+    [403, "You may not approve this submission."],
+  ])(
+    "shows the server's own sentence for a %s, keeps the dialog open and keeps the reason",
+    async (status, sentence) => {
+      stubApi([
+        detailRoute(READY),
+        { method: "POST", path: APPROVE, status, body: { detail: sentence } },
+      ]);
+      const { container } = renderPanel();
+      const dialog = await openDialog("Approve");
+
+      await typeReason(dialog, "Checked against the source.");
+      await confirmApproval(dialog);
+
+      expect(await within(dialog).findAllByText(sentence)).not.toHaveLength(0);
+      expect(screen.getByRole("dialog")).toBeVisible();
+      expect(within(dialog).getByRole("textbox", { name: /Reason/ })).toHaveValue(
+        "Checked against the source.",
+      );
+      await expectNoA11yViolations(container);
+    },
+  );
+
+  it("tells the user the page has reloaded when the version is stale", async () => {
+    stubApi([
+      detailRoute(READY),
+      {
+        method: "POST",
+        path: APPROVE,
+        status: 409,
+        body: { detail: "Changed.", expected_row_version: 7, current_row_version: 8 },
+      },
+    ]);
+    renderPanel();
+    const dialog = await openDialog("Approve");
+
+    await typeReason(dialog, "Checked against the source.");
+    await confirmApproval(dialog);
+
+    expect(
+      await within(dialog).findAllByText(/The page now shows the latest version/),
+    ).not.toHaveLength(0);
+  });
+
+  it("offers no second attempt once the re-read shows approval is gone", async () => {
+    const calls = stubApi(
+      [
+        detailRoute(READY),
+        {
+          method: "POST",
+          path: APPROVE,
+          status: 409,
+          body: { detail: "Changed.", expected_row_version: 7, current_row_version: 8 },
+        },
+      ],
+      {
+        vary: (call, prior) =>
+          call.method === "GET" && call.path === DETAIL && prior > 0
+            ? detailRoute({
+                state: "Rejected",
+                row_version: 8,
+                available_transitions: ["Triage"],
+              })
+            : null,
+      },
+    );
+    renderPanel();
+    const dialog = await openDialog("Approve");
+
+    await typeReason(dialog, "Checked against the source.");
+    await confirmApproval(dialog);
+    await waitFor(() =>
+      expect(
+        within(dialog).getByRole("button", { name: "Confirm approval" }),
+      ).toHaveAttribute("aria-disabled", "true"),
+    );
+    await confirmApproval(dialog);
+
+    expect(
+      await within(dialog).findAllByText(/The platform no longer offers approval/),
+    ).not.toHaveLength(0);
+    expect(calls.filter((call) => call.method === "POST")).toHaveLength(1);
   });
 });
