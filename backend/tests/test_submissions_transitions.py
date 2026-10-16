@@ -147,7 +147,7 @@ def _assert_nothing_written(session: Session, submission_id: uuid.UUID, state: s
 @pytest.mark.req("FR-28")
 @pytest.mark.req("NFR-08")
 @pytest.mark.integration
-@pytest.mark.parametrize("state", ["Submitted", "Triage"])
+@pytest.mark.parametrize("state", ["Submitted", "Triage", "Under review"])
 def test_the_submitter_withdraws_from_an_open_state(app_session: Session, state: str) -> None:
     submitter = _user(app_session)
     submission = _submission(app_session, submitter, state=state)
@@ -213,6 +213,8 @@ _REVIEW_MOVES = [
     ("Triage", "Rejected", "submission.rejected"),
     ("Rejected", "Triage", "submission.reopened"),
     ("Under review", "Ready for approval", "submission.readied_for_approval"),
+    ("Under review", "Rejected", "submission.rejected"),
+    ("Ready for approval", "Rejected", "submission.rejected"),
 ]
 _REVIEWING_ROLES = [Role.REVIEWER, Role.ADMINISTRATOR]
 _NON_REVIEWING_ROLES = [Role.OBSERVER, Role.PROVISIONAL, Role.MEMBER]
@@ -299,6 +301,27 @@ def test_a_reopened_submission_keeps_its_history_and_stays_the_same_record(
     assert submissions_of_submitter == 1
 
 
+@pytest.mark.req("FR-28")
+@pytest.mark.integration
+@pytest.mark.parametrize("from_state", ["Under review", "Ready for approval"])
+def test_a_submission_rejected_after_triage_is_reopened_with_its_history(
+    app_session: Session, from_state: str
+) -> None:
+    submitter = _user(app_session)
+    reviewer = _user(app_session)
+    submission = _submission(app_session, submitter, state=from_state)
+
+    _move(app_session, submission, reviewer, Role.REVIEWER, "Rejected", reason="Out of scope")
+    reopened = _move(app_session, submission, reviewer, Role.REVIEWER, "Triage", reason="Appeal")
+
+    assert reopened.state == "Triage"
+    history = sorted(_transitions(app_session, submission.id), key=lambda row: row.created_at)
+    assert [(row.from_state, row.to_state, row.reason) for row in history] == [
+        (from_state, "Rejected", "Out of scope"),
+        ("Rejected", "Triage", "Appeal"),
+    ]
+
+
 @pytest.mark.req("FR-81")
 @pytest.mark.req("FR-44")
 @pytest.mark.integration
@@ -328,10 +351,12 @@ def test_a_role_without_the_review_permission_is_refused_every_review_move(
         ("Submitted", "Under review"),
         ("Submitted", "Rejected"),
         ("Triage", "Ready for approval"),
-        ("Under review", "Rejected"),
         ("Under review", "Triage"),
         ("Ready for approval", "Under review"),
         ("Ready for approval", "Triage"),
+        ("Awaiting terminology", "Rejected"),
+        ("Awaiting terminology", "Withdrawn"),
+        ("Ready for approval", "Withdrawn"),
         ("Rejected", "Under review"),
         ("Triage", "Approved"),
         ("Published in release", "Triage"),
@@ -469,7 +494,8 @@ def test_a_member_may_withdraw_their_own_open_submission_and_nothing_else(
 
     assert _available(member, Role.MEMBER, "Submitted", submitter=member) == ["Withdrawn"]
     assert _available(member, Role.MEMBER, "Triage", submitter=member) == ["Withdrawn"]
-    assert _available(member, Role.MEMBER, "Under review", submitter=member) == []
+    assert _available(member, Role.MEMBER, "Under review", submitter=member) == ["Withdrawn"]
+    assert _available(member, Role.MEMBER, "Ready for approval", submitter=member) == []
     assert _available(member, Role.MEMBER, "Approved", submitter=member) == []
 
 
@@ -517,6 +543,16 @@ def test_a_reviewer_is_offered_the_review_moves_and_withdrawal_only_of_their_own
     assert _available(reviewer, Role.REVIEWER, "Under review", submitter=other) == [
         "Ready for approval",
         "Awaiting terminology",
+        "Rejected",
+    ]
+    assert _available(reviewer, Role.REVIEWER, "Under review", submitter=reviewer) == [
+        "Ready for approval",
+        "Awaiting terminology",
+        "Rejected",
+        "Withdrawn",
+    ]
+    assert _available(reviewer, Role.REVIEWER, "Ready for approval", submitter=other) == [
+        "Rejected"
     ]
     assert _available(reviewer, Role.REVIEWER, "Awaiting terminology", submitter=other) == [
         "Under review"
@@ -542,9 +578,19 @@ def test_an_administrator_is_offered_withdrawal_from_every_open_and_approved_sta
         "Rejected",
         "Withdrawn",
     ]
+    assert _available(admin, Role.ADMINISTRATOR, "Under review", submitter=other) == [
+        "Ready for approval",
+        "Awaiting terminology",
+        "Rejected",
+        "Withdrawn",
+    ]
     assert _available(admin, Role.ADMINISTRATOR, "Awaiting terminology", submitter=other) == [
         "Ready for approval",
         "Under review",
+    ]
+    assert _available(admin, Role.ADMINISTRATOR, "Ready for approval", submitter=other) == [
+        "Approved",
+        "Rejected",
     ]
     assert _available(admin, Role.ADMINISTRATOR, "Approved", submitter=other) == ["Withdrawn"]
     assert _available(admin, Role.ADMINISTRATOR, "Published in release", submitter=other) == [
@@ -662,11 +708,14 @@ def test_the_table_holds_exactly_the_moves_of_the_review_graph() -> None:
         (S.REJECTED, S.TRIAGE),
         (S.UNDER_REVIEW, S.READY_FOR_APPROVAL),
         (S.UNDER_REVIEW, S.AWAITING_TERMINOLOGY),
+        (S.UNDER_REVIEW, S.REJECTED),
+        (S.READY_FOR_APPROVAL, S.REJECTED),
         (S.AWAITING_TERMINOLOGY, S.READY_FOR_APPROVAL),
         (S.AWAITING_TERMINOLOGY, S.UNDER_REVIEW),
         (S.READY_FOR_APPROVAL, S.APPROVED),
         (S.SUBMITTED, S.WITHDRAWN),
         (S.TRIAGE, S.WITHDRAWN),
+        (S.UNDER_REVIEW, S.WITHDRAWN),
         (S.APPROVED, S.WITHDRAWN),
         (S.PUBLISHED_IN_RELEASE, S.WITHDRAWN),
     }
@@ -735,7 +784,7 @@ def test_a_role_with_neither_withdraw_permission_cannot_withdraw_even_its_own(
 
 @pytest.mark.req("FR-44")
 @pytest.mark.integration
-@pytest.mark.parametrize("state", ["Submitted", "Triage"])
+@pytest.mark.parametrize("state", ["Submitted", "Triage", "Under review"])
 def test_an_administrator_withdraws_their_own_submission(app_session: Session, state: str) -> None:
     """The Administrator holds `submission.withdraw.any` and not `.own`, so the `.any` requirement on
     the open-state rows is what lets them withdraw a submission of their own."""
@@ -755,7 +804,9 @@ def test_an_administrator_withdraws_their_own_submission(app_session: Session, s
 @pytest.mark.req("FR-28")
 @pytest.mark.req("FR-44")
 @pytest.mark.integration
-@pytest.mark.parametrize("state", ["Submitted", "Triage", "Approved", "Published in release"])
+@pytest.mark.parametrize(
+    "state", ["Submitted", "Triage", "Under review", "Approved", "Published in release"]
+)
 def test_an_administrator_withdraws_someone_elses_submission(
     app_session: Session, state: str
 ) -> None:
@@ -807,6 +858,50 @@ def test_a_reviewer_cannot_withdraw_someone_elses_approved_submission(
 
 @pytest.mark.req("FR-44")
 @pytest.mark.integration
+def test_a_reviewer_cannot_withdraw_someone_elses_submission_under_review(
+    app_session: Session,
+) -> None:
+    submitter = _user(app_session)
+    reviewer = _user(app_session)
+    submission = _submission(app_session, submitter, state="Under review")
+
+    with pytest.raises(PermissionDeniedError, match="only the submitter may use it"):
+        _withdraw(app_session, submitter, submission, actor=reviewer, roles=(Role.REVIEWER,))
+
+    _assert_nothing_written(app_session, submission.id, "Under review")
+
+
+@pytest.mark.req("FR-44")
+@pytest.mark.integration
+def test_a_role_with_neither_withdraw_permission_cannot_withdraw_under_review(
+    app_session: Session,
+) -> None:
+    submitter = _user(app_session)
+    submission = _submission(app_session, submitter, state="Under review")
+
+    with pytest.raises(PermissionDeniedError, match="is required for this move"):
+        _withdraw(app_session, submitter, submission, roles=(Role.OBSERVER,))
+
+    _assert_nothing_written(app_session, submission.id, "Under review")
+
+
+@pytest.mark.req("FR-28")
+@pytest.mark.integration
+@pytest.mark.parametrize("state", ["Awaiting terminology", "Ready for approval"])
+def test_the_submitter_cannot_withdraw_from_a_state_with_no_withdrawal_row(
+    app_session: Session, state: str
+) -> None:
+    submitter = _user(app_session)
+    submission = _submission(app_session, submitter, state=state)
+
+    with pytest.raises(IllegalSubmissionTransitionError):
+        _withdraw(app_session, submitter, submission)
+
+    _assert_nothing_written(app_session, submission.id, state)
+
+
+@pytest.mark.req("FR-44")
+@pytest.mark.integration
 @pytest.mark.parametrize("role", [Role.PROVISIONAL, Role.MEMBER, Role.REVIEWER])
 def test_each_role_with_the_own_permission_may_withdraw_its_own(
     app_session: Session, role: Role
@@ -850,6 +945,29 @@ def test_a_blank_reason_is_refused(app_session: Session, reason: str) -> None:
         _withdraw(app_session, submitter, submission, reason=reason)
 
     _assert_nothing_written(app_session, submission.id, "Submitted")
+
+
+@pytest.mark.req("FR-28")
+@pytest.mark.integration
+@pytest.mark.parametrize("reason", ["", "   "])
+@pytest.mark.parametrize(
+    ("from_state", "to_state"),
+    [
+        ("Under review", "Rejected"),
+        ("Ready for approval", "Rejected"),
+        ("Under review", "Withdrawn"),
+    ],
+)
+def test_a_blank_reason_is_refused_for_each_way_out_of_review(
+    app_session: Session, from_state: str, to_state: str, reason: str
+) -> None:
+    submitter = _user(app_session)
+    submission = _submission(app_session, submitter, state=from_state)
+
+    with pytest.raises(TransitionReasonRequiredError):
+        _move(app_session, submission, submitter, Role.ADMINISTRATOR, to_state, reason=reason)
+
+    _assert_nothing_written(app_session, submission.id, from_state)
 
 
 @pytest.mark.req("FR-63")
