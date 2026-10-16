@@ -2,9 +2,10 @@ import { useParams } from "@tanstack/react-router";
 import { useEffect } from "react";
 
 import { refusalDetail } from "../api/conflicts.ts";
-import { useAdminEntryDetail } from "../api/queries.ts";
+import { useAdminEntryDetail, useHasPermission } from "../api/queries.ts";
 import { ApiError } from "../api/unwrap.ts";
 import { EntryEditForm } from "../catalogue/entry-edit-form.tsx";
+import { InternalCommentsPanel } from "../comments/internal-comments-panel.tsx";
 import { LiveRegion } from "../components/live-region.tsx";
 import { PageContainer } from "../components/page-container.tsx";
 import { PageHeader } from "../components/page-header.tsx";
@@ -20,6 +21,13 @@ import { useAnnounce } from "../components/use-announce.ts";
  * This page is the shell. `EntryEditForm` edits the preferred term, the SNOMED
  * CT code, the RCPA Synonyms and the registry properties in one form, with one
  * Save and one changelog note.
+ *
+ * The internal comments panel (FR-95) sits below the form, so a Reviewer or an
+ * Administrator can comment on a draft entry, which has no public page. A
+ * Reviewer holds `comment.internal.read` but not `catalogue.edit_published`: the
+ * server lets that caller read the entry, and this page then shows the comments
+ * without the form. Hiding the form is a convenience; every write is checked
+ * again by the server (FR-44).
  */
 
 /**
@@ -57,11 +65,14 @@ function loadFailureMessage(businessKey: string, error: unknown): string {
   );
 }
 
+const EDIT_PERMISSION = "catalogue.edit_published";
+
 export function AdminCatalogueEditPage() {
   const { businessKey } = useParams({
     from: "/authenticated/admin/catalogue/$businessKey/edit",
   });
   const entry = useAdminEntryDetail(businessKey);
+  const mayEdit = useHasPermission(EDIT_PERMISSION);
   const { message, politeness, announce } = useAnnounce();
 
   // `isError` with data is a *refresh* that failed, which is announced rather
@@ -123,7 +134,15 @@ export function AdminCatalogueEditPage() {
 
         {staleData && <p>{staleWarning(businessKey)}</p>}
 
-        {entry.data && <EntryEditForm key={entry.data.business_key} entry={entry.data} />}
+        {entry.data && mayEdit && (
+          <EntryEditForm key={entry.data.business_key} entry={entry.data} />
+        )}
+
+        {entry.data && (
+          <InternalCommentsPanel
+            target={{ kind: "entry", businessKey: entry.data.business_key }}
+          />
+        )}
       </PageContainer>
     </section>
   );

@@ -215,8 +215,7 @@ def test_authenticated_observer_is_403_with_no_challenge(
     api: ApiTestApp, seeded: SeededCatalogue
 ) -> None:
     """FR-44: authorised against the permission, not the role - Observer
-    holds neither `catalogue.edit_published` nor any permission close to
-    it."""
+    holds neither `catalogue.edit_published` nor `comment.internal.read`."""
     token = api.token_for_role(subject="sub-observer", role=Role.OBSERVER)
 
     response = _admin_read(api, seeded.draft, token)
@@ -225,15 +224,31 @@ def test_authenticated_observer_is_403_with_no_challenge(
     assert "WWW-Authenticate" not in response.headers
 
 
+@pytest.mark.req("FR-95")
 @pytest.mark.req("FR-44")
 @pytest.mark.integration
-def test_authenticated_reviewer_is_403(api: ApiTestApp, seeded: SeededCatalogue) -> None:
-    """A Reviewer holds `validation.acknowledge` (issue #224) but not
-    `catalogue.edit_published` - proving the gate is this specific
-    permission, not "any elevated role"."""
+def test_a_reviewer_can_read_a_draft_to_comment_on_it(
+    api: ApiTestApp, seeded: SeededCatalogue
+) -> None:
+    """A Reviewer holds `comment.internal.read` but not `catalogue.edit_published`:
+    the read admits either, and the gate is the permission, not the role."""
     token = api.token_for_role(subject="sub-reviewer", role=Role.REVIEWER)
 
     response = _admin_read(api, seeded.draft, token)
+
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == "draft"
+
+
+@pytest.mark.req("FR-44")
+@pytest.mark.integration
+def test_a_reviewer_still_cannot_use_the_admin_listing(
+    api: ApiTestApp, seeded: SeededCatalogue
+) -> None:
+    """Widening the one-entry read must not open the rest of the admin surface."""
+    token = api.token_for_role(subject="sub-reviewer-listing", role=Role.REVIEWER)
+
+    response = api.get("/catalogue/admin/entries", token=token)
 
     assert response.status_code == 403, response.text
 

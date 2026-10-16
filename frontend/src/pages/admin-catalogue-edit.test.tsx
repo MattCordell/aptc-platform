@@ -5,7 +5,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { expectNoA11yViolations } from "../test/a11y.ts";
 import { renderRoute } from "../test/render-route.tsx";
 import type { Route } from "../test/stub-api.ts";
-import { stubApi } from "../test/stub-api.ts";
+import { stubApi as stubRoutes } from "../test/stub-api.ts";
+import { waitForSession } from "../test/wait-for-session.ts";
 
 /**
  * The designation edit screen (issue #149; FR-04, FR-05, FR-24, FR-36, FR-38).
@@ -59,6 +60,36 @@ const READ_OK: Route = {
   status: 200,
   body: ENTRY,
 };
+
+const EDIT = "catalogue.edit_published";
+const COMMENT_READ = "comment.internal.read";
+const COMMENT_WRITE = "comment.internal.write";
+
+/** The signed-in session `GET /auth/me` answers with, holding `permissions`. */
+function sessionFor(permissions: string[]): Route {
+  return {
+    method: "GET",
+    path: "/auth/me",
+    status: 200,
+    body: {
+      authenticated: true,
+      user: {
+        username: "ada",
+        display_name: "Ada Admin",
+        organisation: null,
+        status: "active",
+      },
+      roles: [],
+      permissions,
+      mfa_satisfied: true,
+    },
+  };
+}
+
+/** Every screen test here is an editor unless it stubs a session of its own. */
+function stubApi(routes: Route[], options?: Parameters<typeof stubRoutes>[1]) {
+  return stubRoutes([...routes, sessionFor([EDIT])], options);
+}
 
 const ADD_PATH = `/catalogue/entries/${BUSINESS_KEY}/designations`;
 const AMEND_PATH = `${ADD_PATH}/amendment`;
@@ -583,6 +614,69 @@ describe("accessibility", () => {
 
     const { container } = await renderLoaded();
 
+    await expectNoA11yViolations(container);
+  });
+});
+
+describe("the internal comments panel (FR-95, FR-44, NFR-20)", () => {
+  const COMMENTS = `/api/v1/catalogue/entries/${BUSINESS_KEY}/comments`;
+  const COMMENTS_OK: Route = {
+    method: "GET",
+    path: COMMENTS,
+    status: 200,
+    body: {
+      comments: [
+        {
+          id: "6f1d2c3e-0000-4000-8000-000000000072",
+          body: "Is this draft ready?",
+          created_at: "2026-10-01T09:00:00Z",
+          author: { username: "rae", display_name: "Rae Reviewer" },
+          withdrawn_at: null,
+          withdrawn_by: null,
+          withdrawn_reason: null,
+        },
+      ],
+    },
+  };
+
+  async function renderWith(permissions: string[]) {
+    const calls = stubRoutes([READ_OK, COMMENTS_OK, sessionFor(permissions)]);
+    const view = await renderRoute(EDIT_URL, SIGNED_IN);
+    await screen.findByRole("heading", { name: "Ferritin", level: 1 });
+    return { calls, ...view };
+  }
+
+  it("shows an Administrator the comments on a draft entry, below the edit form", async () => {
+    const { container } = await renderWith([EDIT, COMMENT_READ, COMMENT_WRITE]);
+
+    const main = screen.getByRole("main");
+    expect(
+      await within(main).findByRole("heading", { name: "Internal comments" }),
+    ).toBeVisible();
+    expect(await within(main).findByText("Is this draft ready?")).toBeVisible();
+    expect(within(main).getByRole("button", { name: "Post comment" })).toBeVisible();
+    expect(screen.getByRole("region", { name: "Edit entry" })).toBeVisible();
+    await expectNoA11yViolations(container);
+  });
+
+  it("shows a Reviewer the comments on the draft without the edit form", async () => {
+    const { container, queryClient } = await renderWith([COMMENT_READ, COMMENT_WRITE]);
+
+    const main = screen.getByRole("main");
+    expect(await within(main).findByText("Is this draft ready?")).toBeVisible();
+    expect(within(main).getByRole("button", { name: "Post comment" })).toBeVisible();
+    await waitForSession(queryClient);
+    expect(screen.queryByRole("region", { name: "Edit entry" })).toBeNull();
+    await expectNoA11yViolations(container);
+  });
+
+  it("leaves no trace of the panel for a caller without comment.internal.read, and sends no comments request", async () => {
+    const { calls, container, queryClient } = await renderWith([EDIT]);
+
+    await waitForSession(queryClient);
+    expect(screen.getByRole("region", { name: "Edit entry" })).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Internal comments" })).toBeNull();
+    expect(calls.some((call) => call.path === COMMENTS)).toBe(false);
     await expectNoA11yViolations(container);
   });
 });

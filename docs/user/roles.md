@@ -106,9 +106,9 @@ these capabilities that a Member lacks:
   that guide's "Resolving overlapping terms" section for what acknowledging does and does
   not affect.
 
-A Reviewer can open the same entry-editing screen an Administrator uses, but every other
-action on it — saving a term, a code binding, or a registry property — is
-refused. This is not a screen-level lock: every save is checked
+A Reviewer can open the entry's edit page an Administrator uses, to read and comment on a
+draft entry (see [Internal comments](internal-comments.md)). The page shows a Reviewer the
+comments and no edit form. This is not only a screen-level lock: every save is checked
 server-side against the `catalogue.edit_published` permission specifically, which the
 Reviewer role does not hold (PRD §4.5's own boundary between Reviewer and Administrator).
 Unlike the multi-factor step-up in [Signing in](signing-in.md#multi-factor-authentication),
