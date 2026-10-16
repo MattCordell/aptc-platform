@@ -99,9 +99,10 @@ describe("TriageSubmission buttons", () => {
     ["Rejected", ["Triage"], ["Reopen"]],
     [
       "Under review",
-      ["Ready for approval", "Awaiting terminology", "Withdrawn"],
-      ["Mark ready for approval"],
+      ["Ready for approval", "Awaiting terminology", "Rejected", "Withdrawn"],
+      ["Mark ready for approval", "Reject"],
     ],
+    ["Ready for approval", ["Approved", "Rejected"], ["Reject"]],
     ["Awaiting terminology", ["Under review", "Ready for approval"], ["Resume review"]],
   ])(
     "offers each move the server lists from %s, and skips the ones with their own screen",

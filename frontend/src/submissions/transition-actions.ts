@@ -54,6 +54,16 @@ const MOVE_WORDING: Readonly<Record<string, MoveWording>> = {
     effect:
       "The submitter reads your reason. You can reopen a rejected submission later.",
   },
+  "Under review>Rejected": {
+    label: "Reject",
+    effect:
+      "The submitter reads your reason. You can reopen a rejected submission later.",
+  },
+  "Ready for approval>Rejected": {
+    label: "Reject",
+    effect:
+      "The submitter reads your reason. You can reopen a rejected submission later.",
+  },
   "Rejected>Triage": {
     label: "Reopen",
     effect: "The submission goes back to Triage for another look.",
