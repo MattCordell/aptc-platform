@@ -43,6 +43,9 @@
 - [Editing a submission](editing-a-submission.md) — issue #627. The **Edit** button on
   `/submissions/<id>` for Reviewers and Administrators: what you can change, the reason, and how
   the page marks each change from the original.
+- [Internal comments](internal-comments.md) — issue #629. The **Internal comments** panel on
+  `/submissions/<id>` and on a published entry's page, for Reviewers and Administrators: read,
+  post and withdraw a comment.
 - [Reading the preferred-term length distribution report](reading-the-length-distribution-report.md)
   — issue #152, API-only; there is no admin screen for this report yet.
 

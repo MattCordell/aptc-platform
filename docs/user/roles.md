@@ -33,6 +33,8 @@ shipped:
   review and rejection, with a reason the submitter can read.
 - **[Editing a submission](editing-a-submission.md)** — changing a submission's content during
   triage, with a reason. The submitter's original stays on the page.
+- **[Internal comments](internal-comments.md)** — reading, posting and withdrawing comments that
+  only Reviewers and Administrators can see, on a submission and on a published entry.
 
 An Administrator cannot withdraw a submission from the screen yet, even their own.
 
@@ -93,6 +95,8 @@ these capabilities that a Member lacks:
   page, with a reason that goes to the audit log.
 - **[Seeing who registered interest](reading-a-submission.md#see-who-registered-interest)**
   on a submission's page, with the organisations they gave.
+- **[Internal comments](internal-comments.md)** — reading, posting and withdrawing comments that
+  only Reviewers and Administrators can see, on a submission and on a published entry.
 - **[Seeing who sent a submission](reading-a-submission.md#the-details-panel)** — the
   submitter's name and organisation, where a Member sees a username only.
 - **Acknowledging a possible duplicate term.** Opening
