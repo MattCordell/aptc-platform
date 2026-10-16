@@ -324,25 +324,36 @@ describe("the Edit action (FR-23, FR-44, NFR-20)", () => {
   it.each(["Submitted", "Awaiting terminology", "Approved", "Rejected", "Withdrawn"])(
     "offers it in no %s submission",
     async (state) => {
-      await open([REVIEWER, DEFINITIONS, detail({ state })]);
+      const { container } = await open([REVIEWER, DEFINITIONS, detail({ state })]);
 
       await screen.findByRole("heading", { level: 1, name: "Ferritin level" });
       expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
+      await expectNoA11yViolations(container);
     },
   );
 
   it("offers a Member no Edit button, because the server sends no working copy", async () => {
-    await open([MEMBER, DEFINITIONS, detail({}, { review: false })]);
+    const { container } = await open([
+      MEMBER,
+      DEFINITIONS,
+      detail({}, { review: false }),
+    ]);
 
     await screen.findByRole("heading", { level: 1, name: "Ferritin level" });
     expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
+    await expectNoA11yViolations(container);
   });
 
   it("offers an Observer no Edit button", async () => {
-    await open([me(["submission.view"]), DEFINITIONS, detail({}, { review: false })]);
+    const { container } = await open([
+      me(["submission.view"]),
+      DEFINITIONS,
+      detail({}, { review: false }),
+    ]);
 
     await screen.findByRole("heading", { level: 1, name: "Ferritin level" });
     expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
+    await expectNoA11yViolations(container);
   });
 
   it("offers no Edit button when the server sent no working copy, whatever the session says", async () => {
@@ -567,7 +578,7 @@ describe("editing a new test's working copy (FR-23)", () => {
 
   it("sends nothing and says so when nothing was changed", async () => {
     const calls = stubEditing(OK);
-    const { user } = await openForm();
+    const { user, container } = await openForm();
 
     await save(user, "No change needed.");
 
@@ -577,6 +588,7 @@ describe("editing a new test's working copy (FR-23)", () => {
       ),
     ).toBeVisible();
     expect(writes(calls)).toHaveLength(0);
+    await expectNoA11yViolations(container);
   });
 
   it("asks for a test name before sending", async () => {
@@ -638,7 +650,7 @@ describe("editing a new test's working copy (FR-23)", () => {
         ],
       }),
     );
-    const { user } = await openForm();
+    const { user, container } = await openForm();
 
     await replace(user, "Assay method (required)", "Guess");
     await save(user, "A reason.");
@@ -650,6 +662,7 @@ describe("editing a new test's working copy (FR-23)", () => {
     ).toBeVisible();
     expect(screen.getByLabelText("Assay method (required)")).toBeInvalid();
     expect(screen.getByLabelText("Specimen")).not.toBeInvalid();
+    await expectNoA11yViolations(container);
   });
 
   it("marks the reason when the server refuses it", async () => {
@@ -680,7 +693,7 @@ describe("editing a new test's working copy (FR-23)", () => {
       }),
       { then: [OK], after: { row_version: 5 } },
     );
-    const { user } = await openForm();
+    const { user, container } = await openForm();
     const reads = () =>
       calls.filter((call) => call.method === "GET" && call.path === DETAIL).length;
 
@@ -695,6 +708,7 @@ describe("editing a new test's working copy (FR-23)", () => {
       "Serum ferritin level",
     );
     expect(screen.getByRole("textbox", { name: "Reason" })).toHaveValue("Wording.");
+    await expectNoA11yViolations(container);
 
     await user.click(screen.getByRole("button", { name: "Save" }));
 
