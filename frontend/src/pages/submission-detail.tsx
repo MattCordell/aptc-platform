@@ -11,6 +11,7 @@ import { LiveRegion } from "../components/live-region.tsx";
 import { PageContainer } from "../components/page-container.tsx";
 import { PageHeader } from "../components/page-header.tsx";
 import { useAnnounce } from "../components/use-announce.ts";
+import { InternalCommentsPanel } from "../comments/internal-comments-panel.tsx";
 import { NotFoundPage } from "../shell/not-found-page.tsx";
 import { useDocumentTitle } from "../shell/use-document-title.ts";
 import {
@@ -146,6 +147,7 @@ function SubmissionView({
           ) : (
             <SubmissionContent submission={submission} />
           )}
+          <InternalCommentsPanel target={{ kind: "submission", id: submission.id }} />
         </DetailLayout>
       </PageContainer>
     </section>
