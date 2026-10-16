@@ -6,6 +6,7 @@ import {
   type CommentTarget,
 } from "../api/queries.ts";
 import type { components } from "../api/schema.ts";
+import { useAuthStatus } from "../auth/auth-status.ts";
 import { EntrySection } from "../catalogue/entry-section.tsx";
 import { formatDate } from "../catalogue/format-date.ts";
 import { Button } from "../components/button.tsx";
@@ -105,8 +106,16 @@ function CommentItem({
  * refuse it, so asking would only cost a 403 (NFR-20, FR-44). Posting and
  * withdrawing need `comment.internal.write`. The server checks every request
  * again, so hiding a control here is a convenience, never the check.
+ *
+ * A visitor who is not signed in holds no permission, so the session is never
+ * read for them. The public entry page would otherwise send every anonymous
+ * visitor a request it did not send before.
  */
 export function InternalCommentsPanel({ target }: { target: CommentTarget }) {
+  return useAuthStatus() === "signed-in" ? <SignedInPanel target={target} /> : null;
+}
+
+function SignedInPanel({ target }: { target: CommentTarget }) {
   const mayRead = useHasPermission(READ_PERMISSION);
   const mayWrite = useHasPermission(WRITE_PERMISSION);
   const comments = useInternalComments(target, mayRead);

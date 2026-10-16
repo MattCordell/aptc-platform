@@ -1253,11 +1253,11 @@ describe("the internal comments panel (FR-95, FR-44, NFR-20)", () => {
     },
   );
 
-  it("leaves no trace of it for an anonymous reader, who is never asked for the comments", async () => {
-    const { calls, queryClient } = await renderWith([], false);
+  it("leaves no trace of it for an anonymous reader, who sends no session or comments request", async () => {
+    const { calls } = await renderWith([], false);
 
-    await waitForSession(queryClient);
     expect(screen.queryByRole("heading", { name: "Internal comments" })).toBeNull();
+    expect(calls.some((call) => call.path.endsWith("/auth/me"))).toBe(false);
     expect(calls.some((call) => call.path === COMMENTS)).toBe(false);
   });
 });
