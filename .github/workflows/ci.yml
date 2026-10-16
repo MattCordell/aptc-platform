@@ -153,7 +153,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     env:
       # An ephemeral runner is discarded either way once the job ends, so
       # Ryuk's usual crash-cleanup role buys nothing here, and disabling it
@@ -228,8 +228,12 @@ jobs:
       # directories has now run under a network-egress block at least once
       # between this job and transform-offline, which is what actually
       # lets NFR-37 move to `implemented` (docs/requirements/requirements.yaml).
+      # -n auto gives one worker per vCPU, and each worker starts its own
+      # Postgres container (the container fixtures are session-scoped per
+      # worker). --dist loadscope keeps a module on one worker, so a module's
+      # tests share the container they were written against.
       - name: Run backend + scripts tests against a real Postgres container
-        run: uv run pytest backend/tests scripts/tests
+        run: uv run pytest backend/tests scripts/tests -n auto --dist loadscope
 
       - name: Restore network egress
         if: always()
