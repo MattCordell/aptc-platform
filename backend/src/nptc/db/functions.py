@@ -187,13 +187,8 @@ DROP_SEARCH_QUERY_FUNCTION_SQL = "DROP FUNCTION IF EXISTS public.nptc_search_que
 #:
 #: `IMMUTABLE` although the `pg_input_is_valid` it wraps is `STABLE`. That is
 #: safe only because the target type is the fixed literal `'numeric'`; ADR-0027
-#: has the argument.
-#:
-#: `plpgsql`, not `sql`. Postgres 18 plans a `sql` body per call for roughly the
-#: first five calls on a connection and folds `'abc'::numeric` before the
-#: `CASE` guard runs, so the function raises. `plpgsql` plans the cast only when
-#: the guard passes. It has no `EXCEPTION` block, so there is no subtransaction
-#: per call (ADR-0027).
+#: has the argument. `plpgsql`, not `sql`: Postgres 18 folds the cast of a constant
+#: argument before a `sql` body's `CASE` guard runs (ADR-0027).
 #:
 #: `public.` on both the `CREATE` and the `DROP`, because
 #: `nptc.db.property_indexes.create_statement` calls this from the indexer
