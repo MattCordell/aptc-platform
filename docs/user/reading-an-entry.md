@@ -89,6 +89,12 @@ full history** below the list to see every change, fifty at a time. See
 [Viewing an entry's change history](viewing-entry-history.md). The link is absent when no
 change is recorded or the recent changes could not be loaded.
 
+## Internal comments
+
+Reviewers and Administrators see an **Internal comments** panel below the terms and the code
+bindings. Nobody else sees it, and the page does not hint that it exists. See
+[Internal comments](internal-comments.md).
+
 ## If the test is not found
 
 The page says **We couldn't find that page** when:

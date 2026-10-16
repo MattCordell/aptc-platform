@@ -1,5 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -39,7 +39,10 @@ import {
   useSavePropertyValues,
   useSession,
   useHasPermission,
+  usePostInternalComment,
+  useWithdrawInternalComment,
   useInterestIdentities,
+  useInternalComments,
   useRegisterInterest,
   useRevokeInterest,
   useSubmissionDetail,
@@ -569,6 +572,217 @@ describe("useInterestIdentities (FR-33)", () => {
 
     await waitFor(() => expect(result.current.fetchStatus).toBe("idle"));
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe("internal comment hooks (FR-95)", () => {
+  const SUBMISSION = "0b8a5c7e-6a43-4f56-9d1b-2f4f5a4e1c20";
+  const KEY = "NPTC-000247";
+  const COMMENT_ID = "0b8a5c7e-6a43-4f56-9d1b-2f4f5a4e1c21";
+  const TARGETS = [
+    {
+      name: "a submission",
+      target: { kind: "submission", id: SUBMISSION } as const,
+      path: `/api/v1/submissions/${SUBMISSION}/comments`,
+    },
+    {
+      name: "an entry",
+      target: { kind: "entry", businessKey: KEY } as const,
+      path: `/api/v1/catalogue/entries/${KEY}/comments`,
+    },
+  ];
+  const PERSON = { username: "rev", display_name: "Rae Reviewer" };
+  const COMMENT = {
+    id: COMMENT_ID,
+    body: "Check the specimen.",
+    created_at: "2026-10-01T09:00:00Z",
+    author: PERSON,
+    withdrawn_at: null,
+    withdrawn_by: null,
+    withdrawn_reason: null,
+  };
+
+  function sharedClientWrapper() {
+    const queryClient = createQueryClient();
+    const Wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>
+        <AuthContext.Provider value={AUTH}>{children}</AuthContext.Provider>
+      </QueryClientProvider>
+    );
+    return { Wrapper };
+  }
+
+  describe.each(TARGETS)("on $name", ({ target, path }) => {
+    it("reads the comments when enabled", async () => {
+      stubApi([{ method: "GET", path, status: 200, body: { comments: [COMMENT] } }]);
+
+      const { result } = renderHook(() => useInternalComments(target, true), { wrapper });
+
+      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+      expect(result.current.data?.comments[0]?.body).toBe("Check the specimen.");
+    });
+
+    // The principal failure mode (NFR-20): a caller without the permission must
+    // never cost the server a 403.
+    it("sends no request when disabled", async () => {
+      const calls = stubApi([
+        { method: "GET", path, status: 200, body: { comments: [] } },
+      ]);
+
+      const { result } = renderHook(() => useInternalComments(target, false), {
+        wrapper,
+      });
+
+      await waitFor(() => expect(result.current.fetchStatus).toBe("idle"));
+      expect(calls).toHaveLength(0);
+    });
+
+    it("posts the body, and adds the answer to the cached list without reading it again", async () => {
+      const calls = stubApi([
+        { method: "GET", path, status: 200, body: { comments: [] } },
+        { method: "POST", path, status: 201, body: COMMENT },
+      ]);
+      const { Wrapper } = sharedClientWrapper();
+
+      const { result } = renderHook(
+        () => ({
+          list: useInternalComments(target, true),
+          post: usePostInternalComment(target),
+        }),
+        { wrapper: Wrapper },
+      );
+      await waitFor(() => expect(result.current.list.isSuccess).toBe(true));
+      await act(async () => {
+        await result.current.post.mutateAsync({ body: "Check the specimen." });
+      });
+
+      const post = calls.find((call) => call.method === "POST");
+      expect(post?.path).toBe(path);
+      expect(post?.body).toEqual({ body: "Check the specimen." });
+      await waitFor(() =>
+        expect(result.current.list.data?.comments.map((c) => c.id)).toEqual([COMMENT_ID]),
+      );
+      // The server may not have committed yet, so a read now could miss the write.
+      expect(calls.filter((call) => call.method === "GET")).toHaveLength(1);
+    });
+
+    it("reads the list when a write is answered while the list holds no data", async () => {
+      const calls = stubApi([{ method: "POST", path, status: 201, body: COMMENT }], {
+        vary: (call, priorSameCalls) =>
+          call.method === "GET" && call.path === path
+            ? {
+                method: "GET",
+                path,
+                status: priorSameCalls === 0 ? 500 : 200,
+                body: priorSameCalls === 0 ? { detail: "boom" } : { comments: [COMMENT] },
+              }
+            : null,
+      });
+      const { Wrapper } = sharedClientWrapper();
+
+      const { result } = renderHook(
+        () => ({
+          list: useInternalComments(target, true),
+          post: usePostInternalComment(target),
+        }),
+        { wrapper: Wrapper },
+      );
+      await waitFor(() => expect(result.current.list.isError).toBe(true));
+      await act(async () => {
+        await result.current.post.mutateAsync({ body: "Check the specimen." });
+      });
+
+      await waitFor(() => expect(result.current.list.data?.comments).toHaveLength(1));
+      expect(calls.filter((call) => call.method === "GET")).toHaveLength(2);
+    });
+
+    it("withdraws one comment with its reason, and replaces it in the cached list with the answer", async () => {
+      const other = {
+        ...COMMENT,
+        id: "0b8a5c7e-6a43-4f56-9d1b-2f4f5a4e1c22",
+        body: "Other.",
+      };
+      const withdrawn = {
+        ...COMMENT,
+        withdrawn_at: "2026-10-02T09:00:00Z",
+        withdrawn_by: PERSON,
+        withdrawn_reason: "Wrong submission.",
+      };
+      const calls = stubApi([
+        { method: "GET", path, status: 200, body: { comments: [COMMENT, other] } },
+        {
+          method: "POST",
+          path: `${path}/${COMMENT_ID}/withdraw`,
+          status: 200,
+          body: withdrawn,
+        },
+      ]);
+      const { Wrapper } = sharedClientWrapper();
+
+      const { result } = renderHook(
+        () => ({
+          list: useInternalComments(target, true),
+          withdraw: useWithdrawInternalComment(target),
+        }),
+        { wrapper: Wrapper },
+      );
+      await waitFor(() => expect(result.current.list.isSuccess).toBe(true));
+      await act(async () => {
+        await result.current.withdraw.mutateAsync({
+          commentId: COMMENT_ID,
+          reason: "Wrong submission.",
+        });
+      });
+
+      const withdraw = calls.find((call) => call.method === "POST");
+      expect(withdraw?.path).toBe(`${path}/${COMMENT_ID}/withdraw`);
+      expect(withdraw?.body).toEqual({ reason: "Wrong submission." });
+      await waitFor(() =>
+        expect(
+          result.current.list.data?.comments.map((c) => [c.id, c.withdrawn_reason]),
+        ).toEqual([
+          [COMMENT_ID, "Wrong submission."],
+          [other.id, null],
+        ]),
+      );
+      expect(calls.filter((call) => call.method === "GET")).toHaveLength(1);
+    });
+
+    it("reads the list again after a second withdrawal is refused, and throws the refusal", async () => {
+      const calls = stubApi([
+        { method: "GET", path, status: 200, body: { comments: [COMMENT] } },
+        {
+          method: "POST",
+          path: `${path}/${COMMENT_ID}/withdraw`,
+          status: 409,
+          body: { detail: "This comment was already withdrawn." },
+        },
+      ]);
+      const { Wrapper } = sharedClientWrapper();
+
+      const { result } = renderHook(
+        () => ({
+          list: useInternalComments(target, true),
+          withdraw: useWithdrawInternalComment(target),
+        }),
+        { wrapper: Wrapper },
+      );
+      await waitFor(() => expect(result.current.list.isSuccess).toBe(true));
+      await act(async () => {
+        await result.current.withdraw
+          .mutateAsync({ commentId: COMMENT_ID, reason: "Again." })
+          .catch(() => undefined);
+      });
+
+      await waitFor(() =>
+        expect(refusalDetail(result.current.withdraw.error)).toBe(
+          "This comment was already withdrawn.",
+        ),
+      );
+      await waitFor(() =>
+        expect(calls.filter((call) => call.method === "GET")).toHaveLength(2),
+      );
+    });
   });
 });
 

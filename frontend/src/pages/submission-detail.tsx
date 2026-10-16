@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { refusalDetail } from "../api/conflicts.ts";
 import { useSubmissionDetail } from "../api/queries.ts";
 import { ApiError } from "../api/unwrap.ts";
+import { InternalCommentsPanel } from "../comments/internal-comments-panel.tsx";
 import { Breadcrumb } from "../components/breadcrumb.tsx";
 import { Button } from "../components/button.tsx";
 import { DetailLayout } from "../components/detail-layout.tsx";
@@ -146,6 +147,7 @@ function SubmissionView({
           ) : (
             <SubmissionContent submission={submission} />
           )}
+          <InternalCommentsPanel target={{ kind: "submission", id: submission.id }} />
         </DetailLayout>
       </PageContainer>
     </section>

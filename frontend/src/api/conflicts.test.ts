@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   asCollisionError,
+  asBodyRefusal,
   asDuplicateMatches,
   asFieldRefusal,
   asQuotaRefusal,
@@ -212,6 +213,25 @@ describe("asReasonRefusal", () => {
       asReasonRefusal(new ApiError(409, { detail: "x", field: "reason" })),
     ).toBeNull();
     expect(asReasonRefusal(new Error("offline"))).toBeNull();
+  });
+});
+
+describe("asBodyRefusal", () => {
+  it("narrows a 422 that names the comment body", () => {
+    expect(
+      asBodyRefusal(new ApiError(422, { detail: "Enter a comment.", field: "body" })),
+    ).toEqual({ detail: "Enter a comment." });
+  });
+
+  it("is null for a 422 that names another field, or none, or FastAPI's array detail", () => {
+    expect(asBodyRefusal(new ApiError(422, { detail: "x", field: "reason" }))).toBeNull();
+    expect(asBodyRefusal(new ApiError(422, { detail: "x" }))).toBeNull();
+    expect(asBodyRefusal(new ApiError(422, { detail: [{ msg: "x" }] }))).toBeNull();
+  });
+
+  it("is null for another status, and for an error that is not an ApiError", () => {
+    expect(asBodyRefusal(new ApiError(409, { detail: "x", field: "body" }))).toBeNull();
+    expect(asBodyRefusal(new Error("offline"))).toBeNull();
   });
 });
 

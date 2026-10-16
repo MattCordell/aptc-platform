@@ -10,6 +10,7 @@ import { EntryHistoryList } from "../catalogue/entry-history-list.tsx";
 import { EntryMetadata } from "../catalogue/entry-metadata.tsx";
 import { EntryTerms } from "../catalogue/entry-terms.tsx";
 import { statusLabelFor, statusToneFor } from "../catalogue/status-options.ts";
+import { InternalCommentsPanel } from "../comments/internal-comments-panel.tsx";
 import { Breadcrumb } from "../components/breadcrumb.tsx";
 import { buttonClassName } from "../components/button-class-name.ts";
 import { Button } from "../components/button.tsx";
@@ -134,6 +135,9 @@ function EntryView({
         >
           <EntryTerms entry={entry} />
           <EntryBindings bindings={entry.bindings} />
+          <InternalCommentsPanel
+            target={{ kind: "entry", businessKey: entry.business_key }}
+          />
         </DetailLayout>
       </PageContainer>
     </section>

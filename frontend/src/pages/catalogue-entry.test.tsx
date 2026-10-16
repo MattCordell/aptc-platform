@@ -6,6 +6,7 @@ import { expectNoA11yViolations } from "../test/a11y.ts";
 import { renderRoute } from "../test/render-route.tsx";
 import type { Route } from "../test/stub-api.ts";
 import { stubApi } from "../test/stub-api.ts";
+import { waitForSession } from "../test/wait-for-session.ts";
 
 /**
  * The public entry detail screen (FR-17, FR-18, FR-20, NFR-31), driven through
@@ -1161,5 +1162,102 @@ describe("the Propose a change link (FR-35, NFR-20)", () => {
       "href",
       `/catalogue/${KEY}`,
     );
+  });
+});
+
+describe("the internal comments panel (FR-95, FR-44, NFR-20)", () => {
+  const COMMENTS = `/api/v1/catalogue/entries/${KEY}/comments`;
+  const WRITE = ["comment.internal.read", "comment.internal.write"];
+
+  async function renderWith(permissions: string[], authenticated = true) {
+    const calls = stubApi([
+      ENTRY_OK,
+      HISTORY_OK,
+      {
+        method: "GET",
+        path: "/auth/me",
+        status: 200,
+        body: {
+          authenticated,
+          user: authenticated
+            ? {
+                username: "rae",
+                display_name: "Rae Reviewer",
+                organisation: null,
+                status: "active",
+              }
+            : null,
+          roles: [],
+          permissions,
+          mfa_satisfied: false,
+        },
+      },
+      {
+        method: "GET",
+        path: COMMENTS,
+        status: 200,
+        body: {
+          comments: [
+            {
+              id: "6f1d2c3e-0000-4000-8000-000000000071",
+              body: "Check the units.",
+              created_at: "2026-10-01T09:00:00Z",
+              author: { username: "rae", display_name: "Rae Reviewer" },
+              withdrawn_at: null,
+              withdrawn_by: null,
+              withdrawn_reason: null,
+            },
+          ],
+        },
+      },
+    ]);
+    const view = await renderRoute(`/catalogue/${KEY}`, {
+      auth: {
+        status: authenticated ? "signed-in" : "signed-out",
+        getAccessToken: () => Promise.resolve("test-token"),
+      },
+    });
+    await screen.findByRole("heading", { level: 1, name: "Ferritin" });
+    return { calls, ...view };
+  }
+
+  it.each([
+    ["a Reviewer", WRITE],
+    ["an Administrator", [...WRITE, "interest.identities.view", "audit.read"]],
+  ])("shows the panel below the entry to %s", async (_who, permissions) => {
+    const { container } = await renderWith(permissions);
+
+    const main = screen.getByRole("main");
+    expect(
+      await within(main).findByRole("heading", { name: "Internal comments" }),
+    ).toBeVisible();
+    expect(await within(main).findByText("Check the units.")).toBeVisible();
+    expect(within(main).getByRole("button", { name: "Post comment" })).toBeVisible();
+    await expectNoA11yViolations(container);
+  });
+
+  it.each([
+    ["a Member", ["interest.register", "submission.view"]],
+    ["an Observer", ["catalogue.read"]],
+  ])(
+    "leaves no trace of it for %s, and sends no comments request",
+    async (_who, permissions) => {
+      const { calls, container, queryClient } = await renderWith(permissions);
+
+      await screen.findByRole("heading", { level: 1, name: "Ferritin" });
+      await waitForSession(queryClient);
+      expect(screen.queryByRole("heading", { name: "Internal comments" })).toBeNull();
+      expect(screen.queryByText("Check the units.")).toBeNull();
+      expect(calls.some((call) => call.path === COMMENTS)).toBe(false);
+      await expectNoA11yViolations(container);
+    },
+  );
+
+  it("leaves no trace of it for an anonymous reader, who sends no session or comments request", async () => {
+    const { calls } = await renderWith([], false);
+
+    expect(screen.queryByRole("heading", { name: "Internal comments" })).toBeNull();
+    expect(calls.some((call) => call.path.endsWith("/auth/me"))).toBe(false);
+    expect(calls.some((call) => call.path === COMMENTS)).toBe(false);
   });
 });

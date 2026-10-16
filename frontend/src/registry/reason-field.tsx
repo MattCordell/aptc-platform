@@ -16,12 +16,15 @@ export function ReasonField({
   onChange,
   error,
   hint = AUDIT_ONLY_HINT,
+  maxLength,
 }: {
   id: string;
   value: string;
   onChange: (value: string) => void;
   error: string | undefined;
   hint?: string;
+  /** A server limit on the text, so a longer one is stopped here. */
+  maxLength?: number;
 }) {
   return (
     <Field id={id} label="Reason" hint={hint} error={error}>
@@ -29,6 +32,7 @@ export function ReasonField({
         <input
           {...controlProps}
           type="text"
+          maxLength={maxLength}
           value={value}
           onChange={(event) => onChange(event.target.value)}
         />

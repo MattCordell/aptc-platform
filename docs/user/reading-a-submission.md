@@ -8,7 +8,8 @@ signed in to open it.
 The page also lists the submission's history, and gives reviewers a panel to move it on and an
 **Edit** button to change its content. Those are covered in [History](#history),
 [Triaging a submission](triaging-a-submission.md) and
-[Editing a submission](editing-a-submission.md).
+[Editing a submission](editing-a-submission.md). Reviewers and Administrators also see an
+**Internal comments** panel below the content. See [Internal comments](internal-comments.md).
 
 ## Open a submission
 

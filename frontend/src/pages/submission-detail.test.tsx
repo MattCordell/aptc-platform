@@ -6,6 +6,7 @@ import { expectNoA11yViolations } from "../test/a11y.ts";
 import { renderRoute } from "../test/render-route.tsx";
 import type { Route } from "../test/stub-api.ts";
 import { stubApi } from "../test/stub-api.ts";
+import { waitForSession } from "../test/wait-for-session.ts";
 
 /**
  * The `/submissions/$submissionId` page (FR-26, FR-27, FR-28, FR-32, FR-34,
@@ -948,4 +949,73 @@ describe("submission detail failures", () => {
       screen.getByRole("heading", { level: 1, name: "Ferritin level" }),
     ).toBeVisible();
   });
+});
+
+describe("the internal comments panel (FR-95, FR-44, NFR-20)", () => {
+  const COMMENTS = `${DETAIL}/comments`;
+  const STAFF = ["submission.view", "comment.internal.read", "comment.internal.write"];
+  const COMMENT_LIST: Route = {
+    method: "GET",
+    path: COMMENTS,
+    status: 200,
+    body: {
+      comments: [
+        {
+          id: "6f1d2c3e-0000-4000-8000-000000000072",
+          body: "Check the specimen type.",
+          created_at: "2026-10-01T09:00:00Z",
+          author: { username: "rae", display_name: "Rae Reviewer" },
+          withdrawn_at: null,
+          withdrawn_by: null,
+          withdrawn_reason: null,
+        },
+      ],
+    },
+  };
+
+  it.each([
+    ["a Reviewer", STAFF],
+    ["an Administrator", [...STAFF, "interest.identities.view", "audit.read"]],
+  ])("shows the panel below the content to %s", async (_who, permissions) => {
+    const { container } = await open([
+      me(permissions),
+      DEFINITIONS,
+      detail(),
+      COMMENT_LIST,
+    ]);
+
+    const main = screen.getByRole("main");
+    expect(
+      await within(main).findByRole("heading", { name: "Internal comments" }),
+    ).toBeVisible();
+    expect(await within(main).findByText("Check the specimen type.")).toBeVisible();
+    expect(within(main).getByRole("button", { name: "Post comment" })).toBeVisible();
+    await expectNoA11yViolations(container);
+  });
+
+  it.each([
+    ["a Member", ["interest.register", "submission.view"]],
+    [
+      "the submitter",
+      ["interest.register", "submission.view", "submission.withdraw.own"],
+    ],
+    ["an Observer", ["catalogue.read"]],
+  ])(
+    "leaves no trace of it for %s, and sends no comments request",
+    async (_who, permissions) => {
+      const { calls, container, queryClient } = await open([
+        me(permissions),
+        DEFINITIONS,
+        detail({ is_own: _who === "the submitter" }),
+        COMMENT_LIST,
+      ]);
+
+      await screen.findByRole("heading", { level: 1, name: "Ferritin level" });
+      await waitForSession(queryClient);
+      expect(screen.queryByRole("heading", { name: "Internal comments" })).toBeNull();
+      expect(screen.queryByText("Check the specimen type.")).toBeNull();
+      expect(calls.some((call) => call.path === COMMENTS)).toBe(false);
+      await expectNoA11yViolations(container);
+    },
+  );
 });

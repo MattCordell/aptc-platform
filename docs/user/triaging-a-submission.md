@@ -93,8 +93,8 @@ the platform no longer offers approval. Choose **Cancel**.
 
 The reason is not private. The platform records it in the audit log, and **History** shows it to
 everyone who can open the submission, including the submitter. Write it as a note to the
-submitter and to the next reviewer. Internal comments for reviewers only are a separate feature
-and are not part of this panel.
+submitter and to the next reviewer. To leave a note that only reviewers can read, use the
+**Internal comments** panel instead. See [Internal comments](internal-comments.md).
 
 ## When the platform refuses
 

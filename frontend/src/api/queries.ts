@@ -1777,3 +1777,139 @@ export function useCreateAmendment() {
       unwrap(await client.POST("/api/v1/submissions/amendments", { body })),
   });
 }
+
+/** The submission or the catalogue entry an internal comment belongs to. */
+export type CommentTarget =
+  { kind: "submission"; id: string } | { kind: "entry"; businessKey: string };
+
+type CommentAnswer = components["schemas"]["CommentResponse"];
+type CommentListAnswer = components["schemas"]["CommentListResponse"];
+type PostCommentBody = components["schemas"]["PostCommentRequest"];
+
+function commentTargetId(target: CommentTarget): string {
+  return target.kind === "submission" ? target.id : target.businessKey;
+}
+
+function commentsKey(target: CommentTarget) {
+  return target.kind === "submission"
+    ? ["api", "/api/v1/submissions/{submission_id}/comments", target.id]
+    : ["api", "/api/v1/catalogue/entries/{business_key}/comments", target.businessKey];
+}
+
+/**
+ * The internal comments on a submission or an entry, oldest first, withdrawn
+ * ones included (FR-95). The server answers a caller without
+ * `comment.internal.read` with a 403, so a caller passes `enabled: false` for
+ * them and the request is never sent (NFR-20).
+ */
+export function useInternalComments(target: CommentTarget, enabled: boolean) {
+  const client = useApiClient();
+  return useQuery({
+    queryKey: commentsKey(target),
+    queryFn: async ({ signal }) =>
+      unwrap(
+        target.kind === "submission"
+          ? await client.GET("/api/v1/submissions/{submission_id}/comments", {
+              params: { path: { submission_id: target.id } },
+              signal,
+            })
+          : await client.GET("/api/v1/catalogue/entries/{business_key}/comments", {
+              params: { path: { business_key: target.businessKey } },
+              signal,
+            }),
+      ),
+    enabled: enabled && commentTargetId(target).length > 0,
+  });
+}
+
+/**
+ * A comment write leaves its submission or entry unchanged, so only the
+ * comment list changes. The answer is the one comment as it now stands, so it
+ * goes straight into the cached list. The list is not re-read after a success,
+ * because the server commits after it sends the answer and a read sent at once
+ * can still return the list as it was. A later read, such as one on window
+ * focus, can still fall in that short gap and bring the old list back until the
+ * next read. A list that is not cached yet is read instead. A 409 is a second withdrawal of one comment, which means the list on
+ * screen was out of date, so it is re-read.
+ */
+function useCommentMutation<Variables>(
+  target: CommentTarget,
+  write: (client: ApiClient, variables: Variables) => Promise<CommentAnswer>,
+) {
+  const client = useApiClient();
+  const queryClient = useQueryClient();
+  const key = commentsKey(target);
+  const reread = () => queryClient.invalidateQueries({ queryKey: key });
+  return useMutation({
+    mutationFn: (variables: Variables) => write(client, variables),
+    onSuccess: async (answer) => {
+      // A read that started before the write would put the old list back.
+      await queryClient.cancelQueries({ queryKey: key });
+      const cached = queryClient.getQueryData<CommentListAnswer>(key);
+      if (cached === undefined) {
+        return reread();
+      }
+      const known = cached.comments.some((comment) => comment.id === answer.id);
+      queryClient.setQueryData<CommentListAnswer>(key, {
+        comments: known
+          ? cached.comments.map((comment) =>
+              comment.id === answer.id ? answer : comment,
+            )
+          : [...cached.comments, answer],
+      });
+    },
+    onError: (error) =>
+      error instanceof ApiError && error.status === 409 ? reread() : undefined,
+  });
+}
+
+/** Post an internal comment (FR-95). A refusal is thrown as an `ApiError`. */
+export function usePostInternalComment(target: CommentTarget) {
+  return useCommentMutation(target, async (client, body: PostCommentBody) =>
+    unwrap(
+      target.kind === "submission"
+        ? await client.POST("/api/v1/submissions/{submission_id}/comments", {
+            params: { path: { submission_id: target.id } },
+            body,
+          })
+        : await client.POST("/api/v1/catalogue/entries/{business_key}/comments", {
+            params: { path: { business_key: target.businessKey } },
+            body,
+          }),
+    ),
+  );
+}
+
+/** Withdraw an internal comment with a reason (FR-95). The comment keeps its text. */
+export function useWithdrawInternalComment(target: CommentTarget) {
+  return useCommentMutation(
+    target,
+    async (client, variables: { commentId: string; reason: string }) => {
+      const body = { reason: variables.reason };
+      return unwrap(
+        target.kind === "submission"
+          ? await client.POST(
+              "/api/v1/submissions/{submission_id}/comments/{comment_id}/withdraw",
+              {
+                params: {
+                  path: { submission_id: target.id, comment_id: variables.commentId },
+                },
+                body,
+              },
+            )
+          : await client.POST(
+              "/api/v1/catalogue/entries/{business_key}/comments/{comment_id}/withdraw",
+              {
+                params: {
+                  path: {
+                    business_key: target.businessKey,
+                    comment_id: variables.commentId,
+                  },
+                },
+                body,
+              },
+            ),
+      );
+    },
+  );
+}
