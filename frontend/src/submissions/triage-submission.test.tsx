@@ -524,6 +524,25 @@ describe("TriageSubmission approval (FR-28, FR-35)", () => {
     await expectNoA11yViolations(container);
   });
 
+  it.each([
+    [
+      "an amendment that names no entry",
+      { kind: "amendment", entry_business_key: null },
+      "Approving changes the catalogue entry this amendment names.",
+    ],
+    [
+      "a kind the screen does not know",
+      { kind: "merge", entry_business_key: null },
+      "Approving writes this submission to the catalogue.",
+    ],
+  ])("still words the effect for %s", async (_name, overrides, sentence) => {
+    stubApi([detailRoute({ ...READY, ...overrides })]);
+    renderPanel();
+    const dialog = await openDialog("Approve");
+
+    expect(within(dialog).getByText(new RegExp(sentence))).toBeVisible();
+  });
+
   it("asks for a reason before it sends anything", async () => {
     const calls = stubApi([detailRoute(READY)]);
     renderPanel();

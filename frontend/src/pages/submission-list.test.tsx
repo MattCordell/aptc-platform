@@ -121,6 +121,27 @@ describe("All submissions view (FR-28, FR-34)", () => {
     expect(within(row).getByText("Withdrawn")).toBeVisible();
   });
 
+  it("links an approved new test to the entry it created", async () => {
+    stubApi([
+      listRoute([
+        summary({
+          id: OWN_ID,
+          preferred_term: "Ferritin level",
+          state: "Approved",
+          created_entry_business_key: "NPTC-000123",
+        }),
+      ]),
+    ]);
+    await renderRoute("/submissions", SIGNED_IN);
+
+    const row = await screen.findByRole("row", { name: /Ferritin level/ });
+    expect(within(row).getByText(/New test, created as/)).toBeVisible();
+    expect(within(row).getByRole("link", { name: "NPTC-000123" })).toHaveAttribute(
+      "href",
+      "/catalogue/NPTC-000123",
+    );
+  });
+
   it("shows a kind it does not know as the server sent it", async () => {
     stubApi([
       listRoute([summary({ id: OWN_ID, preferred_term: "Odd one", kind: "merge" })]),
