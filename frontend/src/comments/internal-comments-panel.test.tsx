@@ -559,3 +559,36 @@ describe.each(TARGETS)("InternalCommentsPanel on $name", ({ target, path }) => {
     });
   });
 });
+
+describe("InternalCommentsPanel when the page moves to another target", () => {
+  const FIRST: CommentTarget = { kind: "entry", businessKey: "NPTC-000247" };
+  const SECOND: CommentTarget = { kind: "entry", businessKey: "NPTC-000248" };
+
+  it("does not carry a half-written comment over to the next target", async () => {
+    stubApi([
+      STAFF,
+      listRoute(`/api/v1/catalogue/entries/${FIRST.businessKey}/comments`, []),
+      listRoute(`/api/v1/catalogue/entries/${SECOND.businessKey}/comments`, [
+        comment({ body: "A note on the second entry." }),
+      ]),
+    ]);
+    const client = createQueryClient();
+    const tree = (target: CommentTarget) => (
+      <QueryClientProvider client={client}>
+        <AuthContext.Provider value={AUTH}>
+          <InternalCommentsPanel target={target} />
+        </AuthContext.Provider>
+      </QueryClientProvider>
+    );
+    const { rerender } = render(tree(FIRST));
+
+    await userEvent.type(
+      await screen.findByLabelText("Add an internal comment"),
+      "Meant for the first entry",
+    );
+    rerender(tree(SECOND));
+
+    expect(await screen.findByText("A note on the second entry.")).toBeVisible();
+    expect(screen.getByLabelText("Add an internal comment")).toHaveValue("");
+  });
+});

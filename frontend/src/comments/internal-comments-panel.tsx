@@ -112,7 +112,13 @@ function CommentItem({
  * visitor a request it did not send before.
  */
 export function InternalCommentsPanel({ target }: { target: CommentTarget }) {
-  return useAuthStatus() === "signed-in" ? <SignedInPanel target={target} /> : null;
+  const signedIn = useAuthStatus() === "signed-in";
+  // Keyed by target so a draft, an open dialog and the focus request never
+  // carry over when the route shows another submission or entry.
+  const targetKey = target.kind === "submission" ? target.id : target.businessKey;
+  return signedIn ? (
+    <SignedInPanel key={`${target.kind}:${targetKey}`} target={target} />
+  ) : null;
 }
 
 function SignedInPanel({ target }: { target: CommentTarget }) {
