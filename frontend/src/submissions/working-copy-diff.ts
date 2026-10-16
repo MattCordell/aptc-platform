@@ -22,19 +22,19 @@ export type WorkingContent = Pick<
 type Schemas = components["schemas"];
 type ReviewDetail =
   Schemas["ReviewSubmissionDetail"] | Schemas["IdentifiedReviewSubmissionDetail"];
-type AnyDetail =
+export type AnySubmissionDetail =
   Schemas["SubmissionDetail"] | Schemas["IdentifiedSubmissionDetail"] | ReviewDetail;
 
 /**
  * Whether the server sent the working copy, which it does only to a holder of
  * `submission.transition.review`. Every other caller's detail has no such key.
  */
-export function isReviewDetail(detail: AnyDetail): detail is ReviewDetail {
+export function isReviewDetail(detail: AnySubmissionDetail): detail is ReviewDetail {
   return "working_copy" in detail;
 }
 
 /** What the submitter sent, in the shape of the working copy. */
-export function originalContent(detail: AnyDetail): WorkingContent {
+export function originalContent(detail: AnySubmissionDetail): WorkingContent {
   return {
     preferred_term: detail.preferred_term,
     synonyms: detail.synonyms,
