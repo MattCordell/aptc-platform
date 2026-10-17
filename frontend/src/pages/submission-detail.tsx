@@ -24,6 +24,7 @@ import {
   SubmissionDetails,
   SubmissionInterest,
 } from "../submissions/submission-sidebar.tsx";
+import { TerminologyRequestSection } from "../submissions/terminology-request-section.tsx";
 import { TransitionHistory } from "../submissions/transition-history.tsx";
 import { TriageSubmission } from "../submissions/triage-submission.tsx";
 import { WithdrawSubmission } from "../submissions/withdraw-submission.tsx";
@@ -128,6 +129,7 @@ function SubmissionView({
                 />
               )}
               <TriageSubmission submission={submission} />
+              <TerminologyRequestSection submission={submission} />
               <WithdrawSubmission submission={submission} />
               <TransitionHistory submissionId={submission.id} />
             </>

@@ -63,3 +63,20 @@ export function trackingProblems(
   }
   return found;
 }
+
+/**
+ * A calendar date (`YYYY-MM-DD`) as the reader writes it, e.g. "1 October 2026".
+ * It carries no time, so it is read as local midnight: reading it as UTC would
+ * show the day before to a reader west of Greenwich.
+ */
+export function formatCalendarDate(ymd: string): string {
+  const date = new Date(`${ymd}T00:00:00`);
+  if (Number.isNaN(date.getTime())) {
+    return ymd;
+  }
+  return date.toLocaleDateString("en-AU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
