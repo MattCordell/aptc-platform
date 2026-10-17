@@ -651,6 +651,7 @@ def test_a_property_deprecated_since_the_proposal_refuses_the_approval(
 
 @pytest.mark.req("FR-05")
 @pytest.mark.req("FR-28")
+@pytest.mark.req("FR-29")
 @pytest.mark.integration
 def test_a_preferred_term_that_collides_is_refused_and_nothing_is_written(
     app_session: Session,
