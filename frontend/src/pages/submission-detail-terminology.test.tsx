@@ -495,9 +495,14 @@ describe("Attach code (FR-30)", () => {
 
   async function pickCode(dialog: HTMLElement) {
     await userEvent.type(within(dialog).getByLabelText("SNOMED CT code"), "ferr");
-    await userEvent.click(
-      await screen.findByRole("option", { name: new RegExp(CODE) }, { timeout: 2000 }),
+    const option = await screen.findByRole(
+      "option",
+      { name: new RegExp(CODE) },
+      { timeout: 2000 },
     );
+    // A modal dialog sits above the page, so a list outside it cannot be clicked.
+    expect(dialog).toContainElement(option);
+    await userEvent.click(option);
     await within(dialog).findByText(FSN, {}, { timeout: 2000 });
   }
 
