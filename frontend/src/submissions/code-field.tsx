@@ -2,7 +2,7 @@ import { Button } from "../components/button.tsx";
 import { CodeChip } from "../components/code-chip.tsx";
 import { ProcedurePicker } from "../catalogue/procedure-picker.tsx";
 import type { CodeSelection } from "../catalogue/use-code-selection.ts";
-import { FIELD_IDS, unresolvedCodeMessage } from "./form-state.ts";
+import { FIELD_IDS, requiredCodeMessage, unresolvedCodeMessage } from "./form-state.ts";
 
 /**
  * The optional SNOMED CT code of a new test (FR-26, FR-54).
@@ -13,6 +13,9 @@ import { FIELD_IDS, unresolvedCodeMessage } from "./form-state.ts";
  * The code is sent only once the server has named it, and never typed in
  * full by the user (FR-06).
  *
+ * An Administrator attaching the issued code passes `required`: the form has no
+ * use without a code, so the wording never says it can be sent without one.
+ *
  * A reviewer editing a working copy passes the `current` code. It is shown as it
  * stands, with no lookup, and the user can pick another. A code cannot be cleared
  * once a submission holds one, so the way back from a pick is to keep the current
@@ -21,17 +24,20 @@ import { FIELD_IDS, unresolvedCodeMessage } from "./form-state.ts";
 
 const OUTAGE_NOTE = "You can still send the rest of this form without a code.";
 const OUTAGE_NOTE_KEEPING = "You can still save the other changes.";
+const OUTAGE_NOTE_REQUIRED = "The code cannot be attached until the server can check it.";
 
 export function SubmissionCodeField({
   selection,
   error,
   current,
+  required = false,
   onPick,
   onClear,
 }: {
   selection: CodeSelection;
   error?: string;
   current?: { code: string; fsn: string | null };
+  required?: boolean;
   onPick: (code: string) => void;
   onClear: () => void;
 }) {
@@ -57,7 +63,9 @@ export function SubmissionCodeField({
         id={FIELD_IDS.snomed_code}
         label={keeping ? "Choose a different SNOMED CT code" : "SNOMED CT code"}
         error={error}
-        outageNote={keeping ? OUTAGE_NOTE_KEEPING : OUTAGE_NOTE}
+        outageNote={
+          required ? OUTAGE_NOTE_REQUIRED : keeping ? OUTAGE_NOTE_KEEPING : OUTAGE_NOTE
+        }
         onPick={onPick}
       />
       {selection.status === "checking" && (
@@ -65,7 +73,11 @@ export function SubmissionCodeField({
       )}
       {selection.status === "unresolved" && (
         <div className="flex flex-col gap-2">
-          <p className="m-0">{unresolvedCodeMessage(selection, keeping)}</p>
+          <p className="m-0">
+            {required
+              ? requiredCodeMessage(selection)
+              : unresolvedCodeMessage(selection, keeping)}
+          </p>
           <div>
             <Button type="button" variant="secondary" onClick={onClear}>
               {clearLabel}

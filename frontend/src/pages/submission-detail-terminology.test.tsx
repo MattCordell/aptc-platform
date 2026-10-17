@@ -411,3 +411,396 @@ describe("editing the tracking details (FR-31)", () => {
     expect(calls.some((call) => call.method === "PATCH")).toBe(false);
   });
 });
+
+const ADMINISTRATOR = me([
+  "submission.transition.review",
+  "submission.transition.approve",
+  "interest.register",
+]);
+
+const CODE = "0391483001";
+const FSN = "Ferritin measurement (procedure)";
+const ATTACH = `${REQUEST}/attach-code`;
+
+const PROCEDURES: Route = {
+  method: "GET",
+  path: "/terminology/procedures",
+  status: 200,
+  body: {
+    items: [
+      { code: CODE, au_preferred_term: "Ferritin measurement", label_provenance: {} },
+    ],
+    total: 1,
+  },
+};
+
+const CONCEPT: Route = {
+  method: "GET",
+  path: `/terminology/concepts/${CODE}`,
+  status: 200,
+  body: {
+    system: "http://snomed.info/sct",
+    code: CODE,
+    fsn: FSN,
+    au_preferred_term: "Ferritin measurement",
+    active: true,
+    edition: "au",
+    resolved_version: "http://snomed.info/sct/32506021000036107/version/20260101",
+  },
+};
+
+const ATTACHED: Route = {
+  method: "POST",
+  path: ATTACH,
+  status: 200,
+  body: {
+    id: ID,
+    state: "Ready for approval",
+    row_version: 7,
+    available_transitions: ["Approved", "Rejected"],
+    snomed_code: CODE,
+    snomed_fsn: FSN,
+    label_provenance: {},
+  },
+};
+
+/** What the page reads after the attach: the code is in the working copy and the state has moved. */
+const AFTER_ATTACH = detail({
+  state: "Ready for approval",
+  row_version: 7,
+  available_transitions: ["Approved", "Rejected"],
+  working_copy: {
+    preferred_term: "Ferritin level",
+    synonyms: [],
+    snomed_code: CODE,
+    snomed_fsn: FSN,
+    property_values: {},
+    notes: null,
+    label_provenance: {},
+    updated_at: "2026-10-17T09:00:00Z",
+  },
+});
+
+describe("Attach code (FR-30)", () => {
+  const WAITING_FOR_ADMINISTRATOR = detail({
+    available_transitions: ["Under review", "Ready for approval"],
+  });
+
+  async function openAttach(routes: Route[], options?: Parameters<typeof stubApi>[1]) {
+    const view = await open([ADMINISTRATOR, ...routes], options);
+    await userEvent.click(await screen.findByRole("button", { name: "Attach code" }));
+    const dialog = await screen.findByRole("dialog");
+    return { ...view, dialog };
+  }
+
+  async function pickCode(dialog: HTMLElement) {
+    await userEvent.type(within(dialog).getByLabelText("SNOMED CT code"), "ferr");
+    await userEvent.click(
+      await screen.findByRole("option", { name: new RegExp(CODE) }, { timeout: 2000 }),
+    );
+    await within(dialog).findByText(FSN, {}, { timeout: 2000 });
+  }
+
+  async function typeReason(dialog: HTMLElement, text: string) {
+    await userEvent.type(within(dialog).getByRole("textbox", { name: /Reason/ }), text);
+  }
+
+  async function attach(dialog: HTMLElement) {
+    await userEvent.click(within(dialog).getByRole("button", { name: "Attach code" }));
+  }
+
+  it("shows an Administrator the action and a Reviewer none", async () => {
+    const administrator = await open([ADMINISTRATOR, WAITING_FOR_ADMINISTRATOR]);
+
+    expect(await screen.findByRole("button", { name: "Attach code" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Resume review" })).toBeVisible();
+    await expectNoA11yViolations(administrator.container);
+    administrator.unmount();
+
+    // The server lists the move only for a caller who may make it.
+    const reviewer = await open([REVIEWER, detail()]);
+
+    expect(await screen.findByRole("button", { name: "Resume review" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Attach code" })).toBeNull();
+    await expectNoA11yViolations(reviewer.container);
+  });
+
+  it("opens a form with the code picker and a reason", async () => {
+    const { dialog, container } = await openAttach([WAITING_FOR_ADMINISTRATOR]);
+
+    expect(within(dialog).getByRole("heading", { name: "Attach code" })).toBeVisible();
+    expect(within(dialog).getByLabelText("SNOMED CT code")).toBeVisible();
+    expect(within(dialog).getByRole("textbox", { name: /Reason/ })).toBeVisible();
+    await expectNoA11yViolations(container);
+  });
+
+  it("blocks the send without a code and without a reason", async () => {
+    const { calls, dialog, container } = await openAttach([WAITING_FOR_ADMINISTRATOR]);
+
+    await attach(dialog);
+
+    for (const message of [
+      "Choose the code the terminology authority issued.",
+      "Enter the reason for attaching this code.",
+    ]) {
+      expect(await within(dialog).findAllByText(message)).not.toHaveLength(0);
+    }
+    expect(within(dialog).getByLabelText("SNOMED CT code")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(calls.some((call) => call.method === "POST")).toBe(false);
+    await expectNoA11yViolations(container);
+  });
+
+  it("shows the name the server returned for the pick, then attaches it and shows Ready for approval", async () => {
+    let attached = false;
+    const { calls, dialog, container } = await openAttach(
+      [WAITING_FOR_ADMINISTRATOR, PROCEDURES, CONCEPT, ATTACHED],
+      {
+        vary: (call) => {
+          attached ||= call.method === "POST" && call.path.endsWith("/attach-code");
+          return attached && call.method === "GET" && call.path === DETAIL
+            ? AFTER_ATTACH
+            : null;
+        },
+      },
+    );
+
+    await pickCode(dialog);
+    expect(within(dialog).getByText("Chosen code")).toBeVisible();
+    await typeReason(dialog, "  Issued by the authority.  ");
+    await attach(dialog);
+
+    const confirmation = await screen.findByText(
+      `Attached ${CODE}, ${FSN}. Moved to Ready for approval.`,
+    );
+    expect(confirmation).toHaveFocus();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(calls.find((call) => call.method === "POST")?.body).toEqual({
+      snomed_code: CODE,
+      reason: "Issued by the authority.",
+      expected_row_version: 6,
+    });
+    // The page now shows the state and the code the server wrote.
+    const details = (await screen.findByRole("heading", { name: "Details" }))
+      .parentElement as HTMLElement;
+    expect(await within(details).findByText("Ready for approval")).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Terminology request" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Approve" })).toBeVisible();
+    await expectNoA11yViolations(container);
+  });
+
+  it("marks the code field when the server refuses the code, and keeps the dialog", async () => {
+    const { dialog, container } = await openAttach([
+      WAITING_FOR_ADMINISTRATOR,
+      PROCEDURES,
+      CONCEPT,
+      {
+        method: "POST",
+        path: ATTACH,
+        status: 422,
+        body: {
+          detail: `${CODE} is not active in the Australian edition.`,
+          field: "snomed_code",
+        },
+      },
+    ]);
+
+    await pickCode(dialog);
+    await typeReason(dialog, "Issued by the authority.");
+    await attach(dialog);
+
+    expect(
+      await within(dialog).findAllByText(
+        `${CODE} is not active in the Australian edition.`,
+      ),
+    ).not.toHaveLength(0);
+    expect(within(dialog).getByLabelText("SNOMED CT code")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(within(dialog).getByRole("textbox", { name: /Reason/ })).toHaveValue(
+      "Issued by the authority.",
+    );
+    expect(screen.getByRole("dialog")).toBeVisible();
+    await expectNoA11yViolations(container);
+  });
+
+  it("stops showing a refusal once the user clears the code it was about", async () => {
+    const { dialog } = await openAttach([
+      WAITING_FOR_ADMINISTRATOR,
+      PROCEDURES,
+      CONCEPT,
+      {
+        method: "POST",
+        path: ATTACH,
+        status: 422,
+        body: { detail: "That code is inactive.", field: "snomed_code" },
+      },
+    ]);
+
+    await pickCode(dialog);
+    await typeReason(dialog, "Issued by the authority.");
+    await attach(dialog);
+    await within(dialog).findAllByText("That code is inactive.");
+
+    await userEvent.click(within(dialog).getByRole("button", { name: "Clear the code" }));
+
+    await waitFor(() =>
+      expect(within(dialog).queryByText("That code is inactive.")).toBeNull(),
+    );
+    expect(within(dialog).getByLabelText("SNOMED CT code")).not.toHaveAttribute(
+      "aria-invalid",
+    );
+  });
+
+  it("says nothing changed when the terminology server cannot be reached", async () => {
+    const { dialog } = await openAttach([
+      WAITING_FOR_ADMINISTRATOR,
+      PROCEDURES,
+      CONCEPT,
+      {
+        method: "POST",
+        path: ATTACH,
+        status: 503,
+        body: {
+          detail:
+            "The terminology server could not be reached. Nothing was changed, and you can send the same request again.",
+          field: "snomed_code",
+        },
+      },
+    ]);
+
+    await pickCode(dialog);
+    await typeReason(dialog, "Issued by the authority.");
+    await attach(dialog);
+
+    expect(await within(dialog).findAllByText(/Nothing was changed/)).not.toHaveLength(0);
+    expect(within(dialog).getByLabelText("SNOMED CT code")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+  });
+
+  it("marks the reason when the server refuses it", async () => {
+    const { dialog } = await openAttach([
+      WAITING_FOR_ADMINISTRATOR,
+      PROCEDURES,
+      CONCEPT,
+      {
+        method: "POST",
+        path: ATTACH,
+        status: 422,
+        body: {
+          detail: "The reason has a character that cannot be shown.",
+          field: "reason",
+        },
+      },
+    ]);
+
+    await pickCode(dialog);
+    await typeReason(dialog, "Issued by the authority.");
+    await attach(dialog);
+
+    expect(
+      await within(dialog).findAllByText(
+        "The reason has a character that cannot be shown.",
+      ),
+    ).not.toHaveLength(0);
+    expect(within(dialog).getByRole("textbox", { name: /Reason/ })).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+  });
+
+  it("will not send a code the lookup could not name, and says the server is out of reach", async () => {
+    const { calls, dialog } = await openAttach([
+      WAITING_FOR_ADMINISTRATOR,
+      PROCEDURES,
+      {
+        method: "GET",
+        path: `/terminology/concepts/${CODE}`,
+        status: 503,
+        body: { detail: "The terminology server could not be reached." },
+      },
+    ]);
+
+    await userEvent.type(within(dialog).getByLabelText("SNOMED CT code"), "ferr");
+    await userEvent.click(
+      await screen.findByRole("option", { name: new RegExp(CODE) }, { timeout: 2000 }),
+    );
+    await typeReason(dialog, "Issued by the authority.");
+    await attach(dialog);
+
+    expect(
+      await within(dialog).findAllByText(
+        "The terminology server could not be reached, so the code could not be checked. Try again shortly.",
+      ),
+    ).not.toHaveLength(0);
+    expect(within(dialog).queryByText(/send the form without one/)).toBeNull();
+    expect(calls.some((call) => call.method === "POST")).toBe(false);
+  });
+
+  it("says the page has reloaded when the version is stale, and keeps the code and reason", async () => {
+    const { calls, dialog } = await openAttach([
+      WAITING_FOR_ADMINISTRATOR,
+      PROCEDURES,
+      CONCEPT,
+      {
+        method: "POST",
+        path: ATTACH,
+        status: 409,
+        body: { detail: "Changed.", expected_row_version: 6, current_row_version: 7 },
+      },
+    ]);
+
+    await pickCode(dialog);
+    await typeReason(dialog, "Issued by the authority.");
+    await attach(dialog);
+
+    expect(
+      await within(dialog).findAllByText(/The page now shows the latest version/),
+    ).not.toHaveLength(0);
+    expect(within(dialog).getByText(FSN)).toBeVisible();
+    expect(within(dialog).getByRole("textbox", { name: /Reason/ })).toHaveValue(
+      "Issued by the authority.",
+    );
+    await waitFor(() =>
+      expect(
+        calls.filter((call) => call.method === "GET" && call.path === DETAIL).length,
+      ).toBeGreaterThan(1),
+    );
+  });
+
+  it.each([
+    [403, "Only an Administrator may attach a code."],
+    [409, "This submission is not Awaiting terminology."],
+  ])("shows the server's own sentence for a %s", async (status, sentence) => {
+    const { dialog } = await openAttach([
+      WAITING_FOR_ADMINISTRATOR,
+      PROCEDURES,
+      CONCEPT,
+      { method: "POST", path: ATTACH, status, body: { detail: sentence } },
+    ]);
+
+    await pickCode(dialog);
+    await typeReason(dialog, "Issued by the authority.");
+    await attach(dialog);
+
+    expect(await within(dialog).findAllByText(sentence)).not.toHaveLength(0);
+    expect(
+      within(dialog).queryByText(/The page now shows the latest version/),
+    ).toBeNull();
+  });
+
+  it("closes without sending when the user cancels", async () => {
+    const { calls, dialog } = await openAttach([WAITING_FOR_ADMINISTRATOR]);
+
+    await userEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByRole("button", { name: "Attach code" })).toBeVisible();
+    expect(calls.some((call) => call.method === "POST")).toBe(false);
+  });
+});

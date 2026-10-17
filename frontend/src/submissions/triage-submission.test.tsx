@@ -105,9 +105,13 @@ describe("TriageSubmission buttons", () => {
       ["Mark ready for approval", "Request a new code", "Reject"],
     ],
     ["Ready for approval", ["Approved", "Rejected"], ["Approve", "Reject"]],
-    ["Awaiting terminology", ["Under review", "Ready for approval"], ["Resume review"]],
+    [
+      "Awaiting terminology",
+      ["Under review", "Ready for approval"],
+      ["Resume review", "Attach code"],
+    ],
   ])(
-    "offers each move the server lists from %s, and skips the ones with their own screen",
+    "offers each move the server lists from %s, and skips Withdrawn",
     async (state, available, labels) => {
       stubApi([detailRoute({ state, available_transitions: available })]);
       renderPanel();

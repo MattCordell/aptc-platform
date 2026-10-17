@@ -10,18 +10,15 @@ export const REASON_READERS_HINT =
 
 /**
  * A move the server lists in `available_transitions` but that
- * `POST /submissions/{id}/transitions` refuses with a 409, because it needs more
- * than a reason or has its own route. The Triage panel skips these. The list is
- * the only place the screen names a move, and it holds no rule about which moves
- * exist: the server still decides what is offered. Each entry goes when the
- * screen for its move lands.
+ * `POST /submissions/{id}/transitions` refuses with a 409, because it has a route
+ * of its own. The Triage panel skips these. The list is the only place the screen
+ * names a move, and it holds no rule about which moves exist: the server still
+ * decides what is offered.
  */
 const MOVES_ON_OTHER_ROUTES: readonly { from?: SubmissionState; to: SubmissionState }[] =
   [
     // Withdrawal has its own route and permission, and its own panel.
     { to: "Withdrawn" },
-    // Attaching a code needs the code picker, which only its own dialog holds.
-    { from: "Awaiting terminology", to: "Ready for approval" },
   ];
 
 export function isMadeOnTheTriagePanel(from: string, to: SubmissionState): boolean {
