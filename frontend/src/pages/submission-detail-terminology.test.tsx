@@ -378,6 +378,80 @@ describe("editing the tracking details (FR-31)", () => {
     );
   });
 
+  it("keeps another reviewer's change to a field the user did not touch after a stale version", async () => {
+    let refused = false;
+    const { calls, dialog } = await openEditor([REVIEWER, detail(), SAVED], {
+      vary: (call, prior) => {
+        if (call.method === "PATCH" && prior === 0) {
+          refused = true;
+          return {
+            method: "PATCH",
+            path: REQUEST,
+            status: 409,
+            body: { detail: "Changed.", expected_row_version: 6, current_row_version: 7 },
+          };
+        }
+        return refused && call.method === "GET" && call.path === DETAIL
+          ? detail({
+              row_version: 7,
+              terminology_request: {
+                ...TERMINOLOGY_REQUEST,
+                external_reference: { system: "Other desk", reference: "NCTS-1042" },
+              },
+            })
+          : null;
+      },
+    });
+
+    const release = within(dialog).getByLabelText("Expected release");
+    await userEvent.clear(release);
+    await userEvent.type(release, "2027-01-15");
+    await typeReason(dialog, "The authority gave a new date.");
+    await save(dialog);
+
+    expect(
+      await within(dialog).findAllByText(/The page now shows the latest version/),
+    ).not.toHaveLength(0);
+    await waitFor(() =>
+      expect(within(dialog).getByLabelText("System")).toHaveValue("Other desk"),
+    );
+    await save(dialog);
+
+    await screen.findByText("Saved. The tracking details are updated.");
+    const patches = calls.filter((call) => call.method === "PATCH");
+    expect(patches).toHaveLength(2);
+    expect(patches[1]?.body).toEqual({
+      expected_release: "2027-01-15",
+      reason: "The authority gave a new date.",
+      expected_row_version: 7,
+    });
+  });
+
+  it("removes the section and its confirmation when the submission moves on after a save", async () => {
+    let patched = false;
+    const { dialog } = await openEditor([REVIEWER, detail(), SAVED], {
+      vary: (call) => {
+        patched ||= call.method === "PATCH";
+        return patched && call.method === "GET" && call.path === DETAIL
+          ? detail({
+              state: "Ready for approval",
+              available_transitions: [],
+              row_version: 7,
+            })
+          : null;
+      },
+    });
+
+    await userEvent.clear(within(dialog).getByLabelText("Expected release"));
+    await typeReason(dialog, "The authority withdrew the date.");
+    await save(dialog);
+
+    await waitFor(() =>
+      expect(screen.queryByRole("heading", { name: "Terminology request" })).toBeNull(),
+    );
+    expect(screen.queryByText("Saved. The tracking details are updated.")).toBeNull();
+  });
+
   it("shows the server's own sentence when the submission has moved on", async () => {
     const { dialog } = await openEditor([
       REVIEWER,
@@ -418,7 +492,7 @@ const ADMINISTRATOR = me([
   "interest.register",
 ]);
 
-const CODE = "0391483001";
+const CODE = "489004";
 const FSN = "Ferritin measurement (procedure)";
 const ATTACH = `${REQUEST}/attach-code`;
 

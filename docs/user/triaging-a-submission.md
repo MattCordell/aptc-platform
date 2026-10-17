@@ -148,7 +148,7 @@ Reviewer who has the code asks an Administrator to attach it.
 
 The platform checks the code on the terminology server, writes the code and its name to the
 working copy, and moves the submission to Ready for approval in one step. Focus moves to a line
-such as "Attached 0391483001, Ferritin measurement (procedure). Moved to Ready for approval."
+such as "Attached 489004, Ferritin measurement (procedure). Moved to Ready for approval."
 The panel then offers **Approve**.
 
 If the platform refuses the code, the box marks the code field with its explanation. This

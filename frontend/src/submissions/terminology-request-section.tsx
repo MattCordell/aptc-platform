@@ -50,9 +50,16 @@ function EditTrackingDialog({
   onSaved: (sentence: string) => void;
 }) {
   const write = useUpdateTerminologyRequest(submission.id);
-  const [system, setSystem] = useState(request.external_reference.system);
-  const [reference, setReference] = useState(request.external_reference.reference);
-  const [expectedRelease, setExpectedRelease] = useState(request.expected_release ?? "");
+  // A field the user has not touched follows `request`, so a re-read after a
+  // stale version shows, and the next save compares against, what the server holds.
+  const [edits, setEdits] = useState<{
+    system?: string;
+    reference?: string;
+    expectedRelease?: string;
+  }>({});
+  const system = edits.system ?? request.external_reference.system;
+  const reference = edits.reference ?? request.external_reference.reference;
+  const expectedRelease = edits.expectedRelease ?? request.expected_release ?? "";
   const [reason, setReason] = useState("");
   const [errors, setErrors] = useState<FormError[]>([]);
   const [nothingChanged, setNothingChanged] = useState(false);
@@ -163,11 +170,11 @@ function EditTrackingDialog({
           systemError={errorFor(TERMINOLOGY_IDS.external_reference_system)}
           referenceError={errorFor(TERMINOLOGY_IDS.external_reference_ref)}
           onSystem={(value) => {
-            setSystem(value);
+            setEdits((existing) => ({ ...existing, system: value }));
             edited(TERMINOLOGY_IDS.external_reference_system);
           }}
           onReference={(value) => {
-            setReference(value);
+            setEdits((existing) => ({ ...existing, reference: value }));
             edited(TERMINOLOGY_IDS.external_reference_ref);
           }}
         />
@@ -175,7 +182,7 @@ function EditTrackingDialog({
           value={expectedRelease}
           error={errorFor(TERMINOLOGY_IDS.expected_release)}
           onChange={(value) => {
-            setExpectedRelease(value);
+            setEdits((existing) => ({ ...existing, expectedRelease: value }));
             edited(TERMINOLOGY_IDS.expected_release);
           }}
         />
@@ -202,7 +209,7 @@ function EditTrackingDialog({
  * the fixed fields are shown and never offered for editing.
  *
  * The line that confirms a save takes focus, because the dialog that held the
- * button has gone. It stays on screen after the state moves on.
+ * button has gone. It goes with the section when the state moves on.
  */
 export function TerminologyRequestSection({
   submission,
@@ -226,7 +233,14 @@ export function TerminologyRequestSection({
 
   const request = isReviewDetail(submission) ? submission.terminology_request : null;
   const waiting = submission.state === WAITING_STATE;
-  if (request === null || (!waiting && !editing && saved === null)) {
+  const [wasWaiting, setWasWaiting] = useState(waiting);
+  if (wasWaiting !== waiting) {
+    setWasWaiting(waiting);
+    if (!waiting) {
+      setSaved(null);
+    }
+  }
+  if (request === null || (!waiting && !editing)) {
     return null;
   }
 

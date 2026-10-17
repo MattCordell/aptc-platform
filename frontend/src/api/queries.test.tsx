@@ -2994,25 +2994,28 @@ describe("the terminology request writes (FR-30, FR-31)", () => {
     return { Wrapper, queryClient };
   }
 
-  it("caches the new state from a request and reads the detail again", async () => {
-    const calls = stubApi(
-      [
-        { method: "GET", path: DETAIL, status: 200, body: detail },
-        {
-          method: "POST",
-          path: REQUEST,
-          status: 200,
-          body: {
-            id: ID,
-            state: "Awaiting terminology",
-            row_version: 6,
-            available_transitions: ["Under review"],
-            terminology_request: REQUEST_VIEW,
-          },
+  it("caches the new state and the request from a request, replacing an earlier one", async () => {
+    const earlier = { ...REQUEST_VIEW, proposed_fsn: "Earlier request (procedure)" };
+    const calls = stubApi([
+      {
+        method: "GET",
+        path: DETAIL,
+        status: 200,
+        body: { ...detail, terminology_request: earlier },
+      },
+      {
+        method: "POST",
+        path: REQUEST,
+        status: 200,
+        body: {
+          id: ID,
+          state: "Awaiting terminology",
+          row_version: 6,
+          available_transitions: ["Under review"],
+          terminology_request: REQUEST_VIEW,
         },
-      ],
-      PENDING_REREAD,
-    );
+      },
+    ]);
     const { Wrapper, queryClient } = sharedClientWrapper();
     const { result } = renderHook(
       () => ({ read: useSubmissionDetail(ID), write: useRequestTerminology(ID) }),
@@ -3024,12 +3027,12 @@ describe("the terminology request writes (FR-30, FR-31)", () => {
 
     await waitFor(() => expect(result.current.write.isSuccess).toBe(true));
     expect(calls.find((call) => call.method === "POST")?.body).toEqual(REQUEST_BODY);
-    expect(queryClient.getQueryData<{ state: string }>(DETAIL_KEY)?.state).toBe(
-      "Awaiting terminology",
-    );
-    await waitFor(() =>
-      expect(calls.filter((call) => call.method === "GET")).toHaveLength(2),
-    );
+    expect(
+      queryClient.getQueryData<{ state: string; terminology_request: unknown }>(
+        DETAIL_KEY,
+      ),
+    ).toMatchObject({ state: "Awaiting terminology", terminology_request: REQUEST_VIEW });
+    expect(calls.filter((call) => call.method === "GET")).toHaveLength(1);
   });
 
   it("sends the code as a string and caches the state the attach reached", async () => {
@@ -3050,7 +3053,7 @@ describe("the terminology request writes (FR-30, FR-31)", () => {
             state: "Ready for approval",
             row_version: 7,
             available_transitions: ["Approved", "Rejected"],
-            snomed_code: "0123456789",
+            snomed_code: "900000000000207008",
             snomed_fsn: "Ferritin level (procedure)",
             label_provenance: {},
           },
@@ -3066,14 +3069,14 @@ describe("the terminology request writes (FR-30, FR-31)", () => {
     await waitFor(() => expect(result.current.read.isSuccess).toBe(true));
 
     result.current.write.mutate({
-      snomed_code: "0123456789",
+      snomed_code: "900000000000207008",
       reason: "Issued by the authority.",
       expected_row_version: 6,
     });
 
     await waitFor(() => expect(result.current.write.isSuccess).toBe(true));
     expect(calls.find((call) => call.method === "POST")?.body).toEqual({
-      snomed_code: "0123456789",
+      snomed_code: "900000000000207008",
       reason: "Issued by the authority.",
       expected_row_version: 6,
     });

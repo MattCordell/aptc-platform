@@ -1465,15 +1465,23 @@ type TransitionAnswer = components["schemas"]["SubmissionTransitionResponse"];
 type ApproveBody = components["schemas"]["ApproveRequest"];
 type ApproveAnswer = components["schemas"]["ApproveResponse"];
 
-/** The detail fields a state change may write besides the three every one writes. */
-type CachedByAnswer = "created_entry_business_key";
-
 /** What `useSubmissionDetail` caches. The cache update below picks its two
  * fields from this type, because an object spread is not checked for a field
  * the type no longer has: a rename then fails `pnpm typecheck`. */
 type SubmissionDetailAnswer =
   | components["schemas"]["SubmissionDetail"]
   | components["schemas"]["IdentifiedSubmissionDetail"];
+
+/** The detail a holder of `submission.transition.review` receives instead. */
+type ReviewDetailAnswer =
+  | components["schemas"]["ReviewSubmissionDetail"]
+  | components["schemas"]["IdentifiedReviewSubmissionDetail"];
+
+/** The detail fields a state change may write besides the three every one writes. */
+type CachedByAnswer = Partial<
+  Pick<SubmissionDetailAnswer, "created_entry_business_key"> &
+    Pick<ReviewDetailAnswer, "terminology_request">
+>;
 
 /**
  * Both interest writes answer where the caller's interest now stands, so the
@@ -1583,7 +1591,7 @@ function useStateChangeMutation<Body, Answer extends TransitionAnswer = Transiti
     alsoCache,
     alsoInvalidate,
   }: {
-    alsoCache?: (answer: Answer) => Partial<Pick<SubmissionDetailAnswer, CachedByAnswer>>;
+    alsoCache?: (answer: Answer) => CachedByAnswer;
     alsoInvalidate?: (query: Query) => boolean;
   } = {},
 ) {
@@ -1745,8 +1753,8 @@ type TerminologyTrackingBody = components["schemas"]["TerminologyTrackingRequest
 type AttachCodeBody = components["schemas"]["AttachCodeRequest"];
 
 /**
- * The cached detail of one submission. The two state changes below write what
- * the detail shows beyond the state, which the answer does not type, so the
+ * The cached detail of one submission. The attach writes the working copy's
+ * code and name, which its answer does not type as part of the detail, so the
  * detail is read again rather than patched.
  */
 function isSubmissionDetailQuery(submissionId: string) {
@@ -1762,8 +1770,9 @@ function isSubmissionDetailQuery(submissionId: string) {
 
 /**
  * A reviewer parks an `Under review` submission in `Awaiting terminology` and
- * records what was asked for (FR-30, FR-31). The answer carries the new state,
- * and the detail is read again for the request it now holds.
+ * records what was asked for (FR-30, FR-31). The answer carries the new state and
+ * the request, so both go into the cached detail together. A second request
+ * after a resume then never shows the first one beside the new state.
  */
 export function useRequestTerminology(submissionId: string) {
   return useStateChangeMutation(
@@ -1775,14 +1784,14 @@ export function useRequestTerminology(submissionId: string) {
           body,
         }),
       ),
-    { alsoInvalidate: isSubmissionDetailQuery(submissionId) },
+    { alsoCache: (answer) => ({ terminology_request: answer.terminology_request }) },
   );
 }
 
 /**
  * An Administrator attaches the code the terminology authority issued (FR-30).
  * The server writes the code and its FSN to the working copy and moves the
- * submission to `Ready for approval`, so the detail is read again for both.
+ * submission to `Ready for approval`, so the detail is read again for the code.
  */
 export function useAttachTerminologyCode(submissionId: string) {
   return useStateChangeMutation(
