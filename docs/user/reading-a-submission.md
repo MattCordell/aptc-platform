@@ -61,9 +61,10 @@ Beside the main column, **Details** shows:
 - **State**: Submitted, Triage, Under review, Awaiting terminology, Ready for approval,
   Approved, Published in release, Rejected or Withdrawn. The first six are the open states.
   Published in release, Rejected and Withdrawn are closed. Awaiting terminology means a
-  reviewer is waiting for a SNOMED CT code that does not exist yet. The reviewer's request for
-  that code is not shown to you. The state is written out in words as well as shown in
-  colour.
+  reviewer is waiting for a SNOMED CT code that does not exist yet. Reviewers and
+  Administrators see the request in a **Terminology request** panel. See
+  [Triaging a submission](triaging-a-submission.md#the-terminology-request-panel). No one else
+  sees it. The state is written out in words as well as shown in colour.
 - **Submitted**: the date, in your own time zone.
 - **Submitter**: most people see a username. Reviewers and Administrators also see the
   submitter's name and the organisation they gave with the submission. The page shows only
