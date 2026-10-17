@@ -68,6 +68,8 @@ Nothing you typed is lost.
 The page shows **Your change was proposed**. A reviewer will look at it. Choose **Back to the
 entry** or **Back to the catalogue**.
 
-There is no page yet for following a proposal through review. When an Administrator approves the
+To follow your proposal through review, open it from **My submissions** (see [Finding
+submissions](finding-submissions.md)). Its **History** shows each move and the reason a reviewer gave
+(see [Reading a submission](reading-a-submission.md#history)). When an Administrator approves the
 change, the platform adds your synonyms to the entry and binds your code to it, and the entry's
-history records the approval. This screen does not show that.
+history records the approval. The submission page then links to the entry.

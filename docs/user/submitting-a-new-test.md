@@ -87,4 +87,6 @@ A refused submission is not saved.
 The page shows **Your test was submitted** and the test's name. A reviewer will look at it.
 Choose **Submit another test** for a clean form, or **Back to the catalogue**.
 
-There is no page yet for following a submission through review.
+To follow it through review, open it from **My submissions** (see [Finding
+submissions](finding-submissions.md)). Its **History** shows each move and the reason a reviewer gave
+(see [Reading a submission](reading-a-submission.md#history)). Reviewers' internal comments are not shown to you.
