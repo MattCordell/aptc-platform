@@ -20,8 +20,7 @@ const MOVES_ON_OTHER_ROUTES: readonly { from?: SubmissionState; to: SubmissionSt
   [
     // Withdrawal has its own route and permission, and its own panel.
     { to: "Withdrawn" },
-    // Each needs a request or a code of its own.
-    { to: "Awaiting terminology" },
+    // Attaching a code needs the code picker, which only its own dialog holds.
     { from: "Awaiting terminology", to: "Ready for approval" },
   ];
 
@@ -66,6 +65,15 @@ const MOVE_WORDING: Readonly<Record<string, MoveWording>> = {
   "Ready for approval>Approved": {
     label: "Approve",
     effect: "Approving writes the submission to the catalogue.",
+  },
+  "Under review>Awaiting terminology": {
+    label: "Request a new code",
+    effect:
+      "The submission waits until the terminology authority issues a code for it. An Administrator then attaches the code.",
+  },
+  "Awaiting terminology>Ready for approval": {
+    label: "Attach code",
+    effect: "An Administrator then decides whether to approve it.",
   },
   "Awaiting terminology>Under review": {
     label: "Resume review",

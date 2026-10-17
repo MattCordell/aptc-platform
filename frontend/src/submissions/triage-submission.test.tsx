@@ -102,7 +102,7 @@ describe("TriageSubmission buttons", () => {
     [
       "Under review",
       ["Ready for approval", "Awaiting terminology", "Rejected", "Withdrawn"],
-      ["Mark ready for approval", "Reject"],
+      ["Mark ready for approval", "Request a new code", "Reject"],
     ],
     ["Ready for approval", ["Approved", "Rejected"], ["Approve", "Reject"]],
     ["Awaiting terminology", ["Under review", "Ready for approval"], ["Resume review"]],

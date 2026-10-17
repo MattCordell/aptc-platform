@@ -12,7 +12,6 @@ import { isMadeOnTheTriagePanel, moveWording } from "./transition-actions.ts";
 describe("isMadeOnTheTriagePanel", () => {
   it.each<[string, SubmissionState]>([
     ["Triage", "Withdrawn"],
-    ["Under review", "Awaiting terminology"],
     ["Awaiting terminology", "Ready for approval"],
   ])("leaves %s to %s to another screen", (from, to) => {
     expect(isMadeOnTheTriagePanel(from, to)).toBe(false);
@@ -26,6 +25,7 @@ describe("isMadeOnTheTriagePanel", () => {
     ["Ready for approval", "Rejected"],
     ["Rejected", "Triage"],
     ["Under review", "Ready for approval"],
+    ["Under review", "Awaiting terminology"],
     ["Awaiting terminology", "Under review"],
     ["Ready for approval", "Approved"],
   ])("keeps %s to %s on the panel", (from, to) => {

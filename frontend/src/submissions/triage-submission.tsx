@@ -6,6 +6,7 @@ import { Button } from "../components/button.tsx";
 import { EntrySection } from "../catalogue/entry-section.tsx";
 import { ApproveDialog, type Approvable, type ApprovedEntry } from "./approve-dialog.tsx";
 import { submissionStateLabel, type SubmissionState } from "./state-options.ts";
+import { TerminologyRequestDialog } from "./terminology-request-dialog.tsx";
 import {
   isMadeOnTheTriagePanel,
   moveWording,
@@ -149,6 +150,17 @@ function TriagePanel({ submission }: { submission: Triageable }) {
             )}
           </p>
         ) : null}
+        {moving?.to === "Awaiting terminology" ? (
+          <TerminologyRequestDialog
+            submission={submission}
+            from={moving.from}
+            onClose={() => setMoving(null)}
+            onRequested={() => {
+              setMovedTo("Awaiting terminology");
+              setMoving(null);
+            }}
+          />
+        ) : null}
         {moving?.to === "Approved" ? (
           <ApproveDialog
             submission={submission}
@@ -161,7 +173,9 @@ function TriagePanel({ submission }: { submission: Triageable }) {
             }}
           />
         ) : null}
-        {moving !== null && moving.to !== "Approved" ? (
+        {moving !== null &&
+        moving.to !== "Approved" &&
+        moving.to !== "Awaiting terminology" ? (
           <MoveDialog
             key={moving.to}
             submission={submission}
