@@ -38,8 +38,7 @@ can permission-audit each route independently of who is asking.
 
 Gated on `Permission.CATALOGUE_EDIT_PUBLISHED` or `Permission.COMMENT_INTERNAL_READ`
 (`any_permission_dep`). The write routes below require the first alone. This read also
-admits the second because a Reviewer reads a draft entry to comment on it (FR-95, issue
-number 649) and must not be given `catalogue.edit_published`, which would open every write route.
+admits the second because a Reviewer reads a draft entry to comment on it (FR-95) and must not be given `catalogue.edit_published`, which would open every write route.
 The listing, search and history routes stay `catalogue.edit_published` only, and the page
 hides its edit form from a caller who lacks that permission.
 Serves the same `EntryDetail` shape `catalogue.py`'s own detail route does, assembled by
