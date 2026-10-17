@@ -24,8 +24,11 @@ The panel is in the main column, below the content:
   sits below what the submitter sent.
 - On an entry, open it from the catalogue. See [Reading an entry](reading-an-entry.md). The panel
   sits below the terms and the code bindings.
-
-A draft entry has no public page, so its comments cannot be reached from these screens yet.
+- On a draft entry, which has no public page, open the entry's edit page at
+  `/admin/catalogue/<entry key>/edit`. An Administrator reaches it from the administration
+  catalogue list, and sees the panel below the edit form. A Reviewer sees the entry's name
+  and the panel but no edit form, because a Reviewer cannot change entries. The Reviewer
+  has no list of draft entries yet, so they follow a link or type the address.
 
 ## Read the comments
 

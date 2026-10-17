@@ -36,9 +36,11 @@ gap to close there. This route is the authenticated counterpart, at its own path
 than a permission-gated branch of the public one: one URL per audience, so a reviewer
 can permission-audit each route independently of who is asking.
 
-Gated on `Permission.CATALOGUE_EDIT_PUBLISHED` - the same permission the write routes
-below require, on the reasoning that the audience for "load an entry to edit it" and
-"save an edit to it" is the same audience, so it needs one credential posture, not two.
+Gated on `Permission.CATALOGUE_EDIT_PUBLISHED` or `Permission.COMMENT_INTERNAL_READ`
+(`any_permission_dep`). The write routes below require the first alone. This read also
+admits the second because a Reviewer reads a draft entry to comment on it (FR-95) and must not be given `catalogue.edit_published`, which would open every write route.
+The listing, search and history routes stay `catalogue.edit_published` only, and the page
+hides its edit form from a caller who lacks that permission.
 Serves the same `EntryDetail` shape `catalogue.py`'s own detail route does, assembled by
 the same two loaders for `bindings`/`properties` (`queries.load_bindings`, `queries.
 load_property_values`); `EntryDetail` and its assembly helpers live in

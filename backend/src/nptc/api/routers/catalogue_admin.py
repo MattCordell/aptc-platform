@@ -12,8 +12,11 @@ table. A permission-gated route there would need an exception in both guard test
 per audience also lets a reviewer permission-audit each route on its own.
 
 **Gated on `Permission.CATALOGUE_EDIT_PUBLISHED`, not a new read permission.** The
-audience that loads an entry to edit it is the audience that saves the edit, so it needs
-one credential posture, MFA step-up included. A narrower `catalogue.read_unpublished` was
+listing, search and history routes need that permission alone: the audience that loads
+an entry to edit it is the audience that saves the edit, so it needs one credential
+posture, MFA step-up included. The one-entry read also admits
+`Permission.COMMENT_INTERNAL_READ`, so a Reviewer can open a draft to comment on it
+(FR-95); the page then hides its edit form. A narrower `catalogue.read_unpublished` was
 rejected: `test_permission_matrix.py` asserts `ROLE_PERMISSIONS` cell by cell against the
 PRD table, so a new permission needs a PRD change.
 
@@ -48,6 +51,7 @@ from sqlalchemy.orm import Session
 from nptc.api.dependencies import (
     ApiSettingsDep,
     SnomedSynonymSourceDep,
+    any_permission_dep,
     get_datatype_registry,
     get_session,
     permission_dep,
@@ -111,7 +115,15 @@ _RESPONSE_422: Final[dict[str, Any]] = {
 #: here can fail that way.
 _RESPONSES_ADMIN_READ: Final[dict[int | str, dict[str, Any]]] = {
     401: _RESPONSE_401,
-    403: _RESPONSE_403,
+    403: {
+        "model": ErrorResponse,
+        "description": (
+            "The caller is authenticated but holds neither `catalogue.edit_published` "
+            "nor `comment.internal.read`, or holds one of them only through a role that "
+            "needs the MFA step-up, which the caller has not completed (the response "
+            "then also carries a `WWW-Authenticate` step-up challenge)."
+        ),
+    },
     404: _RESPONSE_404,
     422: _RESPONSE_422,
 }
@@ -186,6 +198,13 @@ _ADMIN_FILTER_OPENAPI: Final[dict[str, Any]] = {
 SessionDep = Annotated[Session, Depends(get_session)]
 RegistryDep = Annotated[DatatypeRegistry, Depends(get_datatype_registry)]
 _EDIT = Depends(permission_dep(Permission.CATALOGUE_EDIT_PUBLISHED))
+#: A Reviewer reads a draft entry to comment on it (FR-95) without holding
+#: `catalogue.edit_published`, so the one-entry read admits either permission.
+_READ_ENTRY = Depends(
+    any_permission_dep(
+        frozenset({Permission.CATALOGUE_EDIT_PUBLISHED, Permission.COMMENT_INTERNAL_READ})
+    )
+)
 
 
 class AdminEntrySummary(EntrySummary):
@@ -467,7 +486,7 @@ def search_any_status(
     "/admin/entries/{business_key}",
     summary="One catalogue entry, any status, with everything attached to it",
     responses=_RESPONSES_ADMIN_READ,
-    dependencies=[_EDIT],
+    dependencies=[_READ_ENTRY],
 )
 def read_entry_any_status(
     session: SessionDep,
@@ -476,8 +495,8 @@ def read_entry_any_status(
     synonyms: SnomedSynonymSourceDep,
     business_key: BusinessKeyPath,
 ) -> EntryDetail:
-    """The `catalogue.edit_published`-gated counterpart to `catalogue.py`'s
-    public `read_entry`: no status filter on the entry itself, and - unlike
+    """The `catalogue.edit_published`- or `comment.internal.read`-gated counterpart to
+    `catalogue.py`'s public `read_entry`: no status filter on the entry itself, and - unlike
     the public route - `designations` includes retired rows too. The other
     two sub-resources are unfiltered on both routes: `bindings` publishes
     retired rows on both (FR-08), and `properties` has no per-row status of
