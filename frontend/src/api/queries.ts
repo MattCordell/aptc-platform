@@ -1740,6 +1740,96 @@ export function useEditWorkingCopy(submissionId: string) {
   });
 }
 
+type TerminologyRequestBody = components["schemas"]["TerminologyRequestRequest"];
+type TerminologyTrackingBody = components["schemas"]["TerminologyTrackingRequest"];
+type AttachCodeBody = components["schemas"]["AttachCodeRequest"];
+
+/**
+ * The cached detail of one submission. The two state changes below write what
+ * the detail shows beyond the state, which the answer does not type, so the
+ * detail is read again rather than patched.
+ */
+function isSubmissionDetailQuery(submissionId: string) {
+  return (query: Query): boolean => {
+    const [scope, path, id] = query.queryKey;
+    return (
+      scope === "api" &&
+      path === "/api/v1/submissions/{submission_id}" &&
+      id === submissionId
+    );
+  };
+}
+
+/**
+ * A reviewer parks an `Under review` submission in `Awaiting terminology` and
+ * records what was asked for (FR-30, FR-31). The answer carries the new state,
+ * and the detail is read again for the request it now holds.
+ */
+export function useRequestTerminology(submissionId: string) {
+  return useStateChangeMutation(
+    submissionId,
+    async (client, body: TerminologyRequestBody) =>
+      unwrap(
+        await client.POST("/api/v1/submissions/{submission_id}/terminology-request", {
+          params: { path: { submission_id: submissionId } },
+          body,
+        }),
+      ),
+    { alsoInvalidate: isSubmissionDetailQuery(submissionId) },
+  );
+}
+
+/**
+ * An Administrator attaches the code the terminology authority issued (FR-30).
+ * The server writes the code and its FSN to the working copy and moves the
+ * submission to `Ready for approval`, so the detail is read again for both.
+ */
+export function useAttachTerminologyCode(submissionId: string) {
+  return useStateChangeMutation(
+    submissionId,
+    async (client, body: AttachCodeBody) =>
+      unwrap(
+        await client.POST(
+          "/api/v1/submissions/{submission_id}/terminology-request/attach-code",
+          { params: { path: { submission_id: submissionId } }, body },
+        ),
+      ),
+    { alsoInvalidate: isSubmissionDetailQuery(submissionId) },
+  );
+}
+
+/**
+ * A reviewer edits the tracking fields of a terminology request (FR-31). Like a
+ * working copy edit it is not a change of state, so the detail is read again
+ * for the new `row_version` and request, and a change that left the request as
+ * it was wrote nothing. Any 409 re-reads the detail, because a stale version and
+ * a submission that has moved on both mean the page was out of date.
+ */
+export function useUpdateTerminologyRequest(submissionId: string) {
+  const client = useApiClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: TerminologyTrackingBody) =>
+      unwrap(
+        await client.PATCH("/api/v1/submissions/{submission_id}/terminology-request", {
+          params: { path: { submission_id: submissionId } },
+          body,
+        }),
+      ),
+    onSuccess: (answer) =>
+      answer.changed
+        ? queryClient.invalidateQueries({ queryKey: submissionDetailKey(submissionId) })
+        : undefined,
+    onError: (error: unknown) => {
+      if (error instanceof ApiError && error.status === 409) {
+        void queryClient.invalidateQueries({
+          queryKey: submissionDetailKey(submissionId),
+        });
+      }
+    },
+  });
+}
+
 /**
  * Ask which catalogue entries and open submissions a new test may duplicate
  * (FR-25), before it is sent. A mutation, not a query: it is an action the

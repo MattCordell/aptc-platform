@@ -8,6 +8,7 @@ import {
   asQuotaRefusal,
   asReasonRefusal,
   asSubmissionVersionConflict,
+  asTerminologyFieldRefusal,
   asVersionConflict,
   refusalDetail,
   retryAfterSeconds,
@@ -213,6 +214,38 @@ describe("asReasonRefusal", () => {
       asReasonRefusal(new ApiError(409, { detail: "x", field: "reason" })),
     ).toBeNull();
     expect(asReasonRefusal(new Error("offline"))).toBeNull();
+  });
+});
+
+describe("asTerminologyFieldRefusal", () => {
+  it.each([
+    "proposed_fsn",
+    "justification",
+    "external_reference_system",
+    "external_reference_ref",
+    "expected_release",
+    "reason",
+  ])("narrows a 422 that names %s", (field) => {
+    expect(
+      asTerminologyFieldRefusal(new ApiError(422, { detail: "Refused.", field })),
+    ).toEqual({ field, detail: "Refused." });
+  });
+
+  it("is null for a field of the submission form, no field, or FastAPI's array detail", () => {
+    expect(
+      asTerminologyFieldRefusal(new ApiError(422, { detail: "x", field: "snomed_code" })),
+    ).toBeNull();
+    expect(asTerminologyFieldRefusal(new ApiError(422, { detail: "x" }))).toBeNull();
+    expect(
+      asTerminologyFieldRefusal(new ApiError(422, { detail: [{ msg: "x" }] })),
+    ).toBeNull();
+  });
+
+  it("is null for another status, and for an error that is not an ApiError", () => {
+    expect(
+      asTerminologyFieldRefusal(new ApiError(409, { detail: "x", field: "reason" })),
+    ).toBeNull();
+    expect(asTerminologyFieldRefusal(new Error("offline"))).toBeNull();
   });
 });
 

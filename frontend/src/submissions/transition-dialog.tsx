@@ -1,22 +1,16 @@
 import { useState, type ReactNode } from "react";
 
-import {
-  asReasonRefusal,
-  asSubmissionVersionConflict,
-  refusalDetail,
-} from "../api/conflicts.ts";
+import { asReasonRefusal } from "../api/conflicts.ts";
 import { Button } from "../components/button.tsx";
 import { Dialog } from "../components/dialog.tsx";
 import type { FormError } from "../components/error-summary.tsx";
 import { Form } from "../components/form.tsx";
 import { reasonProblem } from "../registry/property-form.ts";
 import { ReasonField } from "../registry/reason-field.tsx";
+import { refusalSentence } from "./transition-refusal.ts";
 
 /** One dialog is open at a time, so the field's id can be fixed. */
 const reasonFieldId = "transition-reason";
-
-const STALE_VERSION =
-  "This submission changed since you opened it. The page now shows the latest version. Check it, then confirm again.";
 
 /** What the dialog reads from the write it drives. A `useMutation` result fits. */
 interface ReasonWrite {
@@ -125,11 +119,4 @@ export function TransitionDialog({
       </Form>
     </Dialog>
   );
-}
-
-function refusalSentence(error: unknown, fallback: string): string {
-  if (asSubmissionVersionConflict(error) !== null) {
-    return STALE_VERSION;
-  }
-  return refusalDetail(error) ?? fallback;
 }
