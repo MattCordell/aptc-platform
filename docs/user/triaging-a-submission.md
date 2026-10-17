@@ -158,8 +158,8 @@ changes nothing. Try again shortly.
 
 ## Who reads the reason
 
-The reason is not private. The platform records it in the audit log, and **History** shows it to
-everyone who can open the submission, including the submitter. Write it as a note to the
+The reason is not private. **History** shows it to everyone who can open the submission,
+including the submitter. See [History](reading-a-submission.md#history). Write it as a note to the
 submitter and to the next reviewer. To leave a note that only reviewers can read, use the
 **Internal comments** panel instead. See [Internal comments](internal-comments.md).
 

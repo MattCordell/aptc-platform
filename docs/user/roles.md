@@ -31,8 +31,10 @@ shipped:
 
 - **[Triaging a submission](triaging-a-submission.md)** — moving a submission through Triage,
   review and rejection, with a reason the submitter can read. Reviewers also
-  [request a new code](triaging-a-submission.md#request-a-new-code), and only Administrators
-  [attach the issued code](triaging-a-submission.md#attach-the-issued-code).
+  [request a new code](triaging-a-submission.md#request-a-new-code). Only Administrators
+  [attach the issued code](triaging-a-submission.md#attach-the-issued-code) and
+  [approve a submission](triaging-a-submission.md#approve-a-submission). Approval creates the
+  catalogue entry, or applies the amendment to the entry it names.
 - **[Editing a submission](editing-a-submission.md)** — changing a submission's content during
   triage, with a reason. The submitter's original stays on the page.
 - **[Internal comments](internal-comments.md)** — reading, posting and withdrawing comments that
@@ -81,8 +83,9 @@ wrong" section for what a missing permission looks like from inside a screen).
 
 A working group member with editorial authority over the submission pipeline described in
 the PRD, but **not** over the published catalogue. A Reviewer can move a submission through
-Triage and review. The screens for asking for a new SNOMED CT code and for approving a
-submission have not shipped yet.
+Triage and review, up to Ready for approval, and can reject it or ask for a new SNOMED CT code.
+A Reviewer cannot approve a submission or attach the issued code. Those moves are
+Administrator-only, and a Reviewer's **Triage** panel does not offer them.
 
 A Reviewer can use every submission screen a Member can: [submit a new
 test](submitting-a-new-test.md), [propose a change to an entry](proposing-an-amendment.md),
@@ -92,7 +95,8 @@ these capabilities that a Member lacks:
 
 - **[Triaging a submission](triaging-a-submission.md)** — the **Triage** panel on a
   submission's page, with a reason the submitter can read in
-  [History](reading-a-submission.md#history).
+  [History](reading-a-submission.md#history). It includes
+  [asking for a new code](triaging-a-submission.md#request-a-new-code).
 - **[Editing a submission](editing-a-submission.md)** — the **Edit** button on a submission's
   page, with a reason that goes to the audit log.
 - **[Seeing who registered interest](reading-a-submission.md#see-who-registered-interest)**
