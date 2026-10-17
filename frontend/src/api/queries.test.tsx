@@ -17,6 +17,7 @@ import {
   useAmendDesignation,
   useAmendProperty,
   useApproveSubmission,
+  useAttachTerminologyCode,
   useCatalogueFacets,
   useCatalogueSearch,
   useCreateProperty,
@@ -44,11 +45,13 @@ import {
   useInterestIdentities,
   useInternalComments,
   useRegisterInterest,
+  useRequestTerminology,
   useRevokeInterest,
   useSubmissionDetail,
   useSubmissionTransitions,
   useSubmissionsList,
   useTransitionSubmission,
+  useUpdateTerminologyRequest,
   useWithdrawSubmission,
 } from "./queries.ts";
 import type { ApiError } from "./unwrap.ts";
@@ -2939,5 +2942,306 @@ describe("useEntryBySystemCode", () => {
     // lags behind it.
     expect(result.current.fetchStatus).toBe("idle");
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe("the terminology request writes (FR-30, FR-31)", () => {
+  const ID = "0b8a5c7e-6a43-4f56-9d1b-2f4f5a4e1c17";
+  const DETAIL = `/api/v1/submissions/${ID}`;
+  const REQUEST = `${DETAIL}/terminology-request`;
+  const DETAIL_KEY = ["api", "/api/v1/submissions/{submission_id}", ID];
+  const detail = {
+    id: ID,
+    preferred_term: "Ferritin",
+    state: "Under review",
+    row_version: 5,
+    available_transitions: ["Awaiting terminology"],
+  };
+  const REQUEST_VIEW = {
+    proposed_fsn: "Ferritin level (procedure)",
+    target_edition: "au",
+    justification: "No concept covers this test.",
+    external_reference: { system: "NCTS service desk", reference: "NCTS-1042" },
+    raised_date: "2026-10-01",
+    expected_release: null,
+    updated_at: "2026-10-01T02:00:00Z",
+  };
+  const REQUEST_BODY = {
+    proposed_fsn: "Ferritin level (procedure)",
+    target_edition: "au" as const,
+    justification: "No concept covers this test.",
+    external_reference: { system: "NCTS service desk", reference: "NCTS-1042" },
+    raised_date: "2026-10-01",
+    reason: "No concept exists.",
+    expected_row_version: 5,
+  };
+
+  /** The re-read the write starts is left pending, so the cache shows what the answer put there. */
+  const PENDING_REREAD = {
+    vary: (call: { method: string; path: string }, prior: number) =>
+      call.method === "GET" && call.path === DETAIL && prior > 0
+        ? { method: "GET", path: DETAIL, status: 200, body: {}, neverSettles: true }
+        : null,
+  };
+
+  function sharedClientWrapper() {
+    const queryClient = createQueryClient();
+    const Wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>
+        <AuthContext.Provider value={AUTH}>{children}</AuthContext.Provider>
+      </QueryClientProvider>
+    );
+    return { Wrapper, queryClient };
+  }
+
+  it("caches the new state and the request from a request, replacing an earlier one", async () => {
+    const earlier = { ...REQUEST_VIEW, proposed_fsn: "Earlier request (procedure)" };
+    const calls = stubApi([
+      {
+        method: "GET",
+        path: DETAIL,
+        status: 200,
+        body: { ...detail, terminology_request: earlier },
+      },
+      {
+        method: "POST",
+        path: REQUEST,
+        status: 200,
+        body: {
+          id: ID,
+          state: "Awaiting terminology",
+          row_version: 6,
+          available_transitions: ["Under review"],
+          terminology_request: REQUEST_VIEW,
+        },
+      },
+    ]);
+    const { Wrapper, queryClient } = sharedClientWrapper();
+    const { result } = renderHook(
+      () => ({ read: useSubmissionDetail(ID), write: useRequestTerminology(ID) }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.read.isSuccess).toBe(true));
+
+    result.current.write.mutate(REQUEST_BODY);
+
+    await waitFor(() => expect(result.current.write.isSuccess).toBe(true));
+    expect(calls.find((call) => call.method === "POST")?.body).toEqual(REQUEST_BODY);
+    expect(
+      queryClient.getQueryData<{ state: string; terminology_request: unknown }>(
+        DETAIL_KEY,
+      ),
+    ).toMatchObject({ state: "Awaiting terminology", terminology_request: REQUEST_VIEW });
+    expect(calls.filter((call) => call.method === "GET")).toHaveLength(1);
+  });
+
+  it("sends the code as a string and caches the state the attach reached", async () => {
+    const calls = stubApi(
+      [
+        {
+          method: "GET",
+          path: DETAIL,
+          status: 200,
+          body: { ...detail, state: "Awaiting terminology" },
+        },
+        {
+          method: "POST",
+          path: `${REQUEST}/attach-code`,
+          status: 200,
+          body: {
+            id: ID,
+            state: "Ready for approval",
+            row_version: 7,
+            available_transitions: ["Approved", "Rejected"],
+            snomed_code: "900000000000207008",
+            snomed_fsn: "Ferritin level (procedure)",
+            label_provenance: {},
+          },
+        },
+      ],
+      PENDING_REREAD,
+    );
+    const { Wrapper, queryClient } = sharedClientWrapper();
+    const { result } = renderHook(
+      () => ({ read: useSubmissionDetail(ID), write: useAttachTerminologyCode(ID) }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.read.isSuccess).toBe(true));
+
+    result.current.write.mutate({
+      snomed_code: "900000000000207008",
+      reason: "Issued by the authority.",
+      expected_row_version: 6,
+    });
+
+    await waitFor(() => expect(result.current.write.isSuccess).toBe(true));
+    expect(calls.find((call) => call.method === "POST")?.body).toEqual({
+      snomed_code: "900000000000207008",
+      reason: "Issued by the authority.",
+      expected_row_version: 6,
+    });
+    expect(queryClient.getQueryData<{ state: string }>(DETAIL_KEY)?.state).toBe(
+      "Ready for approval",
+    );
+  });
+
+  it.each([
+    [409, { detail: "This submission changed.", current_row_version: 8 }],
+    [409, { detail: "The submission is not Under review." }],
+  ])("re-reads the detail on a 409 from a request", async (status, refusal) => {
+    const calls = stubApi([
+      { method: "GET", path: DETAIL, status: 200, body: detail },
+      { method: "POST", path: REQUEST, status, body: refusal },
+    ]);
+    const { Wrapper } = sharedClientWrapper();
+    const { result } = renderHook(
+      () => ({ read: useSubmissionDetail(ID), write: useRequestTerminology(ID) }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.read.isSuccess).toBe(true));
+
+    result.current.write.mutate(REQUEST_BODY);
+
+    await waitFor(() => expect(result.current.write.isError).toBe(true));
+    expect(refusalDetail(result.current.write.error)).toBe(refusal.detail);
+    await waitFor(() =>
+      expect(calls.filter((call) => call.method === "GET").length).toBeGreaterThan(1),
+    );
+  });
+
+  it("leaves the detail alone on a 422 from a request", async () => {
+    const calls = stubApi([
+      { method: "GET", path: DETAIL, status: 200, body: detail },
+      {
+        method: "POST",
+        path: REQUEST,
+        status: 422,
+        body: { detail: "The reason is blank.", field: "reason" },
+      },
+    ]);
+    const { Wrapper } = sharedClientWrapper();
+    const { result } = renderHook(
+      () => ({ read: useSubmissionDetail(ID), write: useRequestTerminology(ID) }),
+      { wrapper: Wrapper },
+    );
+    await waitFor(() => expect(result.current.read.isSuccess).toBe(true));
+
+    result.current.write.mutate(REQUEST_BODY);
+
+    await waitFor(() => expect(result.current.write.isError).toBe(true));
+    expect(calls.filter((call) => call.method === "GET")).toHaveLength(1);
+  });
+
+  describe("useUpdateTerminologyRequest", () => {
+    const BODY = {
+      expected_release: "2026-12-01",
+      reason: "The authority gave a date.",
+      expected_row_version: 6,
+    };
+    const answer = {
+      submission_id: ID,
+      row_version: 7,
+      terminology_request: REQUEST_VIEW,
+    };
+
+    it("sends only the tracking fields, then reads the detail again", async () => {
+      const calls = stubApi([
+        { method: "GET", path: DETAIL, status: 200, body: detail },
+        {
+          method: "PATCH",
+          path: REQUEST,
+          status: 200,
+          body: { ...answer, changed: true },
+        },
+      ]);
+      const { Wrapper } = sharedClientWrapper();
+      const { result } = renderHook(
+        () => ({ read: useSubmissionDetail(ID), write: useUpdateTerminologyRequest(ID) }),
+        { wrapper: Wrapper },
+      );
+      await waitFor(() => expect(result.current.read.isSuccess).toBe(true));
+
+      result.current.write.mutate(BODY);
+
+      await waitFor(() => expect(result.current.write.isSuccess).toBe(true));
+      expect(calls.find((call) => call.method === "PATCH")?.body).toEqual(BODY);
+      await waitFor(() =>
+        expect(calls.filter((call) => call.method === "GET")).toHaveLength(2),
+      );
+    });
+
+    it("reads nothing again when the edit changed nothing", async () => {
+      const calls = stubApi([
+        { method: "GET", path: DETAIL, status: 200, body: detail },
+        {
+          method: "PATCH",
+          path: REQUEST,
+          status: 200,
+          body: { ...answer, changed: false },
+        },
+      ]);
+      const { Wrapper } = sharedClientWrapper();
+      const { result } = renderHook(
+        () => ({ read: useSubmissionDetail(ID), write: useUpdateTerminologyRequest(ID) }),
+        { wrapper: Wrapper },
+      );
+      await waitFor(() => expect(result.current.read.isSuccess).toBe(true));
+
+      result.current.write.mutate(BODY);
+
+      await waitFor(() => expect(result.current.write.isSuccess).toBe(true));
+      expect(calls.filter((call) => call.method === "GET")).toHaveLength(1);
+    });
+
+    it("re-reads the detail on a 409 and passes the refusal on", async () => {
+      const calls = stubApi([
+        { method: "GET", path: DETAIL, status: 200, body: detail },
+        {
+          method: "PATCH",
+          path: REQUEST,
+          status: 409,
+          body: { detail: "No longer waiting for a code." },
+        },
+      ]);
+      const { Wrapper } = sharedClientWrapper();
+      const { result } = renderHook(
+        () => ({ read: useSubmissionDetail(ID), write: useUpdateTerminologyRequest(ID) }),
+        { wrapper: Wrapper },
+      );
+      await waitFor(() => expect(result.current.read.isSuccess).toBe(true));
+
+      result.current.write.mutate(BODY);
+
+      await waitFor(() => expect(result.current.write.isError).toBe(true));
+      expect(refusalDetail(result.current.write.error)).toBe(
+        "No longer waiting for a code.",
+      );
+      await waitFor(() =>
+        expect(calls.filter((call) => call.method === "GET").length).toBeGreaterThan(1),
+      );
+    });
+
+    it("leaves the detail alone on a 422", async () => {
+      const calls = stubApi([
+        { method: "GET", path: DETAIL, status: 200, body: detail },
+        {
+          method: "PATCH",
+          path: REQUEST,
+          status: 422,
+          body: { detail: "The reason is blank.", field: "reason" },
+        },
+      ]);
+      const { Wrapper } = sharedClientWrapper();
+      const { result } = renderHook(
+        () => ({ read: useSubmissionDetail(ID), write: useUpdateTerminologyRequest(ID) }),
+        { wrapper: Wrapper },
+      );
+      await waitFor(() => expect(result.current.read.isSuccess).toBe(true));
+
+      result.current.write.mutate(BODY);
+
+      await waitFor(() => expect(result.current.write.isError).toBe(true));
+      expect(calls.filter((call) => call.method === "GET")).toHaveLength(1);
+    });
   });
 });

@@ -155,6 +155,18 @@ export function unresolvedCodeMessage(
     : `${selection.message} Clear the code to send the form without one.`;
 }
 
+/**
+ * Why a picked code cannot be attached. Here the code is the whole point of the
+ * form, so the way out is to choose another, never to go without one.
+ */
+export function requiredCodeMessage(
+  selection: Extract<CodeSelection, { status: "unresolved" }>,
+): string {
+  return selection.unavailable
+    ? "The terminology server could not be reached, so the code could not be checked. Try again shortly."
+    : `${selection.message} Clear the code to choose another.`;
+}
+
 function overLimit(count: number, limit: number): boolean {
   return count > limit;
 }

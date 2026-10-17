@@ -4,8 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { useTransitionSubmission } from "../api/queries.ts";
 import { Button } from "../components/button.tsx";
 import { EntrySection } from "../catalogue/entry-section.tsx";
+import { AttachCodeDialog, type AttachedCode } from "./attach-code-dialog.tsx";
 import { ApproveDialog, type Approvable, type ApprovedEntry } from "./approve-dialog.tsx";
 import { submissionStateLabel, type SubmissionState } from "./state-options.ts";
+import { TerminologyRequestDialog } from "./terminology-request-dialog.tsx";
 import {
   isMadeOnTheTriagePanel,
   moveWording,
@@ -88,12 +90,18 @@ export function TriageSubmission({ submission }: { submission: Triageable }) {
   return <TriagePanel key={submission.id} submission={submission} />;
 }
 
+/** Attach code is the one move to Ready for approval that starts from Awaiting terminology. */
+function isAttach(from: string, to: SubmissionState): boolean {
+  return from === "Awaiting terminology" && to === "Ready for approval";
+}
+
 function TriagePanel({ submission }: { submission: Triageable }) {
   const [moving, setMoving] = useState<{ from: string; to: SubmissionState } | null>(
     null,
   );
   const [movedTo, setMovedTo] = useState<SubmissionState | null>(null);
   const [approvedEntry, setApprovedEntry] = useState<ApprovedEntry | null>(null);
+  const [attachedCode, setAttachedCode] = useState<AttachedCode | null>(null);
   const confirmation = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
@@ -122,6 +130,7 @@ function TriagePanel({ submission }: { submission: Triageable }) {
                 onClick={() => {
                   setMovedTo(null);
                   setApprovedEntry(null);
+                  setAttachedCode(null);
                   setMoving({ from: submission.state, to });
                 }}
               >
@@ -132,7 +141,9 @@ function TriagePanel({ submission }: { submission: Triageable }) {
         ) : null}
         {movedTo !== null ? (
           <p ref={confirmation} tabIndex={-1} className="m-0 text-sm">
-            {approvedEntry === null ? (
+            {attachedCode !== null ? (
+              `Attached ${attachedCode.code}, ${attachedCode.fsn}. Moved to ${submissionStateLabel(movedTo)}.`
+            ) : approvedEntry === null ? (
               `Moved to ${submissionStateLabel(movedTo)}.`
             ) : (
               <>
@@ -149,6 +160,29 @@ function TriagePanel({ submission }: { submission: Triageable }) {
             )}
           </p>
         ) : null}
+        {moving?.to === "Awaiting terminology" ? (
+          <TerminologyRequestDialog
+            submission={submission}
+            from={moving.from}
+            onClose={() => setMoving(null)}
+            onRequested={() => {
+              setMovedTo("Awaiting terminology");
+              setMoving(null);
+            }}
+          />
+        ) : null}
+        {moving !== null && isAttach(moving.from, moving.to) ? (
+          <AttachCodeDialog
+            submission={submission}
+            from={moving.from}
+            onClose={() => setMoving(null)}
+            onAttached={(attached) => {
+              setAttachedCode(attached);
+              setMovedTo("Ready for approval");
+              setMoving(null);
+            }}
+          />
+        ) : null}
         {moving?.to === "Approved" ? (
           <ApproveDialog
             submission={submission}
@@ -161,7 +195,10 @@ function TriagePanel({ submission }: { submission: Triageable }) {
             }}
           />
         ) : null}
-        {moving !== null && moving.to !== "Approved" ? (
+        {moving !== null &&
+        moving.to !== "Approved" &&
+        moving.to !== "Awaiting terminology" &&
+        !isAttach(moving.from, moving.to) ? (
           <MoveDialog
             key={moving.to}
             submission={submission}

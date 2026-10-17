@@ -1,5 +1,5 @@
 import { Combobox } from "@base-ui/react/combobox";
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { refusalDetail } from "../api/conflicts.ts";
 import { useProcedureSearch } from "../api/queries.ts";
@@ -53,6 +53,12 @@ export function ProcedurePicker({
   const query = useDebouncedValue(text.trim(), SEARCH_DEBOUNCE_MS);
   const search = useProcedureSearch(query);
   const highlighted = useRef(false);
+  // A modal dialog sits in the top layer, above anything portalled to the body,
+  // so a list opened from inside one must render inside it to be seen and clicked.
+  const [dialog, setDialog] = useState<HTMLElement | null>(null);
+  const findDialog = useCallback((input: HTMLInputElement | null) => {
+    setDialog(input?.closest("dialog") ?? null);
+  }, []);
 
   const options: Option[] =
     query === text.trim() && search.data
@@ -121,6 +127,7 @@ export function ProcedurePicker({
         >
           <Combobox.Input
             {...controlProps}
+            ref={findDialog}
             // Base UI hides the visible label from assistive technology while
             // the popup is open, which would leave the input unnamed.
             aria-label={label}
@@ -143,7 +150,7 @@ export function ProcedurePicker({
             }}
             autoComplete="off"
           />
-          <Combobox.Portal>
+          <Combobox.Portal container={dialog ?? undefined}>
             <Combobox.Positioner sideOffset={4} className="z-50 outline-none">
               <Combobox.Popup className="max-h-72 w-[var(--anchor-width)] max-w-[var(--available-width)] overflow-y-auto rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface)] py-1">
                 {/* Inside the popup, because Base UI marks everything outside it

@@ -215,6 +215,46 @@ export function asReasonRefusal(error: unknown): { detail: string } | null {
   return { detail: body.detail };
 }
 
+export type TerminologyField = Extract<
+  SubmissionFieldRefusalBody["field"],
+  | "reason"
+  | "proposed_fsn"
+  | "justification"
+  | "external_reference_system"
+  | "external_reference_ref"
+  | "expected_release"
+>;
+
+/** A `Record`, so a request field the server starts to name is a type error here. */
+const TERMINOLOGY_FIELDS: Record<TerminologyField, true> = {
+  reason: true,
+  proposed_fsn: true,
+  justification: true,
+  external_reference_system: true,
+  external_reference_ref: true,
+  expected_release: true,
+};
+
+/**
+ * The 422 that names a field of a terminology request or of an edit to its
+ * tracking details, or `null` if this refusal is anything else. Keyed on
+ * `field`, never on the wording of `detail`.
+ */
+export function asTerminologyFieldRefusal(
+  error: unknown,
+): { field: TerminologyField; detail: string } | null {
+  const body = bodyOf(error, [422]);
+  if (
+    body === null ||
+    typeof body.detail !== "string" ||
+    typeof body.field !== "string" ||
+    !Object.hasOwn(TERMINOLOGY_FIELDS, body.field)
+  ) {
+    return null;
+  }
+  return { field: body.field as TerminologyField, detail: body.detail };
+}
+
 /**
  * The FR-25 409 that lists the matches a submitter must confirm, or `null` if
  * this refusal is anything else. Keyed on `matches` being an array: `detail`

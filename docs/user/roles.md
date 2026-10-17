@@ -30,7 +30,9 @@ shipped:
   on a submission's page, with the organisations they gave.
 
 - **[Triaging a submission](triaging-a-submission.md)** — moving a submission through Triage,
-  review and rejection, with a reason the submitter can read.
+  review and rejection, with a reason the submitter can read. Reviewers also
+  [request a new code](triaging-a-submission.md#request-a-new-code), and only Administrators
+  [attach the issued code](triaging-a-submission.md#attach-the-issued-code).
 - **[Editing a submission](editing-a-submission.md)** — changing a submission's content during
   triage, with a reason. The submitter's original stays on the page.
 - **[Internal comments](internal-comments.md)** — reading, posting and withdrawing comments that

@@ -12,7 +12,8 @@ Open a submission from the Submissions page. See
 **Triage** panel is in the column beside the submission. It has one button for each move the
 platform allows you to make now. If it allows none, the panel is not shown.
 
-The panel shows only moves that need a reason and nothing else. The platform decides which moves
+Most moves need a reason and nothing else. Two moves have a form of their own, because they need
+more: asking for a new SNOMED CT code and attaching that code. The platform decides which moves
 you may make, from the submission's state and your permissions, so two people can see different
 buttons on the same submission.
 
@@ -27,10 +28,15 @@ buttons on the same submission.
 | Ready for approval | **Reject** | Rejected |
 | Rejected | **Reopen** | Triage |
 | Under review | **Mark ready for approval** | Ready for approval |
+| Under review | **Request a new code** | Awaiting terminology |
+| Awaiting terminology | **Attach code** | Ready for approval |
 | Awaiting terminology | **Resume review** | Under review |
 | Ready for approval | **Approve** | Approved |
 
-Only an Administrator sees **Approve**. See [Approve a submission](#approve-a-submission).
+Only an Administrator sees **Approve** and **Attach code**. See
+[Approve a submission](#approve-a-submission) and
+[Attach the issued code](#attach-the-issued-code). **Request a new code** opens a form. See
+[Request a new code](#request-a-new-code).
 
 **Reject** is available from Triage, Under review and Ready for approval, so no state before
 approval is a dead end. A rejected submission can be reopened to Triage, and it keeps its history.
@@ -41,9 +47,7 @@ nobody is pursuing. The record of the request stays.
 To change what a submission proposes, such as a test name or a code, use the **Edit** button
 above the panel. See [Editing a submission](editing-a-submission.md).
 
-Some moves are not on the panel because they need more than a reason: asking for a new SNOMED CT
-code and attaching that code. Each will have its own form. Withdrawing a submission is also
-separate. See
+Withdrawing a submission is not on the panel. See
 [Withdraw your own submission](reading-a-submission.md#withdraw-your-own-submission).
 
 ## Make a move
@@ -88,6 +92,69 @@ If the platform refuses, the box stays open and shows its own sentence. This hap
 example, when the entry is no longer active, when an amendment no longer applies to the entry,
 or when another reviewer has changed the submission. **Confirm approval** stops working when
 the platform no longer offers approval. Choose **Cancel**.
+
+## Request a new code
+
+Use this when no SNOMED CT concept covers the test. It moves a submission that is Under review
+to Awaiting terminology, and it records what you asked the terminology authority for.
+
+1. Choose **Request a new code**.
+2. Fill in the form. Every field is required except **Expected release**:
+   - **Proposed fully specified name**: the name you ask the authority to create.
+   - **Target edition**: the Australian or the International edition.
+   - **Justification**: why no existing concept will do.
+   - **External reference**: the **System** that tracks the request, for example a service desk,
+     and the **Reference** the request has there.
+   - **Date raised**: when you raised the request with the authority.
+   - **Expected release**: when the authority expects to issue the code, if it has said.
+   - **Reason**: why the submission waits. It is recorded like any other reason. See
+     [Who reads the reason](#who-reads-the-reason).
+3. Choose **Send request**.
+
+If a required field is empty, or the expected release is earlier than the date raised, the box
+marks each field and sends nothing. If the platform refuses a field, the box marks that field
+with its explanation and keeps what you typed. Any other refusal appears as a sentence, as
+described in [When the platform refuses](#when-the-platform-refuses).
+
+The state changes to Awaiting terminology at once, and focus moves to the line "Moved to
+Awaiting terminology."
+
+## The Terminology request panel
+
+While a submission is Awaiting terminology, a **Terminology request** panel shows the request:
+the proposed name, the edition, the justification, the external reference, the date raised and
+the expected release. Reviewers and Administrators see it. No one else does.
+
+To change where the request is tracked, or when its code is expected, choose **Edit tracking
+details**. The box offers the system, the reference and the expected release, and a reason. Leave
+the expected release empty to clear it. The platform sends only what you changed. The proposed
+name, edition, justification and date raised stay as you sent them.
+
+After a save, focus moves to the line "Saved. The tracking details are updated." If you change
+nothing, the box says so and sends nothing. The panel disappears when the submission leaves
+Awaiting terminology. The platform keeps the record.
+
+## Attach the issued code
+
+Only an Administrator can attach the code, so a Reviewer sees no **Attach code** button. A
+Reviewer who has the code asks an Administrator to attach it.
+
+1. Choose **Attach code**.
+2. Search for the code in **SNOMED CT code** and choose it from the list. The box shows the
+   code, its fully specified name and its Australian preferred term, as the terminology server
+   returned them. You never type the name.
+3. Write a reason.
+4. Choose **Attach code**.
+
+The platform checks the code on the terminology server, writes the code and its name to the
+working copy, and moves the submission to Ready for approval in one step. Focus moves to a line
+such as "Attached 489004, Ferritin measurement (procedure). Moved to Ready for approval."
+The panel then offers **Approve**.
+
+If the platform refuses the code, the box marks the code field with its explanation. This
+happens when the code is malformed, unknown to the Australian edition, or inactive. Choose
+another code, or **Clear the code**. If the terminology server cannot be reached, the platform
+changes nothing. Try again shortly.
 
 ## Who reads the reason
 
