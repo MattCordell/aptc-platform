@@ -1,4 +1,4 @@
-"""Direct tests for `nptc_shared.terminology.errors.is_concept_absence`
+"""Direct tests for `aptc_shared.terminology.errors.is_concept_absence`
 (issue #240 review).
 
 `sweep.py` only ever exercised the `"not-found"` member of
@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import pytest
 
-from nptc_shared.terminology.errors import (
+from aptc_shared.terminology.errors import (
     NOT_FOUND_ISSUE_CODES,
     OperationOutcomeIssue,
     TerminologyOutcomeError,

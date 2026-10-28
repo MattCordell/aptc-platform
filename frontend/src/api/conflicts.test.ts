@@ -24,13 +24,13 @@ import { ApiError } from "./unwrap.ts";
 const COLLISION = {
   detail: "This term matches another entry's preferred term or synonym.",
   collisions: [
-    { severity: "error", business_key: "NPTC-000247", preferred_term: "Adrenal Ab" },
+    { severity: "error", business_key: "APTC-000247", preferred_term: "Adrenal Ab" },
   ],
 };
 
 const VERSION_CONFLICT = {
   detail: "This entry was changed by someone else since you loaded it.",
-  business_key: "NPTC-000247",
+  business_key: "APTC-000247",
   expected_row_version: 3,
   current_row_version: 4,
   conflicts: [
@@ -45,7 +45,7 @@ describe("asCollisionError", () => {
     const body = asCollisionError(new ApiError(409, COLLISION));
 
     expect(body?.collisions).toHaveLength(1);
-    expect(body?.collisions[0]?.business_key).toBe("NPTC-000247");
+    expect(body?.collisions[0]?.business_key).toBe("APTC-000247");
     expect(body?.collisions[0]?.preferred_term).toBe("Adrenal Ab");
   });
 
@@ -271,7 +271,7 @@ describe("asBodyRefusal", () => {
 describe("asDuplicateMatches", () => {
   const MATCHES = {
     detail: "This submission may duplicate an entry.",
-    matches: [{ source: "catalogue_entry", key: "NPTC-000247" }],
+    matches: [{ source: "catalogue_entry", key: "APTC-000247" }],
   };
 
   it("narrows a 409 carrying matches", () => {

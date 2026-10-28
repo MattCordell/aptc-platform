@@ -49,7 +49,7 @@ not that it supports the proposal. Some sites refuse automated visits and answer
 For a change, the section is called **Proposed change**, not **Proposed test**. Only the other
 names and the code are proposals. The heading shows the entry's own term as it stood when the
 change was proposed. It is not a proposed new term, and the page says so.
-The **Kind** line in the **Details** panel names the entry, for example NPTC-000247. Choose
+The **Kind** line in the **Details** panel names the entry, for example APTC-000247. Choose
 the identifier to open that entry.
 
 ## The Details panel

@@ -65,7 +65,7 @@ this path needs), and turns N codes into one request the same way `expand`
 already does for the picker page.
 
 The local-code-system side resolves through `find_local_codes`
-(`nptc.catalogue.local_codes`, review round 2, PR #307) - a batch sibling
+(`aptc.catalogue.local_codes`, review round 2, PR #307) - a batch sibling
 of `find_local_code_with_system_status` living beside it, so the
 `local_code`/`local_code_system` join stays in the one module that already
 owns it. It runs one `SELECT ... code IN (...)` for the whole batch, not
@@ -118,7 +118,7 @@ never see `items` and `total` disagree.
   its position in (or absence from) the picker page's own `DEFAULT_PAGE_SIZE`
   window, closing the gap #289 left open.
 - The picker page (`list_property_values`) and the resolve-by-code path
-  (`resolve_property_values`) now coexist in `nptc.catalogue.property_value_sources`,
+  (`resolve_property_values`) now coexist in `aptc.catalogue.property_value_sources`,
   both reading `binding_target` - ADR-0013 SS5's guard is satisfied by
   confining both to this one module, not by there being exactly one function
   that reads it.

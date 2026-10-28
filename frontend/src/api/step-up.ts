@@ -3,7 +3,7 @@ import { ApiError } from "./unwrap.ts";
 /**
  * Parsing and recognising the RFC 9470 step-up challenge the backend sends
  * on a 403 whose refusal is `insufficient_user_authentication` (issue #184,
- * NFR-06) - `nptc.api.errors._step_up_challenge`.
+ * NFR-06) - `aptc.api.errors._step_up_challenge`.
  *
  * A challenge looks like:
  *

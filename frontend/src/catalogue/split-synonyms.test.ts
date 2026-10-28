@@ -7,7 +7,7 @@ import { splitSynonyms } from "./split-synonyms.ts";
  * verbatim from `backend/tests/test_catalogue_designations.py`'s
  * `test_sample_defect_strings_become_individual_rows_with_no_empty_row`.
  * That is the point: this module is a mirror of
- * `nptc_transform.cell_defects.split_synonyms` (ADR-0030), and sharing the
+ * `aptc_transform.cell_defects.split_synonyms` (ADR-0030), and sharing the
  * fixtures is what makes a divergence show up here as a failure on a
  * recognisable string rather than as silent drift.
  */

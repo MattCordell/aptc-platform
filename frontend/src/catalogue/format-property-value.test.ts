@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { describePropertyValue, formatPropertyValue } from "./format-property-value.ts";
 
 const SNOMED = "http://snomed.info/sct";
-const LOCAL = "https://nptc.example.org/CodeSystem/discipline";
+const LOCAL = "https://aptc.example.org/CodeSystem/discipline";
 // Past Number.MAX_SAFE_INTEGER, so a coerced code would differ (FR-06).
 const LONG_CODE = "999480561000168100";
 

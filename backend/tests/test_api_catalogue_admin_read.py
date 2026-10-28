@@ -1,4 +1,4 @@
-"""HTTP tests for `nptc.api.routers.catalogue_admin` (issue #228, FR-17,
+"""HTTP tests for `aptc.api.routers.catalogue_admin` (issue #228, FR-17,
 FR-36).
 
 `routers/catalogue.py`'s public detail route only ever serves an `active`
@@ -28,9 +28,9 @@ from typing import Any
 import pytest
 from sqlalchemy.engine import Connection
 
-from nptc.api.prefix import API_PREFIX
-from nptc.auth.permissions import Role
-from nptc.db.models.catalogue_entry import CatalogueEntryStatus
+from aptc.api.prefix import API_PREFIX
+from aptc.auth.permissions import Role
+from aptc.db.models.catalogue_entry import CatalogueEntryStatus
 
 
 def _load(name: str) -> Any:
@@ -292,7 +292,7 @@ def test_unknown_business_key_is_a_404_with_the_generic_body(api: ApiTestApp) ->
 def test_a_malformed_business_key_is_a_422(api: ApiTestApp) -> None:
     token = api.admin_token(subject="sub-admin-422")
 
-    response = _admin_read(api, "NPTC-abc", token)
+    response = _admin_read(api, "APTC-abc", token)
 
     assert response.status_code == 422, response.text
 

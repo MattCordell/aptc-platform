@@ -19,7 +19,7 @@ The choice is constrained by more than "pick a router":
 - **FR-06** (a hard constraint, CONTRIBUTING.md): a SNOMED CT identifier is a string
   end-to-end, never a number — SCTIDs can exceed `Number.MAX_SAFE_INTEGER` and leading
   zeros are significant.
-- **PRD §6.2**: `business_key` (e.g. `NPTC-000247`) is the public identifier; the internal
+- **PRD §6.2**: `business_key` (e.g. `APTC-000247`) is the public identifier; the internal
   UUID must never appear in a route.
 - **#140's own acceptance criteria** require the three URL forms to resolve identically,
   and search-result state (query, filters, page) to round-trip through the URL exactly.

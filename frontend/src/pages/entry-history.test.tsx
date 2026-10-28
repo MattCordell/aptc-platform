@@ -13,7 +13,7 @@ import { stubApi } from "../test/stub-api.ts";
  * route and signed out, as an anonymous visitor uses it.
  */
 
-const KEY = "NPTC-000247";
+const KEY = "APTC-000247";
 const HISTORY_URL = `/catalogue/${KEY}/history`;
 const HISTORY_PATH = `/catalogue/entries/${KEY}/history`;
 const NOT_FOUND_HEADING = { level: 1, name: /couldn't find that page/i } as const;
@@ -125,7 +125,7 @@ describe("the history page (FR-19)", () => {
     ).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
     await waitFor(() =>
-      expect(document.title).toBe(`Change history for ${KEY} — NPTC Catalogue`),
+      expect(document.title).toBe(`Change history for ${KEY} — APTC Catalogue`),
     );
   });
 
@@ -330,7 +330,7 @@ describe("paging", () => {
   });
 
   it("shows no earlier page's changes under another entry", async () => {
-    const other = "NPTC-000999";
+    const other = "APTC-000999";
     stubApi([], {
       vary: ({ path }) =>
         path.endsWith("/history")

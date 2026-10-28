@@ -17,14 +17,14 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 from testcontainers.community.postgres import PostgresContainer
 
-from nptc.db.models.property_definition import (
+from aptc.db.models.property_definition import (
     BindingTarget,
     PropertyCardinality,
     PropertyDefinition,
     PropertyOrigin,
     PropertyScope,
 )
-from nptc.db.property_indexes import (
+from aptc.db.property_indexes import (
     GENERATED_INDEX_NAME_RE,
     DesiredIndex,
     UnknownDatatypeProperty,
@@ -36,16 +36,16 @@ from nptc.db.property_indexes import (
     index_name,
     matches_indexdef,
 )
-from nptc.db.property_reconciler import (
+from aptc.db.property_reconciler import (
     RECONCILE_LOCK_KEY,
     IndexerNotConfiguredError,
     ReconciliationReport,
     get_indexer_engine,
     reconcile_property_indexes,
 )
-from nptc.registry.datatypes import build_builtin_handlers
-from nptc.registry.handlers import DatatypeRegistry, HandlerDeps, IndexKind, ValueExpression
-from nptc_shared.terminology.stub import StubTerminologyClient
+from aptc.registry.datatypes import build_builtin_handlers
+from aptc.registry.handlers import DatatypeRegistry, HandlerDeps, IndexKind, ValueExpression
+from aptc_shared.terminology.stub import StubTerminologyClient
 
 _BIGINT_MAX = 2**63 - 1
 
@@ -120,7 +120,7 @@ def test_generated_index_name_regex_rejects_slot_zero_and_three() -> None:
 
 
 def test_desired_indexes_excludes_non_filterable_property() -> None:
-    """`usage_guidance` is the real-world instance of this shape (`nptc.db.
+    """`usage_guidance` is the real-world instance of this shape (`aptc.db.
     bootstrap`), seeded `filterable=False`."""
     definitions = [
         _definition(key="usage_guidance", index_seq=1, datatype="string", filterable=False)
@@ -273,7 +273,7 @@ def test_create_statement_numeric_scalar_uses_the_cast_safe_function() -> None:
 
     rendered = create_statement(desired).as_string(None)
 
-    assert "public.nptc_numeric_or_null(value #>> '{}')" in rendered
+    assert "public.aptc_numeric_or_null(value #>> '{}')" in rendered
 
 
 def test_drop_statement_is_concurrent_conditional_and_schema_qualified() -> None:
@@ -372,7 +372,7 @@ def test_matches_indexdef_true_for_a_numeric_definition() -> None:
     )
     indexdef = (
         "CREATE INDEX ix_propval_p100_1 ON public.property_value USING btree "
-        "(public.nptc_numeric_or_null((value #>> '{}'::text[]))) "
+        "(public.aptc_numeric_or_null((value #>> '{}'::text[]))) "
         "WHERE (property_key = 'admin_number'::text)"
     )
 
@@ -382,7 +382,7 @@ def test_matches_indexdef_true_for_a_numeric_definition() -> None:
 def test_matches_indexdef_false_after_a_datatype_amendment_the_other_direction() -> None:
     """Regression (issue #54 review, second pass): the `TEXT_SCALAR` marker
     used to be a bare substring of the `NUMERIC_SCALAR` rendering
-    (`value #>> '{}'::text[]` appears inside `nptc_numeric_or_null((value
+    (`value #>> '{}'::text[]` appears inside `aptc_numeric_or_null((value
     #>> '{}'::text[]))` too), so a `decimal`/`positiveInt` -> `string`/`url`
     amendment went undetected - the untested direction of the pair, the
     opposite of `test_matches_indexdef_false_after_a_datatype_amendment`
@@ -395,7 +395,7 @@ def test_matches_indexdef_false_after_a_datatype_amendment_the_other_direction()
     )
     indexdef = (
         "CREATE INDEX ix_propval_p100_1 ON public.property_value USING btree "
-        "(public.nptc_numeric_or_null((value #>> '{}'::text[]))) "
+        "(public.aptc_numeric_or_null((value #>> '{}'::text[]))) "
         "WHERE (property_key = 'admin_number'::text)"
     )
 
@@ -460,8 +460,8 @@ def test_include_object_includes_an_index_with_no_name() -> None:
 
 # --- reconciler (issue #54, FR-13) -----------------------------------------
 #
-# `postgres_container`'s own `nptc_owner` role is the container's bootstrap
-# superuser, so `NPTC_INDEXER_DATABASE_URL` points at the same DSN `db`/
+# `postgres_container`'s own `aptc_owner` role is the container's bootstrap
+# superuser, so `APTC_INDEXER_DATABASE_URL` points at the same DSN `db`/
 # `owner_engine` already use - a real deployment would scope this to a
 # narrower DDL-capable role instead (see `IndexerSettings`'s own docstring),
 # but reusing the fixture graph's existing owner credential here needs no
@@ -476,10 +476,10 @@ def _indexer_configured(
 ) -> Iterator[None]:
     """Points the module-level `get_indexer_engine()` cache at the running
     container for the duration of one test, then clears it - the cache is
-    `@lru_cache(maxsize=1)`, process-wide by design (mirrors `nptc.db.
+    `@lru_cache(maxsize=1)`, process-wide by design (mirrors `aptc.db.
     session.get_engine`), so a test-scoped override has to reach in and
     clear it explicitly rather than relying on a fresh import."""
-    monkeypatch.setenv("NPTC_INDEXER_DATABASE_URL", postgres_container.get_connection_url())
+    monkeypatch.setenv("APTC_INDEXER_DATABASE_URL", postgres_container.get_connection_url())
     get_indexer_engine.cache_clear()
     yield
     get_indexer_engine.cache_clear()
@@ -552,7 +552,7 @@ def _admin_property(owner_engine: Engine) -> Iterator[dict[str, object]]:
 
 @pytest.mark.integration
 def test_get_indexer_engine_raises_when_not_configured(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("NPTC_INDEXER_DATABASE_URL", raising=False)
+    monkeypatch.delenv("APTC_INDEXER_DATABASE_URL", raising=False)
     get_indexer_engine.cache_clear()
 
     with pytest.raises(IndexerNotConfiguredError):
@@ -813,7 +813,7 @@ def test_reconcile_rebuilds_after_a_datatype_amendment(
         oid_after = connection.execute(
             text("SELECT (:name)::regclass::oid"), {"name": expected_name}
         ).scalar_one()
-    assert "nptc_numeric_or_null" in indexdef
+    assert "aptc_numeric_or_null" in indexdef
     assert oid_after != oid_before  # actually rebuilt, not merely re-commented
 
 
@@ -876,7 +876,7 @@ def test_one_failing_index_does_not_abort_the_rest_of_the_run(
     not skip every other desired/orphaned index for the rest of that run -
     the whole justification for a converge-everything reconciler is
     repairing partial failures, not adding a new one of its own."""
-    from nptc.db import property_reconciler
+    from aptc.db import property_reconciler
 
     failing_key = "test_reconciler_second_property_that_fails"
     failing_index_seq = _insert_property(
@@ -920,7 +920,7 @@ def test_a_rebuild_whose_create_fails_after_a_successful_drop_is_reported_as_dro
     but the following `CREATE INDEX` then raises, the index is genuinely
     gone - the report must say so (`dropped`), not only `failed`, and must
     not claim the rebuild completed (`repaired_invalid`)."""
-    from nptc.db import property_reconciler
+    from aptc.db import property_reconciler
 
     key = _admin_property["key"]
     index_seq = _admin_property["index_seq"]

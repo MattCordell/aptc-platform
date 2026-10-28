@@ -21,15 +21,15 @@ from starlette.responses import PlainTextResponse
 from starlette.routing import Route
 from starlette.testclient import TestClient
 
-from nptc.api.app import create_app
-from nptc.api.dependencies import request_audit_context
-from nptc.api.prefix import API_PREFIX
-from nptc.api.rate_limit import (
+from aptc.api.app import create_app
+from aptc.api.dependencies import request_audit_context
+from aptc.api.prefix import API_PREFIX
+from aptc.api.rate_limit import (
     RATE_LIMITED_DETAIL,
     AnonymousRateLimitMiddleware,
     _add_rate_limit_refusal,
 )
-from nptc.auth.permissions import Role
+from aptc.auth.permissions import Role
 
 
 def _load(name: str) -> Any:
@@ -51,7 +51,7 @@ hermetic_api_settings = _api_support.hermetic_api_settings
 #: compose healthcheck probes from loopback and the limiter therefore lets through.
 _COUNTED = f"{API_PREFIX}/docs"
 _SCHEMA = f"{API_PREFIX}/openapi.json"
-_BULK_URL = "https://releases.example.org/nptc"
+_BULK_URL = "https://releases.example.org/aptc"
 
 
 class _Clock:
@@ -301,7 +301,7 @@ def test_the_compose_healthcheck_is_never_limited() -> None:
 
 @pytest.mark.req("NFR-24")
 def test_loopback_is_limited_on_every_other_route() -> None:
-    """A proxy on the same host with no `NPTC_TRUSTED_PROXIES` makes every caller look like
+    """A proxy on the same host with no `APTC_TRUSTED_PROXIES` makes every caller look like
     loopback. Exempting loopback wholesale would turn the limit off for all of them."""
     client = _app_client(_Clock(), limit=1, peer=("127.0.0.1", 1))
 

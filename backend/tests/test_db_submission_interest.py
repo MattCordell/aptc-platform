@@ -13,8 +13,8 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import IntegrityError, ProgrammingError
 
-from nptc.audit.policy import policy_for
-from nptc.db.models.submission_interest import SubmissionInterest
+from aptc.audit.policy import policy_for
+from aptc.db.models.submission_interest import SubmissionInterest
 
 _CHECK_VIOLATION = "23514"
 _FOREIGN_KEY_VIOLATION = "23503"

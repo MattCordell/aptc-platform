@@ -18,7 +18,7 @@ from sqlalchemy.exc import IntegrityError
 from testcontainers.community.postgres import PostgresContainer
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-_DB = "nptc_submission_review_states"
+_DB = "aptc_submission_review_states"
 _CHECK_VIOLATION = "23514"
 _REVIEW_STATES = ["Under review", "Ready for approval", "Approved"]
 

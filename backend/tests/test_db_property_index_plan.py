@@ -5,7 +5,7 @@ generated index, under a *generic* plan - not merely that the index exists.
 ADR-0012 poses two claims that must be kept separate:
 
 - The **index**'s own predicate, `WHERE property_key = '<literal>'`, is
-  fixed by the DDL (`nptc.db.property_indexes.create_statement`) - not in
+  fixed by the DDL (`aptc.db.property_indexes.create_statement`) - not in
   question here.
 - The **query** must carry a predicate the planner can *prove* implies
   that literal. `property_key = $1` under a generic plan cannot be proven
@@ -43,28 +43,28 @@ from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import ClauseElement, Executable
 from testcontainers.community.postgres import PostgresContainer
 
-from nptc.catalogue.facets import (
+from aptc.catalogue.facets import (
     FacetDescriptor,
     _PropertyFacetSource,
     build_facet_count_statement,
     build_facet_counts_statement,
 )
-from nptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
-from nptc.db.models.property_definition import (
+from aptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
+from aptc.db.models.property_definition import (
     BindingTarget,
     PropertyCardinality,
     PropertyDefinition,
     PropertyOrigin,
     PropertyScope,
 )
-from nptc.db.models.property_value import PropertyValue
-from nptc.db.property_indexes import index_name
-from nptc.db.property_reconciler import get_indexer_engine, reconcile_property_indexes
-from nptc.registry.datatypes.code import CodeHandler
-from nptc.registry.datatypes.positive_int import PositiveIntHandler
-from nptc.registry.datatypes.string import StringHandler
-from nptc.registry.handlers import FilterOp, PropertyDefinitionSpec
-from nptc_shared.terminology.stub import StubTerminologyClient
+from aptc.db.models.property_value import PropertyValue
+from aptc.db.property_indexes import index_name
+from aptc.db.property_reconciler import get_indexer_engine, reconcile_property_indexes
+from aptc.registry.datatypes.code import CodeHandler
+from aptc.registry.datatypes.positive_int import PositiveIntHandler
+from aptc.registry.datatypes.string import StringHandler
+from aptc.registry.handlers import FilterOp, PropertyDefinitionSpec
+from aptc_shared.terminology.stub import StubTerminologyClient
 
 #: Large enough that the partial index is a real candidate, not a fixture
 #: artefact - see test_db_search_index.py's own note on why this figure is
@@ -144,7 +144,7 @@ def _delete_bulk_entries(owner_engine: Engine, prefix: str) -> None:
 def _indexer_configured(
     postgres_container: PostgresContainer, monkeypatch: pytest.MonkeyPatch, migrated: None
 ) -> Iterator[None]:
-    monkeypatch.setenv("NPTC_INDEXER_DATABASE_URL", postgres_container.get_connection_url())
+    monkeypatch.setenv("APTC_INDEXER_DATABASE_URL", postgres_container.get_connection_url())
     get_indexer_engine.cache_clear()
     yield
     get_indexer_engine.cache_clear()
@@ -199,7 +199,7 @@ def _string_property_pair(owner_engine: Engine) -> Iterator[dict[str, int]]:
 def test_partial_index_is_used_under_a_literal_property_key_but_not_a_generic_plan(
     owner_engine: Engine, _indexer_configured: None, _string_property_pair: dict[str, int]
 ) -> None:
-    prefix = "NPTC-91"
+    prefix = "APTC-91"
     key_a = "test_plan_string_a"
     key_b = "test_plan_string_b"
     index_name_a = index_name(_string_property_pair[key_a], 1)
@@ -375,7 +375,7 @@ def _code_property(owner_engine: Engine) -> Iterator[int]:
 def test_gin_index_serves_a_multi_valued_coded_property_on_any_ordinal(
     owner_engine: Engine, _indexer_configured: None, _code_property: int
 ) -> None:
-    prefix = "NPTC-93"
+    prefix = "APTC-93"
     key = "test_plan_code_property"
     expected_name = index_name(_code_property, 1)
     first_entry = f"{prefix}00000001"
@@ -466,7 +466,7 @@ def _run_gin_index_plan_proof(owner_engine: Engine, key: str, expected_name: str
 
 def _facet_descriptor(key: str) -> FacetDescriptor:
     """A descriptor for one of `_string_property_pair`'s properties, built
-    the way `nptc.catalogue.facets.load_facet_context` builds one - a
+    the way `aptc.catalogue.facets.load_facet_context` builds one - a
     handler plus a spec - so this explains the real predicate rather than a
     hand-written lookalike."""
     return FacetDescriptor(
@@ -502,7 +502,7 @@ def test_the_facet_filter_and_count_plans_are_both_index_supported(
     reads one property's rows or the whole `property_value` table, and the
     difference shows up only as a slow catalogue.
 
-    Both statements are built through `nptc.catalogue.facets` itself, for the
+    Both statements are built through `aptc.catalogue.facets` itself, for the
     reason `test_db_search_index.py` explains the real search statement: a
     hand-copied approximation is a test of the copy.
 
@@ -535,7 +535,7 @@ def test_the_facet_filter_and_count_plans_are_both_index_supported(
     nothing: a predicate over an expression the index does not contain still
     cannot become an `Index Cond`, however expensive the alternative is made.
     """
-    prefix = "NPTC-95"
+    prefix = "APTC-95"
     key_a = "test_plan_string_a"
     key_b = "test_plan_string_b"
     index_name_a = index_name(_string_property_pair[key_a], 1)
@@ -642,7 +642,7 @@ def test_the_combined_statement_preserves_a_numeric_facet_s_native_ordering(
     or wrong.
     """
     key = "test_plan_positive_int"
-    prefix = "NPTC-97"
+    prefix = "APTC-97"
     try:
         with owner_engine.connect() as connection:
             connection.execute(_BULK_ENTRIES_SQL, {"count": 3, "prefix": prefix})

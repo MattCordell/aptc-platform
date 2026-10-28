@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from nptc_shared.terminology.models import SNOMED_CT_AU, SNOMED_CT_INTERNATIONAL
-from nptc_shared.terminology.snomed import (
+from aptc_shared.terminology.models import SNOMED_CT_AU, SNOMED_CT_INTERNATIONAL
+from aptc_shared.terminology.snomed import (
     ecl_from_implicit_value_set_url,
     ecl_set_of,
     edition_from_implicit_value_set_url,
@@ -117,7 +117,7 @@ def test_edition_from_implicit_value_set_url_recovers_display_language() -> None
 
 @pytest.mark.req("FR-10")
 def test_edition_from_implicit_value_set_url_resolves_the_bare_system_shape_by_label() -> None:
-    """PRD S6.6's own worked example (line 417) and `nptc.db.bootstrap`'s
+    """PRD S6.6's own worked example (line 417) and `aptc.db.bootstrap`'s
     real seeded `specimen` binding both store `value_set_uri` in this bare,
     module-less form - the edition isn't in the URI at all here, so `label`
     (the property's own stored `binding.edition`) is what resolves it."""

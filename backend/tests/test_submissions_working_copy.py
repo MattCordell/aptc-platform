@@ -1,4 +1,4 @@
-"""`nptc.submissions.working_copy.edit_working_copy` service-layer tests (FR-23, FR-06, FR-82, NFR-08).
+"""`aptc.submissions.working_copy.edit_working_copy` service-layer tests (FR-23, FR-06, FR-82, NFR-08).
 
 Each refusal asserts that no working copy, no `row_version` bump and no audit event followed, because
 a refused request must leave nothing behind. Audit events are read for the submission this test made,
@@ -17,19 +17,19 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from nptc.audit.writer import AuditContext
-from nptc.catalogue.local_codes import DatabaseLocalCodeLookup
-from nptc.catalogue.property_values import PropertyValidationError, PropertyValueInput
-from nptc.catalogue.term_hygiene import TermCleaningError
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
-from nptc.db.models.property_definition import PropertyDefinition, PropertyOrigin, PropertyScope
-from nptc.db.models.submission import Submission, SubmissionKind, SubmissionState
-from nptc.db.models.submission_working_copy import SubmissionWorkingCopy
-from nptc.db.models.user import User
-from nptc.registry.datatypes import build_builtin_handlers
-from nptc.registry.handlers import DatatypeRegistry, HandlerDeps
-from nptc.submissions.errors import (
+from aptc.audit.writer import AuditContext
+from aptc.catalogue.local_codes import DatabaseLocalCodeLookup
+from aptc.catalogue.property_values import PropertyValidationError, PropertyValueInput
+from aptc.catalogue.term_hygiene import TermCleaningError
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
+from aptc.db.models.property_definition import PropertyDefinition, PropertyOrigin, PropertyScope
+from aptc.db.models.submission import Submission, SubmissionKind, SubmissionState
+from aptc.db.models.submission_working_copy import SubmissionWorkingCopy
+from aptc.db.models.user import User
+from aptc.registry.datatypes import build_builtin_handlers
+from aptc.registry.handlers import DatatypeRegistry, HandlerDeps
+from aptc.submissions.errors import (
     AmendmentRefusal,
     AmendmentRefusedError,
     CodeRefusal,
@@ -40,9 +40,9 @@ from nptc.submissions.errors import (
     SubmissionNotFoundError,
     SubmissionVersionConflictError,
 )
-from nptc.submissions.terms import SubmissionCodeMalformedError
-from nptc.submissions.working_copy import WorkingCopyChanges, WorkingCopyEdit, edit_working_copy
-from nptc_shared.terminology import (
+from aptc.submissions.terms import SubmissionCodeMalformedError
+from aptc.submissions.working_copy import WorkingCopyChanges, WorkingCopyEdit, edit_working_copy
+from aptc_shared.terminology import (
     AU_LANGUAGE_TAG,
     Operation,
     StubConcept,
@@ -127,7 +127,7 @@ def _new_test(
 
 def _amendment(session: Session) -> Submission:
     entry = CatalogueEntry(
-        business_key=f"NPTC-{random.randrange(100_000_000, 999_999_999)}",
+        business_key=f"APTC-{random.randrange(100_000_000, 999_999_999)}",
         preferred_term="Serum sodium",
         status=CatalogueEntryStatus.ACTIVE.value,
     )

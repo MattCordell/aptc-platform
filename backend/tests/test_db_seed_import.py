@@ -11,7 +11,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import IntegrityError, ProgrammingError
 
-from nptc.db.errors import unique_violation_constraint
+from aptc.db.errors import unique_violation_constraint
 
 _UNIQUE_VIOLATION = "23505"
 _FOREIGN_KEY_VIOLATION = "23503"
@@ -37,7 +37,7 @@ _INSERT_PROVENANCE = text(
 )
 
 
-def _insert_entry(connection: Connection, business_key: str = "NPTC-320001") -> object:
+def _insert_entry(connection: Connection, business_key: str = "APTC-320001") -> object:
     return connection.execute(
         _INSERT_ENTRY, {"business_key": business_key, "preferred_term": "Adenosine deaminase"}
     ).scalar_one()

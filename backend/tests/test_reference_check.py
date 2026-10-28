@@ -18,9 +18,9 @@ from datetime import UTC, datetime
 import httpx
 import pytest
 
-from nptc.api import dependencies
-from nptc.submissions import reference_check
-from nptc.submissions.reference_check import (
+from aptc.api import dependencies
+from aptc.submissions import reference_check
+from aptc.submissions.reference_check import (
     MAX_REDIRECTS,
     OVERALL_DEADLINE_SECONDS,
     HttpReferenceChecker,
@@ -31,7 +31,7 @@ from nptc.submissions.reference_check import (
     system_resolver,
     tcp_probe,
 )
-from nptc_shared.terminology import TerminologyConfigError
+from aptc_shared.terminology import TerminologyConfigError
 
 pytestmark = pytest.mark.req("FR-27")
 
@@ -831,7 +831,7 @@ def test_the_probe_reads_the_terminology_config_once_and_connects_to_its_host(
 def test_a_malformed_terminology_setting_fails_when_the_probe_is_built_not_during_a_check(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("NPTC_TX_TIMEOUT_SECONDS", "not-a-number")
+    monkeypatch.setenv("APTC_TX_TIMEOUT_SECONDS", "not-a-number")
 
     with pytest.raises(TerminologyConfigError):
         dependencies._outbound_probe()

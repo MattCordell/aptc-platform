@@ -80,7 +80,7 @@ let nextSlotId = 0;
  * the page - and `randomUUID` is undefined outside a secure context
  * (HTTPS or `localhost`), which `docs/operations/configuration.md`
  * explicitly anticipates this app being deployed outside of (a plain-HTTP
- * on-prem host, per `NPTC_FRONTEND_BASE_URL`'s own note). A counter has no
+ * on-prem host, per `APTC_FRONTEND_BASE_URL`'s own note). A counter has no
  * such dependency.
  *
  * The `slot-` prefix is reserved for ids this function generates - test

@@ -60,7 +60,7 @@ hierarchy check and FR-99 semantic-tag check would both misfire on every specime
 the same paging/dedup-tolerant `_expand_chunk` primitive and the same `_project_designations`
 projection FR-97 already relies on.
 
-**3. A hand-typed specimen table (`nptc_transform.specimen_table.SPECIMEN_TABLE`), 16 groups,
+**3. A hand-typed specimen table (`aptc_transform.specimen_table.SPECIMEN_TABLE`), 16 groups,
 each pairing a verified SCTID with a short list of plausible RCPA-style surface forms -
 augmented at run time by each group's own `describe()`-fetched designations for the
 *visibility filter* specifically, never for what counts as an assertion in the first
@@ -112,7 +112,7 @@ looser framing.
 
 ## Consequences
 
-- `nptc_shared.terminology.models.HAS_SPECIMEN_ATTRIBUTE` (`116686009`) is a new constant,
+- `aptc_shared.terminology.models.HAS_SPECIMEN_ATTRIBUTE` (`116686009`) is a new constant,
   alongside `PROCEDURE_ROOT_CODE`/`FSN_USE_CODE`.
 - `TerminologySweep._check_hierarchy`'s own chunking loop is now expressed through a shared,
   parameterised `_expand_combined` helper (byte-identical ECL, only the plumbing moved) that
@@ -122,7 +122,7 @@ looser framing.
   (`* : <attr> = *`, `* : <attr> = <<root>`) and a top-level `AND`, on top of the existing
   literal-disjunction/`<<`/`<`/`MINUS` subset - still not an ECL engine, an unsupported
   refinement still raises `StubEclNotSupportedError`.
-- `transform/src/nptc_transform/specimen_table.py` and `semantic_drift.py` are new modules;
+- `transform/src/aptc_transform/specimen_table.py` and `semantic_drift.py` are new modules;
   three new finding codes (`TERM_SPECIMEN_NOT_MODELLED`, `TERM_SPECIMEN_DIFFERS`,
   `TERM_TIMING_NOT_MODELLED`), all `Band.INFORMATIONAL`.
 - `RunResult.drift` is `None` under the same condition as `terminology`/`designations` (no

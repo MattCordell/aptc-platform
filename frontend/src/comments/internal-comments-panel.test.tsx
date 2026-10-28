@@ -18,7 +18,7 @@ import { InternalCommentsPanel } from "./internal-comments-panel.tsx";
  */
 
 const SUBMISSION_ID = "6f1d2c3e-0000-4000-8000-000000000051";
-const ENTRY_KEY = "NPTC-000247";
+const ENTRY_KEY = "APTC-000247";
 const COMMENT_ID = "6f1d2c3e-0000-4000-8000-000000000061";
 
 const READ = "comment.internal.read";
@@ -709,8 +709,8 @@ describe.each(TARGETS)("InternalCommentsPanel on $name", ({ target, path }) => {
 });
 
 describe("InternalCommentsPanel when the page moves to another target", () => {
-  const FIRST: CommentTarget = { kind: "entry", businessKey: "NPTC-000247" };
-  const SECOND: CommentTarget = { kind: "entry", businessKey: "NPTC-000248" };
+  const FIRST: CommentTarget = { kind: "entry", businessKey: "APTC-000247" };
+  const SECOND: CommentTarget = { kind: "entry", businessKey: "APTC-000248" };
 
   it("does not carry a half-written comment over to the next target", async () => {
     stubApi([

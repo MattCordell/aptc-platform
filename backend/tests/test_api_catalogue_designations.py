@@ -1,11 +1,11 @@
-"""HTTP tests for `nptc.api.routers.catalogue_designations` (issue #224,
+"""HTTP tests for `aptc.api.routers.catalogue_designations` (issue #224,
 FR-04, FR-05, FR-36, FR-37, NFR-08, NFR-20).
 
-The service layer (`nptc.catalogue.designations`, `nptc.catalogue.
+The service layer (`aptc.catalogue.designations`, `aptc.catalogue.
 collisions`) already has its own unit tests in `test_catalogue_designations.py`
 and `test_catalogue_collisions.py`; this module proves the HTTP adapter on
 top of it - request/response shape, status codes, the exception-handler
-mapping in `nptc.api.errors`, and authorisation (FR-44) - against the real
+mapping in `aptc.api.errors`, and authorisation (FR-44) - against the real
 `create_app()`, following `test_api_catalogue_bindings.py`'s own shape
 exactly.
 
@@ -29,20 +29,20 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.engine import Connection
 
-import nptc.db.models.catalogue_entry as catalogue_entry_module
-from nptc.api.routers.catalogue_designations import (
+import aptc.db.models.catalogue_entry as catalogue_entry_module
+from aptc.api.routers.catalogue_designations import (
     AmendDesignationResult,
     DesignationWriteResult,
     ReinstateDesignationResult,
 )
-from nptc.audit.writer import AuditContext
-from nptc.auth.permissions import Role
-from nptc.catalogue.entries import create_entry
-from nptc.catalogue.term_hygiene import preferred_term_length
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.catalogue_entry import CatalogueEntry
-from nptc.db.models.designation import Designation
-from nptc.db.models.designation_collision_acknowledgement import (
+from aptc.audit.writer import AuditContext
+from aptc.auth.permissions import Role
+from aptc.catalogue.entries import create_entry
+from aptc.catalogue.term_hygiene import preferred_term_length
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.catalogue_entry import CatalogueEntry
+from aptc.db.models.designation import Designation
+from aptc.db.models.designation_collision_acknowledgement import (
     DesignationCollisionAcknowledgement,
 )
 
@@ -828,7 +828,7 @@ def test_no_entry_for_the_given_business_key_is_404(api: ApiTestApp) -> None:
     # No entry exists to read a current row_version from - overridden
     # explicitly so `_add` never tries to resolve one (matching
     # `test_api_catalogue_bindings.py::test_bind_unknown_business_key_is_404`).
-    response = _add(api, "NPTC-999999", token, expected_row_version=1)
+    response = _add(api, "APTC-999999", token, expected_row_version=1)
 
     assert response.status_code == 404, response.text
 
@@ -1703,13 +1703,13 @@ def test_an_over_length_amendment_is_logged_by_the_write_path_and_still_saves(
     version = _row_version(api, business_key, token)
     new_term = "Full blood count, automated"
 
-    with caplog.at_level(logging.WARNING, logger="nptc.catalogue.entries"):
+    with caplog.at_level(logging.WARNING, logger="aptc.catalogue.entries"):
         response = _amend(
             api, business_key, token, term="Iron", new_term=new_term, expected_row_version=version
         )
 
     assert response.status_code == 200, response.text
-    records = [r for r in caplog.records if r.name == "nptc.catalogue.entries"]
+    records = [r for r in caplog.records if r.name == "aptc.catalogue.entries"]
     assert len(records) == 1
     assert business_key in records[0].getMessage()
     assert new_term not in records[0].getMessage()

@@ -2,7 +2,7 @@
 ``StubTerminologyClient`` and once against ``OntoserverClient`` (the
 ``client`` fixture in ``conftest.py``), seeded from the same captured FHIR
 bodies (``shared/tests/fixtures/terminology/``) via the same production
-parsers in ``nptc_shared.terminology.fhir``. This is the issue's acceptance
+parsers in ``aptc_shared.terminology.fhir``. This is the issue's acceptance
 criterion made mechanical: a behaviour one implementation has and the other
 lacks cannot pass.
 
@@ -15,9 +15,9 @@ from __future__ import annotations
 
 import pytest
 
-from nptc_shared.terminology.client import TerminologyClient
-from nptc_shared.terminology.errors import TerminologyError
-from nptc_shared.terminology.models import AU_LANGUAGE_TAG, SNOMED_CT_AU, SubsumptionOutcome
+from aptc_shared.terminology.client import TerminologyClient
+from aptc_shared.terminology.errors import TerminologyError
+from aptc_shared.terminology.models import AU_LANGUAGE_TAG, SNOMED_CT_AU, SubsumptionOutcome
 
 ECL_TWO_CODES = "122192001 OR 71388002"
 ECL_FR84_CHECK = "(122192001 OR 71388002) MINUS <<71388002"

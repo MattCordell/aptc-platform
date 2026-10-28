@@ -11,13 +11,13 @@ Fixture graph::
     owner_engine        (session)  engine authenticating as the container's
                                     bootstrap superuser-equivalent role
     migrated            (session)  `alembic upgrade head`, plus provisioning
-                                    the nptc_app_login role - requested
+                                    the aptc_app_login role - requested
                                     explicitly by db/app_engine, never
                                     autouse, so a test needing neither a
                                     container nor a connection (e.g.
                                     test_settings.py, test_sql_parameterisation.py)
                                     never starts Docker at all
-    app_engine          (session)  engine authenticating as nptc_app_login
+    app_engine          (session)  engine authenticating as aptc_app_login
     db / app_db         (function) a connection in an outer transaction,
                                     rolled back after the test
     owner_session /     (function) an ORM Session joined to db / app_db
@@ -67,9 +67,9 @@ from sqlalchemy.engine import Connection, Engine, make_url
 from sqlalchemy.orm import Session
 from testcontainers.community.postgres import PostgresContainer
 
-from nptc.db import property_reconciler_dispatch
-from nptc.db.bootstrap import _build_system_property_definitions
-from nptc.db.provision_login import APP_LOGIN_ROLE, provision_app_login
+from aptc.db import property_reconciler_dispatch
+from aptc.db.bootstrap import _build_system_property_definitions
+from aptc.db.provision_login import APP_LOGIN_ROLE, provision_app_login
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 COMPOSE_FILE = REPO_ROOT / "deploy" / "compose.yml"
@@ -77,7 +77,7 @@ PYPROJECT_FILE = REPO_ROOT / "pyproject.toml"
 
 #: Obviously-synthetic, local-only credential - this role exists only
 #: inside a disposable test container, never a real deployment (NFR-26).
-APP_LOGIN_PASSWORD = "nptc-app-login-test-only-not-a-real-secret"
+APP_LOGIN_PASSWORD = "aptc-app-login-test-only-not-a-real-secret"
 
 
 def compose_config() -> dict[str, Any]:
@@ -90,7 +90,7 @@ def compose_config() -> dict[str, Any]:
     return data
 
 
-THEME_MOUNT_TARGET = "/opt/keycloak/themes/nptc"
+THEME_MOUNT_TARGET = "/opt/keycloak/themes/aptc"
 
 
 def theme_mount_source() -> Path:
@@ -137,9 +137,9 @@ def postgres_container() -> Iterator[PostgresContainer]:
     # psycopg2 is not a dependency anywhere in this workspace.
     container = PostgresContainer(
         image_from_compose(),
-        username="nptc_owner",
-        password="nptc-owner-test-only-not-a-real-secret",
-        dbname="nptc_test",
+        username="aptc_owner",
+        password="aptc-owner-test-only-not-a-real-secret",
+        dbname="aptc_test",
         driver="psycopg",
     )
     # The initdb flags compose gives the real database, so the suite runs on
@@ -166,7 +166,7 @@ def migrated(owner_engine: Engine) -> None:
     migrations themselves running, and create_all would never execute their
     GRANT/REVOKE statements at all.
 
-    Also provisions nptc_app_login through the same function the deployable
+    Also provisions aptc_app_login through the same function the deployable
     stack's `migrate` service runs. A superuser connection using SET ROLE
     would still bypass some privilege checks, so only a genuinely separate
     authenticated login proves the grant is real.
@@ -226,7 +226,7 @@ def _savepoint_session(connection: Connection) -> Session:
 
 @pytest.fixture
 def app_session(app_db: Connection) -> Session:
-    """An ORM `Session` on `app_db`, i.e. as the `nptc_app_login` role."""
+    """An ORM `Session` on `app_db`, i.e. as the `aptc_app_login` role."""
     return _savepoint_session(app_db)
 
 
@@ -303,7 +303,7 @@ def _wipe_committed_audit_state(owner_engine: Engine) -> None:
     - every table that FK-references `app_user`, deleted before it (that
     order - FK-safe; `0003_user_and_user_identity.py` gives neither FK an
     `ON DELETE CASCADE`, so `app_user` must go last). Only the owner role
-    can (`nptc_app_login` has no DELETE on any of these, NFR-09).
+    can (`aptc_app_login` has no DELETE on any of these, NFR-09).
 
     Safe to run unconditionally: nothing in this test tree relies on
     inherited rows in these tables - the tests that commit real rows at
@@ -352,7 +352,7 @@ _WIPE_CATALOGUE_STATEMENTS = (
 
 
 def _wipe_committed_catalogue(owner_engine: Engine) -> None:
-    """Deletes every committed catalogue row, as the owner (`nptc_app_login` has no DELETE on
+    """Deletes every committed catalogue row, as the owner (`aptc_app_login` has no DELETE on
     these tables). Leaves `audit_event` alone: request `pristine_audit_event` as well when the
     assertion needs an empty chain."""
     with owner_engine.connect() as connection:
@@ -408,7 +408,7 @@ def pristine_system_properties(owner_engine: Engine, migrated: None) -> Iterator
 def app_login_credentials(migrated: None) -> tuple[str, str]:
     """`(APP_LOGIN_ROLE, APP_LOGIN_PASSWORD)`, for a test module that needs
     to authenticate as the login role against a database other than
-    `postgres_container`'s own (test_db_round_trip.py's `nptc_roundtrip`) -
+    `postgres_container`'s own (test_db_round_trip.py's `aptc_roundtrip`) -
     the module constants themselves are already exported, but a fixture
     lets such a module depend on `migrated` (the role actually existing)
     through the fixture graph rather than a bare module-level import."""
@@ -417,15 +417,15 @@ def app_login_credentials(migrated: None) -> tuple[str, str]:
 
 @pytest.fixture
 def hostile_api_settings_env(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """Exports an `NPTC_FSN_SEMANTIC_TAG` that makes any fresh `ApiSettings()`
+    """Exports an `APTC_FSN_SEMANTIC_TAG` that makes any fresh `ApiSettings()`
     raise, with `get_api_settings`' process-wide cache emptied on the way in
     and out. Without the clear, an earlier test that warmed the cache would
     let a route that regressed to calling `get_api_settings()` directly still
     answer 200, so the test would pass for the wrong reason."""
-    from nptc.api.dependencies import get_api_settings
+    from aptc.api.dependencies import get_api_settings
 
     get_api_settings.cache_clear()
-    monkeypatch.setenv("NPTC_FSN_SEMANTIC_TAG", "stripped")
+    monkeypatch.setenv("APTC_FSN_SEMANTIC_TAG", "stripped")
     yield
     get_api_settings.cache_clear()
 
@@ -470,7 +470,7 @@ def make_dataset_document() -> Callable[..., dict[str, Any]]:
         for index, (code, fsn, term) in enumerate(_SEED_SAMPLE_ROWS[:entry_count]):
             entries.append(
                 {
-                    "business_key": f"NPTC-{first_key_number + index:06d}",
+                    "business_key": f"APTC-{first_key_number + index:06d}",
                     "source": {
                         "sheet": "RCPA SPIA Requesting_Jun 2026",
                         "row": index + 2,

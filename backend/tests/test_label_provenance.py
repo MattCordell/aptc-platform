@@ -31,8 +31,8 @@ from fastapi.routing import APIRoute
 from pydantic import BaseModel
 from sqlalchemy.engine import Connection
 
-from nptc.api.app import create_app
-from nptc.api.labels import LabelProvenance
+from aptc.api.app import create_app
+from aptc.api.labels import LabelProvenance
 
 
 # `backend/tests` has no `__init__.py` (pytest's `--import-mode=importlib`),
@@ -362,7 +362,7 @@ def test_known_models_declare_provenance_for_exactly_their_own_label_fields() ->
     import uuid
     from datetime import UTC, datetime
 
-    from nptc.api.routers.catalogue_shared import (
+    from aptc.api.routers.catalogue_shared import (
         Designation,
         EntrySummary,
         binding_from_row,
@@ -370,9 +370,9 @@ def test_known_models_declare_provenance_for_exactly_their_own_label_fields() ->
         entry_summary_fields,
         snomed_synonyms_for,
     )
-    from nptc.catalogue import queries
-    from nptc.terminology.synonyms import SnomedSynonymSource
-    from nptc_shared.terminology import StubConcept, StubTerminologyClient
+    from aptc.catalogue import queries
+    from aptc.terminology.synonyms import SnomedSynonymSource
+    from aptc_shared.terminology import StubConcept, StubTerminologyClient
 
     binding_row = queries.BindingRow(
         id=uuid.uuid4(),
@@ -394,7 +394,7 @@ def test_known_models_declare_provenance_for_exactly_their_own_label_fields() ->
 
     summary = EntrySummary(
         **entry_summary_fields(
-            business_key="NPTC-000001",
+            business_key="APTC-000001",
             preferred_term="Full blood count",
             length=17,
             status="active",

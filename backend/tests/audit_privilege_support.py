@@ -6,7 +6,7 @@ it) - imported by ``test_db_audit_privileges.py`` and
 helpers: by file path, since ``backend/tests`` has no ``__init__.py`` and
 pytest runs with ``--import-mode=importlib``.
 
-The same rationale as ``nptc.db.roles``'s own docstring applies here: one
+The same rationale as ``aptc.db.roles``'s own docstring applies here: one
 definition of "what counts as a refused write", imported by both the
 fresh-database tests and the post-round-trip tests, so the grant asserted
 in each case is literally the same assertion rather than two copies that
@@ -22,7 +22,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import ProgrammingError
 
-from nptc.audit.hashing import GENESIS_HASH
+from aptc.audit.hashing import GENESIS_HASH
 
 INSUFFICIENT_PRIVILEGE = "42501"
 

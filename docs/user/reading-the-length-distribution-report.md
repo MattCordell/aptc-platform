@@ -53,7 +53,7 @@ many, not who they are.
 ## Setting the maximum once you have chosen one
 
 The maximum itself is set by an operator, in the platform's configuration
-(`NPTC_MAX_PREFERRED_TERM_LENGTH` — see
+(`APTC_MAX_PREFERRED_TERM_LENGTH` — see
 [`docs/operations/configuration.md`](../operations/configuration.md)), not through this
 report or any other part of the API. Changing it takes effect for every future save; it
 never retroactively blocks an entry that already exceeds it.

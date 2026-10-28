@@ -1,7 +1,7 @@
 """`GET /api/v1/auth/me` and the auth dependency chain behind it over real
 HTTP (issue #41, NFR-01, NFR-07, NFR-20, FR-44).
 
-These are the first tests in the repo to exercise `nptc.api`'s production
+These are the first tests in the repo to exercise `aptc.api`'s production
 app rather than a throwaway one built in a test module. Every case below
 runs the real `TokenVerifier` -> `resolve_user_for_claims` ->
 `principal_for` chain; only the database connection and the IdP's network
@@ -23,7 +23,7 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
-from nptc.auth.permissions import Permission, Role
+from aptc.auth.permissions import Permission, Role
 
 # Registered in sys.modules before exec_module - see
 # test_authz_negative_http.py for why @dataclass requires it.

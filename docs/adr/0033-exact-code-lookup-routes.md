@@ -46,7 +46,7 @@ as it does through `/catalogue/entries/{business_key}/bindings` today, carrying
 ### The retired-collision tie-break is a real `retired_at` column, not a proxy
 
 More than one entry can hold the same code as a *retired* binding, which is the one case
-the active-binding invariant above cannot rule out. `nptc.catalogue.queries.
+the active-binding invariant above cannot rule out. `aptc.catalogue.queries.
 get_entry_by_code` needs a deterministic answer for that case, and three shapes were
 considered:
 
@@ -56,7 +56,7 @@ considered:
    without anything about the retirement itself changing. This was the plan's own
    provisional recommendation, flagged as a weakness to confirm before this ADR was
    written.
-2. **A real `retired_at` column**, set once by `nptc.catalogue.bindings.retire_binding`
+2. **A real `retired_at` column**, set once by `aptc.catalogue.bindings.retire_binding`
    alongside `status`/`retirement_reason`, ordered `retired_at DESC, business_key ASC`.
    A migration, but an honest one: the column means exactly what it says, and cannot drift
    for a reason unrelated to retirement.
@@ -83,7 +83,7 @@ requests.
 
 ### The `system_token` alias registry is code, not a database table
 
-`nptc.catalogue.code_systems.SYSTEM_TOKENS` is a frozen `dict[str, str]` mapping a short,
+`aptc.catalogue.code_systems.SYSTEM_TOKENS` is a frozen `dict[str, str]` mapping a short,
 URL-legal token to a code system's full URI (`sct` → `http://snomed.info/sct`), ships with
 one entry, and never imports FastAPI. This is
 [ADR-0019](0019-permission-framework.md)'s "permissions as code, never DB rows" argument
@@ -97,13 +97,13 @@ screen, and not a second implementation to keep in step with the first (ADR-0001
 An unregistered `system_token` (or, on `/lookup`, an unregistered system URI) and a
 registered one that simply matches no published entry's code are both reported with the
 identical fixed sentence (`CodeLookupNotFoundError`, mapped by
-`nptc.api.errors.register_exception_handlers` exactly as `EntryNotFoundError` is), naming
+`aptc.api.errors.register_exception_handlers` exactly as `EntryNotFoundError` is), naming
 the registered tokens. This was an open question at planning time - the alternative was
 two distinct sentences, on the reasoning that "your token is wrong" is more actionable
 for a caller than "that code does not exist" - and was resolved in favour of the single
 sentence: response text should not let a caller distinguish "is this deployment's registry
 misconfigured" from "does this code simply not exist", the same non-disclosure posture
-`nptc.catalogue.queries.get_entry` already takes for a hidden-status `business_key`
+`aptc.catalogue.queries.get_entry` already takes for a hidden-status `business_key`
 (neither a caller nor an unauthenticated party enumerating codes learns anything about
 *why* a code did not resolve).
 

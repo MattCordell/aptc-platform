@@ -28,7 +28,7 @@ from typing import Any
 import pytest
 from sqlalchemy.engine import Connection
 
-from nptc.catalogue import facets as facets_module
+from aptc.catalogue import facets as facets_module
 
 
 def _load(name: str) -> Any:
@@ -238,8 +238,8 @@ def test_a_cursor_this_api_did_not_issue_is_refused(
         "not-a-cursor",
         # No digest part at all - the two-part shape this endpoint used to
         # issue.
-        f"{score}:NPTC-000001",
-        "abc:NPTC-000001",
+        f"{score}:APTC-000001",
+        "abc:APTC-000001",
         "0.5",
         # A well-formed score and digest, but a key half that is not a
         # business key. Accepted as "any non-empty string" this would page
@@ -247,8 +247,8 @@ def test_a_cursor_this_api_did_not_issue_is_refused(
         # corrupting its own cursor goes unnoticed - `/catalogue/entries`
         # pattern-validates its `after` for the same reason.
         f"{score}:{digest}:not-a-business-key",
-        f"{score}:{digest}:NPTC-12345",
-        f"{score}:{digest}:nptc-000001",
+        f"{score}:{digest}:APTC-12345",
+        f"{score}:{digest}:aptc-000001",
         f"{score}:{digest}:",
         # Scores `float()` accepts and this endpoint never mints. `inf`
         # satisfies `score < :after_score` for every row, so the caller is
@@ -257,10 +257,10 @@ def test_a_cursor_this_api_did_not_issue_is_refused(
         # instead of the shape. `nan` makes every comparison false and yields
         # a permanently empty page. The digest is no defence: it is unkeyed
         # by design, so a client replaying its own `q` computes it.
-        f"inf:{digest}:NPTC-000001",
-        f"-inf:{digest}:NPTC-000001",
-        f"nan:{digest}:NPTC-000001",
-        f"Infinity:{digest}:NPTC-000001",
+        f"inf:{digest}:APTC-000001",
+        f"-inf:{digest}:APTC-000001",
+        f"nan:{digest}:APTC-000001",
+        f"Infinity:{digest}:APTC-000001",
     )
     for cursor in bogus:
         response = api.get("/catalogue/search", params={"q": _seed.TIE_TERM, "after": cursor})

@@ -1,10 +1,10 @@
-"""HTTP tests for `nptc.api.routers.catalogue_bindings` (issue #219, FR-06,
+"""HTTP tests for `aptc.api.routers.catalogue_bindings` (issue #219, FR-06,
 FR-08, FR-36, NFR-08, NFR-20).
 
-The service layer (`nptc.catalogue.bindings`) already has its own unit
+The service layer (`aptc.catalogue.bindings`) already has its own unit
 tests in `test_catalogue_bindings.py`; this module proves the HTTP adapter
 on top of it - request/response shape, status codes, the exception-handler
-mapping in `nptc.api.errors`, and authorisation (FR-44) - against the real
+mapping in `aptc.api.errors`, and authorisation (FR-44) - against the real
 `create_app()`, not a throwaway one.
 
 The negative case is the point (CLAUDE.md): every domain refusal
@@ -25,13 +25,13 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.engine import Connection
 
-from nptc.audit.writer import AuditContext
-from nptc.auth.permissions import Role
-from nptc.catalogue import queries
-from nptc.catalogue.entries import EntryChanges, create_entry, save_entry
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.catalogue_entry import CatalogueEntry
-from nptc.db.models.code_binding import CodeBinding
+from aptc.audit.writer import AuditContext
+from aptc.auth.permissions import Role
+from aptc.catalogue import queries
+from aptc.catalogue.entries import EntryChanges, create_entry, save_entry
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.catalogue_entry import CatalogueEntry
+from aptc.db.models.code_binding import CodeBinding
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -55,7 +55,7 @@ latest_audit_event = _load("audit_support").latest_audit_event
 #: and `public_catalogue_support.py` already use, plus one more for the
 #: cross-entry conflict test, since that needs three distinct codes live at
 #: once. Invented digits do not insert at all: `code`'s `CHECK` constraint
-#: calls `nptc_sctid_is_valid`.
+#: calls `aptc_sctid_is_valid`.
 CODE_A = "391483001"
 FSN_A = "Microscopy (acid fast bacilli) (procedure)"
 AU_PREFERRED_A = "Microscopy (acid fast bacilli)"
@@ -321,7 +321,7 @@ def test_binding_writes_serve_the_injected_settings_not_the_environment(
     api: ApiTestApp, hostile_api_settings_env: None
 ) -> None:
     """All three write routes re-read the row through `binding_from_row`; an
-    invalid `NPTC_FSN_SEMANTIC_TAG` in the environment must not reach them."""
+    invalid `APTC_FSN_SEMANTIC_TAG` in the environment must not reach them."""
     business_key = _seed_entry(api)
     token = api.admin_token(subject="sub-bind-injected-settings")
 
@@ -503,7 +503,7 @@ def test_retire_without_a_reason_is_422(api: ApiTestApp) -> None:
 
 @pytest.mark.integration
 def test_retiring_an_already_retired_binding_is_404_not_409(api: ApiTestApp) -> None:
-    """`nptc.catalogue.bindings.retire_binding` itself raises
+    """`aptc.catalogue.bindings.retire_binding` itself raises
     `CodeBindingAlreadyRetiredError` (409) given an already-retired
     `CodeBinding` instance - but this route addresses a binding by `code`
     through `load_active_binding`, which is scoped to `status == 'active'`
@@ -512,7 +512,7 @@ def test_retiring_an_already_retired_binding_is_404_not_409(api: ApiTestApp) -> 
     the code is simply no longer addressable this way once retired, so the
     honest answer is 404, and `CodeBindingAlreadyRetiredError` is
     unreachable from this particular route (it stays mapped in
-    `nptc.api.errors` for whichever future write path holds an already-
+    `aptc.api.errors` for whichever future write path holds an already-
     loaded `CodeBinding` rather than resolving one by code)."""
     business_key = _seed_entry(api)
     token = api.admin_token(subject="sub-double-retire")
@@ -558,7 +558,7 @@ def test_bind_unknown_business_key_is_404(api: ApiTestApp) -> None:
 
     # No entry exists to read a current row_version from - overridden
     # explicitly so `_bind` never tries to resolve one.
-    response = _bind(api, "NPTC-999999", token, expected_row_version=1)
+    response = _bind(api, "APTC-999999", token, expected_row_version=1)
 
     assert response.status_code == 404, response.text
 
@@ -988,7 +988,7 @@ def test_conflict_response_names_no_internal_identifier(api: ApiTestApp) -> None
     """`CodeBindingCodeAlreadyBoundError`'s exception message names the
     other entry's internal UUID (for the log); the response body must not
     (NFR-04/NFR-26) - the same convention every other handler in
-    `nptc.api.errors` follows."""
+    `aptc.api.errors` follows."""
     token = api.admin_token(subject="sub-conflict-body")
     first_entry = _seed_entry(api, preferred_term="Full blood count")
     second_entry = _seed_entry(api, preferred_term="Urine microscopy")

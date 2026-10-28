@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import pytest
 
-from nptc_shared.sctid import has_valid_check_digit
-from nptc_transform.specimen_map import SPECIMEN_MAP
-from nptc_transform.specimen_table import (
+from aptc_shared.sctid import has_valid_check_digit
+from aptc_transform.specimen_map import SPECIMEN_MAP
+from aptc_transform.specimen_table import (
     _OUTSIDE_THE_MAP,
     SPECIMEN_TABLE,
     _group,

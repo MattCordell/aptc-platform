@@ -1,4 +1,4 @@
-"""The plain-refusal table in `nptc.api.errors`.
+"""The plain-refusal table in `aptc.api.errors`.
 
 No database and no `integration` mark: the handlers are exercised through a
 bare `FastAPI` app with one route that raises whatever a test hands it.
@@ -23,37 +23,37 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-import nptc
-import nptc_shared
-from nptc.api.dependencies import CredentialRequiredError, MalformedAuthorizationError
-from nptc.api.errors import (
+import aptc
+import aptc_shared
+from aptc.api.dependencies import CredentialRequiredError, MalformedAuthorizationError
+from aptc.api.errors import (
     _DETAIL_SERVER_MISCONFIGURED,
     _DETAIL_SIGN_IN_REQUIRED,
     _DETAIL_UNAUTHENTICATED,
     _REFUSALS,
     register_exception_handlers,
 )
-from nptc.catalogue.errors import EntryNotFoundError
-from nptc.catalogue.local_codes import (
+from aptc.catalogue.errors import EntryNotFoundError
+from aptc.catalogue.local_codes import (
     InvalidLocalCodeSystemKeyError,
     InvalidMatchStrengthError,
     LocalCodeAlreadyDeprecatedError,
     LocalCodeSystemAlreadyDeprecatedError,
 )
-from nptc.catalogue.maintenance import ListingCursorMismatchError, MalformedListingCursorError
-from nptc.catalogue.search import EmptySearchQueryError
-from nptc.db.models.local_code_snomed_map import SnomedMapMatchStrength
-from nptc.settings import AuthSettings
-from nptc.submissions.reference_check import (
+from aptc.catalogue.maintenance import ListingCursorMismatchError, MalformedListingCursorError
+from aptc.catalogue.search import EmptySearchQueryError
+from aptc.db.models.local_code_snomed_map import SnomedMapMatchStrength
+from aptc.settings import AuthSettings
+from aptc.submissions.reference_check import (
     ReferenceCheckFailedError,
     ReferenceCheckUnavailableError,
     ReferenceFailure,
 )
-from nptc_shared.sctid import InvalidSCTIDError
-from nptc_shared.terminology import TerminologyConfigError
+from aptc_shared.sctid import InvalidSCTIDError
+from aptc_shared.terminology import TerminologyConfigError
 
-_ERRORS_LOGGER = "nptc.api.errors"
-_FIRST_PARTY = frozenset({"nptc", "nptc_shared"})
+_ERRORS_LOGGER = "aptc.api.errors"
+_FIRST_PARTY = frozenset({"aptc", "aptc_shared"})
 
 
 def _app() -> FastAPI:
@@ -83,7 +83,7 @@ def _import_all(package: types.ModuleType) -> None:
 
 
 def _import_first_party() -> None:
-    for package in (nptc, nptc_shared):
+    for package in (aptc, aptc_shared):
         _import_all(package)
 
 
@@ -121,7 +121,7 @@ def test_every_exception_with_an_http_status_has_a_handler() -> None:
 
     assert classes, "the sweep found no exception classes, so it proves nothing"
     assert not unhandled, (
-        "add a row to _REFUSALS in nptc/api/errors.py (or a function in "
+        "add a row to _REFUSALS in aptc/api/errors.py (or a function in "
         "register_exception_handlers) for: "
         + ", ".join(f"{cls.__module__}.{cls.__qualname__}" for cls in unhandled)
     )
@@ -177,7 +177,7 @@ def test_the_match_strength_sentence_names_exactly_the_stored_strengths() -> Non
     named = set(detail.removeprefix(prefix).removesuffix(".").split(", "))
 
     assert named == {m.value for m in SnomedMapMatchStrength}, (
-        "update the sentence in nptc/api/errors.py together with the CHECK constraint migration"
+        "update the sentence in aptc/api/errors.py together with the CHECK constraint migration"
     )
 
 
@@ -215,7 +215,7 @@ def test_a_row_with_no_log_message_logs_nothing(caplog: pytest.LogCaptureFixture
 
 
 def test_a_row_with_an_explicit_status_and_level(caplog: pytest.LogCaptureFixture) -> None:
-    secret = "NPTC_TX_TIMEOUT_SECONDS='not-a-number'"
+    secret = "APTC_TX_TIMEOUT_SECONDS='not-a-number'"
 
     with caplog.at_level(logging.DEBUG, logger=_ERRORS_LOGGER):
         response = _client_raising(TerminologyConfigError(secret)).get("/boom")

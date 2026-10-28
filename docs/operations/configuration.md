@@ -10,79 +10,79 @@ Copy `deploy/.env.example` to `deploy/.env` and fill in real values before runni
 
 Compose does not pass `deploy/.env` wholesale to the containers. It sets each service's
 variables explicitly, so the `backend` service never receives the owner's
-`NPTC_MIGRATION_DATABASE_URL`. Compose also builds the two database URLs itself, with host
-`postgres`, from `POSTGRES_*`, `NPTC_APP_DB_PASSWORD` and `NPTC_INDEXER_DB_PASSWORD`. The
-`NPTC_DATABASE_URL` and
-`NPTC_MIGRATION_DATABASE_URL` lines in `deploy/.env` point at `localhost` and serve only an
+`APTC_MIGRATION_DATABASE_URL`. Compose also builds the two database URLs itself, with host
+`postgres`, from `POSTGRES_*`, `APTC_APP_DB_PASSWORD` and `APTC_INDEXER_DB_PASSWORD`. The
+`APTC_DATABASE_URL` and
+`APTC_MIGRATION_DATABASE_URL` lines in `deploy/.env` point at `localhost` and serve only an
 API you run on your own machine ([`local-development.md`](local-development.md)).
 
 | Variable | Read by | Default (`.env.example`) | Secret | Local dev value |
 |---|---|---|---|---|
-| `POSTGRES_USER` | `deploy/compose.yml`'s `postgres` service | `nptc` | No | `nptc` is fine |
+| `POSTGRES_USER` | `deploy/compose.yml`'s `postgres` service | `aptc` | No | `aptc` is fine |
 | `POSTGRES_PASSWORD` | `deploy/compose.yml`'s `postgres` service | `change-me` | Yes | Any local-only value |
-| `POSTGRES_DB` | `deploy/compose.yml`'s `postgres` service | `nptc` | No | `nptc` is fine |
+| `POSTGRES_DB` | `deploy/compose.yml`'s `postgres` service | `aptc` | No | `aptc` is fine |
 | `POSTGRES_PORT` | `deploy/compose.yml`'s `postgres` service (host port mapping) | `5432` | No | Change only if `5432` is already in use locally |
-| `NPTC_APP_DB_PASSWORD` | `deploy/compose.yml`'s `migrate` and `backend` services; `nptc.settings.AppLoginSettings` (`nptc.db.provision_login`) | `change-me` | Yes | The password of the `nptc_app_login` database role. Required by compose, with no fallback. Keep it free of `@ : / ? # %`, because compose places it in a database URL; `migrate` refuses such a value and names the variable. When you run the API on your own machine, `NPTC_DATABASE_URL` must carry the same password |
-| `NPTC_INDEXER_DB_PASSWORD` | `deploy/compose.yml`'s `migrate` and `backend` services; `nptc.settings.IndexerLoginSettings` (`nptc.db.provision_login`) | `change-me` | Yes | The password of the `nptc_indexer` database role, which builds the indexes filterable properties need (FR-13). Required by compose, with no fallback. The same character rule as `NPTC_APP_DB_PASSWORD`. `migrate` refuses a bad value and names the variable. When you run the API on your own machine, put the same password in `NPTC_INDEXER_DATABASE_URL` |
-| `NPTC_DATABASE_URL` | `nptc.settings.DatabaseSettings` (backend) | *(no default - required)* | Yes | A DSN for the app runtime role (`nptc_app` membership). Compose builds this itself for the `backend` service |
-| `NPTC_MIGRATION_DATABASE_URL` | `nptc.settings.MigrationSettings` (backend), Alembic (`backend/migrations/env.py`) | *(no default - required)* | Yes | A DSN for the owning role - typically `POSTGRES_USER` in this local stack. Compose gives it to the `migrate` service only |
-| `NPTC_AUDIT_VERIFY_DATABASE_URL` | `nptc.settings.AuditVerifySettings` (backend, issue #38) | *(empty - falls back to `NPTC_DATABASE_URL`)* | Yes, when set | Optional DSN for `scripts/verify_audit_chain.py` - point this at a read-only replica or a restored backup, since `verify_chain` only ever issues `SELECT`s. See [the runbook](runbooks/verify-audit-chain.md) |
-| `NPTC_INDEXER_DATABASE_URL` | `nptc.settings.IndexerSettings` (backend, issue #54, FR-13); `scripts/seed_baseline.py` | *(empty - reconciliation disabled)* | Yes, when set | The DSN the API uses to build and drop the indexes filterable properties need, after a registry write commits. It must name a role that owns `property_value` (never `nptc_app`, which cannot do DDL, or the migration owner, which can do far more than this needs). Compose builds it for the `backend` service from `NPTC_INDEXER_DB_PASSWORD`. The seed CLI reads it too, to build the system properties' indexes after it commits. Empty is valid: a registry write then logs a warning and builds no index, the seed CLI prints a warning and builds none, and you run [the runbook](runbooks/reconcile-property-indexes.md)'s command instead. See [the provisioning steps](upgrade.md#provisioning-the-index-reconcilers-login-issues-54-and-274-fr-13) |
-| `NPTC_TRUSTED_ISSUERS` | `nptc.settings.AuthSettings` (backend) | *(empty - no issuer trusted)* | No | Comma-separated list of OIDC issuer URLs allowed to auto-link (NFR-05). Leave empty while federation is off (NFR-02) |
-| `NPTC_OIDC_ISSUER` | `nptc.settings.AuthSettings` (backend, NFR-07) | *(empty - no verifier can be constructed)* | No | The realm's issuer URL, as your browser reaches Keycloak, e.g. `http://localhost:8080/realms/nptc`. In the compose stack it must keep the browser-facing host, because Keycloak writes the request host into a token's `iss` claim. If you change `KEYCLOAK_PORT`, change this too. Empty is fail-closed: `TokenVerifier.from_settings` refuses to construct rather than accept a token whose issuer was never checked |
-| `NPTC_OIDC_AUDIENCE` | `nptc.settings.AuthSettings` (backend, NFR-07) | `nptc-api` | No | Fixed by the committed realm's `nptc-api-audience` mapper (ADR-0014) - only change this alongside the realm |
-| `NPTC_JWKS_URL` | `nptc.settings.AuthSettings` (backend, NFR-07) | *(empty - resolved via OIDC discovery)* | No | Set only to skip discovery (air-gapped deployments) - normally left empty. Must be the direct URL: PyJWT rejects redirects. The compose stack fixes it for `backend` at `http://keycloak:8080/realms/nptc/protocol/openid-connect/certs`, the internal address, so the API never needs to reach the browser-facing issuer host |
-| `NPTC_JWKS_CACHE_SECONDS` | `nptc.settings.AuthSettings` (backend, NFR-07) | `300` | No | How long `nptc.auth.jwks.SigningKeys` trusts a fetched JWKS before re-checking |
-| `NPTC_JWKS_REFRESH_COOLDOWN_SECONDS` | `nptc.settings.AuthSettings` (backend, NFR-07) | `30` | No | An unrecognised `kid` within this many seconds of the last refresh attempt is refused with no HTTP request, so a spray of unknown `kid`s cannot hammer the IdP |
-| `NPTC_MFA_ACR_VALUES` | `nptc.settings.AuthSettings` (backend, issue #44, NFR-06) | `2` | No | Comma-separated `acr` claim values that satisfy mandatory-MFA-for-administrators (`nptc.auth.principal.principal_for`). Must match the committed realm's `nptc loa-2 condition` authenticator config (`loa-condition-level`) - see [the permissions architecture doc](../architecture/permissions.md) |
+| `APTC_APP_DB_PASSWORD` | `deploy/compose.yml`'s `migrate` and `backend` services; `aptc.settings.AppLoginSettings` (`aptc.db.provision_login`) | `change-me` | Yes | The password of the `aptc_app_login` database role. Required by compose, with no fallback. Keep it free of `@ : / ? # %`, because compose places it in a database URL; `migrate` refuses such a value and names the variable. When you run the API on your own machine, `APTC_DATABASE_URL` must carry the same password |
+| `APTC_INDEXER_DB_PASSWORD` | `deploy/compose.yml`'s `migrate` and `backend` services; `aptc.settings.IndexerLoginSettings` (`aptc.db.provision_login`) | `change-me` | Yes | The password of the `aptc_indexer` database role, which builds the indexes filterable properties need (FR-13). Required by compose, with no fallback. The same character rule as `APTC_APP_DB_PASSWORD`. `migrate` refuses a bad value and names the variable. When you run the API on your own machine, put the same password in `APTC_INDEXER_DATABASE_URL` |
+| `APTC_DATABASE_URL` | `aptc.settings.DatabaseSettings` (backend) | *(no default - required)* | Yes | A DSN for the app runtime role (`aptc_app` membership). Compose builds this itself for the `backend` service |
+| `APTC_MIGRATION_DATABASE_URL` | `aptc.settings.MigrationSettings` (backend), Alembic (`backend/migrations/env.py`) | *(no default - required)* | Yes | A DSN for the owning role - typically `POSTGRES_USER` in this local stack. Compose gives it to the `migrate` service only |
+| `APTC_AUDIT_VERIFY_DATABASE_URL` | `aptc.settings.AuditVerifySettings` (backend, issue #38) | *(empty - falls back to `APTC_DATABASE_URL`)* | Yes, when set | Optional DSN for `scripts/verify_audit_chain.py` - point this at a read-only replica or a restored backup, since `verify_chain` only ever issues `SELECT`s. See [the runbook](runbooks/verify-audit-chain.md) |
+| `APTC_INDEXER_DATABASE_URL` | `aptc.settings.IndexerSettings` (backend, issue #54, FR-13); `scripts/seed_baseline.py` | *(empty - reconciliation disabled)* | Yes, when set | The DSN the API uses to build and drop the indexes filterable properties need, after a registry write commits. It must name a role that owns `property_value` (never `aptc_app`, which cannot do DDL, or the migration owner, which can do far more than this needs). Compose builds it for the `backend` service from `APTC_INDEXER_DB_PASSWORD`. The seed CLI reads it too, to build the system properties' indexes after it commits. Empty is valid: a registry write then logs a warning and builds no index, the seed CLI prints a warning and builds none, and you run [the runbook](runbooks/reconcile-property-indexes.md)'s command instead. See [the provisioning steps](upgrade.md#provisioning-the-index-reconcilers-login-issues-54-and-274-fr-13) |
+| `APTC_TRUSTED_ISSUERS` | `aptc.settings.AuthSettings` (backend) | *(empty - no issuer trusted)* | No | Comma-separated list of OIDC issuer URLs allowed to auto-link (NFR-05). Leave empty while federation is off (NFR-02) |
+| `APTC_OIDC_ISSUER` | `aptc.settings.AuthSettings` (backend, NFR-07) | *(empty - no verifier can be constructed)* | No | The realm's issuer URL, as your browser reaches Keycloak, e.g. `http://localhost:8080/realms/aptc`. In the compose stack it must keep the browser-facing host, because Keycloak writes the request host into a token's `iss` claim. If you change `KEYCLOAK_PORT`, change this too. Empty is fail-closed: `TokenVerifier.from_settings` refuses to construct rather than accept a token whose issuer was never checked |
+| `APTC_OIDC_AUDIENCE` | `aptc.settings.AuthSettings` (backend, NFR-07) | `aptc-api` | No | Fixed by the committed realm's `aptc-api-audience` mapper (ADR-0014) - only change this alongside the realm |
+| `APTC_JWKS_URL` | `aptc.settings.AuthSettings` (backend, NFR-07) | *(empty - resolved via OIDC discovery)* | No | Set only to skip discovery (air-gapped deployments) - normally left empty. Must be the direct URL: PyJWT rejects redirects. The compose stack fixes it for `backend` at `http://keycloak:8080/realms/aptc/protocol/openid-connect/certs`, the internal address, so the API never needs to reach the browser-facing issuer host |
+| `APTC_JWKS_CACHE_SECONDS` | `aptc.settings.AuthSettings` (backend, NFR-07) | `300` | No | How long `aptc.auth.jwks.SigningKeys` trusts a fetched JWKS before re-checking |
+| `APTC_JWKS_REFRESH_COOLDOWN_SECONDS` | `aptc.settings.AuthSettings` (backend, NFR-07) | `30` | No | An unrecognised `kid` within this many seconds of the last refresh attempt is refused with no HTTP request, so a spray of unknown `kid`s cannot hammer the IdP |
+| `APTC_MFA_ACR_VALUES` | `aptc.settings.AuthSettings` (backend, issue #44, NFR-06) | `2` | No | Comma-separated `acr` claim values that satisfy mandatory-MFA-for-administrators (`aptc.auth.principal.principal_for`). Must match the committed realm's `aptc loa-2 condition` authenticator config (`loa-condition-level`) - see [the permissions architecture doc](../architecture/permissions.md) |
 | `KEYCLOAK_ADMIN_USER` | `deploy/compose.yml`'s `keycloak` service | `admin` | No | `admin` is fine |
 | `KEYCLOAK_ADMIN_PASSWORD` | `deploy/compose.yml`'s `keycloak` service | `change-me` | Yes | Any local-only value |
 | `KEYCLOAK_PORT` | `deploy/compose.yml`'s `keycloak` service (host port mapping) | `8080` | No | Change only if `8080` is already in use locally |
-| `NPTC_FRONTEND_BASE_URL` | `deploy/compose.yml`'s `keycloak` service → realm import (`deploy/keycloak/realm/nptc-realm.json`'s `${NPTC_FRONTEND_BASE_URL}` placeholder), **and** `nptc.settings.ApiSettings` (backend, issue #41) | `http://localhost:8081` | No | Must equal `http://localhost:<NPTC_WEB_PORT>` for the compose stack. Set `http://localhost:5173` to use the Vite dev server instead ([`local-development.md`](local-development.md)), and recreate `keycloak`; set the frontend's real origin in any other deployment. Since #41 it also names the single browser origin the API accepts cross-origin: ADR-0021 has the browser hold the access token and call the API directly, so this is load-bearing rather than cosmetic. One value deliberately, so the origin Keycloak redirects to and the origin the API accepts cannot drift apart |
-| `NPTC_WEB_PORT` | `deploy/compose.yml`'s `web` service (host port mapping) | `8081` | No | Change only if `8081` is in use. Update the port in `NPTC_FRONTEND_BASE_URL` to match. The default avoids `5173`, so the stack and `pnpm dev` can coexist on one machine |
-| `NPTC_FSN_SEMANTIC_TAG` | `nptc.settings.ApiSettings` (backend, issue #144, FR-98) | `intact` | No | Declares whether every binding's `fsn` has its semantic tag intact or stripped (`nptc.api.labels.fsn_provenance`). `"intact"` is the only value accepted today - no binding's `fsn` is stripped on the read path, so `"stripped"` is refused at settings-construction time rather than silently making the served payload lie about what it serves. It does not govern the `fsn` on a public list or search row, which is always stripped (FR-83) and declared `stripped`. A placeholder for FR-66's own export configuration, which does not exist yet (P4) |
-| `NPTC_TERMS_CURRENT_VERSION` | `nptc.settings.ApiSettings` (backend, NFR-45, NFR-47, ADR-0043) | *(blank, meaning the version packaged with the release)* | No | Names the terms file `backend/src/nptc/terms/versions/<version>.md` that every contributor must have accepted. A version is a zero-padded date such as `2026-10-06`. The API refuses to start when the named version has no file, because contributions would be refused with nothing to show the user. Moving to a new version means adding a new file and naming it here: users then accept it before their next contribution. Never edit a published file. Setting this to an earlier version also asks every user to accept again, because the check is equality, not order. The packaged files are temporary placeholder text, and the newest adds the contribution licence (NFR-46). An empty or whitespace-only value counts as unset. The variable name is not checked: a typo such as `NPTC_TERMS_CURENT_VERSION` is dropped silently and leaves the packaged version in force |
-| `NPTC_MAX_PREFERRED_TERM_LENGTH` | `nptc.settings.ApiSettings` (backend, issue #152, FR-86) | *(blank, meaning unset - no warning ever produced)* | No | The preferred-term length past which the designation-amendment route warns, without ever blocking the save. Unset is the default and must stay the default: no maximum has been nominated yet (PRD open item OI-1) - see [`GET /catalogue/admin/preferred-term-length-distribution`](#the-fr-87-length-distribution-report) for the report that informs choosing one. An empty or whitespace-only value counts as unset, so a blank `NPTC_MAX_PREFERRED_TERM_LENGTH=` line in a compose file or `.env` is safe. A value below 1, or one that is not a whole number, is refused when the API starts. The variable name is not checked: a typo such as `NPTC_MAX_PREFERRED_TERM_LENGHT` is dropped silently and leaves the maximum unset |
-| `NPTC_ANON_RATE_LIMIT_REQUESTS` | `nptc.settings.ApiSettings` (backend, FR-22, NFR-24) | *(blank, meaning 600)* | No | How many requests one anonymous client address may make in each window. See [Anonymous rate limit](#anonymous-rate-limit-fr-22-nfr-24). A value below 1 or a non-whole number stops the API at start-up. The variable name is not checked: a typo is dropped silently and leaves the default in force |
-| `NPTC_ANON_RATE_LIMIT_WINDOW_SECONDS` | `nptc.settings.ApiSettings` (backend, FR-22, NFR-24) | *(blank, meaning 60)* | No | The length of that window in seconds. A caller refused with a 429 can try again when the window closes, and the `Retry-After` header says how many seconds that is. The same validation as the line above |
-| `NPTC_BULK_ARTEFACTS_URL` | `nptc.settings.ApiSettings` (backend, FR-22) | *(blank, meaning the documentation page on bulk retrieval)* | No | Where the body of every 429 tells the caller to fetch the whole catalogue instead. An absolute `http(s)` URL, or a path on the same origin that starts with a single `/`. Set it to the release location once releases are published (FR-21). Anything else stops the API at start-up |
-| `NPTC_TRUSTED_PROXIES` | `deploy/compose.yml`'s `backend` service; `nptc.settings.ApiSettings` (backend, NFR-24) | `10.0.0.0/8,172.16.0.0/12,192.168.0.0/16` in compose; empty in the API itself | No | The addresses allowed to tell the API a caller's real address through `X-Forwarded-For`. Comma-separated addresses or CIDR ranges. Empty means the header is never read. Compose passes it with `-` rather than `:-`, so setting it to an explicit empty value turns the trust off instead of restoring the default. A malformed entry stops the API at start-up. See [Anonymous rate limit](#anonymous-rate-limit-fr-22-nfr-24) |
-| `VITE_OIDC_ISSUER` | `frontend/src/auth/config.ts` (browser, issue #41, NFR-01); compose passes it to the `web` image build | `http://localhost:8080/realms/nptc` - required at build time | No | The realm's issuer URL, as reachable **from the browser** rather than from inside the compose network. Inlined into the built bundle by Vite, so changing it means rebuilding the `web` image; the sign-in flow throws, naming this variable, if it is unset |
-| `VITE_OIDC_CLIENT_ID` | `frontend/src/auth/config.ts` (browser, issue #41, NFR-01); compose passes it to the `web` image build | `nptc-frontend` - required at build time | No | The realm's public client. Must match `nptc-frontend` in the committed realm (ADR-0014). Rebuild the `web` image after changing it |
+| `APTC_FRONTEND_BASE_URL` | `deploy/compose.yml`'s `keycloak` service → realm import (`deploy/keycloak/realm/aptc-realm.json`'s `${APTC_FRONTEND_BASE_URL}` placeholder), **and** `aptc.settings.ApiSettings` (backend, issue #41) | `http://localhost:8081` | No | Must equal `http://localhost:<APTC_WEB_PORT>` for the compose stack. Set `http://localhost:5173` to use the Vite dev server instead ([`local-development.md`](local-development.md)), and recreate `keycloak`; set the frontend's real origin in any other deployment. Since #41 it also names the single browser origin the API accepts cross-origin: ADR-0021 has the browser hold the access token and call the API directly, so this is load-bearing rather than cosmetic. One value deliberately, so the origin Keycloak redirects to and the origin the API accepts cannot drift apart |
+| `APTC_WEB_PORT` | `deploy/compose.yml`'s `web` service (host port mapping) | `8081` | No | Change only if `8081` is in use. Update the port in `APTC_FRONTEND_BASE_URL` to match. The default avoids `5173`, so the stack and `pnpm dev` can coexist on one machine |
+| `APTC_FSN_SEMANTIC_TAG` | `aptc.settings.ApiSettings` (backend, issue #144, FR-98) | `intact` | No | Declares whether every binding's `fsn` has its semantic tag intact or stripped (`aptc.api.labels.fsn_provenance`). `"intact"` is the only value accepted today - no binding's `fsn` is stripped on the read path, so `"stripped"` is refused at settings-construction time rather than silently making the served payload lie about what it serves. It does not govern the `fsn` on a public list or search row, which is always stripped (FR-83) and declared `stripped`. A placeholder for FR-66's own export configuration, which does not exist yet (P4) |
+| `APTC_TERMS_CURRENT_VERSION` | `aptc.settings.ApiSettings` (backend, NFR-45, NFR-47, ADR-0043) | *(blank, meaning the version packaged with the release)* | No | Names the terms file `backend/src/aptc/terms/versions/<version>.md` that every contributor must have accepted. A version is a zero-padded date such as `2026-10-06`. The API refuses to start when the named version has no file, because contributions would be refused with nothing to show the user. Moving to a new version means adding a new file and naming it here: users then accept it before their next contribution. Never edit a published file. Setting this to an earlier version also asks every user to accept again, because the check is equality, not order. The packaged files are temporary placeholder text, and the newest adds the contribution licence (NFR-46). An empty or whitespace-only value counts as unset. The variable name is not checked: a typo such as `APTC_TERMS_CURENT_VERSION` is dropped silently and leaves the packaged version in force |
+| `APTC_MAX_PREFERRED_TERM_LENGTH` | `aptc.settings.ApiSettings` (backend, issue #152, FR-86) | *(blank, meaning unset - no warning ever produced)* | No | The preferred-term length past which the designation-amendment route warns, without ever blocking the save. Unset is the default and must stay the default: no maximum has been nominated yet (PRD open item OI-1) - see [`GET /catalogue/admin/preferred-term-length-distribution`](#the-fr-87-length-distribution-report) for the report that informs choosing one. An empty or whitespace-only value counts as unset, so a blank `APTC_MAX_PREFERRED_TERM_LENGTH=` line in a compose file or `.env` is safe. A value below 1, or one that is not a whole number, is refused when the API starts. The variable name is not checked: a typo such as `APTC_MAX_PREFERRED_TERM_LENGHT` is dropped silently and leaves the maximum unset |
+| `APTC_ANON_RATE_LIMIT_REQUESTS` | `aptc.settings.ApiSettings` (backend, FR-22, NFR-24) | *(blank, meaning 600)* | No | How many requests one anonymous client address may make in each window. See [Anonymous rate limit](#anonymous-rate-limit-fr-22-nfr-24). A value below 1 or a non-whole number stops the API at start-up. The variable name is not checked: a typo is dropped silently and leaves the default in force |
+| `APTC_ANON_RATE_LIMIT_WINDOW_SECONDS` | `aptc.settings.ApiSettings` (backend, FR-22, NFR-24) | *(blank, meaning 60)* | No | The length of that window in seconds. A caller refused with a 429 can try again when the window closes, and the `Retry-After` header says how many seconds that is. The same validation as the line above |
+| `APTC_BULK_ARTEFACTS_URL` | `aptc.settings.ApiSettings` (backend, FR-22) | *(blank, meaning the documentation page on bulk retrieval)* | No | Where the body of every 429 tells the caller to fetch the whole catalogue instead. An absolute `http(s)` URL, or a path on the same origin that starts with a single `/`. Set it to the release location once releases are published (FR-21). Anything else stops the API at start-up |
+| `APTC_TRUSTED_PROXIES` | `deploy/compose.yml`'s `backend` service; `aptc.settings.ApiSettings` (backend, NFR-24) | `10.0.0.0/8,172.16.0.0/12,192.168.0.0/16` in compose; empty in the API itself | No | The addresses allowed to tell the API a caller's real address through `X-Forwarded-For`. Comma-separated addresses or CIDR ranges. Empty means the header is never read. Compose passes it with `-` rather than `:-`, so setting it to an explicit empty value turns the trust off instead of restoring the default. A malformed entry stops the API at start-up. See [Anonymous rate limit](#anonymous-rate-limit-fr-22-nfr-24) |
+| `VITE_OIDC_ISSUER` | `frontend/src/auth/config.ts` (browser, issue #41, NFR-01); compose passes it to the `web` image build | `http://localhost:8080/realms/aptc` - required at build time | No | The realm's issuer URL, as reachable **from the browser** rather than from inside the compose network. Inlined into the built bundle by Vite, so changing it means rebuilding the `web` image; the sign-in flow throws, naming this variable, if it is unset |
+| `VITE_OIDC_CLIENT_ID` | `frontend/src/auth/config.ts` (browser, issue #41, NFR-01); compose passes it to the `web` image build | `aptc-frontend` - required at build time | No | The realm's public client. Must match `aptc-frontend` in the committed realm (ADR-0014). Rebuild the `web` image after changing it |
 | `VITE_API_BASE_URL` | `frontend/src/api/use-api-client.ts` (browser) | *(unset - same origin)* | No | The API's origin when it differs from the web app's. Unset in the compose stack, where Caddy proxies `/api`. Set `http://localhost:8000` in `frontend/.env` for `pnpm dev` |
-| `NPTC_TX_BASE_URL` | `nptc_shared.terminology` (backend and transform) | `https://tx.ontoserver.csiro.au/fhir` | No | The default is fine; point it at a local Ontoserver to work offline |
-| `NPTC_TX_TOKEN` | `nptc_shared.terminology` (backend and transform) | *(empty — anonymous)* | Yes | Leave empty — `tx.ontoserver.csiro.au` accepts anonymous requests |
-| `NPTC_TX_TIMEOUT_SECONDS` | `nptc_shared.terminology` (backend and transform) | `30` | No | `30` is fine for the P3 batch sweep; a deployment exposing `GET /api/v1/terminology/concepts/{code}` (FR-26, issue #240) also bounds an interactive form request with this value, so consider a lower value there |
-| `NPTC_TX_MAX_RETRIES` | `nptc_shared.terminology` (backend and transform) | `3` | No | `3` is fine |
-| `NPTC_TX_CHUNK_SIZE` | `nptc_shared.terminology` batch sweep (FR-52) | `300` | No | `300` is fine; see the tuning note below |
-| `NPTC_TX_MAX_CONCURRENCY` | `nptc_shared.terminology` batch sweep (FR-52) | `4` | No | `4` is fine; raise only with the server operator's knowledge |
+| `APTC_TX_BASE_URL` | `aptc_shared.terminology` (backend and transform) | `https://tx.ontoserver.csiro.au/fhir` | No | The default is fine; point it at a local Ontoserver to work offline |
+| `APTC_TX_TOKEN` | `aptc_shared.terminology` (backend and transform) | *(empty — anonymous)* | Yes | Leave empty — `tx.ontoserver.csiro.au` accepts anonymous requests |
+| `APTC_TX_TIMEOUT_SECONDS` | `aptc_shared.terminology` (backend and transform) | `30` | No | `30` is fine for the P3 batch sweep; a deployment exposing `GET /api/v1/terminology/concepts/{code}` (FR-26, issue #240) also bounds an interactive form request with this value, so consider a lower value there |
+| `APTC_TX_MAX_RETRIES` | `aptc_shared.terminology` (backend and transform) | `3` | No | `3` is fine |
+| `APTC_TX_CHUNK_SIZE` | `aptc_shared.terminology` batch sweep (FR-52) | `300` | No | `300` is fine; see the tuning note below |
+| `APTC_TX_MAX_CONCURRENCY` | `aptc_shared.terminology` batch sweep (FR-52) | `4` | No | `4` is fine; raise only with the server operator's knowledge |
 
 The `POSTGRES_*` and `KEYCLOAK_*` variables above are read only by `deploy/compose.yml`.
-`NPTC_DATABASE_URL` and `NPTC_MIGRATION_DATABASE_URL` are read by `nptc.settings`
+`APTC_DATABASE_URL` and `APTC_MIGRATION_DATABASE_URL` are read by `aptc.settings`
 (issue #33's first `pydantic-settings` consumer, ADR-0003) — two separate DSNs for two
 separate roles, read by two separate settings classes (`DatabaseSettings`,
 `MigrationSettings`), never one shared connection string or one combined settings object:
-an operator running a migration should never need `NPTC_DATABASE_URL` set too.
-`NPTC_MIGRATION_DATABASE_URL` is also what `backend/migrations/env.py` resolves the
+an operator running a migration should never need `APTC_DATABASE_URL` set too.
+`APTC_MIGRATION_DATABASE_URL` is also what `backend/migrations/env.py` resolves the
 migration connection from when nothing hands it a live connection directly (see
 [`upgrade.md`](upgrade.md)). Both are required with no default: a missing, empty, or
 whitespace-only value raises naming the variable, never silently falling back to a
 placeholder a misconfigured deployment could run against for a while (NFR-26).
-`NPTC_INDEXER_DATABASE_URL` is deliberately not a third fallback in that same chain -
-`nptc.db.property_reconciler.get_indexer_engine()` reads it alone, with **empty as its own
+`APTC_INDEXER_DATABASE_URL` is deliberately not a third fallback in that same chain -
+`aptc.db.property_reconciler.get_indexer_engine()` reads it alone, with **empty as its own
 valid, fail-closed default** (unlike the two DSNs above): "index reconciliation is not
 configured" is a safe deployment posture, so construction never raises the way
-`MigrationSettings` does on a missing value. Never falls back to `NPTC_MIGRATION_DATABASE_URL`
+`MigrationSettings` does on a missing value. Never falls back to `APTC_MIGRATION_DATABASE_URL`
 (that role can `CREATE ROLE`/`DROP TABLE` - far more than a reconciler needs) or to
-`NPTC_DATABASE_URL` (the app role provably cannot do DDL at all, so falling back to it would
+`APTC_DATABASE_URL` (the app role provably cannot do DDL at all, so falling back to it would
 only trade a clear refusal for a permission error deep inside a reconciliation run).
-The `NPTC_TX_*` variables are the first read by Python code —
-`nptc_shared.terminology.TerminologyConfig.from_env()` (FR-53), used identically by the
+The `APTC_TX_*` variables are the first read by Python code —
+`aptc_shared.terminology.TerminologyConfig.from_env()` (FR-53), used identically by the
 backend and the transform (see [ADR-0003](../adr/0003-terminology-client-in-shared.md)
 and [the terminology client architecture doc](../architecture/terminology-client.md)). An
-empty or unset `NPTC_TX_TOKEN` means anonymous access and sends no `Authorization`
+empty or unset `APTC_TX_TOKEN` means anonymous access and sends no `Authorization`
 header; setting it sends a static bearer token, the only auth scheme supported today —
-OAuth2 client-credentials is deferred. `NPTC_TX_TIMEOUT_SECONDS`/`NPTC_TX_MAX_RETRIES`
+OAuth2 client-credentials is deferred. `APTC_TX_TIMEOUT_SECONDS`/`APTC_TX_MAX_RETRIES`
 were tuned only against the P3 batch sweep until issue #240 (FR-26) added the first
 *interactive* caller, `GET /api/v1/terminology/concepts/{code}` — an operator exposing
 that route should weigh a lower timeout there against the sweep's own tolerance for a
@@ -91,7 +91,7 @@ constructor defaults, deliberately not environment variables: they are tuning co
 not deployment configuration. This table grows as later issues add services that read
 their own configuration.
 
-`NPTC_TRUSTED_ISSUERS` gates `nptc.auth.linking.may_auto_link` (issue #42, NFR-05): an
+`APTC_TRUSTED_ISSUERS` gates `aptc.auth.linking.may_auto_link` (issue #42, NFR-05): an
 OIDC identity may only be auto-linked to an existing account (matched by verified email)
 if its issuer appears, exact-match, in this comma-separated set. The empty default is a
 deliberate fail-closed posture, matching this settings module's existing convention of
@@ -99,32 +99,32 @@ raising loudly rather than silently defaulting - here that means "no auto-linkin
 all" rather than "trust everything" until an operator explicitly names a trusted issuer.
 It stays empty while federation is off (NFR-02, no second IdP configured yet).
 
-`NPTC_OIDC_ISSUER` and the other `NPTC_JWKS_*`/`NPTC_OIDC_AUDIENCE` variables configure
-`nptc.auth.tokens.TokenVerifier` (issue #43, NFR-07 - see
+`APTC_OIDC_ISSUER` and the other `APTC_JWKS_*`/`APTC_OIDC_AUDIENCE` variables configure
+`aptc.auth.tokens.TokenVerifier` (issue #43, NFR-07 - see
 [the token-verification architecture doc](../architecture/token-verification.md)).
-`NPTC_OIDC_ISSUER` follows the same fail-closed posture as `NPTC_TRUSTED_ISSUERS`: empty by
+`APTC_OIDC_ISSUER` follows the same fail-closed posture as `APTC_TRUSTED_ISSUERS`: empty by
 default, and a `TokenVerifier` cannot be constructed from a blank issuer at all, so an
 unconfigured deployment refuses every token rather than accepting one whose issuer was never
-actually checked. `NPTC_OIDC_AUDIENCE` defaults to `nptc-api` because that value is fixed by the
-committed realm's `nptc-api-audience` mapper (ADR-0014), not by a deployment - only change it
-alongside a realm change. `NPTC_JWKS_URL` is normally left empty so the JWKS endpoint is
-resolved via OIDC discovery against `NPTC_OIDC_ISSUER`; set it explicitly only for an
+actually checked. `APTC_OIDC_AUDIENCE` defaults to `aptc-api` because that value is fixed by the
+committed realm's `aptc-api-audience` mapper (ADR-0014), not by a deployment - only change it
+alongside a realm change. `APTC_JWKS_URL` is normally left empty so the JWKS endpoint is
+resolved via OIDC discovery against `APTC_OIDC_ISSUER`; set it explicitly only for an
 air-gapped deployment that cannot reach a discovery endpoint. The URL must answer directly:
 PyJWT 2.14 and later treat a redirect as an unreachable endpoint, so the backend serves
 already-cached keys until the fallback age limit. A process that has not yet fetched the set
-rejects every token immediately. `NPTC_JWKS_CACHE_SECONDS` and
-`NPTC_JWKS_REFRESH_COOLDOWN_SECONDS` tune `nptc.auth.jwks.SigningKeys`'s own key cache and its
+rejects every token immediately. `APTC_JWKS_CACHE_SECONDS` and
+`APTC_JWKS_REFRESH_COOLDOWN_SECONDS` tune `aptc.auth.jwks.SigningKeys`'s own key cache and its
 refresh cooldown against `kid`-spraying (the same cooldown also covers retrying a known `kid`
 during an IdP outage, so it does not turn into a request-latency outage); the defaults are
 untuned constants, not a measurement against a specific deployment. `SigningKeys`'s
 `max_fallback_age_seconds` (how long an unreachable-endpoint fallback key is trusted for, default
-`10 * NPTC_JWKS_CACHE_SECONDS`) is deliberately **not** an environment variable alongside these
-two - it derives from `NPTC_JWKS_CACHE_SECONDS` rather than adding a fifth knob for what is a
+`10 * APTC_JWKS_CACHE_SECONDS`) is deliberately **not** an environment variable alongside these
+two - it derives from `APTC_JWKS_CACHE_SECONDS` rather than adding a fifth knob for what is a
 rare-outage safety margin, not routine deployment tuning.
 
 ## Keycloak realm import
 
-`deploy/keycloak/realm/nptc-realm.json` is the only place the `nptc` realm is defined
+`deploy/keycloak/realm/aptc-realm.json` is the only place the `aptc` realm is defined
 (issue #40, [ADR-0014](../adr/0014-keycloak-realm-as-code.md), NFR-03) — there are no
 console steps in any runbook, and none should be added. The `keycloak` service in
 `deploy/compose.yml` runs `start-dev --import-realm` with `deploy/keycloak/realm/` bind-mounted
@@ -132,9 +132,9 @@ read-only at `/opt/keycloak/data/import`; Keycloak imports every realm file foun
 on startup.
 
 **Import is skipped once the realm already exists.** Keycloak's `--import-realm` only
-creates a realm it doesn't already have — editing `nptc-realm.json` and running
+creates a realm it doesn't already have — editing `aptc-realm.json` and running
 `docker compose -f deploy/compose.yml restart keycloak` does **nothing**, since the running
-instance already has an `nptc` realm from the previous start. This is the single most likely
+instance already has an `aptc` realm from the previous start. This is the single most likely
 point of operator confusion: to pick up an edited realm file, recreate the container instead:
 
 ```powershell
@@ -145,7 +145,7 @@ docker compose -f deploy/compose.yml up -d --force-recreate keycloak
 per-service form needs Compose v2.24+ — on an older v2 it tears down the whole stack. The
 single `--force-recreate` command above works on any Compose v2 and says what it means.)
 
-**Adding the `acr` scope to an existing realm.** A realm imported before `nptc-frontend`
+**Adding the `acr` scope to an existing realm.** A realm imported before `aptc-frontend`
 listed the `acr` client scope issues tokens with no `acr` claim, so no Administrator can
 complete MFA step-up. Recreate the container as above to pick up the scope.
 
@@ -156,27 +156,27 @@ pick up the profile. Keycloak keeps no data between recreations here, so no stor
 migrating.
 
 **The login theme is selected here and mounted separately.** The realm file sets
-`"loginTheme": "nptc"`, and `deploy/compose.yml` mounts `deploy/keycloak/themes/nptc` read-only
-at `/opt/keycloak/themes/nptc`. The two must agree: a realm that names a theme no mount
+`"loginTheme": "aptc"`, and `deploy/compose.yml` mounts `deploy/keycloak/themes/aptc` read-only
+at `/opt/keycloak/themes/aptc`. The two must agree: a realm that names a theme no mount
 provides falls back to Keycloak's own look without an error
 (`backend/tests/test_keycloak_login_theme.py` checks this). See
 [the login theme](../architecture/authentication.md#the-login-theme).
 
-**`${NPTC_FRONTEND_BASE_URL}` is the file's only placeholder.** Keycloak resolves `${VAR}` in
+**`${APTC_FRONTEND_BASE_URL}` is the file's only placeholder.** Keycloak resolves `${VAR}` in
 an imported realm file from the container's environment; `deploy/compose.yml` passes the
-`NPTC_FRONTEND_BASE_URL` environment variable through for exactly this. It drives the
-`nptc-frontend` client's `rootUrl`, `redirectUris`, `webOrigins` and post-logout redirect URI
+`APTC_FRONTEND_BASE_URL` environment variable through for exactly this. It drives the
+`aptc-frontend` client's `rootUrl`, `redirectUris`, `webOrigins` and post-logout redirect URI
 — the one part of this realm that is genuinely per-deployment. It also sets the
 `frame-ancestors` source in the realm's `Content-Security-Policy`, so the app may load
 Keycloak in its hidden session-renewal iframe (see
 [silent renewal](../architecture/authentication.md#silent-renewal-needs-keycloak-to-allow-framing)). The registration page also
-reads it, through the realm attribute `nptcFrontendBaseUrl`, to build its links to `/privacy` and
+reads it, through the realm attribute `aptcFrontendBaseUrl`, to build its links to `/privacy` and
 `/terms`. Everything else in the file is static, which is what makes "identical realm on every clean clone" testable at all
 (`backend/tests/test_keycloak_realm.py`).
 
 **What is deliberately absent:** no users (registration is open —
 `registrationAllowed: true`, NFR-02 — so there is nothing to seed), no client secrets (both
-`nptc-frontend` and `nptc-api` are `publicClient: true`), and no application roles (Keycloak
+`aptc-frontend` and `aptc-api` are `publicClient: true`), and no application roles (Keycloak
 authenticates; the platform authorises from the internal user record per NFR-07 — see
 ADR-0014's first decision). A maintainer who re-exports the realm from a running instance
 instead of hand-editing the file risks reintroducing all three — `test_keycloak_realm.py`'s
@@ -189,21 +189,21 @@ posture (ADR-0014), not an oversight: harmless only because no authorisation dec
 platform yet reads from the internal user record this realm feeds. Wiring SMTP and flipping
 `verifyEmail: true` is the one change any real (non-local) deployment of this realm must make.
 
-**To change the realm:** edit `deploy/keycloak/realm/nptc-realm.json` directly and recreate
+**To change the realm:** edit `deploy/keycloak/realm/aptc-realm.json` directly and recreate
 the `keycloak` container as above — never the admin console (NFR-03). Run
 `uv run pytest backend/tests/test_keycloak_realm.py` afterwards; its offline group catches a
 malformed file immediately, without needing Docker.
 
-## Tuning the batch sweep (`NPTC_TX_CHUNK_SIZE`, `NPTC_TX_MAX_CONCURRENCY`)
+## Tuning the batch sweep (`APTC_TX_CHUNK_SIZE`, `APTC_TX_MAX_CONCURRENCY`)
 
 These two *are* environment variables rather than constructor defaults, because FR-52
 requires the chunk size to be tuned against the specific terminology server in use and the
 concurrency ceiling to be configurable.
 
-- `NPTC_TX_CHUNK_SIZE` is how many codes go into one `ValueSet/$expand` in the bulk status
-  pass. A sweep of N codes issues `ceil(N / NPTC_TX_CHUNK_SIZE)` expansions per edition.
+- `APTC_TX_CHUNK_SIZE` is how many codes go into one `ValueSet/$expand` in the bulk status
+  pass. A sweep of N codes issues `ceil(N / APTC_TX_CHUNK_SIZE)` expansions per edition.
   FR-52's stated range is 200–500; the default is its midpoint.
-- `NPTC_TX_MAX_CONCURRENCY` bounds the *second* pass only — the individual
+- `APTC_TX_MAX_CONCURRENCY` bounds the *second* pass only — the individual
   `CodeSystem/$lookup` calls for codes the bulk expansion did not resolve. The chunk
   expansions themselves are sequential (ADR-0005).
 
@@ -217,8 +217,8 @@ against one.
 
 ## Anonymous rate limit (FR-22, NFR-24)
 
-The API limits each anonymous client address to `NPTC_ANON_RATE_LIMIT_REQUESTS` requests in
-each `NPTC_ANON_RATE_LIMIT_WINDOW_SECONDS` window. The defaults, 600 requests per 60 seconds,
+The API limits each anonymous client address to `APTC_ANON_RATE_LIMIT_REQUESTS` requests in
+each `APTC_ANON_RATE_LIMIT_WINDOW_SECONDS` window. The defaults, 600 requests per 60 seconds,
 leave room for the web app, which makes several calls per page, and for a script that walks the
 whole catalogue in pages. They are a judgement, not a measurement. Lower them only if you see
 abuse, and raise them if a legitimate consumer is refused. The policy and the reasons behind it
@@ -232,8 +232,8 @@ Both budgets are kept per client address, so an office network shares them.
 **Loopback.** Only the compose healthcheck is exempt: it probes `/api/v1/openapi.json` from
 `127.0.0.1`, and a refused probe would mark a healthy container unhealthy. Every other request
 from a loopback address is limited like any other. If you run a proxy on the same host as the
-API and leave `NPTC_TRUSTED_PROXIES` empty, every caller looks like `127.0.0.1` and shares one
-budget, so set `NPTC_TRUSTED_PROXIES=127.0.0.1` there (and make sure the proxy sets
+API and leave `APTC_TRUSTED_PROXIES` empty, every caller looks like `127.0.0.1` and shares one
+budget, so set `APTC_TRUSTED_PROXIES=127.0.0.1` there (and make sure the proxy sets
 `X-Forwarded-For`).
 
 **Counters live in one process.** The API keeps them in memory. The compose stack runs one API
@@ -243,11 +243,11 @@ them.
 
 **Telling the API who the caller is.** Behind Caddy the API's connecting address is Caddy's, so
 without help every visitor would share one budget. Caddy adds the visitor's address to
-`X-Forwarded-For`, and `NPTC_TRUSTED_PROXIES` names the addresses the API believes that header
+`X-Forwarded-For`, and `APTC_TRUSTED_PROXIES` names the addresses the API believes that header
 from. The compose default trusts the private ranges Docker assigns to compose networks. That is
 safe because the `backend` service publishes no port, so only the `web` container can reach it.
 
-- **Direct access.** If the API is reachable without a proxy, set `NPTC_TRUSTED_PROXIES` to empty.
+- **Direct access.** If the API is reachable without a proxy, set `APTC_TRUSTED_PROXIES` to empty.
   Otherwise any caller could write their own `X-Forwarded-For` and choose their own budget.
 - **Another front end.** Behind a load balancer or CDN, list its addresses, and make sure it
   appends the connecting address to `X-Forwarded-For` rather than passing a caller's header on
@@ -257,8 +257,8 @@ safe because the `backend` service publishes no port, so only the `web` containe
 - **Docker Desktop and rootless Docker.** Where Docker's userland proxy handles the connection,
   Caddy sees the Docker gateway address (for example `172.18.0.1`) as every visitor's address.
   That address is inside the trusted ranges, so every visitor shares one budget and the audit log
-  records the gateway. `NPTC_TRUSTED_PROXIES` is already correct in this case. For local use,
-  raise `NPTC_ANON_RATE_LIMIT_REQUESTS`.
+  records the gateway. `APTC_TRUSTED_PROXIES` is already correct in this case. For local use,
+  raise `APTC_ANON_RATE_LIMIT_REQUESTS`.
 - **Audit log.** The same address is what the audit log records as the actor's address. Before
   this setting existed, events written behind Caddy recorded Caddy's address.
 
@@ -266,10 +266,10 @@ safe because the `backend` service publishes no port, so only the `web` containe
 through the addresses in a subnet at no cost.
 
 **Telling a caller where the bulk artefacts are.** A refused request gets a 429 whose body names
-`NPTC_BULK_ARTEFACTS_URL`. No release exists to serve until FR-21 lands, so the default points to
+`APTC_BULK_ARTEFACTS_URL`. No release exists to serve until FR-21 lands, so the default points to
 the documentation on bulk retrieval. Set it to the release location when one exists.
 
-## Choosing a maximum preferred-term length (`NPTC_MAX_PREFERRED_TERM_LENGTH`)
+## Choosing a maximum preferred-term length (`APTC_MAX_PREFERRED_TERM_LENGTH`)
 
 FR-86's maximum is deliberately unset out of the box: RCPA-QAP has never had one to
 enforce, and the platform owes them the data needed to choose one (PRD open item OI-1)

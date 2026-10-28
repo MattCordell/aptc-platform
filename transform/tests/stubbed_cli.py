@@ -10,14 +10,14 @@ from __future__ import annotations
 import json
 import os
 
-from nptc_shared.terminology.models import (
+from aptc_shared.terminology.models import (
     AU_LANGUAGE_TAG,
     PROCEDURE_ROOT_CODE,
     SPECIMEN_ROOT_CODE,
 )
-from nptc_shared.terminology.stub import StubConcept, StubTerminologyClient
-from nptc_transform import cli
-from nptc_transform.specimen_map import SPECIMEN_MAP
+from aptc_shared.terminology.stub import StubConcept, StubTerminologyClient
+from aptc_transform import cli
+from aptc_transform.specimen_map import SPECIMEN_MAP
 
 _AU_VERSION = "http://snomed.info/sct/32506021000036107/version/20260531"
 

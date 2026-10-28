@@ -11,8 +11,8 @@ from __future__ import annotations
 
 import pytest
 
-from nptc.auth.claims import OidcIdentityClaims
-from nptc.auth.linking import may_auto_link
+from aptc.auth.claims import OidcIdentityClaims
+from aptc.auth.linking import may_auto_link
 
 _TRUSTED = frozenset({"https://good.example"})
 

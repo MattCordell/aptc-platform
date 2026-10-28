@@ -14,23 +14,23 @@ import openpyxl
 import pytest
 from openpyxl.worksheet.worksheet import Worksheet
 
-from nptc_shared.terminology.models import (
+from aptc_shared.terminology.models import (
     HAS_SPECIMEN_ATTRIBUTE,
     ConceptProperty,
     Expansion,
     Operation,
 )
-from nptc_shared.terminology.stub import StubConcept, StubTerminologyClient
-from nptc_shared.terminology.sweep import TerminologySweep
-from nptc_transform.bands import Band, FindingCode
-from nptc_transform.findings import Finding
-from nptc_transform.semantic_drift import (
+from aptc_shared.terminology.stub import StubConcept, StubTerminologyClient
+from aptc_shared.terminology.sweep import TerminologySweep
+from aptc_transform.bands import Band, FindingCode
+from aptc_transform.findings import Finding
+from aptc_transform.semantic_drift import (
     SemanticDriftOutcome,
     _extract_timing,
     check_semantic_drift,
 )
-from nptc_transform.terminology_check import check_terminology
-from nptc_transform.workbook import read_workbook
+from aptc_transform.terminology_check import check_terminology
+from aptc_transform.workbook import read_workbook
 
 # Annex A.9's own worked-example SCTIDs (verified live against SNOMED CT-AU
 # during this feature's planning - see the plan's pre-verified facts table).
@@ -449,7 +449,7 @@ def test_a_differently_worded_but_matching_served_timing_suppresses_the_finding(
 def test_extract_timing_matches_only_genuine_timing_wording(
     label: str, expected: str | None
 ) -> None:
-    from nptc_shared.text import normalise_for_comparison
+    from aptc_shared.text import normalise_for_comparison
 
     folded = normalise_for_comparison(label).casefold()
     assert _extract_timing(folded) == expected

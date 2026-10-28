@@ -12,7 +12,7 @@ export default defineConfig({
   expect: { timeout: 15_000 },
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
-    baseURL: process.env.NPTC_E2E_BASE_URL ?? "http://localhost:8081",
+    baseURL: process.env.APTC_E2E_BASE_URL ?? "http://localhost:8081",
     trace: "retain-on-failure",
   },
   projects: [

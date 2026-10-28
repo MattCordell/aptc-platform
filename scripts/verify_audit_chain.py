@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Operator CLI wrapping `nptc.audit.verification.verify_chain` (issue #38,
+"""Operator CLI wrapping `aptc.audit.verification.verify_chain` (issue #38,
 NFR-10, NFR-38 test 5): walks the `audit_event` hash chain end to end and
 reports the first broken link, so chain integrity can be checked on demand -
 or from a scheduled check - rather than only inferred from application
 behaviour.
 
-`verify_chain` itself is `SELECT`-only (see backend/src/nptc/audit/
+`verify_chain` itself is `SELECT`-only (see backend/src/aptc/audit/
 verification.py), so this command never needs the application's write role
 and can run against a read-only replica or a restored backup.
 
@@ -33,7 +33,7 @@ import argparse
 import re
 import sys
 
-#: Matches nptc.audit.hashing's own hex-digest shape (`ck_audit_event_*_hex`).
+#: Matches aptc.audit.hashing's own hex-digest shape (`ck_audit_event_*_hex`).
 _HEAD_HASH_RE = re.compile(r"^[0-9a-f]{64}$")
 
 #: Exit codes - stable, documented in the runbook, safe to depend on from a
@@ -55,8 +55,8 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         default=None,
         help=(
             "DSN to connect with, e.g. for a one-off run against a replica or a "
-            "restored backup. Falls back to NPTC_AUDIT_VERIFY_DATABASE_URL, then "
-            "NPTC_DATABASE_URL, if not given."
+            "restored backup. Falls back to APTC_AUDIT_VERIFY_DATABASE_URL, then "
+            "APTC_DATABASE_URL, if not given."
         ),
     )
     parser.add_argument(
@@ -79,16 +79,16 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
 
 
 def _resolve_database_url(cli_value: str | None) -> str | None:
-    """`--database-url`, then `NPTC_AUDIT_VERIFY_DATABASE_URL`, then
-    `NPTC_DATABASE_URL` - the precedence documented in the runbook. Imports
-    of `nptc.settings` are deferred into this function (not at module level)
+    """`--database-url`, then `APTC_AUDIT_VERIFY_DATABASE_URL`, then
+    `APTC_DATABASE_URL` - the precedence documented in the runbook. Imports
+    of `aptc.settings` are deferred into this function (not at module level)
     so `--help` and argument-parsing failures never require the workspace's
-    `nptc` package to even be importable.
+    `aptc` package to even be importable.
 
     Raises `ValueError` for an explicitly-empty `--database-url` (rather than
     silently falling through to the environment - an operator who typed
     `--database-url ""` almost certainly meant to pin a specific DSN) and
-    re-raises a genuinely malformed `NPTC_DATABASE_URL` (a `pydantic`
+    re-raises a genuinely malformed `APTC_DATABASE_URL` (a `pydantic`
     `ValidationError` whose cause isn't simply "the variable is unset") so
     that case is never conflated with "no DSN configured anywhere" - see
     `main`'s handling of both.
@@ -100,7 +100,7 @@ def _resolve_database_url(cli_value: str | None) -> str | None:
 
     from pydantic import ValidationError
 
-    from nptc.settings import AuditVerifySettings, DatabaseSettings
+    from aptc.settings import AuditVerifySettings, DatabaseSettings
 
     verify_url = AuditVerifySettings().audit_verify_database_url
     if verify_url:
@@ -153,7 +153,7 @@ def main(argv: list[str] | None = None) -> int:
         return EXIT_USAGE_ERROR
     except Exception as exc:
         # Anything else here (e.g. `_resolve_database_url`'s deferred
-        # `nptc.settings` import failing because the workspace isn't
+        # `aptc.settings` import failing because the workspace isn't
         # importable - a plausible slip running this script outside
         # `uv run`/the venv) is an environment problem, not a usage mistake
         # or a chain break - see the block below and "Exit 1 means only a
@@ -168,14 +168,14 @@ def main(argv: list[str] | None = None) -> int:
     if not database_url:
         print(
             "error: no database URL configured - pass --database-url, or set "
-            "NPTC_AUDIT_VERIFY_DATABASE_URL or NPTC_DATABASE_URL",
+            "APTC_AUDIT_VERIFY_DATABASE_URL or APTC_DATABASE_URL",
             file=sys.stderr,
         )
         return EXIT_USAGE_ERROR
 
     try:
         # Deferred (not module-level): keeps --help/usage-error paths free
-        # of a hard SQLAlchemy/nptc import requirement. Any failure past
+        # of a hard SQLAlchemy/aptc import requirement. Any failure past
         # this point - an unimportable workspace, a missing DBAPI driver, a
         # malformed DSN, a dropped connection mid-walk - is "could not
         # complete", never "chain broken": only `result.ok` below is
@@ -185,7 +185,7 @@ def main(argv: list[str] | None = None) -> int:
         # (NFR-26).
         from sqlalchemy import create_engine
 
-        from nptc.audit.verification import verify_chain
+        from aptc.audit.verification import verify_chain
 
         engine = create_engine(database_url)
         with engine.connect() as connection:

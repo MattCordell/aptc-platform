@@ -1,7 +1,7 @@
 """Downgrade/upgrade round-trip fingerprint test (issue #33), plus (issue
 #35) post-round-trip behavioural refusal tests.
 
-Needs its own dedicated database, not the shared `nptc_test` database the
+Needs its own dedicated database, not the shared `aptc_test` database the
 rest of backend/tests uses: `downgrade base` drops every table, and
 sharing a database with the session-scoped `owner_engine`/`app_engine`
 fixtures would give intermittent `UndefinedTable` errors from pooled
@@ -22,7 +22,7 @@ absence is exactly what #35's "grants re-asserted after downgrade then
 upgrade" criterion is about, and that is what the
 `test_app_role_is_still_refused_*_after_round_trip` tests below assert
 instead: real UPDATE/DELETE/TRUNCATE statements, run as the genuinely
-separate `nptc_app_login` role, against the schema produced by an actual
+separate `aptc_app_login` role, against the schema produced by an actual
 `downgrade base` -> `upgrade head` round-trip.
 """
 
@@ -41,7 +41,7 @@ from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import Connection, Engine, make_url
 from testcontainers.community.postgres import PostgresContainer
 
-from nptc.db.property_indexes import GENERATED_INDEX_NAME_RE
+from aptc.db.property_indexes import GENERATED_INDEX_NAME_RE
 
 _support_spec = importlib.util.spec_from_file_location(
     "_test_db_round_trip_audit_privilege_support",
@@ -55,7 +55,7 @@ assert_refused = _support.assert_refused
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PYPROJECT_FILE = REPO_ROOT / "pyproject.toml"
-_ROUNDTRIP_DB = "nptc_roundtrip"
+_ROUNDTRIP_DB = "aptc_roundtrip"
 
 
 def _alembic_config() -> Config:
@@ -111,7 +111,7 @@ def _fingerprint(engine: Engine) -> dict[str, Any]:
             # runtime state, not schema history (ADR-0012) - excluded here
             # for the same reason env.py's include_object excludes them
             # from autogenerate. Not strictly load-bearing today (this
-            # dedicated nptc_roundtrip database is dropped and recreated,
+            # dedicated aptc_roundtrip database is dropped and recreated,
             # and nothing reconciles against it), but ADR-0012 mandates the
             # filter so the first test or CLI run that ever does touch it
             # doesn't produce a confusing round-trip failure.
@@ -158,7 +158,7 @@ def _fingerprint(engine: Engine) -> dict[str, Any]:
             ]
         )
 
-        # issue #48/ADR-0023: `nptc_sctid_is_valid` is this repo's first
+        # issue #48/ADR-0023: `aptc_sctid_is_valid` is this repo's first
         # database function, created by migration 0008 and referenced by
         # `ck_code_binding_code`. Without asserting its own survival here,
         # a downgrade that dropped the function but a re-upgrade that
@@ -188,8 +188,8 @@ def _fingerprint(engine: Engine) -> dict[str, Any]:
 @pytest.fixture(scope="module")
 def roundtrip_engine(postgres_container: PostgresContainer, migrated: None) -> Iterator[Engine]:
     # Depends on `migrated` (unused directly) purely for ordering: it forces
-    # the shared nptc_test database's own migration - and so the first-ever
-    # `CREATE ROLE nptc_app` in this cluster - to run before this fixture's
+    # the shared aptc_test database's own migration - and so the first-ever
+    # `CREATE ROLE aptc_app` in this cluster - to run before this fixture's
     # migration does, regardless of test collection order. Without this,
     # test_downgrade_base_then_upgrade_head_reproduces_the_same_schema's own
     # comment about proving 0001's `IF NOT EXISTS` guard would only hold by
@@ -219,9 +219,9 @@ def round_tripped(roundtrip_engine: Engine) -> tuple[dict[str, Any], dict[str, A
     itself and the post-round-trip refusal tests below - depends on it
     through the fixture graph rather than on test collection order.
 
-    nptc_app already exists in this cluster by the time this migration runs
+    aptc_app already exists in this cluster by the time this migration runs
     here (the session-scoped `migrated` fixture created it against the
-    shared nptc_test database first) - a live proof, not just an assertion,
+    shared aptc_test database first) - a live proof, not just an assertion,
     that 0001's `IF NOT EXISTS` guard is load-bearing: roles are
     cluster-wide, so a plain CREATE ROLE would fail here otherwise.
     """
@@ -249,12 +249,12 @@ def roundtrip_app_engine(
     round_tripped: tuple[dict[str, Any], dict[str, Any]],
     app_login_credentials: tuple[str, str],
 ) -> Iterator[Engine]:
-    """Authenticates as `nptc_app_login` against `nptc_roundtrip`, exactly
-    as `app_engine` does against `nptc_test` (conftest.py) - a genuinely
+    """Authenticates as `aptc_app_login` against `aptc_roundtrip`, exactly
+    as `app_engine` does against `aptc_test` (conftest.py) - a genuinely
     separate login, never a superuser connection with SET ROLE, so the
     grant it exercises is real. Roles are cluster-wide, so the login the
     session-scoped `migrated` fixture provisions is already usable here;
-    `nptc_roundtrip` grants `CONNECT` to `PUBLIC` by default (new database),
+    `aptc_roundtrip` grants `CONNECT` to `PUBLIC` by default (new database),
     and schema `USAGE` comes from migration 0001.
 
     Depends on `round_tripped` (unused directly) purely for ordering: these

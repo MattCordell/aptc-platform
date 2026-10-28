@@ -11,10 +11,10 @@ Four rules:
 1. No ``jwt.decode``/``jwt.decode_complete`` call anywhere passes
    ``verify_signature: False`` (via ``options=``) or the legacy
    ``verify=False``.
-2. ``jwt.decode`` is called only from ``nptc/auth/tokens.py`` - every other
+2. ``jwt.decode`` is called only from ``aptc/auth/tokens.py`` - every other
    consumer of a verified token goes through ``TokenVerifier.verify``.
-3. ``jwt.get_unverified_header`` is called only from ``nptc/auth/tokens.py``
-   and ``nptc/auth/jwks.py`` - the two places the header's unauthenticated
+3. ``jwt.get_unverified_header`` is called only from ``aptc/auth/tokens.py``
+   and ``aptc/auth/jwks.py`` - the two places the header's unauthenticated
    `alg`/`typ`/`kid` are read for key/algorithm selection, never as a
    trusted claim.
 4. Every ``algorithms=`` argument is either the module constant
@@ -24,13 +24,13 @@ Four rules:
 5. (issue #44, NFR-06/NFR-07) The literal claim keys ``"acr"``,
    ``"amr"``, ``"realm_access"``, ``"resource_access"``, ``"groups"``,
    ``"roles"``, ``"scope"`` are never subscripted or ``.get()``-read
-   anywhere outside ``nptc/auth/tokens.py``. A direct, greppable
+   anywhere outside ``aptc/auth/tokens.py``. A direct, greppable
    enforcement of NFR-07's second sentence ("authorisation decisions are
    made server-side from the internal user record, never from claims in
    the token"): every one of these is authorisation-shaped, and reading
    one anywhere else would mean re-parsing the token for it rather than
    going through the platform database, which is exactly the line
-   ``nptc.auth.claims``'s own docstring draws around ``acr``/`auth_time``
+   ``aptc.auth.claims``'s own docstring draws around ``acr``/`auth_time``
    being *authentication* facts, never *authorisation* claims.
 """
 
@@ -46,16 +46,16 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCAN_DIRS = [REPO_ROOT / "backend" / "src"]
 
-_ALLOWED_DECODE_PATH = "backend/src/nptc/auth/tokens.py"
+_ALLOWED_DECODE_PATH = "backend/src/aptc/auth/tokens.py"
 _ALLOWED_UNVERIFIED_HEADER_PATHS = {
-    "backend/src/nptc/auth/tokens.py",
-    "backend/src/nptc/auth/jwks.py",
+    "backend/src/aptc/auth/tokens.py",
+    "backend/src/aptc/auth/jwks.py",
 }
 _ALLOWED_ALGORITHMS_CONSTANT = "_ALGORITHMS"
 _DISALLOWED_ALGORITHMS = {"none"}
 
 #: issue #44, rule 5 - see the module docstring.
-_ALLOWED_RESTRICTED_CLAIM_PATH = "backend/src/nptc/auth/tokens.py"
+_ALLOWED_RESTRICTED_CLAIM_PATH = "backend/src/aptc/auth/tokens.py"
 _RESTRICTED_CLAIM_KEYS = {
     "acr",
     "amr",
@@ -151,7 +151,7 @@ def _check_source(source: str, display_path: str) -> list[Violation]:
                             display_path,
                             node.lineno,
                             "restricted-claim-key-outside-tokens",
-                            f"subscripts claim {key!r} outside nptc/auth/tokens.py",
+                            f"subscripts claim {key!r} outside aptc/auth/tokens.py",
                         )
                     )
             if (
@@ -167,7 +167,7 @@ def _check_source(source: str, display_path: str) -> list[Violation]:
                             display_path,
                             node.lineno,
                             "restricted-claim-key-outside-tokens",
-                            f".get({key!r}) called outside nptc/auth/tokens.py",
+                            f".get({key!r}) called outside aptc/auth/tokens.py",
                         )
                     )
 
@@ -214,7 +214,7 @@ def _check_source(source: str, display_path: str) -> list[Violation]:
                     display_path,
                     node.lineno,
                     "decode-outside-tokens",
-                    "jwt.decode/decode_complete called outside nptc/auth/tokens.py",
+                    "jwt.decode/decode_complete called outside aptc/auth/tokens.py",
                 )
             )
 
@@ -293,7 +293,7 @@ def restricted_claim_subscript(payload):
 def restricted_claim_get(payload):
     return payload.get("roles")
 """
-    violations = _check_source(bad_source, "nptc/auth/somewhere_else.py")
+    violations = _check_source(bad_source, "aptc/auth/somewhere_else.py")
     rule_counts = Counter(v.rule for v in violations)
 
     assert rule_counts == Counter(

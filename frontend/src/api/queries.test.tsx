@@ -154,16 +154,16 @@ describe("useEntriesList", () => {
 
 describe("useEntryDetail", () => {
   it("fetches the entry by business key", async () => {
-    const entry = { business_key: "NPTC-000247", preferred_term: "x", length: 1 };
+    const entry = { business_key: "APTC-000247", preferred_term: "x", length: 1 };
     const fetchMock = stubFetch(200, entry);
 
-    const { result } = renderHook(() => useEntryDetail("NPTC-000247"), { wrapper });
+    const { result } = renderHook(() => useEntryDetail("APTC-000247"), { wrapper });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(result.current.data).toEqual(entry);
     const requestUrl = new URL((fetchMock.mock.calls[0]?.[0] as Request).url);
-    expect(requestUrl.pathname).toBe("/api/v1/catalogue/entries/NPTC-000247");
+    expect(requestUrl.pathname).toBe("/api/v1/catalogue/entries/APTC-000247");
   });
 
   it("does not fetch for a blank business key", () => {
@@ -241,16 +241,16 @@ describe("useAdminEntryDetail", () => {
     // The whole reason this hook exists rather than useEntryDetail: the
     // public route 404s a draft entry, so an edit screen cannot load its own
     // subject through it (issue #228).
-    const entry = { business_key: "NPTC-000247", status: "draft", row_version: 3 };
+    const entry = { business_key: "APTC-000247", status: "draft", row_version: 3 };
     const fetchMock = stubFetch(200, entry);
 
-    const { result } = renderHook(() => useAdminEntryDetail("NPTC-000247"), { wrapper });
+    const { result } = renderHook(() => useAdminEntryDetail("APTC-000247"), { wrapper });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(result.current.data).toEqual(entry);
     expect(new URL(requestFor(fetchMock).url).pathname).toBe(
-      "/api/v1/catalogue/admin/entries/NPTC-000247",
+      "/api/v1/catalogue/admin/entries/APTC-000247",
     );
   });
 
@@ -580,7 +580,7 @@ describe("useInterestIdentities (FR-33)", () => {
 
 describe("internal comment hooks (FR-95)", () => {
   const SUBMISSION = "0b8a5c7e-6a43-4f56-9d1b-2f4f5a4e1c20";
-  const KEY = "NPTC-000247";
+  const KEY = "APTC-000247";
   const COMMENT_ID = "0b8a5c7e-6a43-4f56-9d1b-2f4f5a4e1c21";
   const TARGETS = [
     {
@@ -1107,7 +1107,7 @@ describe("useTransitionSubmission (FR-28, FR-81)", () => {
       },
     ]);
     const { Wrapper, queryClient } = sharedClientWrapper();
-    const entryKey = ["api", "/api/v1/catalogue/entries/{business_key}", "NPTC-000123"];
+    const entryKey = ["api", "/api/v1/catalogue/entries/{business_key}", "APTC-000123"];
     queryClient.setQueryData(entryKey, {});
     const { result } = renderHook(() => useTransitionSubmission(ID), {
       wrapper: Wrapper,
@@ -1202,7 +1202,7 @@ describe("useApproveSubmission (FR-28, FR-35)", () => {
     row_version: 6,
     available_transitions: [],
     entry_id: "6f1d2c3b-4a5e-4f60-8a71-92b3c4d5e6f7",
-    business_key: "NPTC-000123",
+    business_key: "APTC-000123",
     entry_row_version: 1,
   };
 
@@ -1241,7 +1241,7 @@ describe("useApproveSubmission (FR-28, FR-35)", () => {
       row_version: 6,
       available_transitions: [],
       entry_business_key: null,
-      created_entry_business_key: "NPTC-000123",
+      created_entry_business_key: "APTC-000123",
     });
     expect(calls.find((call) => call.method === "POST")?.body).toEqual(BODY);
     expect(calls.filter((call) => call.path === DETAIL)).toHaveLength(1);
@@ -1253,7 +1253,7 @@ describe("useApproveSubmission (FR-28, FR-35)", () => {
         method: "GET",
         path: DETAIL,
         status: 200,
-        body: { ...detail, entry_business_key: "NPTC-000123" },
+        body: { ...detail, entry_business_key: "APTC-000123" },
       },
       {
         method: "POST",
@@ -1273,7 +1273,7 @@ describe("useApproveSubmission (FR-28, FR-35)", () => {
 
     await waitFor(() => expect(result.current.read.data?.state).toBe("Approved"));
     expect(result.current.read.data).toMatchObject({
-      entry_business_key: "NPTC-000123",
+      entry_business_key: "APTC-000123",
       created_entry_business_key: null,
     });
   });
@@ -1313,8 +1313,8 @@ describe("useApproveSubmission (FR-28, FR-35)", () => {
     ]);
     const { Wrapper, queryClient } = sharedClientWrapper();
     const catalogueKeys = [
-      ["api", "/api/v1/catalogue/entries/{business_key}", "NPTC-000123"],
-      ["api", "/api/v1/catalogue/entries/{business_key}/designations", "NPTC-000123"],
+      ["api", "/api/v1/catalogue/entries/{business_key}", "APTC-000123"],
+      ["api", "/api/v1/catalogue/entries/{business_key}/designations", "APTC-000123"],
       ["api", "/api/v1/catalogue/entries", {}],
       ["api", "/api/v1/catalogue/search", { q: "ferritin" }],
       ["api", "/api/v1/catalogue/admin/entries", {}],
@@ -1580,8 +1580,8 @@ describe("useAddDesignations", () => {
     const fetchMock = stubFetch(201, { designations: [], warnings: [], row_version: 2 });
     const { result } = renderHook(
       () => ({
-        add: useAddDesignations("NPTC-000247"),
-        entry: useAdminEntryDetail("NPTC-000247"),
+        add: useAddDesignations("APTC-000247"),
+        entry: useAdminEntryDetail("APTC-000247"),
       }),
       { wrapper },
     );
@@ -1596,7 +1596,7 @@ describe("useAddDesignations", () => {
 
     const request = requestFor(fetchMock, 1);
     expect(new URL(request.url).pathname).toBe(
-      "/api/v1/catalogue/entries/NPTC-000247/designations",
+      "/api/v1/catalogue/entries/APTC-000247/designations",
     );
     expect(request.method).toBe("POST");
     expect(await bodyOf(request)).toEqual({
@@ -1607,7 +1607,7 @@ describe("useAddDesignations", () => {
     // The invalidation: a third call, re-reading the entry.
     await waitFor(() => expect(fetchMock.mock.calls.length).toBe(3));
     expect(new URL(requestFor(fetchMock, 2).url).pathname).toBe(
-      "/api/v1/catalogue/admin/entries/NPTC-000247",
+      "/api/v1/catalogue/admin/entries/APTC-000247",
     );
   });
 
@@ -1619,10 +1619,10 @@ describe("useAddDesignations", () => {
     stubFetch(409, {
       detail: "This term matches another entry's preferred term or synonym.",
       collisions: [
-        { severity: "error", business_key: "NPTC-000111", preferred_term: "Adrenal Ab" },
+        { severity: "error", business_key: "APTC-000111", preferred_term: "Adrenal Ab" },
       ],
     });
-    const { result } = renderHook(() => useAddDesignations("NPTC-000247"), { wrapper });
+    const { result } = renderHook(() => useAddDesignations("APTC-000247"), { wrapper });
 
     result.current.mutate({
       terms: ["Adrenal Ab"],
@@ -1632,7 +1632,7 @@ describe("useAddDesignations", () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(asCollisionError(result.current.error)?.collisions[0]?.business_key).toBe(
-      "NPTC-000111",
+      "APTC-000111",
     );
   });
 
@@ -1643,14 +1643,14 @@ describe("useAddDesignations", () => {
   it("refetches the entry on a version conflict", async () => {
     stubFetch(409, {
       detail: "This entry was changed by someone else since you loaded it.",
-      business_key: "NPTC-000247",
+      business_key: "APTC-000247",
       expected_row_version: 1,
       current_row_version: 2,
       conflicts: [],
       changed_by: "A Curator",
       changed_at: "2026-09-02T00:00:00Z",
     });
-    const { result } = renderHook(() => useAddDesignations("NPTC-000247"), { wrapper });
+    const { result } = renderHook(() => useAddDesignations("APTC-000247"), { wrapper });
 
     result.current.mutate({
       terms: ["Zovirax"],
@@ -1673,7 +1673,7 @@ describe("useAmendDesignation", () => {
       warnings: [],
       row_version: 4,
     });
-    const { result } = renderHook(() => useAmendDesignation("NPTC-000247"), { wrapper });
+    const { result } = renderHook(() => useAmendDesignation("APTC-000247"), { wrapper });
 
     result.current.mutate({
       term: "Ferritin",
@@ -1686,7 +1686,7 @@ describe("useAmendDesignation", () => {
 
     const request = requestFor(fetchMock);
     expect(new URL(request.url).pathname).toBe(
-      "/api/v1/catalogue/entries/NPTC-000247/designations/amendment",
+      "/api/v1/catalogue/entries/APTC-000247/designations/amendment",
     );
     expect(await bodyOf(request)).toMatchObject({
       term: "Ferritin",
@@ -1699,14 +1699,14 @@ describe("useAmendDesignation", () => {
   it("throws a 409 version conflict with its body intact", async () => {
     stubFetch(409, {
       detail: "This entry was changed by someone else since you loaded it.",
-      business_key: "NPTC-000247",
+      business_key: "APTC-000247",
       expected_row_version: 3,
       current_row_version: 4,
       conflicts: [],
       changed_by: "A Curator",
       changed_at: "2026-09-02T00:00:00Z",
     });
-    const { result } = renderHook(() => useAmendDesignation("NPTC-000247"), { wrapper });
+    const { result } = renderHook(() => useAmendDesignation("APTC-000247"), { wrapper });
 
     result.current.mutate({
       term: "Ferritin",
@@ -1726,7 +1726,7 @@ describe("useRetireDesignation", () => {
       designation: { term: "Cyclir", status: "withdrawn" },
       row_version: 2,
     });
-    const { result } = renderHook(() => useRetireDesignation("NPTC-000247"), { wrapper });
+    const { result } = renderHook(() => useRetireDesignation("APTC-000247"), { wrapper });
 
     result.current.mutate({
       term: "Cyclir",
@@ -1737,7 +1737,7 @@ describe("useRetireDesignation", () => {
 
     const request = requestFor(fetchMock);
     expect(new URL(request.url).pathname).toBe(
-      "/api/v1/catalogue/entries/NPTC-000247/designations/retirement",
+      "/api/v1/catalogue/entries/APTC-000247/designations/retirement",
     );
     expect(await bodyOf(request)).toEqual({
       term: "Cyclir",
@@ -1752,14 +1752,14 @@ describe("useRetireDesignation", () => {
   it("refetches the entry on a version conflict", async () => {
     stubFetch(409, {
       detail: "This entry was changed by someone else since you loaded it.",
-      business_key: "NPTC-000247",
+      business_key: "APTC-000247",
       expected_row_version: 1,
       current_row_version: 2,
       conflicts: [],
       changed_by: "A Curator",
       changed_at: "2026-09-02T00:00:00Z",
     });
-    const { result } = renderHook(() => useRetireDesignation("NPTC-000247"), { wrapper });
+    const { result } = renderHook(() => useRetireDesignation("APTC-000247"), { wrapper });
 
     result.current.mutate({
       term: "Cyclir",
@@ -1779,7 +1779,7 @@ describe("useReinstateDesignation", () => {
       warnings: [],
       row_version: 2,
     });
-    const { result } = renderHook(() => useReinstateDesignation("NPTC-000247"), {
+    const { result } = renderHook(() => useReinstateDesignation("APTC-000247"), {
       wrapper,
     });
 
@@ -1792,7 +1792,7 @@ describe("useReinstateDesignation", () => {
 
     const request = requestFor(fetchMock);
     expect(new URL(request.url).pathname).toBe(
-      "/api/v1/catalogue/entries/NPTC-000247/designations/reinstatement",
+      "/api/v1/catalogue/entries/APTC-000247/designations/reinstatement",
     );
     expect(await bodyOf(request)).toEqual({
       term: "Cyclir",
@@ -1807,14 +1807,14 @@ describe("useReinstateDesignation", () => {
   it("refetches the entry on a version conflict", async () => {
     stubFetch(409, {
       detail: "This entry was changed by someone else since you loaded it.",
-      business_key: "NPTC-000247",
+      business_key: "APTC-000247",
       expected_row_version: 1,
       current_row_version: 2,
       conflicts: [],
       changed_by: "A Curator",
       changed_at: "2026-09-02T00:00:00Z",
     });
-    const { result } = renderHook(() => useReinstateDesignation("NPTC-000247"), {
+    const { result } = renderHook(() => useReinstateDesignation("APTC-000247"), {
       wrapper,
     });
 
@@ -1838,7 +1838,7 @@ describe("useAcknowledgeCollision", () => {
       reason: "Both are valid",
       created: true,
     });
-    const { result } = renderHook(() => useAcknowledgeCollision("NPTC-000247"), {
+    const { result } = renderHook(() => useAcknowledgeCollision("APTC-000247"), {
       wrapper,
     });
 
@@ -1849,7 +1849,7 @@ describe("useAcknowledgeCollision", () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
     expect(new URL(requestFor(fetchMock).url).pathname).toBe(
-      "/api/v1/catalogue/entries/NPTC-000247/designations/acknowledgement",
+      "/api/v1/catalogue/entries/APTC-000247/designations/acknowledgement",
     );
     expect(result.current.data).toMatchObject({ created: true });
   });
@@ -2201,8 +2201,8 @@ describe("useSavePropertyValues", () => {
     });
     const { result } = renderHook(
       () => ({
-        save: useSavePropertyValues("NPTC-000247", "discipline"),
-        entry: useAdminEntryDetail("NPTC-000247"),
+        save: useSavePropertyValues("APTC-000247", "discipline"),
+        entry: useAdminEntryDetail("APTC-000247"),
       }),
       { wrapper },
     );
@@ -2217,7 +2217,7 @@ describe("useSavePropertyValues", () => {
 
     const request = requestFor(fetchMock, 1);
     expect(new URL(request.url).pathname).toBe(
-      "/api/v1/catalogue/entries/NPTC-000247/properties/discipline",
+      "/api/v1/catalogue/entries/APTC-000247/properties/discipline",
     );
     expect(request.method).toBe("PUT");
     expect(await bodyOf(request)).toEqual({
@@ -2227,7 +2227,7 @@ describe("useSavePropertyValues", () => {
     });
     await waitFor(() => expect(fetchMock.mock.calls.length).toBe(3));
     expect(new URL(requestFor(fetchMock, 2).url).pathname).toBe(
-      "/api/v1/catalogue/admin/entries/NPTC-000247",
+      "/api/v1/catalogue/admin/entries/APTC-000247",
     );
   });
 
@@ -2237,7 +2237,7 @@ describe("useSavePropertyValues", () => {
   it("refetches the entry on a version conflict", async () => {
     stubFetch(409, {
       detail: "This entry was changed by someone else since you loaded it.",
-      business_key: "NPTC-000247",
+      business_key: "APTC-000247",
       expected_row_version: 3,
       current_row_version: 4,
       conflicts: [],
@@ -2245,7 +2245,7 @@ describe("useSavePropertyValues", () => {
       changed_at: "2026-09-02T00:00:00Z",
     });
     const { result } = renderHook(
-      () => useSavePropertyValues("NPTC-000247", "discipline"),
+      () => useSavePropertyValues("APTC-000247", "discipline"),
       { wrapper },
     );
 
@@ -2266,7 +2266,7 @@ describe("useSavePropertyValues", () => {
  * not only its path.
  */
 
-const ENTRY_KEY = "NPTC-000247";
+const ENTRY_KEY = "APTC-000247";
 const ENTRIES = "/api/v1/catalogue/entries";
 
 function wrapperWithStatus(
@@ -2694,7 +2694,7 @@ describe("useEntryHistory", () => {
 
   describe("keepPreviousPage", () => {
     const FIRST = { items: [{ note: "page one" }], next_cursor: "c2" };
-    const OTHER_KEY = "NPTC-000999";
+    const OTHER_KEY = "APTC-000999";
 
     /**
      * Page one of `ENTRY_KEY` answers at once. Every other request waits, so a

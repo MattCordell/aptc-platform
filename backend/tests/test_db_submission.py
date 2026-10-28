@@ -15,8 +15,8 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import IntegrityError, ProgrammingError
 
-from nptc.audit.policy import policy_for
-from nptc.db.models.submission import (
+from aptc.audit.policy import policy_for
+from aptc.db.models.submission import (
     _KIND_CHECK_SQL,
     _STATE_CHECK_SQL,
     Submission,
@@ -66,7 +66,7 @@ _INSERT_MINIMAL_SUBMISSION = text(
 
 
 def _insert_entry(connection: Connection) -> object:
-    business_key = f"NPTC-{uuid.uuid4().int % 900_000 + 100_000}"
+    business_key = f"APTC-{uuid.uuid4().int % 900_000 + 100_000}"
     return connection.execute(_INSERT_ENTRY, {"business_key": business_key}).scalar_one()
 
 

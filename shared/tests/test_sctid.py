@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from nptc_shared.sctid import SCTID, InvalidSCTIDError, has_valid_check_digit, has_valid_format
+from aptc_shared.sctid import SCTID, InvalidSCTIDError, has_valid_check_digit, has_valid_format
 
 REAL_SCTIDS = (
     "873871000168106",  # 15 digits

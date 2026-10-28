@@ -3,18 +3,18 @@
 baseline (FR-70, FR-76, ADR-0010, ADR-0042).
 
 This is a one-off setup step, run once on a new deployment after the transform has emitted a
-dataset (`nptc-transform run --emit-dataset --release-name YYYY-MM`) and migrations have run. It
-is a thin wrapper around `nptc.catalogue.seed_import.seed_baseline`; no seeding logic lives here.
+dataset (`aptc-transform run --emit-dataset --release-name YYYY-MM`) and migrations have run. It
+is a thin wrapper around `aptc.catalogue.seed_import.seed_baseline`; no seeding logic lives here.
 
 The whole import is one transaction. Any refusal, anywhere, leaves the database as it was. The
 loader refuses a catalogue that already holds an entry: a reseed is a deliberate database reset,
 described in the runbook.
 
-It connects as the application role (`NPTC_DATABASE_URL`), like `scripts/grant_role.py`, because
+It connects as the application role (`APTC_DATABASE_URL`), like `scripts/grant_role.py`, because
 it writes through the same code paths the API uses.
 
 After the commit it builds the indexes the seeded filterable properties need (FR-13), as the
-indexer role (`NPTC_INDEXER_DATABASE_URL`). That step is outside the import's transaction because
+indexer role (`APTC_INDEXER_DATABASE_URL`). That step is outside the import's transaction because
 `CREATE INDEX CONCURRENTLY` cannot run inside one. It never changes the exit code: with the
 indexer DSN unset, or on a failure, the baseline stays committed and the run prints a warning
 naming `scripts/reconcile_property_indexes.py`, which finishes the job later.
@@ -60,14 +60,14 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--database-url",
         default=None,
-        help="DSN to connect with. Falls back to NPTC_DATABASE_URL if not given.",
+        help="DSN to connect with. Falls back to APTC_DATABASE_URL if not given.",
     )
     parser.add_argument(
         "--indexer-database-url",
         default=None,
         help=(
             "DSN of the role that builds the generated indexes (it must be able to CREATE INDEX "
-            "on property_value). Falls back to NPTC_INDEXER_DATABASE_URL. With neither set, the "
+            "on property_value). Falls back to APTC_INDEXER_DATABASE_URL. With neither set, the "
             "import still commits and no index is built."
         ),
     )
@@ -80,8 +80,8 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
 
 
 def _resolve_database_url(cli_value: str | None) -> str | None:
-    """`--database-url`, then `NPTC_DATABASE_URL`. An explicitly empty `--database-url` is a
-    usage mistake and never falls through to the environment. The `nptc` import is deferred so
+    """`--database-url`, then `APTC_DATABASE_URL`. An explicitly empty `--database-url` is a
+    usage mistake and never falls through to the environment. The `aptc` import is deferred so
     `--help` never needs the workspace to be importable."""
     if cli_value is not None:
         if not cli_value:
@@ -90,7 +90,7 @@ def _resolve_database_url(cli_value: str | None) -> str | None:
 
     from pydantic import ValidationError
 
-    from nptc.settings import DatabaseSettings
+    from aptc.settings import DatabaseSettings
 
     try:
         return DatabaseSettings().database_url
@@ -101,7 +101,7 @@ def _resolve_database_url(cli_value: str | None) -> str | None:
 
 
 def _resolve_indexer_database_url(cli_value: str | None) -> str | None:
-    """`--indexer-database-url`, then `NPTC_INDEXER_DATABASE_URL`; `None` when neither is set,
+    """`--indexer-database-url`, then `APTC_INDEXER_DATABASE_URL`; `None` when neither is set,
     which is a valid posture (FR-13). An explicitly empty flag is a usage mistake, as for
     `--database-url`."""
     if cli_value is not None:
@@ -109,7 +109,7 @@ def _resolve_indexer_database_url(cli_value: str | None) -> str | None:
             raise ValueError("--indexer-database-url must not be empty")
         return cli_value
 
-    from nptc.settings import IndexerSettings
+    from aptc.settings import IndexerSettings
 
     return IndexerSettings().indexer_database_url or None
 
@@ -128,13 +128,13 @@ def _build_indexes(indexer_database_url: str | None) -> None:
     fix = "run scripts/reconcile_property_indexes.py to build them"
     if indexer_database_url is None:
         print(
-            f"WARNING: no property index was built: NPTC_INDEXER_DATABASE_URL is not set; {fix}",
+            f"WARNING: no property index was built: APTC_INDEXER_DATABASE_URL is not set; {fix}",
             file=sys.stderr,
         )
         return
 
     try:
-        from nptc.db import property_reconciler
+        from aptc.db import property_reconciler
 
         report = property_reconciler.reconcile_property_indexes(database_url=indexer_database_url)
     except Exception as exc:
@@ -175,7 +175,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if not database_url:
         print(
-            "error: no database URL configured - pass --database-url or set NPTC_DATABASE_URL",
+            "error: no database URL configured - pass --database-url or set APTC_DATABASE_URL",
             file=sys.stderr,
         )
         return EXIT_USAGE_ERROR
@@ -194,24 +194,24 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         # Deferred, as in grant_role.py: keeps --help and usage-error paths free of a hard
-        # SQLAlchemy/nptc import. The exception text is never printed for an unexpected failure,
+        # SQLAlchemy/aptc import. The exception text is never printed for an unexpected failure,
         # only its type: it can carry connection details (NFR-26).
         from sqlalchemy import create_engine
         from sqlalchemy.orm import Session
 
-        from nptc.catalogue.seed_dataset import (
+        from aptc.catalogue.seed_dataset import (
             DatasetInvalidError,
             DatasetNotSeedableError,
             DatasetReadError,
             read_import_dataset,
         )
-        from nptc.catalogue.seed_import import (
+        from aptc.catalogue.seed_import import (
             CatalogueNotEmptyError,
             SeedImportError,
             SeedPrerequisiteError,
             seed_baseline,
         )
-        from nptc.db.session import REQUIRED_ISOLATION_LEVEL
+        from aptc.db.session import REQUIRED_ISOLATION_LEVEL
 
         try:
             dataset = read_import_dataset(args.dataset)

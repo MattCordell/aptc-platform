@@ -2,7 +2,7 @@
 (issue #165, NFR-08).
 
 `test_audit_route_inventory.py` needs to answer "can this endpoint function
-reach `nptc.audit.recording.record_change` / `record_snapshot_change`
+reach `aptc.audit.recording.record_change` / `record_snapshot_change`
 without running the app" - a question `test_audit_write_path_guard.py`
 (#37, call-site only) and `route_inventory_support.py` (#44/this issue's
 enumeration, no call-graph awareness) do not answer between them.
@@ -17,11 +17,11 @@ of the same name (an earlier version built one flat, whole-module table and
 let a local import shadow a same-named binding everywhere, which could
 manufacture a "reachable" that a real Python scope resolution would never
 produce - see `_build_import_table`), recursing only into modules under
-`nptc.` (found on disk under `backend/src`) - FastAPI, SQLAlchemy and
+`aptc.` (found on disk under `backend/src`) - FastAPI, SQLAlchemy and
 stdlib calls are leaves the walk does not need to look inside.
 
 Deliberately conservative: an attribute call whose base cannot be resolved
-to a known `nptc.` module (e.g. `session.flush()`, `queries.some_read()`)
+to a known `aptc.` module (e.g. `session.flush()`, `queries.some_read()`)
 is left unresolved rather than guessed at - a false "reachable" here would
 defeat the whole point of the guard. `test_audit_route_inventory.py`'s
 allow-list exists precisely for the routes this walker can prove do not
@@ -65,8 +65,8 @@ SRC_ROOT = REPO_ROOT / "backend" / "src"
 #: (module, qualname) pairs that count as "this endpoint audits its write".
 TARGET_FUNCTIONS = frozenset(
     {
-        ("nptc.audit.recording", "record_change"),
-        ("nptc.audit.recording", "record_snapshot_change"),
+        ("aptc.audit.recording", "record_change"),
+        ("aptc.audit.recording", "record_snapshot_change"),
     }
 )
 
@@ -75,7 +75,7 @@ def _resolve_module_file(module_name: str) -> tuple[Path, bool] | None:
     """`(file path, is_package)` for `module_name`'s source under
     `SRC_ROOT`, or `None` if it has none. `is_package` matters to relative
     import resolution below: a package's `__init__.py` *is* the package
-    CPython's `__package__` semantics see (`nptc.pkg`'s own dotted name is
+    CPython's `__package__` semantics see (`aptc.pkg`'s own dotted name is
     the package a `from .` inside it counts levels from), unlike a plain
     module, whose package is its parent."""
     parts = module_name.split(".")
@@ -241,11 +241,11 @@ def _flatten_attribute_chain(node: ast.expr) -> list[str] | None:
 
 def _attribute_call_targets(chain: list[str], imports: _Imports) -> list[tuple[str, str]]:
     """Every `(module, qualname)` a dotted attribute chain could resolve
-    to, longest module-path prefix first: `nptc.audit.recording.
-    record_change(...)` (chain `["nptc", "audit", "recording",
-    "record_change"]`, base `nptc` bound to itself by a plain `import
-    nptc.audit.recording`) needs the same three-hop fold as the one-hop
-    `audit.record_change(...)` case (`from nptc import audit`) - both are
+    to, longest module-path prefix first: `aptc.audit.recording.
+    record_change(...)` (chain `["aptc", "audit", "recording",
+    "record_change"]`, base `aptc` bound to itself by a plain `import
+    aptc.audit.recording`) needs the same three-hop fold as the one-hop
+    `audit.record_change(...)` case (`from aptc import audit`) - both are
     just different lengths of the same chain, so one loop handles both
     instead of two separate code paths for "how many attributes are module
     path versus how many are an object/class access". Each candidate is
@@ -301,7 +301,7 @@ def reachable(
 ) -> bool:
     """Whether `qualname` in `module_name` (module-level function, or a
     dotted `Class.method`) reaches one of `targets` through a static
-    `ast.Call` walk confined to `nptc.*` modules under `backend/src`. See
+    `ast.Call` walk confined to `aptc.*` modules under `backend/src`. See
     the module docstring for what this does and does not claim.
 
     Every module/scan is cached (`_parse_module`) and every (module,
@@ -331,7 +331,7 @@ def reachable(
         for target_module, target_qualname in _call_targets(node, module_name, imports):
             if (target_module, target_qualname) in targets:
                 return True
-            if not target_module.startswith("nptc."):
+            if not target_module.startswith("aptc."):
                 continue
             if reachable(target_module, target_qualname, targets=targets, _visited=_visited):
                 return True

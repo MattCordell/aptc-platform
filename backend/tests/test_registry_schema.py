@@ -1,4 +1,4 @@
-"""`nptc.registry.schema` tests (issue #52, FR-09, FR-10, ADR-0012).
+"""`aptc.registry.schema` tests (issue #52, FR-09, FR-10, ADR-0012).
 
 No fixtures beyond `_spec` (mirrors `test_datatype_handlers.py`'s own
 helper) - schema derivation and value validation take a frozen
@@ -9,18 +9,18 @@ from __future__ import annotations
 
 import pytest
 
-from nptc.registry import BindingSpec, PropertyDefinitionSpec
-from nptc.registry.datatypes.code import CodeHandler
-from nptc.registry.datatypes.positive_int import PositiveIntHandler
-from nptc.registry.datatypes.string import StringHandler
-from nptc.registry.schema import (
+from aptc.registry import BindingSpec, PropertyDefinitionSpec
+from aptc.registry.datatypes.code import CodeHandler
+from aptc.registry.datatypes.positive_int import PositiveIntHandler
+from aptc.registry.datatypes.string import StringHandler
+from aptc.registry.schema import (
     MalformedConstraintsError,
     property_schema,
     reset_schema_cache,
     validate_constraints,
     validate_values,
 )
-from nptc_shared.terminology.stub import StubTerminologyClient
+from aptc_shared.terminology.stub import StubTerminologyClient
 
 
 @pytest.fixture(autouse=True)
@@ -83,7 +83,7 @@ class TestPropertySchema:
         would drop it anyway (it is the oldest by insertion order); a
         genuine LRU must not, since the touch makes it the most recently
         used."""
-        import nptc.registry.schema as schema_module
+        import aptc.registry.schema as schema_module
 
         cache_size = schema_module._SCHEMA_CACHE_SIZE
         handler = StringHandler()

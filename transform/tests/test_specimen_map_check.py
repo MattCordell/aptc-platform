@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import pytest
 
-from nptc_shared.terminology.models import AU_LANGUAGE_TAG, SNOMED_CT_AU, Operation
-from nptc_shared.terminology.stub import StubConcept, StubTerminologyClient
-from nptc_shared.terminology.sweep import ConceptDesignations, TerminologySweep
-from nptc_transform.bands import Band
-from nptc_transform.specimen_map import SPECIMEN_MAP, parse_specimen_map
-from nptc_transform.specimen_map_check import check_specimen_map
+from aptc_shared.terminology.models import AU_LANGUAGE_TAG, SNOMED_CT_AU, Operation
+from aptc_shared.terminology.stub import StubConcept, StubTerminologyClient
+from aptc_shared.terminology.sweep import ConceptDesignations, TerminologySweep
+from aptc_transform.bands import Band
+from aptc_transform.specimen_map import SPECIMEN_MAP, parse_specimen_map
+from aptc_transform.specimen_map_check import check_specimen_map
 
 _AU_VERSION = "http://snomed.info/sct/32506021000036107/version/20260531"
 _HEADER = (

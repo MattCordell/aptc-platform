@@ -19,7 +19,7 @@ const SIGNED_IN = {
   },
 };
 
-const KEY = "NPTC-000006";
+const KEY = "APTC-000006";
 // Eighteen digits: past `Number.MAX_SAFE_INTEGER`, so a coerced code would
 // render differently (FR-06).
 const ENTRY_CODE = "999480561000168100";
@@ -210,7 +210,7 @@ describe("the amendment form (FR-35)", () => {
     expect(screen.getByLabelText("Organisation")).toBeVisible();
     expect(screen.queryByText("Properties")).not.toBeInTheDocument();
     expect(calls.some((call) => call.path.endsWith("/registry/properties"))).toBe(false);
-    expect(document.title).toBe("Propose a change — NPTC Catalogue");
+    expect(document.title).toBe("Propose a change — APTC Catalogue");
   });
 
   it("fills the organisation from the profile and shows who proposes", async () => {
@@ -638,7 +638,7 @@ describe("the page title (FR-35)", () => {
     await renderRoute(`/submissions/new?entry=${KEY}`, SIGNED_IN);
 
     expect(await screen.findByText("Loading entry…")).toBeVisible();
-    await waitFor(() => expect(document.title).toBe("Propose a change — NPTC Catalogue"));
+    await waitFor(() => expect(document.title).toBe("Propose a change — APTC Catalogue"));
   });
 
   it("names the amendment form when the entry fails to load", async () => {
@@ -647,7 +647,7 @@ describe("the page title (FR-35)", () => {
     await renderRoute(`/submissions/new?entry=${KEY}`, SIGNED_IN);
 
     await screen.findByRole("button", { name: "Try again" });
-    expect(document.title).toBe("Propose a change — NPTC Catalogue");
+    expect(document.title).toBe("Propose a change — APTC Catalogue");
   });
 
   it("keeps the new-test title when there is no entry", async () => {
@@ -659,7 +659,7 @@ describe("the page title (FR-35)", () => {
     await renderRoute("/submissions/new", SIGNED_IN);
 
     await screen.findByLabelText("Test name (required)");
-    expect(document.title).toBe("Submit a new test — NPTC Catalogue");
+    expect(document.title).toBe("Submit a new test — APTC Catalogue");
   });
 });
 

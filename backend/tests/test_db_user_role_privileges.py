@@ -1,12 +1,12 @@
 """user_role privilege tests (issue #44, FR-44, FR-01): the app role can
 INSERT/SELECT/DELETE a grant and update only `granted_at` (the one column
 Postgres requires *some* `UPDATE` privilege on before it will honour
-`SELECT ... FOR UPDATE` at all - see `nptc.db.roles.
+`SELECT ... FOR UPDATE` at all - see `aptc.db.roles.
 GRANT_USER_ROLE_UPDATE_SQL`), and is refused updating `user_id`/`role`/
 `granted_by_user_id` and TRUNCATE outright - a grant is created or
 removed, never *meaningfully* edited, so "who granted this, and when" is
-immutable at the privilege level (see `nptc.db.roles`'s own comment).
-Authenticated as the genuinely separate `nptc_app_login`, never a
+immutable at the privilege level (see `aptc.db.roles`'s own comment).
+Authenticated as the genuinely separate `aptc_app_login`, never a
 superuser connection with `SET ROLE` - mirrors
 test_db_user_privileges.py's own convention, including one refusal per
 test function (a privilege error aborts the surrounding transaction).
@@ -132,7 +132,7 @@ def test_app_role_is_refused_truncate_on_user_role(app_db: Connection) -> None:
 @pytest.mark.integration
 def test_role_check_constraint_refuses_a_role_not_in_the_grantable_set(app_db: Connection) -> None:
     """Deliberately excludes `'anon'` - ANON is a matrix column, never a
-    grantable row (`nptc.auth.permissions.GRANTABLE_ROLES`)."""
+    grantable row (`aptc.auth.permissions.GRANTABLE_ROLES`)."""
     from sqlalchemy.exc import IntegrityError
 
     user_id = _insert_user(app_db, "grant-bad-role")

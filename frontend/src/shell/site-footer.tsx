@@ -27,8 +27,8 @@ export function SiteFooter() {
           </ul>
         </nav>
         <p className="m-0 text-sm text-[var(--color-text-muted)]">
-          RCPA-QAP National Pathology Test Catalogue &mdash; published by NCTS as a SNOMED
-          CT reference set and FHIR ValueSet.
+          Pathology test catalogue curated by RCPA-QAP &mdash; published by NCTS as a
+          SNOMED CT reference set and FHIR ValueSet.
         </p>
       </div>
     </footer>

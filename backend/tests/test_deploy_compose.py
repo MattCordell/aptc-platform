@@ -34,7 +34,7 @@ _conftest = importlib.util.module_from_spec(_conftest_spec)
 _conftest_spec.loader.exec_module(_conftest)
 compose_config = _conftest.compose_config
 
-# Not `ApiSettings(...)`, which would also read every other `NPTC_*` variable in the
+# Not `ApiSettings(...)`, which would also read every other `APTC_*` variable in the
 # developer's shell.
 _hermetic_spec = importlib.util.spec_from_file_location(
     "_test_deploy_compose_hermetic_settings",
@@ -85,9 +85,9 @@ def test_postgres_pins_utf8_at_initialisation() -> None:
 def test_only_migrate_receives_the_owner_dsn() -> None:
     services = _services()
 
-    assert "NPTC_MIGRATION_DATABASE_URL" in services["migrate"]["environment"]
+    assert "APTC_MIGRATION_DATABASE_URL" in services["migrate"]["environment"]
     for name in ("backend", "web", "keycloak"):
-        assert "NPTC_MIGRATION_DATABASE_URL" not in services[name].get("environment", {}), name
+        assert "APTC_MIGRATION_DATABASE_URL" not in services[name].get("environment", {}), name
 
 
 @pytest.mark.req("NFR-41")
@@ -99,17 +99,17 @@ def test_no_service_loads_a_whole_env_file() -> None:
 
 @pytest.mark.req("NFR-41")
 def test_backend_connects_as_the_least_privilege_login_to_the_compose_database() -> None:
-    dsn = _services()["backend"]["environment"]["NPTC_DATABASE_URL"]
+    dsn = _services()["backend"]["environment"]["APTC_DATABASE_URL"]
 
-    assert dsn.startswith("postgresql+psycopg://nptc_app_login:")
+    assert dsn.startswith("postgresql+psycopg://aptc_app_login:")
     assert "@postgres:5432/" in dsn
 
 
 @pytest.mark.req("FR-13")
 def test_backend_reconciles_indexes_as_the_indexer_login_to_the_compose_database() -> None:
-    dsn = _services()["backend"]["environment"]["NPTC_INDEXER_DATABASE_URL"]
+    dsn = _services()["backend"]["environment"]["APTC_INDEXER_DATABASE_URL"]
 
-    assert dsn.startswith("postgresql+psycopg://nptc_indexer:")
+    assert dsn.startswith("postgresql+psycopg://aptc_indexer:")
     assert "@postgres:5432/" in dsn
 
 
@@ -119,8 +119,8 @@ def test_migrate_receives_the_indexer_password_and_backend_does_not() -> None:
     `provision_login` reads, so the rotation input stays with the one-shot service."""
     services = _services()
 
-    assert "NPTC_INDEXER_DB_PASSWORD" in services["migrate"]["environment"]
-    assert "NPTC_INDEXER_DB_PASSWORD" not in services["backend"]["environment"]
+    assert "APTC_INDEXER_DB_PASSWORD" in services["migrate"]["environment"]
+    assert "APTC_INDEXER_DB_PASSWORD" not in services["backend"]["environment"]
 
 
 @pytest.mark.req("NFR-41")
@@ -128,8 +128,8 @@ def test_backend_reads_signing_keys_from_the_internal_keycloak_address() -> None
     """The issuer stays browser-facing while the API skips discovery."""
     environment = _services()["backend"]["environment"]
 
-    assert environment["NPTC_JWKS_URL"].startswith("http://keycloak:8080/realms/nptc/")
-    assert "localhost" in environment["NPTC_OIDC_ISSUER"]
+    assert environment["APTC_JWKS_URL"].startswith("http://keycloak:8080/realms/aptc/")
+    assert "localhost" in environment["APTC_OIDC_ISSUER"]
 
 
 @pytest.mark.req("NFR-24")
@@ -139,8 +139,8 @@ def test_backend_trusts_the_forwarded_address_of_every_network_docker_assigns(
 ) -> None:
     """Without it the limiter sees Caddy as the only caller and every visitor shares one
     budget. Safe only because `backend` publishes no port, which another test pins."""
-    entry = _services()["backend"]["environment"]["NPTC_TRUSTED_PROXIES"]
-    default = re.fullmatch(r"\$\{NPTC_TRUSTED_PROXIES-(.*)\}", entry)
+    entry = _services()["backend"]["environment"]["APTC_TRUSTED_PROXIES"]
+    default = re.fullmatch(r"\$\{APTC_TRUSTED_PROXIES-(.*)\}", entry)
     assert default is not None, entry
 
     trusted = hermetic_api_settings(trusted_proxies=default.group(1)).trusted_proxies
@@ -184,7 +184,7 @@ def test_migrate_applies_migrations_before_provisioning_the_login() -> None:
     migrate = _services()["migrate"]
     script = " ".join(migrate["command"])
 
-    assert script.index("alembic upgrade head") < script.index("nptc.db.provision_login")
+    assert script.index("alembic upgrade head") < script.index("aptc.db.provision_login")
     assert migrate["restart"] == "no"
 
 
@@ -194,7 +194,7 @@ def test_only_the_web_service_publishes_an_application_port() -> None:
 
     assert "ports" not in services["backend"]
     assert "ports" not in services["migrate"]
-    assert services["web"]["ports"] == ["${NPTC_WEB_PORT:-8081}:80"]
+    assert services["web"]["ports"] == ["${APTC_WEB_PORT:-8081}:80"]
 
 
 @pytest.mark.req("NFR-41")
@@ -219,7 +219,7 @@ def test_env_example_frontend_origin_matches_the_published_web_port() -> None:
     naming either."""
     active, _ = _env_example()
 
-    assert active["NPTC_FRONTEND_BASE_URL"] == f"http://localhost:{active['NPTC_WEB_PORT']}"
+    assert active["APTC_FRONTEND_BASE_URL"] == f"http://localhost:{active['APTC_WEB_PORT']}"
 
 
 @pytest.mark.req("NFR-41")

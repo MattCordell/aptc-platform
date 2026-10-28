@@ -129,7 +129,7 @@ const CONCEPT: Route = {
 const CATALOGUE_MATCH = {
   source: "catalogue_entry",
   matched_on: "preferred_term",
-  key: "NPTC-000123",
+  key: "APTC-000123",
   preferred_term: "Serum ferritin level",
   term: "Serum ferritin level",
   similarity: 0.82,
@@ -686,8 +686,8 @@ describe("SubmissionNewPage duplicate step", () => {
       name: "This test may already exist",
     });
     await waitFor(() => expect(heading).toHaveFocus());
-    const link = screen.getByRole("link", { name: /NPTC-000123/ });
-    expect(link).toHaveAttribute("href", "/catalogue/NPTC-000123");
+    const link = screen.getByRole("link", { name: /APTC-000123/ });
+    expect(link).toHaveAttribute("href", "/catalogue/APTC-000123");
     expect(screen.getByText(/Submission already open/)).toBeVisible();
     expect(screen.getByText(/82% alike/)).toBeVisible();
     expect(writes(calls, "/submissions")).toHaveLength(0);

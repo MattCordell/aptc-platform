@@ -12,11 +12,11 @@ from pathlib import Path
 import openpyxl
 import pytest
 
-from nptc_transform.bands import FindingCode
-from nptc_transform.collision_check import check_collisions
-from nptc_transform.dataset import build_dataset
-from nptc_transform.pipeline import Mode, run_transform
-from nptc_transform.workbook import Sheet, read_workbook
+from aptc_transform.bands import FindingCode
+from aptc_transform.collision_check import check_collisions
+from aptc_transform.dataset import build_dataset
+from aptc_transform.pipeline import Mode, run_transform
+from aptc_transform.workbook import Sheet, read_workbook
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import dev_seed_workbook_filter as cli
@@ -29,7 +29,7 @@ FIXTURE = (
     / "spia-requesting-sample.xlsx"
 )
 
-#: Recorded from a real run: NPTC-000045 (row 46) repeats a synonym of NPTC-000009 (row 10).
+#: Recorded from a real run: APTC-000045 (row 46) repeats a synonym of APTC-000009 (row 10).
 COLLIDING_ROW = 46
 HEADERS = ["RCPA Preferred term", "RCPA Synonyms", "Terminology binding (SNOMED CT-AU)"]
 CODES = ("122192001", "122192017", "122192029", "122192038")

@@ -27,7 +27,7 @@ Three facts about the current stack shape the comparison:
   These come from the upstream source of the pinned image (Keycloak 26.7.4-0). Check them
   again if the image changes.
 - **The stack has no Keycloak extension point.** The realm is imported from
-  `nptc-realm.json` (ADR-0014). A theme can change what a page shows. Anything that records a
+  `aptc-realm.json` (ADR-0014). A theme can change what a page shows. Anything that records a
   version would need a custom Java provider, which this repository does not build or ship.
 
 ## Decision

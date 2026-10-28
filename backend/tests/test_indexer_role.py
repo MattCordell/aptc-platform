@@ -13,21 +13,21 @@ from sqlalchemy.exc import DBAPIError, ProgrammingError
 from sqlalchemy.orm import Session
 from testcontainers.community.postgres import PostgresContainer
 
-from nptc.db.migration_guards import (
+from aptc.db.migration_guards import (
     ForeignCodeOnPropertyValueError,
     refuse_foreign_code_on_property_value,
 )
-from nptc.db.models.property_definition import (
+from aptc.db.models.property_definition import (
     PropertyCardinality,
     PropertyDefinition,
     PropertyOrigin,
     PropertyScope,
 )
-from nptc.db.property_indexes import index_name
-from nptc.db.property_reconciler import get_indexer_engine, reconcile_property_indexes
-from nptc.db.provision_login import INDEXER_LOGIN_ROLE, provision_indexer_login
+from aptc.db.property_indexes import index_name
+from aptc.db.property_reconciler import get_indexer_engine, reconcile_property_indexes
+from aptc.db.provision_login import INDEXER_LOGIN_ROLE, provision_indexer_login
 
-INDEXER_LOGIN_PASSWORD = "nptc-indexer-login-test-only-not-a-real-secret"
+INDEXER_LOGIN_PASSWORD = "aptc-indexer-login-test-only-not-a-real-secret"
 _KEY = "test_indexer_login_property"
 
 
@@ -38,7 +38,7 @@ def _indexer_login_configured(
     monkeypatch: pytest.MonkeyPatch,
     migrated: None,
 ) -> Iterator[None]:
-    monkeypatch.setenv("NPTC_INDEXER_DATABASE_URL", _login_url(postgres_container, owner_engine))
+    monkeypatch.setenv("APTC_INDEXER_DATABASE_URL", _login_url(postgres_container, owner_engine))
     get_indexer_engine.cache_clear()
     yield
     get_indexer_engine.cache_clear()

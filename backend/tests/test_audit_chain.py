@@ -1,8 +1,8 @@
-"""Integration tests for nptc.audit.writer/nptc.audit.verification (issue
+"""Integration tests for aptc.audit.writer/aptc.audit.verification (issue
 #36, NFR-10): the happy-path append -> verify_chain round trip, and the
 concurrent-append serialisation the advisory lock exists for.
 
-`app_db` (the `nptc_app_login` role) is used for every append below,
+`app_db` (the `aptc_app_login` role) is used for every append below,
 exactly as production code will - `append_audit_event` never needs more
 than INSERT/SELECT. `test_audit_tamper_detection.py` is where the owner
 role's UPDATE/DELETE privileges get exercised, once a chain already
@@ -19,10 +19,10 @@ from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
-from nptc.audit.hashing import GENESIS_HASH
-from nptc.audit.verification import verify_chain
-from nptc.audit.writer import AuditContext, AuditIsolationLevelError, append_audit_event
-from nptc.db.models.user import User
+from aptc.audit.hashing import GENESIS_HASH
+from aptc.audit.verification import verify_chain
+from aptc.audit.writer import AuditContext, AuditIsolationLevelError, append_audit_event
+from aptc.db.models.user import User
 
 
 def _append(session: Session, entity_id: str) -> None:
@@ -192,7 +192,7 @@ def test_populated_audit_context_appends_and_verifies(app_db: Connection) -> Non
 @pytest.mark.integration
 def test_append_refuses_under_repeatable_read_isolation(app_db: Connection) -> None:
     """The advisory lock alone does not keep the chain from forking above
-    `READ COMMITTED` (see `nptc.audit.writer`'s module docstring, step 1):
+    `READ COMMITTED` (see `aptc.audit.writer`'s module docstring, step 1):
     a snapshot fixed before the lock-holder's commit can still read a
     stale tail once the blocked transaction gets its turn. The guard added
     in `append_audit_event` (step 1a) must refuse to proceed rather than
@@ -213,7 +213,7 @@ def test_concurrent_append_serialises_through_the_advisory_lock(
 ) -> None:
     """The principal failure mode this issue guards against: two
     concurrent appenders reading the same chain tail and forking it.
-    `pg_advisory_xact_lock` (`nptc.audit.writer`'s step 1) serialises them
+    `pg_advisory_xact_lock` (`aptc.audit.writer`'s step 1) serialises them
     instead of letting that happen - proven here by giving connection B a
     short `lock_timeout` rather than waiting for it to block indefinitely.
 

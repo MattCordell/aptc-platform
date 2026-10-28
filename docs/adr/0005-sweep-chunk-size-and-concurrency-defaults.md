@@ -10,7 +10,7 @@ sequential requests at the PRD's 20,000-entry planning ceiling — and prescribe
 what replaces it: chunked `ValueSet/$expand` for bulk status, a targeted `$lookup` pass for
 the delta, bounded concurrency on that second pass, and `Retry-After`/backoff on 429. FR-84
 adds a single batch expansion of `(codes) MINUS <<71388002` for the hierarchy check. P0-5
-(issue #27) implements both, in `nptc_shared.terminology.sweep`.
+(issue #27) implements both, in `aptc_shared.terminology.sweep`.
 
 Two numbers have to be chosen, and FR-52 deliberately does not fix either:
 
@@ -41,11 +41,11 @@ that they are untuned rather than burying the fact in a constant.
 ## Decision
 
 1. **`chunk_size` defaults to 300**, the midpoint of FR-52's 200–500 range, configurable via
-   `NPTC_TX_CHUNK_SIZE`. The midpoint because the risk is asymmetric but bounded at both
+   `APTC_TX_CHUNK_SIZE`. The midpoint because the risk is asymmetric but bounded at both
    ends: too small wastes round trips (recoverable, just slower), too large risks a server
    or proxy rejecting the request outright (a hard failure, but a loud one — the sweep
    raises, it never silently under-reports).
-2. **`max_concurrency` defaults to 4**, configurable via `NPTC_TX_MAX_CONCURRENCY`. Four is
+2. **`max_concurrency` defaults to 4**, configurable via `APTC_TX_MAX_CONCURRENCY`. Four is
    "conservative" as FR-52 asks: enough to hide per-request latency on the delta pass,
    low enough that a seeding run is not mistaken for an attack on a shared server, and low
    enough that it stays under any plausible per-client connection ceiling.
@@ -73,15 +73,15 @@ that they are untuned rather than burying the fact in a constant.
 
 The procedure, for whoever first runs a seeding transform against a live server:
 
-1. Run `nptc-transform run --workbook <workbook> --check-terminology` with
-   `NPTC_TX_CHUNK_SIZE` at 200, then 300, then 500, timing each run.
+1. Run `aptc-transform run --workbook <workbook> --check-terminology` with
+   `APTC_TX_CHUNK_SIZE` at 200, then 300, then 500, timing each run.
 2. Watch for 413 (payload too large), 414 (URI too long) or a 400 naming ECL length — any of
    these means the chunk is past what the server or its proxy accepts, and the sweep will
    raise rather than degrade.
 3. Keep the largest size that completes cleanly with a comfortable margin, not the largest
    that completes at all: the ECL grows with the number of digits in the codes, and AU
    extension identifiers are 16–18 digits against International's 8–9.
-4. Raise `NPTC_TX_MAX_CONCURRENCY` only if the delta pass dominates the wall clock, and only
+4. Raise `APTC_TX_MAX_CONCURRENCY` only if the delta pass dominates the wall clock, and only
    with the server operator's knowledge. On a first seeding run the delta is expected to be
    large (many codes will not resolve), which is exactly when restraint matters most.
 
@@ -100,12 +100,12 @@ Record the result here as an amendment when it exists.
 
 ## Consequences
 
-- Two new environment variables (`NPTC_TX_CHUNK_SIZE`, `NPTC_TX_MAX_CONCURRENCY`) join the
+- Two new environment variables (`APTC_TX_CHUNK_SIZE`, `APTC_TX_MAX_CONCURRENCY`) join the
   four in `docs/operations/configuration.md` and `deploy/.env.example`.
 - The defaults are **untuned**, and this ADR is where that is said out loud. Anyone reading
   `DEFAULT_CHUNK_SIZE = 300` should land here and find "midpoint of the PRD's range, not a
   measurement", not infer that 300 was measured.
-- The sweep uses a `ThreadPoolExecutor` for the delta pass, which makes `nptc_shared` the
+- The sweep uses a `ThreadPoolExecutor` for the delta pass, which makes `aptc_shared` the
   first package in the workspace to run application code on more than one thread. The
   `TerminologyClient` implementations must therefore be thread-safe for concurrent
   `lookup` calls: `httpx.Client` is, and the stub holds only appends and dict reads.

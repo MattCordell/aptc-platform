@@ -1,4 +1,4 @@
-"""`nptc.auth.authentication.authenticate` (issue #43): the join from a
+"""`aptc.auth.authentication.authenticate` (issue #43): the join from a
 verified token to #42's `resolve_user_for_claims`.
 
 `Session(bind=app_db)` joins the existing testcontainers fixture
@@ -17,12 +17,12 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 from sqlalchemy.orm import Session
 
-from nptc.audit.writer import AuditContext
-from nptc.auth.authentication import authenticate
-from nptc.auth.errors import TokenError
-from nptc.auth.identity import LinkOutcome
-from nptc.auth.jwks import SigningKeys
-from nptc.auth.tokens import TokenVerifier
+from aptc.audit.writer import AuditContext
+from aptc.auth.authentication import authenticate
+from aptc.auth.errors import TokenError
+from aptc.auth.identity import LinkOutcome
+from aptc.auth.jwks import SigningKeys
+from aptc.auth.tokens import TokenVerifier
 
 _support_spec = importlib.util.spec_from_file_location(
     "_test_auth_authenticate_support", Path(__file__).parent / "auth_jwt_support.py"
@@ -48,7 +48,7 @@ def test_a_verified_token_for_an_unseen_subject_creates_a_user(app_db: Connectio
         key = generate_rsa_key()
         stub.add_key("key-1", key)
         verifier = TokenVerifier(
-            issuer=stub.issuer_url, audience="nptc-api", keys=SigningKeys(stub.jwks_url)
+            issuer=stub.issuer_url, audience="aptc-api", keys=SigningKeys(stub.jwks_url)
         )
         token = mint_token(key, kid="key-1", issuer=stub.issuer_url, subject="issue-43-subject-1")
         session = Session(bind=app_db)
@@ -74,7 +74,7 @@ def test_an_invalid_token_raises_and_leaves_no_rows_behind(app_db: Connection) -
         key = generate_rsa_key()
         stub.add_key("key-1", key)
         verifier = TokenVerifier(
-            issuer=stub.issuer_url, audience="nptc-api", keys=SigningKeys(stub.jwks_url)
+            issuer=stub.issuer_url, audience="aptc-api", keys=SigningKeys(stub.jwks_url)
         )
         wrong_key = generate_rsa_key()
         token = mint_token(

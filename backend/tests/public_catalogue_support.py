@@ -14,7 +14,7 @@ so a single request exercises every one of them and no test has to
 remember to check them separately.
 
 **Rows are built directly from the models, not through the write services.**
-`nptc.catalogue.entries.create_entry` and friends carry domain rules of
+`aptc.catalogue.entries.create_entry` and friends carry domain rules of
 their own (audit events, collision detection, a `draft` starting status)
 that a *read* fixture would have to work around rather than benefit from -
 notably, an entry cannot be born `active`, and three of the four statuses
@@ -45,14 +45,14 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
-from nptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
-from nptc.db.models.code_binding import CodeBinding, CodeBindingStatus
-from nptc.db.models.designation import Designation, DesignationStatus
-from nptc.db.models.property_definition import PropertyDefinition
-from nptc.db.models.property_value import PropertyValue
+from aptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
+from aptc.db.models.code_binding import CodeBinding, CodeBindingStatus
+from aptc.db.models.designation import Designation, DesignationStatus
+from aptc.db.models.property_definition import PropertyDefinition
+from aptc.db.models.property_value import PropertyValue
 
 #: Real, Verhoeff-valid SCTIDs (the `code` column's `CHECK` calls
-#: `nptc_sctid_is_valid`, so an invented number would not insert at all) -
+#: `aptc_sctid_is_valid`, so an invented number would not insert at all) -
 #: the same two `test_catalogue_bindings.py` already uses, with their real
 #: FSNs so `render_display_term`'s FR-83 strip has something honest to work
 #: on. `391483001`'s FSN is PRD SS6.4's named double-strip regression case:
@@ -241,11 +241,11 @@ def seed_public_catalogue(session: Session) -> SeededCatalogue:
     token = str(base)
 
     def key(offset: int) -> str:
-        return f"NPTC-{base + offset}"
+        return f"APTC-{base + offset}"
 
     seeded = SeededCatalogue(
         token=token,
-        before_all=f"NPTC-{base - 1}",
+        before_all=f"APTC-{base - 1}",
         canonical=key(0),
         accented=key(1),
         synonym_only=key(2),
@@ -661,7 +661,7 @@ def seed_worked_example(session: Session) -> SeededWorkedExample:
     row count or on being the only writer.
     """
     base = random.randrange(100_000_000, 999_000_000)
-    seeded = SeededWorkedExample(acth=f"NPTC-{base}", fsn_only=f"NPTC-{base + 1}")
+    seeded = SeededWorkedExample(acth=f"APTC-{base}", fsn_only=f"APTC-{base + 1}")
 
     acth = _entry(seeded.acth, WORKED_EXAMPLE_TERM, CatalogueEntryStatus.ACTIVE.value)
     fsn_only = _entry(seeded.fsn_only, FSN_ONLY_TERM, CatalogueEntryStatus.ACTIVE.value)
@@ -721,7 +721,7 @@ def unused_business_key() -> str:
     Well-formed matters: a malformed key is a 422 from the path validator
     and never reaches a query at all, so it would not test the same thing.
     """
-    return f"NPTC-{random.randrange(900_000_000, 999_999_999)}"
+    return f"APTC-{random.randrange(900_000_000, 999_999_999)}"
 
 
 def a_uuid() -> str:
@@ -733,7 +733,7 @@ def a_uuid() -> str:
 # --- FR-17's exact-code lookup fixtures (issue #140) -----------------------
 
 #: A 6-digit code with a leading zero, and an 18-digit code - both real
-#: enough to satisfy `nptc_sctid_is_valid` (the `code` CHECK: format plus
+#: enough to satisfy `aptc_sctid_is_valid` (the `code` CHECK: format plus
 #: Verhoeff), and reused rather than re-invented: `000008` is the lowest
 #: 6-digit string that happens to pass the Verhoeff check, and
 #: `111111111111111118` is `test_db_code_binding.py`'s own 18-digit boundary
@@ -748,7 +748,7 @@ EIGHTEEN_DIGIT_FSN = "Eighteen digit code lookup fixture (procedure)"
 #: A code retired on two *different* entries, with no active binding
 #: anywhere - the one case `ix_code_binding_one_active_entry_per_code`
 #: cannot prevent (it is scoped to `status = 'active'`), and the reason
-#: `nptc.catalogue.queries.get_entry_by_code` needs a tie-break at all
+#: `aptc.catalogue.queries.get_entry_by_code` needs a tie-break at all
 #: (issue #140, `docs/adr/0033-exact-code-lookup-routes.md`). Distinct
 #: `retired_at` values, an hour apart, so the "most recently retired wins"
 #: rule has something to actually distinguish.
@@ -809,13 +809,13 @@ def seed_code_lookup_fixtures(session: Session) -> SeededCodeLookup:
     """
     base = random.randrange(100_000_000, 999_000_000)
     seeded = SeededCodeLookup(
-        leading_zero_entry=f"NPTC-{base}",
-        eighteen_digit_entry=f"NPTC-{base + 1}",
-        retired_collision_older_entry=f"NPTC-{base + 2}",
-        retired_collision_newer_entry=f"NPTC-{base + 3}",
-        hidden_entry=f"NPTC-{base + 4}",
-        active_beats_retired_active_entry=f"NPTC-{base + 5}",
-        active_beats_retired_retired_entry=f"NPTC-{base + 6}",
+        leading_zero_entry=f"APTC-{base}",
+        eighteen_digit_entry=f"APTC-{base + 1}",
+        retired_collision_older_entry=f"APTC-{base + 2}",
+        retired_collision_newer_entry=f"APTC-{base + 3}",
+        hidden_entry=f"APTC-{base + 4}",
+        active_beats_retired_active_entry=f"APTC-{base + 5}",
+        active_beats_retired_retired_entry=f"APTC-{base + 6}",
     )
 
     leading_zero_entry = _entry(

@@ -20,14 +20,14 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.engine import Connection
 
-from nptc.audit.writer import AuditContext
-from nptc.auth.identity import close_account
-from nptc.auth.permissions import Role
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.submission import Submission, SubmissionKind, SubmissionState
-from nptc.db.models.submission_transition import SubmissionTransition
-from nptc.db.models.user import User, UserStatus
-from nptc.db.models.user_identity import UserIdentity
+from aptc.audit.writer import AuditContext
+from aptc.auth.identity import close_account
+from aptc.auth.permissions import Role
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.submission import Submission, SubmissionKind, SubmissionState
+from aptc.db.models.submission_transition import SubmissionTransition
+from aptc.db.models.user import User, UserStatus
+from aptc.db.models.user_identity import UserIdentity
 
 
 def _load(name: str) -> Any:

@@ -55,14 +55,14 @@ _conftest_spec.loader.exec_module(_conftest)
 image_from_compose = _conftest.image_from_compose
 theme_mount_source = _conftest.theme_mount_source
 
-CLIENT_ID = "nptc-frontend"
+CLIENT_ID = "aptc-frontend"
 FRONTEND_BASE_URL = "http://frontend.test"
 REDIRECT_URI = f"{FRONTEND_BASE_URL}/auth/callback"
 #: Test-only, and never a real credential (NFR-26): this account exists
 #: for the lifetime of one container that is thrown away afterwards.
 TEST_USERNAME = "pkce-test-user"
 TEST_PASSWORD = "pkce-test-only-not-a-real-secret"
-ADMIN_PASSWORD = "nptc-realm-test-only-not-a-real-secret"
+ADMIN_PASSWORD = "aptc-realm-test-only-not-a-real-secret"
 
 
 def _b64url(raw: bytes) -> str:
@@ -100,14 +100,14 @@ def _wait_for_discovery(base_url: str, attempts: int = 60, delay: float = 2.0) -
     for _ in range(attempts):
         try:
             response = httpx.get(
-                f"{base_url}/realms/nptc/.well-known/openid-configuration", timeout=5
+                f"{base_url}/realms/aptc/.well-known/openid-configuration", timeout=5
             )
             if response.status_code == 200:
                 return response
         except httpx.TransportError as error:
             last_error = error
         time.sleep(delay)
-    raise TimeoutError(f"Keycloak did not serve the nptc realm in time: {last_error}")
+    raise TimeoutError(f"Keycloak did not serve the aptc realm in time: {last_error}")
 
 
 def _admin_token(base_url: str) -> str:
@@ -128,7 +128,7 @@ def _admin_token(base_url: str) -> str:
 def _create_test_user(base_url: str, username: str = TEST_USERNAME) -> None:
     token = _admin_token(base_url)
     response = httpx.post(
-        f"{base_url}/admin/realms/nptc/users",
+        f"{base_url}/admin/realms/aptc/users",
         headers={"Authorization": f"Bearer {token}"},
         json={
             "username": username,
@@ -154,9 +154,9 @@ def realm() -> Iterator[Realm]:
         .with_exposed_ports(8080)
         .with_env("KC_BOOTSTRAP_ADMIN_USERNAME", "admin")
         .with_env("KC_BOOTSTRAP_ADMIN_PASSWORD", ADMIN_PASSWORD)
-        .with_env("NPTC_FRONTEND_BASE_URL", FRONTEND_BASE_URL)
+        .with_env("APTC_FRONTEND_BASE_URL", FRONTEND_BASE_URL)
         .with_volume_mapping(str(REALM_DIR), "/opt/keycloak/data/import", mode="ro")
-        .with_volume_mapping(str(theme_mount_source()), "/opt/keycloak/themes/nptc", mode="ro")
+        .with_volume_mapping(str(theme_mount_source()), "/opt/keycloak/themes/aptc", mode="ro")
         .with_command("start-dev --import-realm")
     )
     with container:
@@ -358,11 +358,11 @@ def test_realm_authenticates_against_its_own_local_user_database(realm: Realm) -
     """NFR-02 observed rather than merely configured: the login below
     succeeds for a user held in Keycloak's own database, with no external
     identity provider registered at all."""
-    assert realm.discovery["issuer"] == f"{realm.base_url}/realms/nptc"
+    assert realm.discovery["issuer"] == f"{realm.base_url}/realms/aptc"
 
     token = _admin_token(realm.base_url)
     providers = httpx.get(
-        f"{realm.base_url}/admin/realms/nptc/identity-provider/instances",
+        f"{realm.base_url}/admin/realms/aptc/identity-provider/instances",
         headers={"Authorization": f"Bearer {token}"},
         timeout=30,
     )
@@ -464,8 +464,8 @@ def test_sign_in_page_renders_in_the_theme_with_one_heading_and_its_form(realm: 
     )
 
     assert page.status_code == 200
-    assert "/login/nptc/css/nptc.css" in page.text
-    assert '<aside class="nptc-panel">' in page.text
+    assert "/login/aptc/css/aptc.css" in page.text
+    assert '<aside class="aptc-panel">' in page.text
     assert len(re.findall(r"<h1[\s>]", page.text)) == 1
     assert '<form id="kc-form-login"' in page.text
     assert _label_targets_without_input(page.text) == []
@@ -479,7 +479,7 @@ def test_registration_page_shows_the_notice_and_links_without_a_checkbox(realm: 
     nothing, so there must be none."""
     page = _registration_page(realm).text
 
-    assert "/login/nptc/css/nptc.css" in page
+    assert "/login/aptc/css/aptc.css" in page
     assert 'id="kc-registration-notice"' in page
     assert (
         "The organisation recorded on a submission or an interest record stays with it after your account closes."
@@ -498,12 +498,12 @@ def test_registration_links_point_at_the_frontend_whichever_client_started_the_f
     realm: Realm,
 ) -> None:
     """Keycloak creates an ``account-console`` client in every realm, and its
-    ``baseUrl`` is under ``/realms/nptc/account/``. Someone who registers from
+    ``baseUrl`` is under ``/realms/aptc/account/``. Someone who registers from
     the account page must still get links to the SPA, not to Keycloak."""
     page = _registration_page(
         realm,
         client_id="account-console",
-        redirect_uri=f"{realm.base_url}/realms/nptc/account/",
+        redirect_uri=f"{realm.base_url}/realms/aptc/account/",
     ).text
 
     assert f'href="{FRONTEND_BASE_URL}/privacy"' in page
@@ -658,7 +658,7 @@ def test_totp_setup_page_renders_in_the_theme_with_every_input_labelled(realm: R
         setup = client.get(submitted.headers["location"], headers=jar.header)
 
     assert 'id="kc-totp-settings-form"' in setup.text
-    assert "/login/nptc/css/nptc.css" in setup.text
+    assert "/login/aptc/css/aptc.css" in setup.text
     assert len(re.findall(r"<h1[\s>]", setup.text)) == 1
     assert _label_targets_without_input(setup.text) == []
     assert 'alt="Figure: Barcode"' not in setup.text
@@ -681,5 +681,5 @@ def test_error_page_renders_in_the_theme(realm: Realm) -> None:
     )
 
     assert response.status_code == 400
-    assert "/login/nptc/css/nptc.css" in response.text
+    assert "/login/aptc/css/aptc.css" in response.text
     assert len(re.findall(r"<h1[\s>]", response.text)) == 1

@@ -9,7 +9,7 @@ from typing import Any
 
 import pytest
 
-from nptc.catalogue.seed_dataset import (
+from aptc.catalogue.seed_dataset import (
     DatasetInvalidError,
     DatasetNotSeedableError,
     DatasetUnreadableError,
@@ -27,9 +27,9 @@ def test_a_valid_dataset_is_read(make_dataset_document: MakeDocument, write_data
     dataset = read_import_dataset(write_dataset(make_dataset_document(3)))
 
     assert [entry.business_key for entry in dataset.entries] == [
-        "NPTC-500000",
-        "NPTC-500001",
-        "NPTC-500002",
+        "APTC-500000",
+        "APTC-500001",
+        "APTC-500002",
     ]
     assert dataset.baseline_release.name == "2026-06"
     assert dataset.entries[0].code_bindings[0].code == "121348009"
@@ -169,7 +169,7 @@ def test_an_uncoded_specimen_refuses_the_whole_dataset(
         read_import_dataset(write_dataset(document))
 
     (problem,) = exc_info.value.problems
-    assert "NPTC-500001" in problem
+    assert "APTC-500001" in problem
     assert "Amniotic fluid" in problem
     assert "row 3" in problem
 
@@ -279,7 +279,7 @@ def test_the_specimen_root_beside_a_named_specimen_is_refused(
         read_import_dataset(write_dataset(document))
 
     assert "FR-89" in exc_info.value.problems[0]
-    assert "NPTC-500000" in exc_info.value.problems[0]
+    assert "APTC-500000" in exc_info.value.problems[0]
 
 
 @pytest.mark.req("FR-89")
@@ -333,7 +333,7 @@ def test_a_duplicate_business_key_is_refused(
     assert "more than once" in exc_info.value.problems[0]
 
 
-@pytest.mark.parametrize("key", ["NPTC-12", "nptc-000001", "000001", "NPTC-00000A"])
+@pytest.mark.parametrize("key", ["APTC-12", "aptc-000001", "000001", "APTC-00000A"])
 def test_a_malformed_business_key_is_refused(
     make_dataset_document: MakeDocument, write_dataset: WriteDataset, key: str
 ) -> None:
@@ -370,16 +370,16 @@ def test_a_coded_discipline_value_is_refused(
 def test_the_highest_key_is_compared_numerically(
     make_dataset_document: MakeDocument, write_dataset: WriteDataset
 ) -> None:
-    """`NPTC-1000000` sorts before `NPTC-999999` as text but is the greater key (FR-03 lets the
+    """`APTC-1000000` sorts before `APTC-999999` as text but is the greater key (FR-03 lets the
     key widen past six digits)."""
     document = make_dataset_document(3)
-    document["entries"][0]["business_key"] = "NPTC-999999"
-    document["entries"][1]["business_key"] = "NPTC-1000000"
-    document["entries"][2]["business_key"] = "NPTC-000005"
+    document["entries"][0]["business_key"] = "APTC-999999"
+    document["entries"][1]["business_key"] = "APTC-1000000"
+    document["entries"][2]["business_key"] = "APTC-000005"
 
     dataset = read_import_dataset(write_dataset(document))
 
-    assert highest_business_key(dataset) == "NPTC-1000000"
+    assert highest_business_key(dataset) == "APTC-1000000"
 
 
 def test_reading_leaves_the_document_untouched(

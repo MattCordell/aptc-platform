@@ -99,9 +99,9 @@ repos:
         name: docs/api/openapi.json is up to date (uv run)
         entry: uv run python scripts/generate_openapi.py --check
         language: system
-        # Matches openapi.yml's CI filter, not just nptc.api: a response
+        # Matches openapi.yml's CI filter, not just aptc.api: a response
         # model can reference a type from anywhere in backend/src (e.g.
-        # catalogue/, registry/) or from nptc_shared, and a narrower scope
+        # catalogue/, registry/) or from aptc_shared, and a narrower scope
         # here would let such a change pass pre-commit and only fail in CI.
         files: ^(backend/src/.*\.py|shared/src/.*\.py|docs/api/openapi\.json)$
         pass_filenames: false
@@ -124,7 +124,7 @@ repos:
           trap '\''rm -f "$tmp"'\'' EXIT
           pnpm exec openapi-typescript ../docs/api/openapi.json -o "$tmp"
           if ! diff "$tmp" src/api/schema.ts; then
-            echo "frontend/src/api/schema.ts is stale - regenerate it with: pnpm --filter nptc-frontend generate:api" >&2
+            echo "frontend/src/api/schema.ts is stale - regenerate it with: pnpm --filter aptc-frontend generate:api" >&2
             exit 1
           fi'
         language: system

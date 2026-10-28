@@ -5,7 +5,7 @@ Revises: 0033
 Create Date: 2026-10-15
 
 FR-95, NFR-08: `internal_comment`, staff-only comments on a submission or a catalogue entry. See
-`nptc.db.models.internal_comment` for the reasoning.
+`aptc.db.models.internal_comment` for the reasoning.
 
 The grants live in this migration with the table. `body`, `author_id` and `created_at` are left out of
 the `UPDATE` grant, and `DELETE` and `TRUNCATE` are revoked, so a comment is never edited or removed,
@@ -21,7 +21,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-from nptc.db import roles
+from aptc.db import roles
 
 # revision identifiers, used by Alembic.
 revision: str = "0034"

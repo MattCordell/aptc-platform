@@ -6,8 +6,8 @@ Create Date: 2026-08-21
 
 Issue #56 (FR-90, FR-91, FR-92): Discipline and Subgroup as governed local
 code systems owned by RCPA-QAP, plus an advisory, non-authoritative SNOMED
-CT map for Discipline. See `nptc.db.models.local_code_system`,
-`nptc.db.models.local_code` and `nptc.db.models.local_code_snomed_map` for
+CT map for Discipline. See `aptc.db.models.local_code_system`,
+`aptc.db.models.local_code` and `aptc.db.models.local_code_snomed_map` for
 the full per-table reasoning.
 
 Renumbered from `0010` to `0011` (originally cut before #196/issue #51's
@@ -29,7 +29,7 @@ order on downgrade:
   (mirrors `code_binding.code`); `provisional` marks a value migrated
   verbatim ahead of RCPA-QAP settling its vocabulary (FR-92).
 - `local_code_snomed_map`: the FR-91 advisory map. Reuses `code_binding`'s
-  own `nptc_sctid_is_valid` function (already created by 0008) for its
+  own `aptc_sctid_is_valid` function (already created by 0008) for its
   `code` column's `CHECK` - no new database function is needed.
 
 **This is the first seeding migration in the repository.** The seed
@@ -50,7 +50,7 @@ verification table determines:
   the vocabulary decision to RCPA-QAP; seeding a `subgroup` code here
   would be exactly the guessing-at-structure FR-92 forbids.
 
-**These seed inserts deliberately bypass `nptc.catalogue.local_codes` and
+**These seed inserts deliberately bypass `aptc.catalogue.local_codes` and
 its NFR-08 audit trail** - unlike a state-changing write made through the
 running application (what NFR-08 actually governs), this is bootstrap
 data written before any `app_user`/`Principal` exists to attribute it to,
@@ -59,10 +59,10 @@ already takes for the role itself. A later change to this seed data (a
 corrected URI, an added map row) is a new migration, reviewed the way any
 schema change is, not a service-layer write.
 
-**The seed `uri` values use the reserved `nptc.example.org` domain
+**The seed `uri` values use the reserved `aptc.example.org` domain
 (RFC 2606) as an explicit placeholder** - no real external namespace for
-NPTC's own local code systems has been decided yet (see `deploy/
-.env.example`: even `NPTC_FRONTEND_BASE_URL` is `localhost` pending a real
+APTC's own local code systems has been decided yet (see `deploy/
+.env.example`: even `APTC_FRONTEND_BASE_URL` is `localhost` pending a real
 deployment). Replacing it is a follow-up issue, not a decision this
 migration can make on the maintainer's behalf; `uri`'s `UNIQUE` constraint
 means that follow-up is itself a data migration on a published
@@ -78,7 +78,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-from nptc.db import roles
+from aptc.db import roles
 
 # revision identifiers, used by Alembic.
 revision: str = "0011"
@@ -308,7 +308,7 @@ def upgrade() -> None:
         sa.CheckConstraint(
             "length(btrim(system)) > 0", name=op.f("ck_local_code_snomed_map_system_not_blank")
         ),
-        sa.CheckConstraint("nptc_sctid_is_valid(code)", name=op.f("ck_local_code_snomed_map_code")),
+        sa.CheckConstraint("aptc_sctid_is_valid(code)", name=op.f("ck_local_code_snomed_map_code")),
         sa.CheckConstraint(
             "length(btrim(display)) > 0", name=op.f("ck_local_code_snomed_map_display_not_blank")
         ),
@@ -379,7 +379,7 @@ def _seed() -> None:
             {
                 "id": _DISCIPLINE_SYSTEM_ID,
                 "key": "discipline",
-                "uri": "https://nptc.example.org/CodeSystem/discipline",
+                "uri": "https://aptc.example.org/CodeSystem/discipline",
                 "title": "Discipline",
                 "description": (
                     "RCPA pathology disciplines - not expressible as a single coherent "
@@ -390,7 +390,7 @@ def _seed() -> None:
             {
                 "id": _SUBGROUP_SYSTEM_ID,
                 "key": "subgroup",
-                "uri": "https://nptc.example.org/CodeSystem/subgroup",
+                "uri": "https://aptc.example.org/CodeSystem/subgroup",
                 "title": "Subgroup",
                 "description": (
                     "RCPA pathology subgroups - vocabulary not yet reconciled by "

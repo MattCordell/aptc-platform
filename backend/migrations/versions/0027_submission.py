@@ -5,7 +5,7 @@ Revises: 0026
 Create Date: 2026-10-10
 
 FR-23, FR-27, FR-28, FR-29: a submission is its own record, not a catalogue entry with another
-status. See `nptc.db.models.submission` for the reasoning.
+status. See `aptc.db.models.submission` for the reasoning.
 
 The grants live in this migration with the table. Only `state`, `updated_at` and `row_version` are
 updatable, and `DELETE` is revoked, so "what the submitter sent is never edited or removed" holds at
@@ -20,7 +20,7 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-from nptc.db import roles
+from aptc.db import roles
 
 # revision identifiers, used by Alembic.
 revision: str = "0027"
@@ -80,7 +80,7 @@ def upgrade() -> None:
             name=op.f("ck_submission_property_values_is_object"),
         ),
         sa.CheckConstraint(
-            "nptc_sctid_is_valid(snomed_code)", name=op.f("ck_submission_snomed_code")
+            "aptc_sctid_is_valid(snomed_code)", name=op.f("ck_submission_snomed_code")
         ),
         sa.CheckConstraint(
             "snomed_fsn IS NULL OR length(btrim(snomed_fsn)) > 0",

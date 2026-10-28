@@ -1,4 +1,4 @@
-"""Builds the *real* `nptc.api.app.create_app()` over a stub IdP and the
+"""Builds the *real* `aptc.api.app.create_app()` over a stub IdP and the
 testcontainers database connection (issue #41).
 
 Not a `test_*.py` module - imported by path via `importlib`, the same
@@ -19,7 +19,7 @@ this harness deliberately exercises for real against a local, in-process
 IdP.
 
 **Each request runs inside its own `SAVEPOINT`, mirroring
-`nptc.db.session.session_scope`'s commit-on-success/rollback-on-exception
+`aptc.db.session.session_scope`'s commit-on-success/rollback-on-exception
 contract without touching the outer transaction the fixture rolls back at
 teardown** (issue #219 review) - `_scoped_session` below is the override,
 not a bare `lambda: session`. Before this, every request in a test shared
@@ -29,7 +29,7 @@ flushed and visible to the rest of that same test - `session_scope` never
 actually ran in a test, only in production, and a test asserting "this
 failed request wrote nothing" could not tell a real rollback from an
 artifact of never having tried to roll back. `Session.begin_nested()` is
-the same SAVEPOINT precedent `nptc.auth.identity._create_user` already
+the same SAVEPOINT precedent `aptc.auth.identity._create_user` already
 uses for a bounded retry.
 """
 
@@ -50,8 +50,8 @@ from sqlalchemy import select
 from sqlalchemy.engine import Connection
 from sqlalchemy.orm import Session
 
-from nptc.api.app import API_PREFIX, create_app
-from nptc.api.dependencies import (
+from aptc.api.app import API_PREFIX, create_app
+from aptc.api.dependencies import (
     get_api_settings,
     get_auth_settings,
     get_session,
@@ -59,20 +59,20 @@ from nptc.api.dependencies import (
     get_terminology_client,
     get_token_verifier,
 )
-from nptc.audit.writer import AuditContext
-from nptc.auth.grants import grant_role_unchecked, revoke_all_roles_unchecked
-from nptc.auth.jwks import SigningKeys
-from nptc.auth.permissions import Role
-from nptc.auth.tokens import TokenVerifier
-from nptc.db.models.terms_acceptance import TermsAcceptance
-from nptc.db.models.user import User
-from nptc.db.models.user_identity import UserIdentity
-from nptc.db.session import discard_after_commit_actions, run_after_commit_actions
-from nptc.settings import ApiSettings, AuthSettings
-from nptc.submissions.reference_check import ReferenceCheckResult
-from nptc.terminology.synonyms import SnomedSynonymSource
-from nptc.terms.acceptance import has_accepted
-from nptc_shared.terminology import StubTerminologyClient
+from aptc.audit.writer import AuditContext
+from aptc.auth.grants import grant_role_unchecked, revoke_all_roles_unchecked
+from aptc.auth.jwks import SigningKeys
+from aptc.auth.permissions import Role
+from aptc.auth.tokens import TokenVerifier
+from aptc.db.models.terms_acceptance import TermsAcceptance
+from aptc.db.models.user import User
+from aptc.db.models.user_identity import UserIdentity
+from aptc.db.session import discard_after_commit_actions, run_after_commit_actions
+from aptc.settings import ApiSettings, AuthSettings
+from aptc.submissions.reference_check import ReferenceCheckResult
+from aptc.terminology.synonyms import SnomedSynonymSource
+from aptc.terms.acceptance import has_accepted
+from aptc_shared.terminology import StubTerminologyClient
 
 # Registered in sys.modules before exec_module - see
 # test_authz_negative_http.py for why @dataclass requires it.
@@ -101,7 +101,7 @@ generate_rsa_key = _jwt_support.generate_rsa_key
 shared_rsa_key = _jwt_support.shared_rsa_key
 
 KID = "test-key-1"
-AUDIENCE = "nptc-api"
+AUDIENCE = "aptc-api"
 FRONTEND_ORIGIN = "http://localhost:5173"
 
 

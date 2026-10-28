@@ -33,11 +33,11 @@ def _seed(connection: Connection, *, key: str) -> uuid.UUID:
             "VALUES (:business_key, 'Sample entry') RETURNING id"
         ),
         # A 12-digit space drawn from uuid4 rather than the hardcoded
-        # 6-digit NPTC-5xxxxx/NPTC-6xxxxx ranges other tests in this suite
+        # 6-digit APTC-5xxxxx/APTC-6xxxxx ranges other tests in this suite
         # use - low enough collision probability to not be a real flake
-        # against the shared container (business_key ~ '^NPTC-[0-9]{6,}$'
+        # against the shared container (business_key ~ '^APTC-[0-9]{6,}$'
         # permits any digit count from 6 up).
-        {"business_key": f"NPTC-{uuid.uuid4().int % 10**12:012d}"},
+        {"business_key": f"APTC-{uuid.uuid4().int % 10**12:012d}"},
     ).scalar_one()
     connection.execute(
         text(
@@ -100,7 +100,7 @@ def test_property_key_must_reference_a_definition(db: Connection) -> None:
     entry_id = db.execute(
         text(
             "INSERT INTO catalogue_entry (business_key, preferred_term) "
-            "VALUES ('NPTC-500001', 'Sample entry') RETURNING id"
+            "VALUES ('APTC-500001', 'Sample entry') RETURNING id"
         )
     ).scalar_one()
 

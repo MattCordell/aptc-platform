@@ -26,11 +26,11 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.engine import Connection
 
-from nptc.auth.permissions import Role
-from nptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
-from nptc.db.models.submission import Submission, SubmissionKind
-from nptc.db.models.user import User
-from nptc.db.models.user_identity import UserIdentity
+from aptc.auth.permissions import Role
+from aptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
+from aptc.db.models.submission import Submission, SubmissionKind
+from aptc.db.models.user import User
+from aptc.db.models.user_identity import UserIdentity
 
 
 def _load(name: str) -> Any:
@@ -155,7 +155,7 @@ def test_a_comment_on_an_entry_changes_no_entry_response_and_no_public_route(
     member_token, _ = _sign_in(api, Role.MEMBER)
     term = f"Leakproof entry {uuid.uuid4().hex}"
     entry = CatalogueEntry(
-        business_key=f"NPTC-9{random.SystemRandom().randrange(10**8):08d}",
+        business_key=f"APTC-9{random.SystemRandom().randrange(10**8):08d}",
         preferred_term=term,
         status=CatalogueEntryStatus.ACTIVE.value,
     )
@@ -188,7 +188,7 @@ def test_a_comment_on_an_entry_changes_no_entry_response_and_no_public_route(
 def test_a_comment_on_a_draft_entry_does_not_make_it_visible(api: ApiTestApp) -> None:
     reviewer_token, _ = _sign_in(api, Role.REVIEWER)
     entry = CatalogueEntry(
-        business_key=f"NPTC-9{random.SystemRandom().randrange(10**8):08d}",
+        business_key=f"APTC-9{random.SystemRandom().randrange(10**8):08d}",
         preferred_term=f"Draft leak entry {uuid.uuid4()}",
         status=CatalogueEntryStatus.DRAFT.value,
     )
@@ -212,7 +212,7 @@ def test_a_comment_on_a_draft_entry_does_not_make_it_visible(api: ApiTestApp) ->
 def test_the_audit_log_records_the_comment_event_without_its_text(api: ApiTestApp) -> None:
     admin_token, _ = _sign_in(api, Role.ADMINISTRATOR)
     entry = CatalogueEntry(
-        business_key=f"NPTC-9{random.SystemRandom().randrange(10**8):08d}",
+        business_key=f"APTC-9{random.SystemRandom().randrange(10**8):08d}",
         preferred_term=f"Audited entry {uuid.uuid4()}",
         status=CatalogueEntryStatus.ACTIVE.value,
     )

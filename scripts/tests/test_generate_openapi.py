@@ -1,7 +1,7 @@
 """Unit tests for scripts/generate_openapi.py (issue #143, FR-20).
 
 Exercises the check/write logic against a scratch `OPENAPI_PATH`. The document
-content itself comes from the real `nptc.api.openapi_document.build_document` -
+content itself comes from the real `aptc.api.openapi_document.build_document` -
 these tests are about the script's file handling, not the app's route table
 (that's `backend/tests/test_openapi_document.py`'s job).
 """

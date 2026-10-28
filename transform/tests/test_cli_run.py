@@ -12,14 +12,14 @@ import pytest
 from click.testing import Result
 from typer.testing import CliRunner
 
-from nptc_shared.terminology.errors import TerminologyTransportError
-from nptc_shared.terminology.models import PROCEDURE_ROOT_CODE, Operation
-from nptc_shared.terminology.stub import StubConcept, StubTerminologyClient
-from nptc_shared.terminology.sweep import TerminologySweep
-from nptc_transform import __version__
-from nptc_transform.cli import app
-from nptc_transform.dataset import ServedFSNError
-from nptc_transform.specimen_map import SPECIMEN_MAP
+from aptc_shared.terminology.errors import TerminologyTransportError
+from aptc_shared.terminology.models import PROCEDURE_ROOT_CODE, Operation
+from aptc_shared.terminology.stub import StubConcept, StubTerminologyClient
+from aptc_shared.terminology.sweep import TerminologySweep
+from aptc_transform import __version__
+from aptc_transform.cli import app
+from aptc_transform.dataset import ServedFSNError
+from aptc_transform.specimen_map import SPECIMEN_MAP
 
 runner = CliRunner()
 
@@ -61,7 +61,7 @@ def clean_bindings_workbook(tmp_path: Path) -> Path:
 
 
 def _install_stub(monkeypatch: pytest.MonkeyPatch, stub: StubTerminologyClient) -> None:
-    monkeypatch.setattr("nptc_transform.cli.OntoserverClient", lambda _config: stub)
+    monkeypatch.setattr("aptc_transform.cli.OntoserverClient", lambda _config: stub)
 
 
 #: ``--emit-dataset`` needs ``--check-terminology``: a specimen's display is its AU preferred term.
@@ -76,7 +76,7 @@ def _without_sweep(monkeypatch: pytest.MonkeyPatch) -> None:
     def _no_sweep(_enabled: bool) -> Iterator[TerminologySweep | None]:
         yield None
 
-    monkeypatch.setattr("nptc_transform.cli._terminology_sweep", _no_sweep)
+    monkeypatch.setattr("aptc_transform.cli._terminology_sweep", _no_sweep)
 
 
 def test_cli_version_command_runs() -> None:
@@ -281,7 +281,7 @@ def test_emit_dataset_writes_the_report_and_the_import_dataset(
     }
     assert len(payload["entries"]) == 1
     entry = payload["entries"][0]
-    assert entry["business_key"] == "NPTC-000001"
+    assert entry["business_key"] == "APTC-000001"
     assert entry["code_bindings"][0]["code"] == "10000006"
     assert isinstance(entry["code_bindings"][0]["code"], str)
     # The served FSN, tag intact, and not the workbook's "Sample test" (FR-82).
@@ -305,7 +305,7 @@ def test_emit_dataset_exits_3_and_writes_no_dataset_when_the_server_served_no_fs
     def _refuse(*_args: object, **_kwargs: object) -> None:
         raise ServedFSNError("the terminology server served no FSN for 10000006")
 
-    monkeypatch.setattr("nptc_transform.cli.build_dataset", _refuse)
+    monkeypatch.setattr("aptc_transform.cli.build_dataset", _refuse)
     report_dir = tmp_path / "report"
     report_dir.mkdir()
     (report_dir / "import-dataset.json").write_text("stale", encoding="utf-8")
@@ -895,7 +895,7 @@ def test_check_terminology_blocks_on_a_designation_defect(
 def test_a_run_without_check_terminology_records_that_no_sweep_ran(
     tmp_path: Path, clean_bindings_workbook: Path
 ) -> None:
-    """The flag is opt-in: without it the run neither reads NPTC_TX_* nor
+    """The flag is opt-in: without it the run neither reads APTC_TX_* nor
     reports the codes as validated."""
     report_dir = tmp_path / "report"
 
@@ -911,7 +911,7 @@ def test_a_run_without_check_terminology_records_that_no_sweep_ran(
 
 
 @pytest.mark.req("FR-52")
-def test_a_malformed_nptc_tx_chunk_size_is_a_usage_error_not_a_terminology_failure(
+def test_a_malformed_aptc_tx_chunk_size_is_a_usage_error_not_a_terminology_failure(
     tmp_path: Path, clean_bindings_workbook: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """``TerminologyConfigError`` is a ``TerminologyError`` subclass, but a
@@ -920,7 +920,7 @@ def test_a_malformed_nptc_tx_chunk_size_is_a_usage_error_not_a_terminology_failu
     instead. Raised by ``TerminologyConfig.from_env()`` before the
     ``OntoserverClient`` is ever constructed, so no stub is needed here."""
     report_dir = tmp_path / "report"
-    monkeypatch.setenv("NPTC_TX_CHUNK_SIZE", "lots")
+    monkeypatch.setenv("APTC_TX_CHUNK_SIZE", "lots")
 
     result = runner.invoke(
         app,
@@ -941,15 +941,15 @@ def test_a_malformed_nptc_tx_chunk_size_is_a_usage_error_not_a_terminology_failu
 
 
 @pytest.mark.req("FR-70")
-def test_a_corrupt_workbook_reports_its_own_error_even_with_a_bad_nptc_tx_value(
+def test_a_corrupt_workbook_reports_its_own_error_even_with_a_bad_aptc_tx_value(
     tmp_path: Path, corrupt_workbook: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The workbook is read before any terminology configuration is even
-    touched - a simultaneously malformed ``NPTC_TX_*`` value must not
+    touched - a simultaneously malformed ``APTC_TX_*`` value must not
     pre-empt the clearer, actionable workbook error with a config-specific
     one the operator would have to untangle from the real problem."""
     report_dir = tmp_path / "report"
-    monkeypatch.setenv("NPTC_TX_CHUNK_SIZE", "lots")
+    monkeypatch.setenv("APTC_TX_CHUNK_SIZE", "lots")
 
     result = runner.invoke(
         app,

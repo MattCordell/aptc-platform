@@ -1,4 +1,4 @@
-"""`nptc.catalogue.local_codes` service-layer tests (issue #56, FR-90,
+"""`aptc.catalogue.local_codes` service-layer tests (issue #56, FR-90,
 FR-91, FR-92), plus the AST guard for this issue's acceptance criterion:
 the advisory SNOMED map must never be treated as a code binding by the
 validation sweep.
@@ -13,11 +13,11 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from nptc.audit.writer import AuditContext
-from nptc.auth.errors_authorisation import PermissionDeniedError
-from nptc.auth.permissions import Role, permissions_for_roles
-from nptc.auth.principal import Principal
-from nptc.catalogue.local_codes import (
+from aptc.audit.writer import AuditContext
+from aptc.auth.errors_authorisation import PermissionDeniedError
+from aptc.auth.permissions import Role, permissions_for_roles
+from aptc.auth.principal import Principal
+from aptc.catalogue.local_codes import (
     DatabaseLocalCodeLookup,
     InvalidLocalCodeSystemKeyError,
     InvalidMatchStrengthError,
@@ -33,12 +33,12 @@ from nptc.catalogue.local_codes import (
     find_local_codes,
     list_local_codes,
 )
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.local_code import LocalCodeStatus
-from nptc.db.models.local_code_snomed_map import LocalCodeSnomedMap
-from nptc.db.models.local_code_system import LocalCodeSystem, LocalCodeSystemStatus
-from nptc.registry.handlers import LocalCodeLookup
-from nptc_shared.sctid import InvalidSCTIDError
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.local_code import LocalCodeStatus
+from aptc.db.models.local_code_snomed_map import LocalCodeSnomedMap
+from aptc.db.models.local_code_system import LocalCodeSystem, LocalCodeSystemStatus
+from aptc.registry.handlers import LocalCodeLookup
+from aptc_shared.sctid import InvalidSCTIDError
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -79,7 +79,7 @@ def test_create_local_code_system_requires_registry_manage(app_session: Session)
             AuditContext.system(),
             actor=_observer(),
             key="discipline_denied",
-            uri="https://nptc.example.org/CodeSystem/discipline_denied",
+            uri="https://aptc.example.org/CodeSystem/discipline_denied",
             title="Discipline",
             description="test",
             owner="RCPA-QAP",
@@ -99,7 +99,7 @@ def test_create_local_code_system_rejects_a_malformed_key(app_session: Session) 
             AuditContext.system(),
             actor=_administrator(),
             key="Not A Valid Key",
-            uri="https://nptc.example.org/CodeSystem/invalid_key_test",
+            uri="https://aptc.example.org/CodeSystem/invalid_key_test",
             title="Discipline",
             description="test",
             owner="RCPA-QAP",
@@ -118,7 +118,7 @@ def test_create_local_code_system_records_one_audit_event(app_session: Session) 
         AuditContext.system(),
         actor=_administrator(),
         key="discipline_svc_test",
-        uri="https://nptc.example.org/CodeSystem/discipline_svc_test",
+        uri="https://aptc.example.org/CodeSystem/discipline_svc_test",
         title="Discipline",
         description="test",
         owner="RCPA-QAP",
@@ -137,7 +137,7 @@ def test_deprecate_local_code_system_is_a_status_transition(app_session: Session
         AuditContext.system(),
         actor=_administrator(),
         key="deprecate_svc_test",
-        uri="https://nptc.example.org/CodeSystem/deprecate_svc_test",
+        uri="https://aptc.example.org/CodeSystem/deprecate_svc_test",
         title="Discipline",
         description="test",
         owner="RCPA-QAP",
@@ -164,7 +164,7 @@ def test_deprecating_an_already_deprecated_system_is_refused(app_session: Sessio
         AuditContext.system(),
         actor=_administrator(),
         key="double_deprecate_test",
-        uri="https://nptc.example.org/CodeSystem/double_deprecate_test",
+        uri="https://aptc.example.org/CodeSystem/double_deprecate_test",
         title="Discipline",
         description="test",
         owner="RCPA-QAP",
@@ -199,7 +199,7 @@ def test_deprecate_local_code_system_requires_registry_manage(app_session: Sessi
         AuditContext.system(),
         actor=_administrator(),
         key="deprecate_denied_test",
-        uri="https://nptc.example.org/CodeSystem/deprecate_denied_test",
+        uri="https://aptc.example.org/CodeSystem/deprecate_denied_test",
         title="Discipline",
         description="test",
         owner="RCPA-QAP",
@@ -227,7 +227,7 @@ def test_create_local_code_supports_provisional(app_session: Session) -> None:
         AuditContext.system(),
         actor=_administrator(),
         key="subgroup_svc_test",
-        uri="https://nptc.example.org/CodeSystem/subgroup_svc_test",
+        uri="https://aptc.example.org/CodeSystem/subgroup_svc_test",
         title="Subgroup",
         description="test",
         owner="RCPA-QAP",
@@ -259,7 +259,7 @@ def test_create_local_code_requires_registry_manage(app_session: Session) -> Non
         AuditContext.system(),
         actor=_administrator(),
         key="code_denied_test",
-        uri="https://nptc.example.org/CodeSystem/code_denied_test",
+        uri="https://aptc.example.org/CodeSystem/code_denied_test",
         title="Discipline",
         description="test",
         owner="RCPA-QAP",
@@ -286,7 +286,7 @@ def test_deprecate_local_code_is_a_status_transition(app_session: Session) -> No
         AuditContext.system(),
         actor=_administrator(),
         key="code_deprecate_test",
-        uri="https://nptc.example.org/CodeSystem/code_deprecate_test",
+        uri="https://aptc.example.org/CodeSystem/code_deprecate_test",
         title="Discipline",
         description="test",
         owner="RCPA-QAP",
@@ -321,7 +321,7 @@ def test_deprecating_an_already_deprecated_code_is_refused(app_session: Session)
         AuditContext.system(),
         actor=_administrator(),
         key="code_double_deprecate_test",
-        uri="https://nptc.example.org/CodeSystem/code_double_deprecate_test",
+        uri="https://aptc.example.org/CodeSystem/code_double_deprecate_test",
         title="Discipline",
         description="test",
         owner="RCPA-QAP",
@@ -366,7 +366,7 @@ def test_create_snomed_map_row_records_one_audit_event(app_session: Session) -> 
         AuditContext.system(),
         actor=_administrator(),
         key="map_svc_test",
-        uri="https://nptc.example.org/CodeSystem/map_svc_test",
+        uri="https://aptc.example.org/CodeSystem/map_svc_test",
         title="Discipline",
         description="test",
         owner="RCPA-QAP",
@@ -408,7 +408,7 @@ def test_create_snomed_map_row_rejects_an_invalid_match_strength(app_session: Se
         AuditContext.system(),
         actor=_administrator(),
         key="map_bad_strength_svc_test",
-        uri="https://nptc.example.org/CodeSystem/map_bad_strength_svc_test",
+        uri="https://aptc.example.org/CodeSystem/map_bad_strength_svc_test",
         title="Discipline",
         description="test",
         owner="RCPA-QAP",
@@ -445,7 +445,7 @@ def test_create_snomed_map_row_rejects_an_invalid_match_strength(app_session: Se
 
 @pytest.mark.req("FR-91")
 def test_create_snomed_map_row_rejects_an_invalid_sctid(app_session: Session) -> None:
-    """`ck_local_code_snomed_map_code` (`nptc_sctid_is_valid`) is the
+    """`ck_local_code_snomed_map_code` (`aptc_sctid_is_valid`) is the
     actual database invariant; this pins the fail-loud Python-level layer
     that pre-empts it, matching `create_binding`'s own treatment of
     `code`."""
@@ -454,7 +454,7 @@ def test_create_snomed_map_row_rejects_an_invalid_sctid(app_session: Session) ->
         AuditContext.system(),
         actor=_administrator(),
         key="map_bad_code_svc_test",
-        uri="https://nptc.example.org/CodeSystem/map_bad_code_svc_test",
+        uri="https://aptc.example.org/CodeSystem/map_bad_code_svc_test",
         title="Discipline",
         description="test",
         owner="RCPA-QAP",
@@ -495,7 +495,7 @@ def test_create_snomed_map_row_requires_registry_manage(app_session: Session) ->
         AuditContext.system(),
         actor=_administrator(),
         key="map_denied_svc_test",
-        uri="https://nptc.example.org/CodeSystem/map_denied_svc_test",
+        uri="https://aptc.example.org/CodeSystem/map_denied_svc_test",
         title="Discipline",
         description="test",
         owner="RCPA-QAP",
@@ -536,7 +536,7 @@ def _system(app_session: Session, key: str) -> LocalCodeSystem:
         AuditContext.system(),
         actor=_administrator(),
         key=key,
-        uri=f"https://nptc.example.org/CodeSystem/{key}",
+        uri=f"https://aptc.example.org/CodeSystem/{key}",
         title="Discipline",
         description="test",
         owner="RCPA-QAP",
@@ -863,7 +863,7 @@ def test_lookup_surfaces_system_deprecation_independently_of_the_code(
         AuditContext.system(),
         actor=_administrator(),
         key="system_deprecation_visible_test",
-        uri="https://nptc.example.org/CodeSystem/system_deprecation_visible_test",
+        uri="https://aptc.example.org/CodeSystem/system_deprecation_visible_test",
         title="Discipline",
         description="test",
         owner="RCPA-QAP",
@@ -907,7 +907,7 @@ def _create_system_and_codes(session: Session, *, key: str, codes: list[str]) ->
         AuditContext.system(),
         actor=_administrator(),
         key=key,
-        uri=f"https://nptc.example.org/CodeSystem/{key}",
+        uri=f"https://aptc.example.org/CodeSystem/{key}",
         title=key,
         description="test",
         owner="RCPA-QAP",
@@ -1024,17 +1024,17 @@ _MAP_NAMES = frozenset({"LocalCodeSnomedMap"})
 #: allowlist going stale if that ever changed. Explicit and exhaustive,
 #: matching `test_catalogue_bindings.py`'s own `_ALLOWED_REFERENCES`
 #: precedent - a new reference anywhere else in `backend/src` (in
-#: particular `nptc.validation`, once it lands, or `nptc.catalogue.
+#: particular `aptc.validation`, once it lands, or `aptc.catalogue.
 #: bindings`) fails this test.
 _ALLOWED_REFERENCES = frozenset(
     {
-        REPO_ROOT / "backend" / "src" / "nptc" / "db" / "models" / "__init__.py",
-        REPO_ROOT / "backend" / "src" / "nptc" / "catalogue" / "local_codes.py",
+        REPO_ROOT / "backend" / "src" / "aptc" / "db" / "models" / "__init__.py",
+        REPO_ROOT / "backend" / "src" / "aptc" / "catalogue" / "local_codes.py",
     }
 )
 
 _POSITIVE_CONTROL_SOURCE = """
-from nptc.db.models.local_code_snomed_map import LocalCodeSnomedMap
+from aptc.db.models.local_code_snomed_map import LocalCodeSnomedMap
 
 
 def rogue_sweep_check(session):
@@ -1057,9 +1057,9 @@ def _all_backend_source_files() -> list[Path]:
 )
 def test_local_code_snomed_map_is_never_referenced_outside_its_own_module(path: Path) -> None:
     """The acceptance criterion, as code: the advisory map is never
-    treated as a code binding by the validation sweep. `nptc.validation`
+    treated as a code binding by the validation sweep. `aptc.validation`
     is still a stub today, so this guard's real job is to fail loudly the
-    day something under it (or `nptc.catalogue.bindings`) first imports
+    day something under it (or `aptc.catalogue.bindings`) first imports
     `LocalCodeSnomedMap`, rather than let that slip through review
     unnoticed."""
     if path in _ALLOWED_REFERENCES:

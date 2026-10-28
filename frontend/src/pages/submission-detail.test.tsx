@@ -181,7 +181,7 @@ describe("submission detail content (FR-26, FR-27, FR-28, FR-34)", () => {
       DEFINITIONS,
       detail({
         kind: "amendment",
-        entry_business_key: "NPTC-000247",
+        entry_business_key: "APTC-000247",
         preferred_term: "Full blood count",
         property_values: {},
         snomed_code: null,
@@ -196,8 +196,8 @@ describe("submission detail content (FR-26, FR-27, FR-28, FR-34)", () => {
         /The heading shows the entry.s term when this change was proposed/,
       ),
     ).toBeVisible();
-    const entryLink = screen.getByRole("link", { name: "NPTC-000247" });
-    expect(entryLink).toHaveAttribute("href", "/catalogue/NPTC-000247");
+    const entryLink = screen.getByRole("link", { name: "APTC-000247" });
+    expect(entryLink).toHaveAttribute("href", "/catalogue/APTC-000247");
     // The link sits inside a sentence, so colour alone cannot tell it apart
     // (axe `link-in-text-block`, which jsdom cannot evaluate).
     expect(entryLink).toHaveClass("underline");
@@ -724,7 +724,7 @@ describe("submission detail approval (FR-28, FR-35)", () => {
         row_version: 7,
         available_transitions: ["Approved", "Rejected"],
       }),
-      approved(true, "NPTC-000123"),
+      approved(true, "APTC-000123"),
     ]);
 
     await approve("  Checked against the source.  ");
@@ -733,10 +733,10 @@ describe("submission detail approval (FR-28, FR-35)", () => {
     expect(confirmation).toHaveFocus();
     const details = screen.getByRole("complementary", { name: "Submission details" });
     expect(within(details).getByText("Approved", { selector: "span" })).toBeVisible();
-    const links = screen.getAllByRole("link", { name: "NPTC-000123" });
+    const links = screen.getAllByRole("link", { name: "APTC-000123" });
     expect(links).toHaveLength(2);
     for (const link of links) {
-      expect(link).toHaveAttribute("href", "/catalogue/NPTC-000123");
+      expect(link).toHaveAttribute("href", "/catalogue/APTC-000123");
       expect(link).toHaveClass("underline");
     }
     expect(within(details).getByText(/New test, created as/)).toBeVisible();
@@ -754,22 +754,22 @@ describe("submission detail approval (FR-28, FR-35)", () => {
       DEFINITIONS,
       detail({
         kind: "amendment",
-        entry_business_key: "NPTC-000247",
+        entry_business_key: "APTC-000247",
         state: "Ready for approval",
         row_version: 7,
         available_transitions: ["Approved", "Rejected"],
         property_values: {},
       }),
-      approved(false, "NPTC-000247"),
+      approved(false, "APTC-000247"),
     ]);
 
     await approve("Checked against the source.");
 
     expect(await screen.findByText(/^Approved\. Amended entry/)).toBeVisible();
-    const links = screen.getAllByRole("link", { name: "NPTC-000247" });
+    const links = screen.getAllByRole("link", { name: "APTC-000247" });
     expect(links).toHaveLength(2);
     for (const link of links) {
-      expect(link).toHaveAttribute("href", "/catalogue/NPTC-000247");
+      expect(link).toHaveAttribute("href", "/catalogue/APTC-000247");
     }
     await expectNoA11yViolations(container);
   });
@@ -780,13 +780,13 @@ describe("submission detail approval (FR-28, FR-35)", () => {
       DEFINITIONS,
       detail({
         state: "Approved",
-        created_entry_business_key: "NPTC-000123",
+        created_entry_business_key: "APTC-000123",
         available_transitions: [],
       }),
     ]);
 
-    const link = await screen.findByRole("link", { name: "NPTC-000123" });
-    expect(link).toHaveAttribute("href", "/catalogue/NPTC-000123");
+    const link = await screen.findByRole("link", { name: "APTC-000123" });
+    expect(link).toHaveAttribute("href", "/catalogue/APTC-000123");
     expect(screen.queryByRole("heading", { name: "Triage" })).toBeNull();
     await expectNoA11yViolations(container);
   });

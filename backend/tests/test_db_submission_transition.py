@@ -15,9 +15,9 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import IntegrityError, ProgrammingError
 
-from nptc.audit.policy import policy_for
-from nptc.db.models.submission import SubmissionState
-from nptc.db.models.submission_transition import (
+from aptc.audit.policy import policy_for
+from aptc.db.models.submission import SubmissionState
+from aptc.db.models.submission_transition import (
     _FROM_STATE_CHECK_SQL,
     _TO_STATE_CHECK_SQL,
     SubmissionTransition,

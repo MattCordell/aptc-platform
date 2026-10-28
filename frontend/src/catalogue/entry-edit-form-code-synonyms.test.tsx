@@ -17,7 +17,7 @@ import { stubEditorApi as stubApi } from "../test/session-route.ts";
  * offline stub matches any substring.
  */
 
-const BUSINESS_KEY = "NPTC-000902";
+const BUSINESS_KEY = "APTC-000902";
 const EDIT_URL = `/admin/catalogue/${BUSINESS_KEY}/edit`;
 const ENTRY_PATH = `/catalogue/admin/entries/${BUSINESS_KEY}`;
 const AMEND_PATH = `/catalogue/entries/${BUSINESS_KEY}/designations/amendment`;
@@ -591,7 +591,7 @@ describe("RCPA Synonyms (FR-04, FR-36)", () => {
           collisions: [
             {
               severity: "error",
-              business_key: "NPTC-000900",
+              business_key: "APTC-000900",
               preferred_term: "Iron studies",
               label_provenance: {},
             },
@@ -611,7 +611,7 @@ describe("RCPA Synonyms (FR-04, FR-36)", () => {
     await save(user);
 
     await screen.findByRole("heading", { name: "Some changes were not saved" });
-    expect(summary().getByText(/NPTC-000900/)).toBeInTheDocument();
+    expect(summary().getByText(/APTC-000900/)).toBeInTheDocument();
     expect(form().getByLabelText("Synonym 1")).toHaveValue("Iron studies");
     expect(bodyOf(calls, USAGE_PATH)).toMatchObject({ expected_row_version: 4 });
   });
@@ -625,7 +625,7 @@ describe("RCPA Synonyms (FR-04, FR-36)", () => {
           kind: "collision",
           severity: "warning",
           term: "Zovirax",
-          business_key: "NPTC-000900",
+          business_key: "APTC-000900",
           preferred_term: "Aciclovir",
         },
       ]),
@@ -639,7 +639,7 @@ describe("RCPA Synonyms (FR-04, FR-36)", () => {
     await save(user);
 
     const done = await screen.findByRole("region", { name: "Changes saved" });
-    expect(within(done).getByText(/“Zovirax” is also on NPTC-000900/)).toBeVisible();
+    expect(within(done).getByText(/“Zovirax” is also on APTC-000900/)).toBeVisible();
   });
 });
 
@@ -778,7 +778,7 @@ const COLLISION_WARNING = {
   kind: "collision",
   severity: "warning",
   term: "Zovirax",
-  business_key: "NPTC-000900",
+  business_key: "APTC-000900",
   preferred_term: "Aciclovir",
 };
 

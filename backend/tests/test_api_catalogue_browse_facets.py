@@ -22,10 +22,10 @@ from typing import Any
 import pytest
 from sqlalchemy.engine import Connection
 
-from nptc.catalogue.facets import FACET_BUCKET_CAP
-from nptc.db.bootstrap import seed_system_properties
-from nptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
-from nptc.db.models.property_value import PropertyValue
+from aptc.catalogue.facets import FACET_BUCKET_CAP
+from aptc.db.bootstrap import seed_system_properties
+from aptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
+from aptc.db.models.property_value import PropertyValue
 
 
 def _load(name: str) -> Any:
@@ -41,8 +41,8 @@ _api_support = _load("api_app_support")
 build_api_test_app = _api_support.build_api_test_app
 ApiTestApp = _api_support.ApiTestApp
 
-_DISCIPLINE_SYSTEM = "https://example.org/nptc/discipline"
-_SUBGROUP_SYSTEM = "https://example.org/nptc/subgroup"
+_DISCIPLINE_SYSTEM = "https://example.org/aptc/discipline"
+_SUBGROUP_SYSTEM = "https://example.org/aptc/subgroup"
 _SNOMED = "http://snomed.info/sct"
 
 
@@ -95,11 +95,11 @@ def seeded(api: ApiTestApp) -> _Seeded:
     base = random.randrange(100_000_000, 999_000_000)
     seeded = _Seeded(
         token=f"bf{base}",
-        before_all=f"NPTC-{base - 1}",
-        first=f"NPTC-{base}",
-        second=f"NPTC-{base + 1}",
-        third=f"NPTC-{base + 2}",
-        draft=f"NPTC-{base + 3}",
+        before_all=f"APTC-{base - 1}",
+        first=f"APTC-{base}",
+        second=f"APTC-{base + 1}",
+        third=f"APTC-{base + 2}",
+        draft=f"APTC-{base + 3}",
     )
     entries = {
         seeded.first: CatalogueEntry(
@@ -255,7 +255,7 @@ def wide(api: ApiTestApp) -> _Wide:
     base = random.randrange(100_000_000, 999_000_000)
     token = f"wide{base}"
     wide = _Wide(
-        business_key=f"NPTC-{base}",
+        business_key=f"APTC-{base}",
         term=f"Wide facet probe {token}",
         specimens=tuple(f"{token}-s{n:02d}" for n in range(FACET_BUCKET_CAP + 5)),
         subgroups=tuple(f"{token}-g{n:02d}" for n in range(FACET_BUCKET_CAP + 5)),

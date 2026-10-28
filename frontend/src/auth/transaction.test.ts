@@ -52,7 +52,7 @@ describe("takeTransaction", () => {
   });
 
   it("discards a corrupt entry rather than leaving it retryable", () => {
-    window.sessionStorage.setItem("nptc.auth.transaction.abc", "{not json");
+    window.sessionStorage.setItem("aptc.auth.transaction.abc", "{not json");
 
     expect(takeTransaction("abc")).toBeNull();
     expect(takeTransaction("abc")).toBeNull();
@@ -60,7 +60,7 @@ describe("takeTransaction", () => {
 
   it("rejects a well-formed entry missing what the flow needs", () => {
     window.sessionStorage.setItem(
-      "nptc.auth.transaction.abc",
+      "aptc.auth.transaction.abc",
       JSON.stringify({ redirect: "/somewhere", createdAt: Date.now() }),
     );
 
@@ -99,7 +99,7 @@ describe("expiry and cleanup", () => {
     saveTransaction(transaction("fresh"));
 
     // Swept on save, so an abandoned tab does not accumulate entries.
-    expect(window.sessionStorage.getItem("nptc.auth.transaction.stale")).toBeNull();
+    expect(window.sessionStorage.getItem("aptc.auth.transaction.stale")).toBeNull();
     expect(takeTransaction("fresh")).not.toBeNull();
   });
 });

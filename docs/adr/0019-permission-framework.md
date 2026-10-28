@@ -56,7 +56,7 @@ delivered as one PR.
 
 ### Permissions are code, grants are data
 
-`nptc.auth.permissions.Permission` (`StrEnum`, ~26 dotted constants) and `Role` are Python
+`aptc.auth.permissions.Permission` (`StrEnum`, ~26 dotted constants) and `Role` are Python
 enums; `ROLE_PERMISSIONS: Mapping[Role, frozenset[Permission]]` is an explicit literal
 mapping, never `MEMBER = PROVISIONAL | {...}` — the matrix is not monotone in general
 (Provisional may create submissions but not register interest), so each role is written
@@ -65,13 +65,13 @@ which role) are database rows.
 
 **Why not a database permission/role table.** A permission constant referenced by a check
 site must exist as a code symbol, so a database-sourced table could only ever be a *shadow*
-of the enum, free to silently disagree with it — the exact drift `nptc.db.roles` exists to
+of the enum, free to silently disagree with it — the exact drift `aptc.db.roles` exists to
 prevent for privilege grants. "Who may publish a release" belongs in `git blame` and PR
 review, not an unreviewed `INSERT`, especially with no admin UI in scope. `mypy --strict`
 typechecks a `Permission` reference at every call site; a database-sourced string cannot be.
 
 **The strongest test in the issue**: `test_permission_matrix.py` parses the markdown table
-at PRD §4.7 directly out of `docs/prd/NPTC-Catalogue-Platform-PRD.md` and asserts
+at PRD §4.7 directly out of `docs/prd/APTC-Catalogue-Platform-PRD.md` and asserts
 `ROLE_PERMISSIONS` reproduces it cell by cell, with exhaustiveness checked in both
 directions (an unrecognised PRD row fails; an orphan `Permission` fails). This test caught
 a real discrepancy during development: the code originally granted Administrator both
@@ -84,7 +84,7 @@ own words and the code now matches it exactly).
 
 - **`Y (own)` / `Y (any)`** (withdrawing a submission) — a resource-scope distinction: two
   permissions, `SUBMISSION_WITHDRAW_OWN`/`_ANY`, resolved by
-  `nptc.auth.authorisation.may_act_on` against the resource's owner `app_user.id`. A single
+  `aptc.auth.authorisation.may_act_on` against the resource's owner `app_user.id`. A single
   `SUBMISSION_WITHDRAW` permission plus an ownership `if` at the call site would be exactly
   the hard-coded check FR-44 forbids, merely relocated.
 - **`max 5` / `20/hr`** (submission creation) — not a permission at all. Both Provisional
@@ -94,7 +94,7 @@ own words and the code now matches it exactly).
   and it is a different audit story ("rate limited" vs "not permitted"). FR-41's per-user
   override is deferred; `effective_quota(..., override=...)` is the seam.
 - **Reviewer's "promote Provisional to Member and no more"** — `Permission.ROLE_GRANT_MEMBER`
-  vs `Permission.ROLE_GRANT_ANY`, resolved in `nptc.auth.grants.grant_role`: a Reviewer
+  vs `Permission.ROLE_GRANT_ANY`, resolved in `aptc.auth.grants.grant_role`: a Reviewer
   needs `ROLE_GRANT_MEMBER` only when the target is exactly `MEMBER` and currently holds
   `PROVISIONAL` — otherwise `ROLE_GRANT_ANY`. This is what stops a Reviewer laterally
   promoting an Observer, and stops `ROLE_GRANT_MEMBER` being read as "may grant Member to
@@ -138,7 +138,7 @@ same role granted `UPDATE (b)` on an unrelated column succeeds. This is the actu
 FR-01's guard depends on — the row lock that makes two concurrent revocations of the last
 two administrators resolve to exactly one success, not zero survivors.
 
-The fix: `nptc.db.roles.GRANT_USER_ROLE_UPDATE_SQL` grants `UPDATE (granted_at)` only —
+The fix: `aptc.db.roles.GRANT_USER_ROLE_UPDATE_SQL` grants `UPDATE (granted_at)` only —
 `granted_at` is the one column nothing in this codebase ever writes to after insert (a
 server-defaulted creation timestamp), so this satisfies Postgres's row-locking requirement
 while `user_id`/`role`/`granted_by_user_id` — the columns that would actually rewrite "who
@@ -151,7 +151,7 @@ bare `SELECT ... FOR UPDATE` both succeed.
 Postgres cannot express "at least one row where `role='administrator'` and the joined user
 is active" as a `CHECK`/`UNIQUE`/`EXCLUDE` constraint (all per-row only), and PRD §14.1 /
 ADR-0011 forbid business logic in triggers or stored functions. So
-`nptc.auth.grants.assert_not_last_administrator` is an application check — but a naive
+`aptc.auth.grants.assert_not_last_administrator` is an application check — but a naive
 `SELECT count(*)` is unsafe under concurrency: two transactions each revoking one of the
 last two administrators would each independently see "one other remains" and both commit,
 leaving zero. The guard instead runs:
@@ -173,12 +173,12 @@ keep the floor satisfied — suspending the last administrator must itself be re
 invariant the P2 suspend path inherits from this same function.
 
 **Closure is a removal path too, even though it never calls `revoke_role`.**
-`nptc.auth.identity.close_account` runs `assert_not_last_administrator` before doing
+`aptc.auth.identity.close_account` runs `assert_not_last_administrator` before doing
 anything else, then revokes every `user_role` grant alongside the identity deletions it
 already performs — without the guard there, closing your own account would be the one-line
 bypass of FR-01.
 
-**Lock ordering, stated once so it is easy to find**: `nptc.audit.writer` takes a
+**Lock ordering, stated once so it is easy to find**: `aptc.audit.writer` takes a
 fixed-key `pg_advisory_xact_lock` on every append, and every role mutation ends with one.
 The order is always *`user_role` rows → advisory lock*, in both `revoke_role` and
 `close_account`; reversing it anywhere would deadlock against a concurrent caller doing the
@@ -190,14 +190,14 @@ With no grant/revoke endpoints and a last-administrator guard, a fresh deploymen
 acquire its first Administrator through the checked path — there is no `Principal` yet that
 could hold `role.grant.any`. `scripts/grant_role.py` is the deliberate, one-time, out-of-band
 escape hatch: an operator with direct database access, calling the same
-`nptc.auth.grants.grant_role_unchecked` a first-login Provisional grant uses (still
+`aptc.auth.grants.grant_role_unchecked` a first-login Provisional grant uses (still
 audited, still idempotent). No `--force`, no revoke path through the script — once a second
 Administrator exists, every further grant/revoke goes through the ordinary
 `Principal`-checked functions.
 
 ### Default role on registration
 
-PRD §4.3: a newly registered user *is* Provisional. `nptc.auth.identity._create_user` now
+PRD §4.3: a newly registered user *is* Provisional. `aptc.auth.identity._create_user` now
 inserts a `PROVISIONAL` grant and records `user_role.granted`, inside the same
 `begin_nested()` savepoint as the identity insert, so a username-collision retry leaves no
 orphan grant event. A real row, not an implicit default: FR-40's dashboard must answer
@@ -206,7 +206,7 @@ representable only as an absence.
 
 ### `Principal`, not the mapped `User`
 
-`nptc.auth.principal.Principal` carries `user_id` (a UUID) and `UserRef` (the existing
+`aptc.auth.principal.Principal` carries `user_id` (a UUID) and `UserRef` (the existing
 NFR-04 serialisation boundary), never the ORM `User` instance: an ORM object binds the
 `Principal`'s lifetime to a `Session`, whereas a `Principal` is exactly the kind of object
 worth keeping and logging after the session that produced it has moved on. `mfa_satisfied`
@@ -221,8 +221,8 @@ True`.
 | `SUSPENDED` | Drops to exactly `ROLE_PERMISSIONS[ANON]` — the public read surface a stranger has, losing the Observer-only rows. Refusing every request outright (including genuinely public GETs) was considered and rejected as both surprising and a small information leak. |
 | `ACTIVE` | `ROLE_PERMISSIONS[ANON]` ∪ the union over granted (MFA-effective) roles — a user with zero grants is never *less* capable than a stranger. |
 
-A new error hierarchy, `nptc.auth.errors_authorisation.AuthorisationError`, lives apart from
-`nptc.auth.errors.TokenError` — the latter's docstring states every member is 401-shaped,
+A new error hierarchy, `aptc.auth.errors_authorisation.AuthorisationError`, lives apart from
+`aptc.auth.errors.TokenError` — the latter's docstring states every member is 401-shaped,
 which a future #41 `except TokenError → 401` depends on; adding 403/409 types there would
 falsify that. `http_status` is a `ClassVar` per subclass so a blanket handler cannot
 mis-map `ManualLinkRequiredError`/`LastAdministratorError` (409) as 403.
@@ -233,7 +233,7 @@ The token carries no `acr`/`amr` and the realm has no roles, so Keycloak cannot 
 an administrator — enforcement is necessarily server-side; Keycloak's only job is making
 step-up authentication achievable and provable.
 
-**Realm** (`deploy/keycloak/realm/nptc-realm.json`): a new top-level `browserFlow: "nptc
+**Realm** (`deploy/keycloak/realm/aptc-realm.json`): a new top-level `browserFlow: "aptc
 browser"`, a copy of the built-in browser flow whose `forms` subflow gates OTP behind a
 `conditional-level-of-authentication` executor (`loa-condition-level: "2"`) rather than
 `conditional-user-configured` — OTP is required whenever the client requests a satisfying
@@ -246,7 +246,7 @@ offline): the realm imports cleanly; the `conditional-level-of-authentication` a
 resolves and binds its config correctly (confirmed via the admin REST API); and a full
 browser authorization-code request with `acr_values=2` against a user with no TOTP
 configured redirects to `CONFIGURE_TOTP` exactly as designed. `test_keycloak_realm.py`
-gained a `nptc_loa-2 condition` container of offline assertions plus an extension to the
+gained a `aptc_loa-2 condition` container of offline assertions plus an extension to the
 existing integration test proving the flow binds and its executions resolve on a live
 import. Full "the resulting token's `acr` claim reads `2` after OTP completion" was not
 automated (it requires scripting a TOTP enrolment round-trip, disproportionate effort for
@@ -281,12 +281,12 @@ bypassed by simply writing `Role.ADMINISTRATOR`); a membership test against `.ro
 string literal passed where `require_permission`/`has_permission`/`may_act_on` expects a
 `Permission` member. `test_token_verification_guard.py` itself gained a fifth rule: the
 literals `"acr"`, `"amr"`, `"realm_access"`, `"resource_access"`, `"groups"`, `"roles"`,
-`"scope"` must never be subscripted or `.get()`-read outside `nptc/auth/tokens.py` — a
+`"scope"` must never be subscripted or `.get()`-read outside `aptc/auth/tokens.py` — a
 direct, greppable enforcement of NFR-07's second sentence.
 
 ### FR-80 and FR-81 are provable today, without a single endpoint
 
-Both are worded per-endpoint, and `backend/src/nptc/api/` is still a docstring stub with
+Both are worded per-endpoint, and `backend/src/aptc/api/` is still a docstring stub with
 zero routes. Both are also, independently, statements about *data*:
 
 - FR-80: `not (ROLE_PERMISSIONS[OBSERVER] & WRITE_PERMISSIONS)` — stronger than any
@@ -330,7 +330,7 @@ walker).
 - `FR-44` moves to `implemented` — the matrix test and the AST guard are both mechanical,
   durable proofs, not endpoint-shaped ones.
 - `NFR-20`, `FR-01`, `FR-80`, `FR-81` move to `in-progress`, deliberately not
-  `implemented`: all four are worded per-request/per-endpoint, and `backend/src/nptc/api/`
+  `implemented`: all four are worded per-request/per-endpoint, and `backend/src/aptc/api/`
   has zero routes today. The permission-level property tests proven here are stronger than
   any per-endpoint test would be, but the issue's own acceptance criterion ("every mutating
   endpoint has a negative-case test") is vacuously true at zero endpoints. The route

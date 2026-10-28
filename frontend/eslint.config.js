@@ -83,7 +83,7 @@ export default tseslint.config(
             "Build an internal URL from the route table - <Link to>/navigate/router.buildLocation - never by string concatenation (issue #146, FR-17).",
         },
         {
-          // <a href="/catalogue/NPTC-1">, <a href="/admin">. `to=` (the
+          // <a href="/catalogue/APTC-1">, <a href="/admin">. `to=` (the
           // typed <Link>/navigate prop) is deliberately not matched here.
           selector:
             "JSXAttribute[name.name='href'] Literal[value=/^\\/(catalogue|releases|submissions|admin)(\\/|$|\\?)/]",

@@ -6,7 +6,7 @@ Create Date: 2026-10-03
 
 FR-76, ADR-0010, ADR-0042: the record of the baseline seeding run, and each seeded
 entry's provenance, which ADR-0010 commits to preserving verbatim. See
-`nptc.db.models.seed_import` and `nptc.db.models.entry_seed_provenance` for the reasoning.
+`aptc.db.models.seed_import` and `aptc.db.models.entry_seed_provenance` for the reasoning.
 
 Both grants are `SELECT, INSERT` only, so "written once by the loader, never edited" holds at the
 privilege level. The downgrade drops both tables outright, provenance first because it holds the
@@ -20,7 +20,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-from nptc.db import roles
+from aptc.db import roles
 
 # revision identifiers, used by Alembic.
 revision: str = "0021"

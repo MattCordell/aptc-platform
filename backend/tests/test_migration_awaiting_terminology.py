@@ -18,7 +18,7 @@ from sqlalchemy.exc import IntegrityError
 from testcontainers.community.postgres import PostgresContainer
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-_DB = "nptc_awaiting_terminology"
+_DB = "aptc_awaiting_terminology"
 _CHECK_VIOLATION = "23514"
 _STATE = "Awaiting terminology"
 

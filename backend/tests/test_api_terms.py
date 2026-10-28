@@ -4,7 +4,7 @@ ADR-0043).
 Runs the production app, so every request goes through the real token verifier, identity
 resolution and permission derivation. Only the database connection, the IdP's address and the
 directory the terms files are read from are substituted. That directory holds two versions, so a
-test can move the current version forward and back (`NPTC_TERMS_CURRENT_VERSION`).
+test can move the current version forward and back (`APTC_TERMS_CURRENT_VERSION`).
 
 Marked `integration`: acceptance and audit rows need a real PostgreSQL (NFR-39).
 """
@@ -23,15 +23,15 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.engine import Connection
 
-from nptc.api.dependencies import get_token_verifier
-from nptc.api.errors import TERMS_ACCEPTANCE_REQUIRED_CODE, TERMS_VERSION_STALE_CODE
-from nptc.api.terms_gate import EXEMPT_ROUTES
-from nptc.auth.permissions import Permission, Role
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.terms_acceptance import TermsAcceptance
-from nptc.db.models.user import User
-from nptc.db.models.user_identity import UserIdentity
-from nptc.terms import documents
+from aptc.api.dependencies import get_token_verifier
+from aptc.api.errors import TERMS_ACCEPTANCE_REQUIRED_CODE, TERMS_VERSION_STALE_CODE
+from aptc.api.terms_gate import EXEMPT_ROUTES
+from aptc.auth.permissions import Permission, Role
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.terms_acceptance import TermsAcceptance
+from aptc.db.models.user import User
+from aptc.db.models.user_identity import UserIdentity
+from aptc.terms import documents
 
 
 def _load(name: str) -> Any:

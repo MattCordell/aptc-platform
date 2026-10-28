@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for working on the NPTC platform. This document is short on purpose — if a rule
+Thanks for working on the APTC platform. This document is short on purpose — if a rule
 is not here, use your judgement and raise it in the PR.
 
 ## Prerequisites

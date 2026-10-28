@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from nptc_shared.similarity import (
+from aptc_shared.similarity import (
     LONG_TOKEN_LENGTH,
     MAX_EDIT_DISTANCE,
     MIN_TOKEN_LENGTH,

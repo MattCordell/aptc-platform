@@ -159,7 +159,7 @@ jobs:
         run: |
           pnpm generate:api
           if ! git diff --exit-code -- src/api/schema.ts; then
-            echo "::error::frontend/src/api/schema.ts is stale. Regenerate it with 'pnpm --filter nptc-frontend generate:api' and commit the result."
+            echo "::error::frontend/src/api/schema.ts is stale. Regenerate it with 'pnpm --filter aptc-frontend generate:api' and commit the result."
             exit 1
           fi
 

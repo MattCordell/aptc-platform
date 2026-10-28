@@ -18,8 +18,8 @@ from sqlalchemy import Column, Integer, MetaData, Numeric, String, Table
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import JSONB
 
-from nptc.db.property_indexes import DesiredIndex, create_statement
-from nptc.registry import (
+from aptc.db.property_indexes import DesiredIndex, create_statement
+from aptc.registry import (
     BindingSpec,
     ControlKind,
     FilterOp,
@@ -31,13 +31,13 @@ from nptc.registry import (
     UnsupportedFilterOpError,
     ValueExpression,
 )
-from nptc.registry.datatypes.code import CodeHandler
-from nptc.registry.datatypes.decimal import DecimalHandler
-from nptc.registry.datatypes.positive_int import PositiveIntHandler
-from nptc.registry.datatypes.string import StringHandler
-from nptc.registry.datatypes.url import UrlHandler
-from nptc_shared.terminology.models import SNOMED_CT_AU, Edition, ValidationResult
-from nptc_shared.terminology.stub import StubTerminologyClient
+from aptc.registry.datatypes.code import CodeHandler
+from aptc.registry.datatypes.decimal import DecimalHandler
+from aptc.registry.datatypes.positive_int import PositiveIntHandler
+from aptc.registry.datatypes.string import StringHandler
+from aptc.registry.datatypes.url import UrlHandler
+from aptc_shared.terminology.models import SNOMED_CT_AU, Edition, ValidationResult
+from aptc_shared.terminology.stub import StubTerminologyClient
 
 
 def _spec(
@@ -314,7 +314,7 @@ def test_code_rejects_missing_required_field() -> None:
 def test_code_rejects_a_forbidden_code() -> None:
     """FR-89: 'Any' is never a specimen code - the exact seam
     Specimen's own `constraints = {"forbidden_codes": ["Any"]}` uses
-    (`nptc.db.bootstrap`)."""
+    (`aptc.db.bootstrap`)."""
     handler = CodeHandler(terminology_client=StubTerminologyClient())
     spec = _spec("code", constraints={"forbidden_codes": ["Any"]})
     value = {"system": "http://example.org/local", "code": "Any"}
@@ -354,7 +354,7 @@ def test_code_ignores_a_malformed_non_list_forbidden_codes_rather_than_failing_o
     - without the `isinstance(forbidden_codes, list)` guard, `"Any"` would
     silently forbid the single-letter codes `a`, `n`, `y` while never
     catching the intended whole-code entries, including `"Any"` itself.
-    `nptc.registry.schema.validate_constraints` is the layer meant to
+    `aptc.registry.schema.validate_constraints` is the layer meant to
     reject this shape before it reaches here; this is the defence in depth
     for the case where it doesn't."""
     handler = CodeHandler(terminology_client=StubTerminologyClient())
@@ -895,7 +895,7 @@ def test_decimal_equals_filter_uses_the_cast_safe_function() -> None:
     clause = DecimalHandler().filter_clause(FilterOp.EQUALS, 5, table.c.value)
 
     compiled = _compiled(clause)
-    assert "nptc_numeric_or_null" in compiled
+    assert "aptc_numeric_or_null" in compiled
     assert "CAST" not in compiled.upper()
 
 
@@ -905,7 +905,7 @@ def test_positive_int_equals_filter_uses_the_cast_safe_function() -> None:
 
     clause = PositiveIntHandler().filter_clause(FilterOp.EQUALS, 5, table.c.value)
 
-    assert "nptc_numeric_or_null" in _compiled(clause)
+    assert "aptc_numeric_or_null" in _compiled(clause)
 
 
 @pytest.mark.req("FR-13")
@@ -914,15 +914,15 @@ def test_positive_int_equals_filter_uses_the_cast_safe_function() -> None:
     [
         (StringHandler(), "abc", ValueExpression.TEXT_SCALAR, "#>> '{}'"),
         (UrlHandler(), "https://example.org", ValueExpression.TEXT_SCALAR, "#>> '{}'"),
-        (DecimalHandler(), 5, ValueExpression.NUMERIC_SCALAR, "nptc_numeric_or_null("),
-        (PositiveIntHandler(), 5, ValueExpression.NUMERIC_SCALAR, "nptc_numeric_or_null("),
+        (DecimalHandler(), 5, ValueExpression.NUMERIC_SCALAR, "aptc_numeric_or_null("),
+        (PositiveIntHandler(), 5, ValueExpression.NUMERIC_SCALAR, "aptc_numeric_or_null("),
     ],
 )
 def test_filter_clause_shares_its_expression_with_the_generated_index(
     handler: object, value: object, expression: ValueExpression, shared_fragment: str
 ) -> None:
     """The two are built by entirely different code paths -
-    `nptc.db.property_indexes.create_statement` for the index,
+    `aptc.db.property_indexes.create_statement` for the index,
     `filter_clause` for the query - so nothing but a test like this one
     stops a future edit to either side from silently drifting apart and
     leaving the index unused."""
@@ -972,5 +972,5 @@ def test_positive_int_facet_expression_does_not_raise_on_a_retained_non_numeric_
 
     facet_sql = _compiled(PositiveIntHandler().facet_expression(table.c.value))
 
-    assert "nptc_numeric_or_null" in facet_sql
+    assert "aptc_numeric_or_null" in facet_sql
     assert "CAST" not in facet_sql.upper()

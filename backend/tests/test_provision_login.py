@@ -1,7 +1,7 @@
-"""`nptc.db.provision_login` (NFR-41): the deployable stack's `migrate`
+"""`aptc.db.provision_login` (NFR-41): the deployable stack's `migrate`
 service creates the app runtime login itself, so no operator runs SQL by hand.
 
-`nptc_app_login` is cluster-wide, and the session-scoped `migrated` fixture
+`aptc_app_login` is cluster-wide, and the session-scoped `migrated` fixture
 already provisioned it with `APP_LOGIN_PASSWORD`. A test that changes that
 password restores it in a `finally`, because every later test in the worker
 authenticates with it.
@@ -19,8 +19,8 @@ from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from testcontainers.community.postgres import PostgresContainer
 
-from nptc.db import provision_login
-from nptc.db.provision_login import (
+from aptc.db import provision_login
+from aptc.db.provision_login import (
     APP_LOGIN_ROLE,
     INDEXER_LOGIN_ROLE,
     main,
@@ -49,8 +49,8 @@ _HOSTILE_PASSWORD = "it's a \\ $$ 100% test-only-not-a-real-secret"
 _HOSTILE_URL_SAFE_PASSWORD = "it's a \\ $$ test-only-not-a-real-secret"
 
 
-#: `nptc_indexer` is cluster-wide too. No fixture provisions it, so `main()` tests set this.
-_INDEXER_LOGIN_PASSWORD = "nptc-indexer-cli-test-only-not-a-real-secret"
+#: `aptc_indexer` is cluster-wide too. No fixture provisions it, so `main()` tests set this.
+_INDEXER_LOGIN_PASSWORD = "aptc-indexer-cli-test-only-not-a-real-secret"
 
 
 def _login_engine(owner_engine: Engine, password: str, role: str = APP_LOGIN_ROLE) -> Engine:
@@ -74,7 +74,7 @@ def _can_log_in(owner_engine: Engine, password: str, role: str = APP_LOGIN_ROLE)
 @pytest.mark.integration
 def test_login_role_is_a_member_of_the_app_role(db: Connection, migrated: None) -> None:
     is_member = db.execute(
-        text("SELECT pg_has_role(:login, 'nptc_app', 'member')"), {"login": APP_LOGIN_ROLE}
+        text("SELECT pg_has_role(:login, 'aptc_app', 'member')"), {"login": APP_LOGIN_ROLE}
     ).scalar_one()
 
     assert is_member is True
@@ -131,9 +131,9 @@ def test_cli_provisions_from_the_environment_without_printing_the_password(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    monkeypatch.setenv("NPTC_MIGRATION_DATABASE_URL", postgres_container.get_connection_url())
-    monkeypatch.setenv("NPTC_APP_DB_PASSWORD", _APP_LOGIN_PASSWORD)
-    monkeypatch.setenv("NPTC_INDEXER_DB_PASSWORD", _INDEXER_LOGIN_PASSWORD)
+    monkeypatch.setenv("APTC_MIGRATION_DATABASE_URL", postgres_container.get_connection_url())
+    monkeypatch.setenv("APTC_APP_DB_PASSWORD", _APP_LOGIN_PASSWORD)
+    monkeypatch.setenv("APTC_INDEXER_DB_PASSWORD", _INDEXER_LOGIN_PASSWORD)
 
     exit_code = main()
 
@@ -153,7 +153,7 @@ def test_indexer_login_is_a_member_of_the_property_index_owner_role(
     provision_indexer_login(owner_engine, _INDEXER_LOGIN_PASSWORD)
 
     is_member = db.execute(
-        text("SELECT pg_has_role(:login, 'nptc_property_index_owner', 'member')"),
+        text("SELECT pg_has_role(:login, 'aptc_property_index_owner', 'member')"),
         {"login": INDEXER_LOGIN_ROLE},
     ).scalar_one()
 
@@ -177,15 +177,15 @@ def test_provisioning_the_indexer_again_rotates_its_password(
 def test_cli_names_the_missing_indexer_password_variable(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    monkeypatch.setenv("NPTC_MIGRATION_DATABASE_URL", "postgresql+psycopg://o:x@127.0.0.1:1/none")
-    monkeypatch.setenv("NPTC_APP_DB_PASSWORD", _APP_LOGIN_PASSWORD)
-    monkeypatch.delenv("NPTC_INDEXER_DB_PASSWORD", raising=False)
+    monkeypatch.setenv("APTC_MIGRATION_DATABASE_URL", "postgresql+psycopg://o:x@127.0.0.1:1/none")
+    monkeypatch.setenv("APTC_APP_DB_PASSWORD", _APP_LOGIN_PASSWORD)
+    monkeypatch.delenv("APTC_INDEXER_DB_PASSWORD", raising=False)
 
     exit_code = main()
 
     captured = capsys.readouterr()
     assert exit_code == 1
-    assert "NPTC_INDEXER_DB_PASSWORD" in captured.err
+    assert "APTC_INDEXER_DB_PASSWORD" in captured.err
     assert "OperationalError" not in captured.err, "must refuse before connecting"
 
 
@@ -195,38 +195,38 @@ def test_cli_refuses_an_indexer_password_with_a_url_delimiter(
     delimiter: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     password = f"before{delimiter}after-test-only-not-a-real-secret"
-    monkeypatch.setenv("NPTC_MIGRATION_DATABASE_URL", "postgresql+psycopg://o:x@127.0.0.1:1/none")
-    monkeypatch.setenv("NPTC_APP_DB_PASSWORD", _APP_LOGIN_PASSWORD)
-    monkeypatch.setenv("NPTC_INDEXER_DB_PASSWORD", password)
+    monkeypatch.setenv("APTC_MIGRATION_DATABASE_URL", "postgresql+psycopg://o:x@127.0.0.1:1/none")
+    monkeypatch.setenv("APTC_APP_DB_PASSWORD", _APP_LOGIN_PASSWORD)
+    monkeypatch.setenv("APTC_INDEXER_DB_PASSWORD", password)
 
     exit_code = main()
 
     captured = capsys.readouterr()
     assert exit_code == 1
-    assert "NPTC_INDEXER_DB_PASSWORD" in captured.err
+    assert "APTC_INDEXER_DB_PASSWORD" in captured.err
     assert password not in captured.out + captured.err
 
 
 def test_cli_names_the_missing_password_variable(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    monkeypatch.setenv("NPTC_MIGRATION_DATABASE_URL", "postgresql+psycopg://o:x@localhost/none")
-    monkeypatch.delenv("NPTC_APP_DB_PASSWORD", raising=False)
+    monkeypatch.setenv("APTC_MIGRATION_DATABASE_URL", "postgresql+psycopg://o:x@localhost/none")
+    monkeypatch.delenv("APTC_APP_DB_PASSWORD", raising=False)
 
     exit_code = main()
 
     assert exit_code == 1
-    assert "NPTC_APP_DB_PASSWORD" in capsys.readouterr().err
+    assert "APTC_APP_DB_PASSWORD" in capsys.readouterr().err
 
 
 def test_cli_refuses_a_blank_password(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    monkeypatch.setenv("NPTC_MIGRATION_DATABASE_URL", "postgresql+psycopg://o:x@localhost/none")
-    monkeypatch.setenv("NPTC_APP_DB_PASSWORD", "   ")
+    monkeypatch.setenv("APTC_MIGRATION_DATABASE_URL", "postgresql+psycopg://o:x@localhost/none")
+    monkeypatch.setenv("APTC_APP_DB_PASSWORD", "   ")
 
     assert main() == 1
-    assert "NPTC_APP_DB_PASSWORD" in capsys.readouterr().err
+    assert "APTC_APP_DB_PASSWORD" in capsys.readouterr().err
 
 
 def test_cli_failure_prints_the_error_type_but_not_the_dsn_or_password(
@@ -234,11 +234,11 @@ def test_cli_failure_prints_the_error_type_but_not_the_dsn_or_password(
 ) -> None:
     secret = "dsn-secret-test-only-not-a-real-secret"
     monkeypatch.setenv(
-        "NPTC_MIGRATION_DATABASE_URL",
+        "APTC_MIGRATION_DATABASE_URL",
         f"postgresql+psycopg://owner:{secret}@127.0.0.1:1/none?connect_timeout=3",
     )
-    monkeypatch.setenv("NPTC_APP_DB_PASSWORD", _HOSTILE_URL_SAFE_PASSWORD)
-    monkeypatch.setenv("NPTC_INDEXER_DB_PASSWORD", _INDEXER_LOGIN_PASSWORD)
+    monkeypatch.setenv("APTC_APP_DB_PASSWORD", _HOSTILE_URL_SAFE_PASSWORD)
+    monkeypatch.setenv("APTC_INDEXER_DB_PASSWORD", _INDEXER_LOGIN_PASSWORD)
 
     exit_code = main()
 
@@ -257,14 +257,14 @@ def test_cli_refuses_a_password_with_a_url_delimiter(
     """Such a password would provision, then fail to log in through the
     DSN compose builds, and the only symptom would be an unhealthy backend."""
     password = f"before{delimiter}after-test-only-not-a-real-secret"
-    monkeypatch.setenv("NPTC_MIGRATION_DATABASE_URL", "postgresql+psycopg://o:x@127.0.0.1:1/none")
-    monkeypatch.setenv("NPTC_APP_DB_PASSWORD", password)
+    monkeypatch.setenv("APTC_MIGRATION_DATABASE_URL", "postgresql+psycopg://o:x@127.0.0.1:1/none")
+    monkeypatch.setenv("APTC_APP_DB_PASSWORD", password)
 
     exit_code = main()
 
     captured = capsys.readouterr()
     assert exit_code == 1
-    assert "NPTC_APP_DB_PASSWORD" in captured.err
+    assert "APTC_APP_DB_PASSWORD" in captured.err
     assert "OperationalError" not in captured.err, "must refuse before connecting"
     assert password not in captured.out + captured.err
 
@@ -282,7 +282,7 @@ def test_a_settings_error_without_a_field_is_reported_without_crashing(
         raise AssertionError("unreachable")
 
     monkeypatch.setattr(provision_login, "AppLoginSettings", refuse)
-    monkeypatch.setenv("NPTC_MIGRATION_DATABASE_URL", "postgresql+psycopg://o:x@127.0.0.1:1/none")
+    monkeypatch.setenv("APTC_MIGRATION_DATABASE_URL", "postgresql+psycopg://o:x@127.0.0.1:1/none")
 
     exit_code = main()
 

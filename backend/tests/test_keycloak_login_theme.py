@@ -1,6 +1,6 @@
 """The Keycloak login theme, checked without a container (NFR-03, NFR-31).
 
-The theme lives at ``deploy/keycloak/themes/nptc`` and reaches Keycloak by a
+The theme lives at ``deploy/keycloak/themes/aptc`` and reaches Keycloak by a
 bind mount in ``deploy/compose.yml``; the realm file selects it by name. Each
 of those three has to agree with the others, and the theme's colours have to
 agree with the SPA's. The rendered pages are asserted in
@@ -18,10 +18,10 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEPLOY_DIR = REPO_ROOT / "deploy"
-REALM_FILE = DEPLOY_DIR / "keycloak" / "realm" / "nptc-realm.json"
-THEME_DIR = DEPLOY_DIR / "keycloak" / "themes" / "nptc"
+REALM_FILE = DEPLOY_DIR / "keycloak" / "realm" / "aptc-realm.json"
+THEME_DIR = DEPLOY_DIR / "keycloak" / "themes" / "aptc"
 LOGIN_DIR = THEME_DIR / "login"
-THEME_CSS = LOGIN_DIR / "resources" / "css" / "nptc.css"
+THEME_CSS = LOGIN_DIR / "resources" / "css" / "aptc.css"
 APP_CSS = REPO_ROOT / "frontend" / "src" / "styles" / "app.css"
 
 _conftest_spec = importlib.util.spec_from_file_location(
@@ -104,9 +104,9 @@ def test_realm_carries_the_frontend_origin_the_registration_links_use() -> None:
     the account-console client's baseUrl points at Keycloak itself."""
     realm = json.loads(REALM_FILE.read_text(encoding="utf-8"))
 
-    assert realm["attributes"]["nptcFrontendBaseUrl"] == "${NPTC_FRONTEND_BASE_URL}"
+    assert realm["attributes"]["aptcFrontendBaseUrl"] == "${APTC_FRONTEND_BASE_URL}"
     template = (LOGIN_DIR / "register.ftl").read_text(encoding="utf-8")
-    assert "realm.attributes.nptcFrontendBaseUrl" in template
+    assert "realm.attributes.aptcFrontendBaseUrl" in template
     assert "client.baseUrl" not in template
 
 

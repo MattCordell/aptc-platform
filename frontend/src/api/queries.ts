@@ -1171,7 +1171,7 @@ export function usePropertyValueOptionsQueries(
 
 /**
  * The route's own `code` ceiling (`Query(max_length=200)`,
- * `nptc.api.routers.registry.list_property_value_options`) - exported so
+ * `aptc.api.routers.registry.list_property_value_options`) - exported so
  * every caller that batches codes for a resolve-by-code request caps at
  * the same number (review round 2, PR #307). Past this, the request 422s
  * and every value in the batch falls back to its raw code, including the
@@ -1185,7 +1185,7 @@ export const MAX_RESOLVE_CODES = 200;
  * #306) - a sibling of `propertyValueOptionsQuery` above, using the route's
  * `code` parameter instead of `filter` to resolve exactly `codes`, unbounded
  * by `DEFAULT_PAGE_SIZE` and independent of the property's current bound
- * value set (`nptc.catalogue.property_value_sources.resolve_property_values`,
+ * value set (`aptc.catalogue.property_value_sources.resolve_property_values`,
  * ADR-0038). `codes` is sorted before it reaches the query key so two
  * callers asking for the same set in a different order share one cache
  * entry.

@@ -5,7 +5,7 @@ Revises: 0003
 Create Date: 2026-08-17
 
 Adds ``prev_hash``/``entry_hash`` (NFR-10) to ``audit_event`` - see
-``nptc.audit.hashing``/``nptc.audit.writer`` for the digest construction
+``aptc.audit.hashing``/``aptc.audit.writer`` for the digest construction
 and append sequence, and ``docs/architecture/data-model.md`` for the full
 design writeup.
 

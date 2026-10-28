@@ -13,7 +13,7 @@ Five rules:
    f-string (``JoinedStr``), ``%``/``+`` concatenation (``BinOp``), or a
    ``.format()`` call are all rejected. A plain string literal, or a
    Name/Attribute reference to a module-level constant (e.g.
-   ``nptc.db.roles.GRANT_AUDIT_EVENT_SQL``, imported precisely so the
+   ``aptc.db.roles.GRANT_AUDIT_EVENT_SQL``, imported precisely so the
    migration and its tests share one source of truth) both pass - the
    concern is runtime data reaching a query, not where the fixed literal
    text happens to be spelled.
@@ -30,7 +30,7 @@ Five rules:
    expression built as an f-string whose literal text starts with a column
    name rather than a SQL verb - e.g.
    ``f"language ~ '{LANGUAGE_TAG_PATTERN.pattern}'"``
-   (``nptc.db.models.designation``) - passes both rule 1 (not a
+   (``aptc.db.models.designation``) - passes both rule 1 (not a
    ``text()``/``.execute()``/``.exec_driver_sql()`` call) and rule 2 (its
    literal text starts with ``"language"``, not a keyword). This is
    tolerated only because the interpolated value in every such case is a
@@ -54,14 +54,14 @@ Five rules:
    the FR-38 guarantee on ``catalogue_entry`` (issue #46) would otherwise be
    silently defeated by a future bulk-write path (e.g. #63's reclassify)
    reaching for ``session.execute(update(CatalogueEntry)...)`` instead of
-   ``nptc.catalogue.entries.save_entries``.
+   ``aptc.catalogue.entries.save_entries``.
 5. ADR-0012 (issue #54, FR-13) permits exactly one module,
-   ``nptc.db.property_indexes``, to compose DDL via ``psycopg.sql`` -
+   ``aptc.db.property_indexes``, to compose DDL via ``psycopg.sql`` -
    composing an index name and a property key safely is unavoidable there,
    since the generated index name is never a compile-time literal. Note
    that module never itself calls ``text()``/``.execute()``/
    ``.exec_driver_sql()`` - it only builds and returns ``Composed``
-   statements, which ``nptc.db.property_reconciler`` executes as a bare
+   statements, which ``aptc.db.property_reconciler`` executes as a bare
    variable, a shape rule 1 already treats as safe - so this rule is
    independent of rules 1-4, not a relaxation of any of them. Two sides,
    both walking ``.format()`` calls:
@@ -95,8 +95,8 @@ from pathlib import Path
 
 import pytest
 
-from nptc.db import models as _models  # noqa: F401 - import-for-side-effect, see below
-from nptc.db.base import Base
+from aptc.db import models as _models  # noqa: F401 - import-for-side-effect, see below
+from aptc.db.base import Base
 
 # `backend/tests` has no `__init__.py` (pytest's `--import-mode=importlib`),
 # so a plain `from ast_guard_support import ...` cannot resolve - loaded by
@@ -135,7 +135,7 @@ _CAMEL_BOUNDARY_RE = re.compile(r"(?<!^)(?=[A-Z])")
 def _camel_to_snake(name: str) -> str:
     """`CatalogueEntry` -> `catalogue_entry` - every model in this
     codebase names its table as the snake_case form of its class name
-    (`nptc.db.models`'s own convention), so this is the one place that
+    (`aptc.db.models`'s own convention), so this is the one place that
     mapping is spelled out for a test that must never let a model name and
     its table name drift apart."""
     return _CAMEL_BOUNDARY_RE.sub("_", name).lower()
@@ -152,7 +152,7 @@ _VERSIONED_RAW_SQL_RE = re.compile(
 #: silently switch rule 5's strict in-module check off everywhere rather
 #: than fail anywhere visible, which is exactly what
 #: ``test_ddl_executor_module_exists`` below guards against.
-DDL_EXECUTOR_MODULE = REPO_ROOT / "backend" / "src" / "nptc" / "db" / "property_indexes.py"
+DDL_EXECUTOR_MODULE = REPO_ROOT / "backend" / "src" / "aptc" / "db" / "property_indexes.py"
 
 #: Names recognised as ``sql.<name>(...)`` - matches this codebase's one
 #: import convention, ``from psycopg import sql`` (never ``from psycopg.sql
@@ -458,7 +458,7 @@ def test_versioned_table_names_are_derived_from_real_tables() -> None:
     (`SCTIDBinding` -> `s_c_t_i_d_binding`) would mis-derive silently,
     quietly disabling the raw-SQL half of rule 4 for that table rather
     than failing anywhere visible. Asserting the derived name is an actual
-    table in `Base.metadata` (populated by importing `nptc.db.models`,
+    table in `Base.metadata` (populated by importing `aptc.db.models`,
     which imports every model for exactly this kind of check) turns that
     assumption into something that fails loudly instead."""
     for model_name in sorted(VERSIONED_TABLE_MODELS):
@@ -500,7 +500,7 @@ def built_above():
 
 
 def grant_all_on_audit():
-    op.execute("GRANT ALL ON TABLE audit_event TO nptc_app;")
+    op.execute("GRANT ALL ON TABLE audit_event TO aptc_app;")
 
 
 def bulk_update_versioned_table():
@@ -550,7 +550,7 @@ def psycopg_composition_outside_executor():
 
 def test_guard_flags_unsafe_composition_inside_the_ddl_executor() -> None:
     """Rule 5's in-module half, checked with `ddl_executor=True` as if this
-    inline source were `nptc.db.property_indexes` itself. Three cases: a
+    inline source were `aptc.db.property_indexes` itself. Three cases: a
     non-composition argument, a non-literal `sql.SQL` receiver, and one
     genuinely safe statement - proving the allowance is not blanket (the
     first two still fail) and that the safe shape actually passes (the

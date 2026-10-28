@@ -1,4 +1,4 @@
-"""Offline unit tests for nptc.settings (issue #33).
+"""Offline unit tests for aptc.settings (issue #33).
 
 No container, no network - pure environment-variable plumbing.
 """
@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from nptc.settings import (
+from aptc.settings import (
     DEFAULT_ANON_RATE_LIMIT_REQUESTS,
     DEFAULT_ANON_RATE_LIMIT_WINDOW_SECONDS,
     DEFAULT_BULK_ARTEFACTS_URL,
@@ -21,11 +21,11 @@ from nptc.settings import (
     IndexerSettings,
     MigrationSettings,
 )
-from nptc.terms.documents import DEFAULT_TERMS_VERSION
+from aptc.terms.documents import DEFAULT_TERMS_VERSION
 
-_APP_DSN = "postgresql+psycopg://nptc_app_login:pw@localhost/nptc"
-_MIGRATION_DSN = "postgresql+psycopg://nptc_owner:pw@localhost/nptc"
-_INDEXER_DSN = "postgresql+psycopg://nptc_owner:pw@localhost/nptc"
+_APP_DSN = "postgresql+psycopg://aptc_app_login:pw@localhost/aptc"
+_MIGRATION_DSN = "postgresql+psycopg://aptc_owner:pw@localhost/aptc"
+_INDEXER_DSN = "postgresql+psycopg://aptc_owner:pw@localhost/aptc"
 
 # Registered in sys.modules before exec_module - see
 # test_authz_negative_http.py for why @dataclass requires it.
@@ -42,13 +42,13 @@ hermetic_api_settings = _support.hermetic_api_settings
 
 @pytest.fixture(autouse=True)
 def _clear_settings_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("NPTC_DATABASE_URL", raising=False)
-    monkeypatch.delenv("NPTC_MIGRATION_DATABASE_URL", raising=False)
-    monkeypatch.delenv("NPTC_INDEXER_DATABASE_URL", raising=False)
+    monkeypatch.delenv("APTC_DATABASE_URL", raising=False)
+    monkeypatch.delenv("APTC_MIGRATION_DATABASE_URL", raising=False)
+    monkeypatch.delenv("APTC_INDEXER_DATABASE_URL", raising=False)
 
 
 def test_database_settings_reads_dsn_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("NPTC_DATABASE_URL", _APP_DSN)
+    monkeypatch.setenv("APTC_DATABASE_URL", _APP_DSN)
 
     assert DatabaseSettings().database_url == _APP_DSN
 
@@ -57,9 +57,9 @@ def test_database_settings_does_not_require_migration_url(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The bug this guards against: DatabaseSettings must not demand
-    NPTC_MIGRATION_DATABASE_URL, or every app-side read would need a
+    APTC_MIGRATION_DATABASE_URL, or every app-side read would need a
     variable it has no use for."""
-    monkeypatch.setenv("NPTC_DATABASE_URL", _APP_DSN)
+    monkeypatch.setenv("APTC_DATABASE_URL", _APP_DSN)
 
     DatabaseSettings()  # must not raise
 
@@ -70,14 +70,14 @@ def test_database_settings_missing_url_names_the_variable() -> None:
 
 
 def test_database_settings_rejects_blank_url(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("NPTC_DATABASE_URL", "   ")
+    monkeypatch.setenv("APTC_DATABASE_URL", "   ")
 
     with pytest.raises(ValidationError, match="database_url"):
         DatabaseSettings()
 
 
 def test_migration_settings_reads_dsn_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("NPTC_MIGRATION_DATABASE_URL", _MIGRATION_DSN)
+    monkeypatch.setenv("APTC_MIGRATION_DATABASE_URL", _MIGRATION_DSN)
 
     assert MigrationSettings().migration_database_url == _MIGRATION_DSN
 
@@ -86,8 +86,8 @@ def test_migration_settings_does_not_require_database_url(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The bug this guards against: an operator running `alembic upgrade
-    head` must not be forced to also set NPTC_DATABASE_URL."""
-    monkeypatch.setenv("NPTC_MIGRATION_DATABASE_URL", _MIGRATION_DSN)
+    head` must not be forced to also set APTC_DATABASE_URL."""
+    monkeypatch.setenv("APTC_MIGRATION_DATABASE_URL", _MIGRATION_DSN)
 
     MigrationSettings()  # must not raise
 
@@ -98,7 +98,7 @@ def test_migration_settings_missing_url_names_the_variable() -> None:
 
 
 def test_migration_settings_rejects_blank_url(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("NPTC_MIGRATION_DATABASE_URL", "   ")
+    monkeypatch.setenv("APTC_MIGRATION_DATABASE_URL", "   ")
 
     with pytest.raises(ValidationError, match="migration_database_url"):
         MigrationSettings()
@@ -113,15 +113,15 @@ def test_indexer_settings_defaults_to_empty_reconciliation_disabled() -> None:
 
 
 def test_indexer_settings_reads_dsn_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("NPTC_INDEXER_DATABASE_URL", _INDEXER_DSN)
+    monkeypatch.setenv("APTC_INDEXER_DATABASE_URL", _INDEXER_DSN)
 
     assert IndexerSettings().indexer_database_url == _INDEXER_DSN
 
 
 def test_indexer_settings_does_not_require_database_url_or_migration_url() -> None:
     """The bug this guards against: a deployment that doesn't want runtime
-    index reconciliation must not be forced to set NPTC_DATABASE_URL or
-    NPTC_MIGRATION_DATABASE_URL just to construct this settings class."""
+    index reconciliation must not be forced to set APTC_DATABASE_URL or
+    APTC_MIGRATION_DATABASE_URL just to construct this settings class."""
     IndexerSettings()  # must not raise
 
 
@@ -140,7 +140,7 @@ def test_auth_settings_reads_a_single_trusted_issuer_from_env(
     pydantic-settings, which tries to JSON-decode the raw environment
     string before any validator runs - every non-JSON value, including the
     single-issuer case, raised a SettingsError instead of being split."""
-    monkeypatch.setenv("NPTC_TRUSTED_ISSUERS", "https://good.example")
+    monkeypatch.setenv("APTC_TRUSTED_ISSUERS", "https://good.example")
 
     assert AuthSettings().trusted_issuers == frozenset({"https://good.example"})
 
@@ -149,7 +149,7 @@ def test_auth_settings_reads_a_single_trusted_issuer_from_env(
 def test_auth_settings_reads_a_comma_separated_list_of_trusted_issuers_from_env(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("NPTC_TRUSTED_ISSUERS", "https://a.example, https://b.example")
+    monkeypatch.setenv("APTC_TRUSTED_ISSUERS", "https://a.example, https://b.example")
 
     assert AuthSettings().trusted_issuers == frozenset({"https://a.example", "https://b.example"})
 
@@ -163,7 +163,7 @@ def test_auth_settings_rejects_an_empty_mfa_acr_values(monkeypatch: pytest.Monke
     unrecognisable. Together that locks every administrator out with no
     path to step up, so this is refused at settings-construction time
     rather than discovered as a live incident."""
-    monkeypatch.setenv("NPTC_MFA_ACR_VALUES", "")
+    monkeypatch.setenv("APTC_MFA_ACR_VALUES", "")
 
     with pytest.raises(ValidationError, match="must not be empty"):
         AuthSettings()
@@ -184,12 +184,12 @@ def test_auth_settings_rejects_an_empty_mfa_acr_values(monkeypatch: pytest.Monke
 def test_auth_settings_rejects_an_mfa_acr_value_with_a_quote_or_line_break(
     monkeypatch: pytest.MonkeyPatch, value: str
 ) -> None:
-    """`nptc.api.errors._step_up_challenge` interpolates each value directly
+    """`aptc.api.errors._step_up_challenge` interpolates each value directly
     into the `WWW-Authenticate` response header - a quote lets a value
     escape the header's own quoted `acr_values="..."` parameter, and a CR/LF
     is header injection. Refused here, at configuration time, rather than
     by whatever HTTP layer first chokes on a malformed header."""
-    monkeypatch.setenv("NPTC_MFA_ACR_VALUES", value)
+    monkeypatch.setenv("APTC_MFA_ACR_VALUES", value)
 
     with pytest.raises(ValidationError, match="quote or line break"):
         AuthSettings()
@@ -199,7 +199,7 @@ def test_auth_settings_rejects_an_mfa_acr_value_with_a_quote_or_line_break(
 @pytest.mark.parametrize(
     "value",
     [
-        "http://localhost:5173/nptc",
+        "http://localhost:5173/aptc",
         "https://app.example/",  # trailing slash is fine, a path is not
         "app.example",
         "ftp://app.example",
@@ -237,11 +237,11 @@ def test_api_settings_reads_fsn_semantic_tag_from_env(monkeypatch: pytest.Monkey
     variable name, or the whole `BaseSettings` wiring, since it is also the
     field's default (round-1 review) - proving the env var is genuinely
     read needs a value that only the validator, not the default, would
-    reject: an env-set `"stripped"` fails *only* if `NPTC_FSN_SEMANTIC_TAG`
+    reject: an env-set `"stripped"` fails *only* if `APTC_FSN_SEMANTIC_TAG`
     actually reached the field before construction ran its check, matching
     `test_api_settings_rejects_stripped_fsn_semantic_tag`'s own rejection
     contract for the constructor-argument case."""
-    monkeypatch.setenv("NPTC_FSN_SEMANTIC_TAG", "stripped")
+    monkeypatch.setenv("APTC_FSN_SEMANTIC_TAG", "stripped")
 
     with pytest.raises(ValidationError, match="fsn_semantic_tag"):
         ApiSettings()
@@ -270,7 +270,7 @@ def test_api_settings_defaults_the_current_terms_version_to_the_packaged_file() 
 def test_api_settings_reads_the_current_terms_version_from_env(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("NPTC_TERMS_CURRENT_VERSION", "2027-01-15")
+    monkeypatch.setenv("APTC_TERMS_CURRENT_VERSION", "2027-01-15")
 
     assert ApiSettings().terms_current_version == "2027-01-15"
 
@@ -280,7 +280,7 @@ def test_api_settings_reads_the_current_terms_version_from_env(
 def test_api_settings_treats_a_blank_terms_version_env_as_the_default(
     monkeypatch: pytest.MonkeyPatch, value: str
 ) -> None:
-    monkeypatch.setenv("NPTC_TERMS_CURRENT_VERSION", value)
+    monkeypatch.setenv("APTC_TERMS_CURRENT_VERSION", value)
 
     assert ApiSettings().terms_current_version == DEFAULT_TERMS_VERSION
 
@@ -297,7 +297,7 @@ def test_api_settings_defaults_max_preferred_term_length_to_unset() -> None:
 def test_api_settings_reads_max_preferred_term_length_from_env(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("NPTC_MAX_PREFERRED_TERM_LENGTH", "120")
+    monkeypatch.setenv("APTC_MAX_PREFERRED_TERM_LENGTH", "120")
 
     assert ApiSettings().max_preferred_term_length == 120
 
@@ -307,10 +307,10 @@ def test_api_settings_reads_max_preferred_term_length_from_env(
 def test_api_settings_treats_a_blank_max_preferred_term_length_env_as_unset(
     monkeypatch: pytest.MonkeyPatch, value: str
 ) -> None:
-    """`NPTC_MAX_PREFERRED_TERM_LENGTH=` is how a compose file or `.env`
+    """`APTC_MAX_PREFERRED_TERM_LENGTH=` is how a compose file or `.env`
     template leaves the documented "unset" state written down. Without this
     the empty string reaches the `int` parser and fails start-up."""
-    monkeypatch.setenv("NPTC_MAX_PREFERRED_TERM_LENGTH", value)
+    monkeypatch.setenv("APTC_MAX_PREFERRED_TERM_LENGTH", value)
 
     assert ApiSettings().max_preferred_term_length is None
 
@@ -320,7 +320,7 @@ def test_api_settings_still_rejects_a_non_numeric_max_preferred_term_length(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Only a *blank* value means unset - a typo must stay loud."""
-    monkeypatch.setenv("NPTC_MAX_PREFERRED_TERM_LENGTH", "abc")
+    monkeypatch.setenv("APTC_MAX_PREFERRED_TERM_LENGTH", "abc")
 
     with pytest.raises(ValidationError, match="max_preferred_term_length"):
         ApiSettings()
@@ -333,7 +333,7 @@ def test_api_settings_blank_frontend_base_url_env_is_still_refused(
     """The blank-means-unset rule is per field, not class-wide: a blank
     origin silently falling back to localhost in production would be worse
     than the loud failure."""
-    monkeypatch.setenv("NPTC_FRONTEND_BASE_URL", "")
+    monkeypatch.setenv("APTC_FRONTEND_BASE_URL", "")
 
     with pytest.raises(ValidationError, match="frontend_base_url"):
         ApiSettings()
@@ -343,7 +343,7 @@ def test_api_settings_blank_frontend_base_url_env_is_still_refused(
 @pytest.mark.parametrize("value", [0, -1])
 def test_api_settings_rejects_a_non_positive_max_preferred_term_length(value: int) -> None:
     """A zero or negative maximum can never be a real length ceiling - fail
-    at settings-construction time, matching NPTC_TX_CHUNK_SIZE's own
+    at settings-construction time, matching APTC_TX_CHUNK_SIZE's own
     fail-closed convention, rather than silently comparing every entry's
     length against a nonsensical value."""
     with pytest.raises(ValidationError, match="max_preferred_term_length"):
@@ -362,8 +362,8 @@ def test_api_settings_rate_limit_defaults_leave_room_for_bulk_retrieval() -> Non
 
 @pytest.mark.req("NFR-24")
 def test_api_settings_reads_the_rate_limit_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("NPTC_ANON_RATE_LIMIT_REQUESTS", "5")
-    monkeypatch.setenv("NPTC_ANON_RATE_LIMIT_WINDOW_SECONDS", "2")
+    monkeypatch.setenv("APTC_ANON_RATE_LIMIT_REQUESTS", "5")
+    monkeypatch.setenv("APTC_ANON_RATE_LIMIT_WINDOW_SECONDS", "2")
 
     settings = ApiSettings()
 
@@ -372,12 +372,12 @@ def test_api_settings_reads_the_rate_limit_from_env(monkeypatch: pytest.MonkeyPa
 
 @pytest.mark.req("NFR-24")
 @pytest.mark.parametrize(
-    "name", ["NPTC_ANON_RATE_LIMIT_REQUESTS", "NPTC_ANON_RATE_LIMIT_WINDOW_SECONDS"]
+    "name", ["APTC_ANON_RATE_LIMIT_REQUESTS", "APTC_ANON_RATE_LIMIT_WINDOW_SECONDS"]
 )
 def test_api_settings_treats_a_blank_rate_limit_env_as_the_default(
     monkeypatch: pytest.MonkeyPatch, name: str
 ) -> None:
-    """Compose passes an unset `NPTC_*` variable through as the empty string."""
+    """Compose passes an unset `APTC_*` variable through as the empty string."""
     monkeypatch.setenv(name, "")
 
     settings = ApiSettings()
@@ -399,7 +399,7 @@ def test_api_settings_rejects_a_non_positive_rate_limit(field: str, value: int) 
 def test_api_settings_reads_trusted_proxies_as_a_comma_separated_list(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("NPTC_TRUSTED_PROXIES", "10.0.0.0/8, 192.0.2.7 ,2001:db8::/32")
+    monkeypatch.setenv("APTC_TRUSTED_PROXIES", "10.0.0.0/8, 192.0.2.7 ,2001:db8::/32")
 
     settings = ApiSettings()
 
@@ -415,7 +415,7 @@ def test_api_settings_reads_trusted_proxies_as_a_comma_separated_list(
 def test_api_settings_blank_trusted_proxies_trusts_nothing(
     monkeypatch: pytest.MonkeyPatch, value: str
 ) -> None:
-    monkeypatch.setenv("NPTC_TRUSTED_PROXIES", value)
+    monkeypatch.setenv("APTC_TRUSTED_PROXIES", value)
 
     assert ApiSettings().trusted_proxies == ()
 
@@ -427,18 +427,18 @@ def test_api_settings_rejects_a_malformed_trusted_proxy(
 ) -> None:
     """A typo must not silently leave the header untrusted behind Caddy, where every
     caller would then share one budget."""
-    monkeypatch.setenv("NPTC_TRUSTED_PROXIES", value)
+    monkeypatch.setenv("APTC_TRUSTED_PROXIES", value)
 
     with pytest.raises(ValidationError, match="trusted_proxies"):
         ApiSettings()
 
 
 @pytest.mark.req("FR-22")
-@pytest.mark.parametrize("value", ["https://releases.example.org/nptc", "/releases/"])
+@pytest.mark.parametrize("value", ["https://releases.example.org/aptc", "/releases/"])
 def test_api_settings_accepts_a_url_or_a_local_path_for_the_bulk_artefacts(
     monkeypatch: pytest.MonkeyPatch, value: str
 ) -> None:
-    monkeypatch.setenv("NPTC_BULK_ARTEFACTS_URL", value)
+    monkeypatch.setenv("APTC_BULK_ARTEFACTS_URL", value)
 
     assert ApiSettings().bulk_artefacts_url == value
 
@@ -447,7 +447,7 @@ def test_api_settings_accepts_a_url_or_a_local_path_for_the_bulk_artefacts(
 def test_api_settings_blank_bulk_artefacts_url_is_the_default(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("NPTC_BULK_ARTEFACTS_URL", "")
+    monkeypatch.setenv("APTC_BULK_ARTEFACTS_URL", "")
 
     assert ApiSettings().bulk_artefacts_url == DEFAULT_BULK_ARTEFACTS_URL
 
@@ -457,7 +457,7 @@ def test_api_settings_blank_bulk_artefacts_url_is_the_default(
 def test_api_settings_rejects_a_bulk_artefacts_url_a_browser_cannot_follow(
     monkeypatch: pytest.MonkeyPatch, value: str
 ) -> None:
-    monkeypatch.setenv("NPTC_BULK_ARTEFACTS_URL", value)
+    monkeypatch.setenv("APTC_BULK_ARTEFACTS_URL", value)
 
     with pytest.raises(ValidationError, match="bulk_artefacts_url"):
         ApiSettings()

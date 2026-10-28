@@ -40,7 +40,7 @@ from typing import Any
 import pytest
 from sqlalchemy.engine import Connection
 
-from nptc.catalogue.search import (
+from aptc.catalogue.search import (
     BINDING_LABEL_WEIGHT,
     DESIGNATION_WEIGHT,
     EXACT_CODE_SCORE,
@@ -148,7 +148,7 @@ def test_a_padded_query_still_reaches_the_exact_band(api: ApiTestApp, example: A
     Without a trim, the code branch is a silent empty result - which reads to
     a user as 'this code is not in the catalogue'. The four *label*
     comparisons fail more quietly still, and that is the case this test grew
-    to cover (PR #237 review): `nptc_search_text` lowercases and unaccents
+    to cover (PR #237 review): `aptc_search_text` lowercases and unaccents
     but does not trim, so a padded preferred term is not equal to the stored
     one while its `similarity()` is 1.0. The hit is returned either way, so
     presence proves nothing here - it would simply be scored as fuzzy, and an
@@ -192,7 +192,7 @@ def test_a_query_that_excludes_every_word_does_not_return_the_catalogue(
     still lexes to a positive lexeme. Neither can a scan for a leading `-` -
     the third case below has no leading `-` at all, and reduces to a pure
     negation only because its positive half is an english stopword. Hence the
-    guard is `NOT ('' :: tsvector @@ nptc_search_query(:q))`, which asks the
+    guard is `NOT ('' :: tsvector @@ aptc_search_query(:q))`, which asks the
     question directly.
 
     The fourth case is that guard being deliberately *wider* than "every word
@@ -233,7 +233,7 @@ def test_an_fsn_reaches_its_entry_with_the_semantic_tag_typed_and_omitted(
     `au_preferred_term` and this would pass without the FSN scan running.
 
     Only one index backs both forms, which is the substantive claim: see
-    ADR-0029 on why a SQL-side `nptc_strip_semantic_tag` was rejected. The
+    ADR-0029 on why a SQL-side `aptc_strip_semantic_tag` was rejected. The
     semantic tag is extra text to trigram and its own lexeme to full-text, so
     neither form needs a stripped copy of the column to be findable."""
     assert example.fsn_only in _keys(api, q=_seed.FSN_ONLY_FSN)

@@ -47,7 +47,7 @@ const NEW_TEST_ROW = summary({
 const AMENDMENT_ROW = summary({
   id: AMENDMENT_ID,
   kind: "amendment",
-  entry_business_key: "NPTC-000247",
+  entry_business_key: "APTC-000247",
   preferred_term: "Full blood count",
   state: "Withdrawn",
   submitter: { username: "u-other" },
@@ -114,9 +114,9 @@ describe("All submissions view (FR-28, FR-34)", () => {
 
     const row = await screen.findByRole("row", { name: /Full blood count/ });
     expect(within(row).getByText(/Amendment to/)).toBeVisible();
-    expect(within(row).getByRole("link", { name: "NPTC-000247" })).toHaveAttribute(
+    expect(within(row).getByRole("link", { name: "APTC-000247" })).toHaveAttribute(
       "href",
-      "/catalogue/NPTC-000247",
+      "/catalogue/APTC-000247",
     );
     expect(within(row).getByText("Withdrawn")).toBeVisible();
   });
@@ -128,7 +128,7 @@ describe("All submissions view (FR-28, FR-34)", () => {
           id: OWN_ID,
           preferred_term: "Ferritin level",
           state: "Approved",
-          created_entry_business_key: "NPTC-000123",
+          created_entry_business_key: "APTC-000123",
         }),
       ]),
     ]);
@@ -136,9 +136,9 @@ describe("All submissions view (FR-28, FR-34)", () => {
 
     const row = await screen.findByRole("row", { name: /Ferritin level/ });
     expect(within(row).getByText(/New test, created as/)).toBeVisible();
-    expect(within(row).getByRole("link", { name: "NPTC-000123" })).toHaveAttribute(
+    expect(within(row).getByRole("link", { name: "APTC-000123" })).toHaveAttribute(
       "href",
-      "/catalogue/NPTC-000123",
+      "/catalogue/APTC-000123",
     );
   });
 

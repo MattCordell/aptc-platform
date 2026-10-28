@@ -2,8 +2,8 @@
 
 ## What this is
 
-`nptc.auth.tokens.TokenVerifier` is the one place in this repository that turns a bearer
-token into an `OidcIdentityClaims` (issue #42's shape). `nptc.auth.authentication.authenticate`
+`aptc.auth.tokens.TokenVerifier` is the one place in this repository that turns a bearer
+token into an `OidcIdentityClaims` (issue #42's shape). `aptc.auth.authentication.authenticate`
 is the seam into #42's `resolve_user_for_claims`: it verifies first, and only then resolves.
 NFR-07's own second sentence is the design constraint everything below serves: *"Authorisation
 decisions are made server-side from the internal user record, never from claims in the token.
@@ -14,7 +14,7 @@ before its signature, issuer, audience and expiry were all checked.
 ## Verification order
 
 `TokenVerifier.verify` runs these checks in this order, and every failure raises a subclass of
-`nptc.auth.errors.TokenError` — there is no path from "verification failed" to "treat as
+`aptc.auth.errors.TokenError` — there is no path from "verification failed" to "treat as
 valid":
 
 | Step | Check | Raises |
@@ -45,7 +45,7 @@ the header *before* any JWKS request, so a malicious `alg` never causes network 
 
 ## JWKS retrieval and the refresh cooldown
 
-`nptc.auth.jwks.SigningKeys` wraps `jwt.PyJWKClient`, adding what it does not itself guarantee:
+`aptc.auth.jwks.SigningKeys` wraps `jwt.PyJWKClient`, adding what it does not itself guarantee:
 
 - **A fallback that survives a *transport* outage — not revocation, and not forever.**
   `PyJWKClient`'s own cache holds only the most recent fetch; once its `lifespan` elapses, the
@@ -66,13 +66,13 @@ the header *before* any JWKS request, so a malicious `alg` never causes network 
   never falls back — that would keep accepting tokens signed by a key the IdP has explicitly
   retired, for the rest of the process's lifetime. A fallback entry is also bounded in time:
   `max_fallback_age_seconds` (default `10 * cache_seconds`, not independently configurable via
-  an `NPTC_*` variable — it derives from `NPTC_JWKS_CACHE_SECONDS` rather than adding a fifth
+  an `APTC_*` variable — it derives from `APTC_JWKS_CACHE_SECONDS` rather than adding a fifth
   knob for what is a rare-outage safety margin, not routine deployment tuning) means "survive a
   blip" cannot silently become "survive forever" once an outage outlasts a rotation window.
 - **A refresh cooldown, covering both an unrecognised `kid` and a known one.** `PyJWKClient`
   re-fetches the whole JWKS on any unrecognised `kid`, so an unauthenticated caller spraying
   random `kid` values makes the backend hammer Keycloak. An unknown `kid` seen within
-  `NPTC_JWKS_REFRESH_COOLDOWN_SECONDS` of the last refresh attempt is refused with zero HTTP
+  `APTC_JWKS_REFRESH_COOLDOWN_SECONDS` of the last refresh attempt is refused with zero HTTP
   requests; genuine key rotation still lands within one cooldown window. The same cooldown also
   covers a **known** `kid` once a live fetch has actually failed: without this, once
   `PyJWKClient`'s own cache lifespan expires, every verification during an outage would
@@ -87,7 +87,7 @@ anyway".
 
 ## OIDC discovery
 
-`nptc.auth.discovery.resolve_jwks_url` fetches `{issuer}/.well-known/openid-configuration` and
+`aptc.auth.discovery.resolve_jwks_url` fetches `{issuer}/.well-known/openid-configuration` and
 returns its `jwks_uri`, refusing three ways a discovery document could misdirect trust before
 anything is verified — checked in this order:
 
@@ -99,10 +99,10 @@ anything is verified — checked in this order:
 
 A transport failure, a non-2xx response, a non-JSON body, or a document missing `jwks_uri` all
 raise `SigningKeyUnavailableError` rather than propagating a raw `httpx`/`ValueError`/`KeyError`
-— the same "one exception family a caller can catch" contract `nptc.auth.errors` states for
+— the same "one exception family a caller can catch" contract `aptc.auth.errors` states for
 every other module here.
 
-`NPTC_JWKS_URL` skips discovery entirely, for air-gapped deployments and so the offline test
+`APTC_JWKS_URL` skips discovery entirely, for air-gapped deployments and so the offline test
 suite only ever needs one local HTTP endpoint per test.
 
 ## Fail-closed configuration
@@ -111,7 +111,7 @@ suite only ever needs one local HTTP endpoint per test.
 empty issuer cannot construct a `TokenVerifier` at all
 (`TokenVerifier.from_settings` raises `ValueError`), so a missing configuration refuses every
 token rather than silently accepting one whose issuer was never actually checked.
-`oidc_audience` defaults to `"nptc-api"` because that value is fixed by the committed realm
+`oidc_audience` defaults to `"aptc-api"` because that value is fixed by the committed realm
 (ADR-0014), not by a deployment.
 
 ## The seam into #42
@@ -130,7 +130,7 @@ concrete form of that: an invalid token must not create or touch a single `app_u
 ## Testing
 
 - `test_token_verification_guard.py` — an `ast` guard, no network, with its own positive
-  control: `jwt.decode` is only ever called from `nptc/auth/tokens.py`; `jwt.get_unverified_header`
+  control: `jwt.decode` is only ever called from `aptc/auth/tokens.py`; `jwt.get_unverified_header`
   only from `tokens.py`/`jwks.py`; no call anywhere passes `verify_signature: False` or
   `verify=False`; every `algorithms=` argument is the module constant or a literal list free of
   `none`/`HS*`.

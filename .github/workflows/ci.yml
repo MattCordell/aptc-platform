@@ -365,8 +365,8 @@ jobs:
       - name: vite build (and assert no secret in the bundle)
         run: pnpm build
         env:
-          VITE_OIDC_ISSUER: http://localhost:8080/realms/nptc
-          VITE_OIDC_CLIENT_ID: nptc-frontend
+          VITE_OIDC_ISSUER: http://localhost:8080/realms/aptc
+          VITE_OIDC_CLIENT_ID: aptc-frontend
 
   # Branch ruleset (F-7, deferred - see repo-configuration.md) will require
   # this job, not the three above directly, once applied - a PR that

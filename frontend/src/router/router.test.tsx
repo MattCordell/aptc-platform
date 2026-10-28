@@ -72,7 +72,7 @@ describe("not-found route", () => {
   });
 
   it("renders the not-found page for an unrecognised segment under a real route", async () => {
-    await renderRoute("/catalogue/NPTC-000247/not-a-tab");
+    await renderRoute("/catalogue/APTC-000247/not-a-tab");
 
     expect(
       await screen.findByRole("heading", { level: 1, name: /couldn't find that page/i }),

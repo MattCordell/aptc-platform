@@ -1,11 +1,11 @@
-"""HTTP tests for `nptc.api.routers.catalogue_entries` (issue #249, FR-36,
+"""HTTP tests for `aptc.api.routers.catalogue_entries` (issue #249, FR-36,
 FR-37, FR-38, FR-44, NFR-08).
 
 Follows `test_api_catalogue_properties.py`'s own precedent exactly: the
 service layer already has its own unit tests (`test_catalogue_property_
 values.py`, `test_catalogue_optimistic_locking.py`); this module proves the
 HTTP adapter - request/response shape, status codes, the exception-handler
-mapping in `nptc.api.errors`, and authorisation - against the real
+mapping in `aptc.api.errors`, and authorisation - against the real
 `create_app()`.
 """
 
@@ -19,10 +19,10 @@ from typing import Any
 import pytest
 from sqlalchemy import select
 
-from nptc.audit.writer import AuditContext
-from nptc.catalogue.entries import create_entry
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.catalogue_entry import CatalogueEntry
+from aptc.audit.writer import AuditContext
+from aptc.catalogue.entries import create_entry
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.catalogue_entry import CatalogueEntry
 
 
 def _load(name: str) -> Any:
@@ -270,7 +270,7 @@ def test_patch_entry_unknown_business_key_is_404(api: ApiTestApp) -> None:
     response = _patch_entry(
         api,
         token,
-        business_key="NPTC-999999",
+        business_key="APTC-999999",
         expected_row_version=1,
         status="active",
     )

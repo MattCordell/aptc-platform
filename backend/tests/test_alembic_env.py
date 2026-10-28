@@ -24,10 +24,10 @@ PYPROJECT_FILE = REPO_ROOT / "pyproject.toml"
 def test_env_py_raises_naming_the_variable_when_migration_url_is_missing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """No `config.attributes["connection"]` and no NPTC_MIGRATION_DATABASE_URL:
+    """No `config.attributes["connection"]` and no APTC_MIGRATION_DATABASE_URL:
     env.py must fail loudly naming the missing variable, never fall back to
     Alembic's own placeholder `sqlalchemy.url`."""
-    monkeypatch.delenv("NPTC_MIGRATION_DATABASE_URL", raising=False)
+    monkeypatch.delenv("APTC_MIGRATION_DATABASE_URL", raising=False)
     config = Config(toml_file=str(PYPROJECT_FILE))
 
     with pytest.raises(ValidationError, match="migration_database_url"):
@@ -47,7 +47,7 @@ def test_env_py_skips_fileconfig_when_the_cli_style_ini_path_does_not_exist(
     and the assertion below is the *only* thing that raises.
     """
     assert not (REPO_ROOT / "alembic.ini").exists()
-    monkeypatch.delenv("NPTC_MIGRATION_DATABASE_URL", raising=False)
+    monkeypatch.delenv("APTC_MIGRATION_DATABASE_URL", raising=False)
     config = Config(file_="alembic.ini", toml_file=str(PYPROJECT_FILE))
 
     with pytest.raises(ValidationError, match="migration_database_url"):

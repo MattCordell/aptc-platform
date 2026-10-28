@@ -12,7 +12,7 @@ from collections.abc import Sequence
 
 from alembic import op
 
-from nptc.db import roles
+from aptc.db import roles
 
 # revision identifiers, used by Alembic.
 revision: str = "0001"

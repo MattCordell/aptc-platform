@@ -1,4 +1,4 @@
-"""`nptc.submissions.terminology_request` service-layer tests (FR-30, FR-31, FR-44, NFR-08).
+"""`aptc.submissions.terminology_request` service-layer tests (FR-30, FR-31, FR-44, NFR-08).
 
 Each refusal asserts that no record, no transition row, no state change and no audit event
 followed. Rows are read for the submission this test made, and `backend/tests` shares one Postgres
@@ -16,21 +16,21 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-import nptc.submissions.terminology_request as service_module
-from nptc.audit.writer import AuditContext
-from nptc.auth.errors_authorisation import MfaRequiredError, PermissionDeniedError
-from nptc.auth.permissions import Role, permissions_for_roles
-from nptc.auth.principal import Principal
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.submission import Submission, SubmissionKind, SubmissionState
-from nptc.db.models.submission_terminology_request import (
+import aptc.submissions.terminology_request as service_module
+from aptc.audit.writer import AuditContext
+from aptc.auth.errors_authorisation import MfaRequiredError, PermissionDeniedError
+from aptc.auth.permissions import Role, permissions_for_roles
+from aptc.auth.principal import Principal
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.submission import Submission, SubmissionKind, SubmissionState
+from aptc.db.models.submission_terminology_request import (
     SubmissionTerminologyRequest,
     TargetEdition,
 )
-from nptc.db.models.submission_transition import SubmissionTransition
-from nptc.db.models.submission_working_copy import SubmissionWorkingCopy
-from nptc.db.models.user import User
-from nptc.submissions.errors import (
+from aptc.db.models.submission_transition import SubmissionTransition
+from aptc.db.models.submission_working_copy import SubmissionWorkingCopy
+from aptc.db.models.user import User
+from aptc.submissions.errors import (
     CodeRefusal,
     ExpectedReleaseBeforeRaisedError,
     FreeTextField,
@@ -43,8 +43,8 @@ from nptc.submissions.errors import (
     TerminologyRequestNotOpenError,
     TransitionReasonRequiredError,
 )
-from nptc.submissions.queries import get_terminology_request
-from nptc.submissions.terminology_request import (
+from aptc.submissions.queries import get_terminology_request
+from aptc.submissions.terminology_request import (
     TerminologyAttachment,
     TerminologyRequestDetails,
     TerminologyRequestUpdate,
@@ -53,9 +53,9 @@ from nptc.submissions.terminology_request import (
     request_terminology,
     update_terminology_request,
 )
-from nptc.submissions.terms import SubmissionCodeMalformedError
-from nptc.submissions.transitions import transition_submission
-from nptc_shared.terminology import (
+from aptc.submissions.terms import SubmissionCodeMalformedError
+from aptc.submissions.transitions import transition_submission
+from aptc_shared.terminology import (
     AU_LANGUAGE_TAG,
     Operation,
     StubConcept,

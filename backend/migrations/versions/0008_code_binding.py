@@ -10,8 +10,8 @@ grants-live-with-the-table reasoning (ADR-0011) applies here.
 
 Issue #48 (FR-06, FR-08, FR-82, FR-83): the platform's record of a SNOMED
 CT code binding, stored exactly as served - see
-`nptc.db.models.code_binding`'s own module docstring for the full
-reasoning, and `nptc.db.models.designation`'s "three preferred-term-shaped
+`aptc.db.models.code_binding`'s own module docstring for the full
+reasoning, and `aptc.db.models.designation`'s "three preferred-term-shaped
 strings" note (ADR-0022) for why this table, and not `designation`, is
 where a served label lives.
 
@@ -23,7 +23,7 @@ inline expression the way `ck_designation_language`'s regex manages. This
 is a narrow, deliberate exception to PRD SS14.1's ban on business logic in
 database functions, not a silent precedent - see
 `docs/adr/0023-database-level-sctid-validation.md` for the argument, and
-`nptc.db.functions` for the function body itself, which must be created
+`aptc.db.functions` for the function body itself, which must be created
 before `code_binding` so the table's own `CHECK` can reference it. The
 downgrade order is the exact reverse: the table (and its dependent CHECK)
 is dropped before the function it depends on.
@@ -31,7 +31,7 @@ is dropped before the function it depends on.
 Four invariants enforced at the database layer, not merely by application
 convention:
 
-- `code` matches `^[0-9]{6,18}$` AND passes Verhoeff - `nptc_sctid_is_valid`
+- `code` matches `^[0-9]{6,18}$` AND passes Verhoeff - `aptc_sctid_is_valid`
   (FR-06). `code` stays `TEXT` throughout, never a numeric type.
 - `fsn`/`au_preferred_term` carry no cleaning/stripping `CHECK` beyond
   "not blank if present" - unlike `designation.term`, nothing here may
@@ -59,7 +59,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-from nptc.db import functions, roles
+from aptc.db import functions, roles
 
 # revision identifiers, used by Alembic.
 revision: str = "0008"
@@ -107,7 +107,7 @@ def upgrade() -> None:
             name=op.f("ck_code_binding_system_not_blank"),
         ),
         sa.CheckConstraint(
-            "nptc_sctid_is_valid(code)",
+            "aptc_sctid_is_valid(code)",
             name=op.f("ck_code_binding_code"),
         ),
         sa.CheckConstraint(

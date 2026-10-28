@@ -10,15 +10,15 @@ from typing import Any
 
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
-from nptc.settings import ApiSettings
+from aptc.settings import ApiSettings
 
 
 class _HermeticApiSettings(ApiSettings):
-    """Reads constructor arguments and nothing else: no `NPTC_*` variable and
+    """Reads constructor arguments and nothing else: no `APTC_*` variable and
     no `.env`. `extra="forbid"` so a mistyped field name fails instead of
     silently leaving the default in place."""
 
-    model_config = SettingsConfigDict(env_prefix="NPTC_", extra="forbid")
+    model_config = SettingsConfigDict(env_prefix="APTC_", extra="forbid")
 
     @classmethod
     def settings_customise_sources(

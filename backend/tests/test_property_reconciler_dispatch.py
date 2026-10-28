@@ -1,4 +1,4 @@
-"""`nptc.db.property_reconciler_dispatch` (FR-13, FR-09): when a queued reconciliation runs, how it
+"""`aptc.db.property_reconciler_dispatch` (FR-13, FR-09): when a queued reconciliation runs, how it
 retries a held lock, and what an operator sees when it does not converge.
 
 `reconcile_property_indexes` has its own tests against a database (`test_db_property_indexes.py`),
@@ -16,11 +16,11 @@ from sqlalchemy import select
 from sqlalchemy.engine import Connection
 from sqlalchemy.orm import Session, sessionmaker
 
-from nptc.db import property_reconciler_dispatch as dispatch
-from nptc.db.models.audit import AuditEvent
-from nptc.db.property_reconciler import IndexerNotConfiguredError, ReconciliationReport
+from aptc.db import property_reconciler_dispatch as dispatch
+from aptc.db.models.audit import AuditEvent
+from aptc.db.property_reconciler import IndexerNotConfiguredError, ReconciliationReport
 
-_SECRET = "postgresql://nptc_indexer:hunter2@db/nptc"
+_SECRET = "postgresql://aptc_indexer:hunter2@db/aptc"
 
 
 class _Reconciler:
@@ -76,14 +76,14 @@ def test_a_converged_run_records_nothing(
 def test_an_unconfigured_indexer_logs_a_warning_and_records_no_failure(
     monkeypatch: pytest.MonkeyPatch, failures: list[str], caplog: pytest.LogCaptureFixture
 ) -> None:
-    _use(monkeypatch, IndexerNotConfiguredError("NPTC_INDEXER_DATABASE_URL is not set"))
+    _use(monkeypatch, IndexerNotConfiguredError("APTC_INDEXER_DATABASE_URL is not set"))
 
     with caplog.at_level(logging.WARNING, logger=dispatch.__name__):
         dispatch.run_reconciliation()
 
     assert failures == []
     assert [r.levelno for r in caplog.records] == [logging.WARNING]
-    assert "NPTC_INDEXER_DATABASE_URL" in caplog.text
+    assert "APTC_INDEXER_DATABASE_URL" in caplog.text
 
 
 @pytest.mark.req("FR-13")

@@ -21,17 +21,17 @@ from urllib.parse import unquote
 import httpx
 import pytest
 
-from nptc_shared.terminology import fhir
-from nptc_shared.terminology.client import TerminologyClient
-from nptc_shared.terminology.config import TerminologyConfig
-from nptc_shared.terminology.models import (
+from aptc_shared.terminology import fhir
+from aptc_shared.terminology.client import TerminologyClient
+from aptc_shared.terminology.config import TerminologyConfig
+from aptc_shared.terminology.models import (
     SNOMED_CT_AU,
     SNOMED_CT_INTERNATIONAL,
     SNOMED_SYSTEM,
     Edition,
 )
-from nptc_shared.terminology.ontoserver import OntoserverClient
-from nptc_shared.terminology.stub import StubTerminologyClient
+from aptc_shared.terminology.ontoserver import OntoserverClient
+from aptc_shared.terminology.stub import StubTerminologyClient
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "terminology"
 

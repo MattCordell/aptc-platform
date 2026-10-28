@@ -2,7 +2,7 @@
 (issue #152, FR-87).
 
 Follows `test_api_catalogue_admin_read.py`'s own shape: the service layer
-(`nptc.catalogue.length_report`) already has its own unit tests in
+(`aptc.catalogue.length_report`) already has its own unit tests in
 `test_catalogue_length_report.py`; this module proves the HTTP adapter -
 request/response shape and authorisation (FR-44) - against the real
 `create_app()`.
@@ -26,12 +26,12 @@ import pytest
 from sqlalchemy import literal
 from sqlalchemy.engine import Connection
 
-import nptc.catalogue.length_report as length_report
-from nptc.api.routers.catalogue_admin import LengthDistributionBucket, LengthDistributionReport
-from nptc.audit.writer import AuditContext
-from nptc.auth.permissions import Role
-from nptc.catalogue.entries import create_entry
-from nptc.catalogue.length_report import build_length_histogram_statement
+import aptc.catalogue.length_report as length_report
+from aptc.api.routers.catalogue_admin import LengthDistributionBucket, LengthDistributionReport
+from aptc.audit.writer import AuditContext
+from aptc.auth.permissions import Role
+from aptc.catalogue.entries import create_entry
+from aptc.catalogue.length_report import build_length_histogram_statement
 
 
 def _load(name: str) -> Any:

@@ -23,13 +23,13 @@ from typing import Any
 import pytest
 from sqlalchemy.engine import Connection
 
-from nptc.audit.writer import AuditContext
-from nptc.auth.permissions import Role
-from nptc.catalogue.bindings import create_binding
-from nptc.catalogue.designations import add_synonyms
-from nptc.catalogue.entries import EntryChanges, create_entry, save_entry
-from nptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
-from nptc.db.models.user import User
+from aptc.audit.writer import AuditContext
+from aptc.auth.permissions import Role
+from aptc.catalogue.bindings import create_binding
+from aptc.catalogue.designations import add_synonyms
+from aptc.catalogue.entries import EntryChanges, create_entry, save_entry
+from aptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
+from aptc.db.models.user import User
 
 
 def _load(name: str) -> Any:
@@ -329,7 +329,7 @@ def test_unknown_business_key_is_a_404_with_the_generic_body(api: ApiTestApp) ->
 def test_a_malformed_business_key_is_a_422(api: ApiTestApp) -> None:
     token = api.admin_token(subject="sub-history-422-key")
 
-    assert _history(api, "NPTC-abc", token).status_code == 422
+    assert _history(api, "APTC-abc", token).status_code == 422
 
 
 @pytest.mark.req("FR-19")

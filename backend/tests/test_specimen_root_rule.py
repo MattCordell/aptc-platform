@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from nptc.catalogue.property_values import _validate_specimen_root_alone as validate
+from aptc.catalogue.property_values import _validate_specimen_root_alone as validate
 
 _ROOT = {"system": "http://snomed.info/sct", "code": "123038009"}
 _SERUM = {"system": "http://snomed.info/sct", "code": "119364003"}

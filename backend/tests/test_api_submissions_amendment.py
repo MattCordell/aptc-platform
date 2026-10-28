@@ -21,20 +21,20 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.engine import Connection
 
-from nptc.api.errors import TERMS_ACCEPTANCE_REQUIRED_CODE
-from nptc.auth.permissions import Role
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
-from nptc.db.models.code_binding import CodeBinding
-from nptc.db.models.submission import Submission
-from nptc.db.models.user import User
-from nptc.db.models.user_identity import UserIdentity
-from nptc.submissions.reference_check import (
+from aptc.api.errors import TERMS_ACCEPTANCE_REQUIRED_CODE
+from aptc.auth.permissions import Role
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
+from aptc.db.models.code_binding import CodeBinding
+from aptc.db.models.submission import Submission
+from aptc.db.models.user import User
+from aptc.db.models.user_identity import UserIdentity
+from aptc.submissions.reference_check import (
     ReferenceCheckFailedError,
     ReferenceCheckUnavailableError,
     ReferenceFailure,
 )
-from nptc_shared.terminology import (
+from aptc_shared.terminology import (
     AU_LANGUAGE_TAG,
     Operation,
     StubConcept,
@@ -98,7 +98,7 @@ def _entry(
     status: CatalogueEntryStatus = CatalogueEntryStatus.ACTIVE,
 ) -> CatalogueEntry:
     entry = CatalogueEntry(
-        business_key=f"NPTC-{random.randrange(100_000_000, 999_999_999)}",
+        business_key=f"APTC-{random.randrange(100_000_000, 999_999_999)}",
         preferred_term=term,
         status=status.value,
     )
@@ -246,7 +246,7 @@ def test_an_unknown_business_key_is_404_and_nothing_is_stored(api: ApiTestApp) -
     response = api.post(
         _PATH,
         token=token,
-        json={"entry_business_key": "NPTC-000000000", "synonyms": ["Na (serum)"]},
+        json={"entry_business_key": "APTC-000000000", "synonyms": ["Na (serum)"]},
     )
 
     assert response.status_code == 404, response.text

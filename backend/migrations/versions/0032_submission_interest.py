@@ -5,7 +5,7 @@ Revises: 0031
 Create Date: 2026-10-13
 
 FR-32, FR-34: a registered interest in a submission, one row per registration episode. See
-`nptc.db.models.submission_interest` for the reasoning.
+`aptc.db.models.submission_interest` for the reasoning.
 
 The grants live in this migration with the table. Only `revoked_at` is updatable and `DELETE` is
 revoked, so "who was interested, and when, is never edited or removed" holds at the privilege level.
@@ -19,7 +19,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-from nptc.db import roles
+from aptc.db import roles
 
 # revision identifiers, used by Alembic.
 revision: str = "0032"

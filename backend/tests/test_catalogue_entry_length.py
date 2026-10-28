@@ -12,11 +12,11 @@ import pytest
 from sqlalchemy import Table, update
 from sqlalchemy.orm import Session
 
-import nptc.db.models.catalogue_entry as catalogue_entry_module
-from nptc.audit.writer import AuditContext
-from nptc.catalogue.entries import create_entry
-from nptc.catalogue.term_hygiene import preferred_term_length
-from nptc.db.models.catalogue_entry import CatalogueEntry
+import aptc.db.models.catalogue_entry as catalogue_entry_module
+from aptc.audit.writer import AuditContext
+from aptc.catalogue.entries import create_entry
+from aptc.catalogue.term_hygiene import preferred_term_length
+from aptc.db.models.catalogue_entry import CatalogueEntry
 
 
 def _counting_length(monkeypatch: pytest.MonkeyPatch) -> list[str]:

@@ -33,7 +33,7 @@ const USAGE: FieldChange = {
 
 const versionConflict = new ApiError(409, {
   detail: "This entry changed after you opened it.",
-  business_key: "NPTC-000006",
+  business_key: "APTC-000006",
   expected_row_version: 3,
   current_row_version: 5,
   conflicts: [],
@@ -119,7 +119,7 @@ describe("runSave", () => {
       collisions: [
         {
           severity: "error",
-          business_key: "NPTC-000042",
+          business_key: "APTC-000042",
           preferred_term: "Serum ferritin",
           label_provenance: {},
         },
@@ -138,7 +138,7 @@ describe("runSave", () => {
 
     expect(run.outcomes.map((outcome) => outcome.status)).toEqual(["refused", "saved"]);
     expect(run.outcomes[0]).toMatchObject({
-      message: expect.stringContaining("NPTC-000042") as string,
+      message: expect.stringContaining("APTC-000042") as string,
     });
   });
 

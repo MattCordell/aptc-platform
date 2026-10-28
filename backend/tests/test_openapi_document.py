@@ -32,9 +32,9 @@ from fastapi.testclient import TestClient
 from openapi_spec_validator import validate
 from openapi_spec_validator.validation.exceptions import OpenAPIValidationError
 
-from nptc.api.app import create_app
-from nptc.api.dependencies import get_auth_settings, get_terminology_client
-from nptc.api.openapi_document import GENERATION_FRONTEND_BASE_URL, build_document, render
+from aptc.api.app import create_app
+from aptc.api.dependencies import get_auth_settings, get_terminology_client
+from aptc.api.openapi_document import GENERATION_FRONTEND_BASE_URL, build_document, render
 
 _hermetic_spec = importlib.util.spec_from_file_location(
     "hermetic_settings_support", Path(__file__).parent / "hermetic_settings_support.py"
@@ -59,7 +59,7 @@ def test_committed_openapi_document_matches_the_app() -> None:
     committed = json.loads(OPENAPI_PATH.read_text(encoding="utf-8"))
 
     assert committed == _current_spec(), (
-        f"docs/api/openapi.json is out of date with nptc.api.app.\n{REGENERATE}"
+        f"docs/api/openapi.json is out of date with aptc.api.app.\n{REGENERATE}"
     )
 
 
@@ -78,11 +78,11 @@ def uncached_process_settings() -> Iterator[None]:
 @pytest.mark.parametrize(
     ("variable", "value"),
     [
-        ("NPTC_FSN_SEMANTIC_TAG", "stripped"),
-        ("NPTC_MAX_PREFERRED_TERM_LENGTH", "0"),
-        ("NPTC_TERMS_CURRENT_VERSION", "2099-01-01"),
-        ("NPTC_MFA_ACR_VALUES", ","),
-        ("NPTC_TX_TIMEOUT_SECONDS", "not-a-number"),
+        ("APTC_FSN_SEMANTIC_TAG", "stripped"),
+        ("APTC_MAX_PREFERRED_TERM_LENGTH", "0"),
+        ("APTC_TERMS_CURRENT_VERSION", "2099-01-01"),
+        ("APTC_MFA_ACR_VALUES", ","),
+        ("APTC_TX_TIMEOUT_SECONDS", "not-a-number"),
     ],
 )
 def test_document_build_ignores_environment_variables(

@@ -1,12 +1,12 @@
 /**
  * Splitting a pasted synonym cell into individual terms (FR-04).
  *
- * A deliberate, tested mirror of `transform/src/nptc_transform/cell_defects.py`'s
+ * A deliberate, tested mirror of `transform/src/aptc_transform/cell_defects.py`'s
  * `split_synonyms` - see `docs/adr/0030-domain-logic-at-the-browser-boundary.md`
  * for why this is duplicated rather than shared, and what keeps the two honest.
  *
  * `POST /catalogue/entries/{business_key}/designations` takes `terms` already
- * split, and `nptc.catalogue.designations.add_synonyms` deliberately does no
+ * split, and `aptc.catalogue.designations.add_synonyms` deliberately does no
  * splitting of its own (`backend/tests/test_catalogue_designations.py` calls
  * `split_synonyms` as the caller's job). So the pasted-cell case FR-04 exists
  * for - a decade of `Zovirax;;Cyclir` in one spreadsheet box - has to be split

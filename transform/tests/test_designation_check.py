@@ -15,15 +15,15 @@ import openpyxl
 import pytest
 from openpyxl.worksheet.worksheet import Worksheet
 
-from nptc_shared.terminology.errors import OperationOutcomeIssue, TerminologyStatusError
-from nptc_shared.terminology.models import AU_LANGUAGE_TAG, Operation, ValidationResult
-from nptc_shared.terminology.stub import StubConcept, StubTerminologyClient
-from nptc_shared.terminology.sweep import TerminologySweep
-from nptc_transform.bands import Band, FindingCode
-from nptc_transform.designation_check import DesignationOutcome, check_designations
-from nptc_transform.findings import Finding
-from nptc_transform.terminology_check import check_terminology
-from nptc_transform.workbook import read_workbook
+from aptc_shared.terminology.errors import OperationOutcomeIssue, TerminologyStatusError
+from aptc_shared.terminology.models import AU_LANGUAGE_TAG, Operation, ValidationResult
+from aptc_shared.terminology.stub import StubConcept, StubTerminologyClient
+from aptc_shared.terminology.sweep import TerminologySweep
+from aptc_transform.bands import Band, FindingCode
+from aptc_transform.designation_check import DesignationOutcome, check_designations
+from aptc_transform.findings import Finding
+from aptc_transform.terminology_check import check_terminology
+from aptc_transform.workbook import read_workbook
 
 NBSP = chr(0x00A0)  # non-breaking space
 ZWSP = chr(0x200B)  # zero width space - Cf, survives str.strip()

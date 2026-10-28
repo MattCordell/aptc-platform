@@ -16,15 +16,15 @@ import { expectTokenClassesOnly } from "../test/token-classes.ts";
  * `<StrictMode>` fetches the first page twice.
  */
 
-const BOUND_KEY = "NPTC-000247";
-const UNBOUND_KEY = "NPTC-000901";
+const BOUND_KEY = "APTC-000247";
+const UNBOUND_KEY = "APTC-000901";
 // Eighteen digits: past `Number.MAX_SAFE_INTEGER`, so a coerced code would
 // render differently (FR-06).
 const LONG_CODE = "999480561000168100";
 
 function entrySummary(overrides: Record<string, unknown>) {
   return {
-    business_key: "NPTC-000000",
+    business_key: "APTC-000000",
     preferred_term: "Placeholder",
     length: 11,
     status: "active",
@@ -323,7 +323,7 @@ describe("CatalogueSearchPage", () => {
     const calls = stubApi([ENTRIES_OK, SEARCH_OK]);
     const user = userEvent.setup();
 
-    const { router } = await renderRoute("/catalogue?after=NPTC-000100");
+    const { router } = await renderRoute("/catalogue?after=APTC-000100");
     await screen.findByRole("link", { name: "Ferritin" });
 
     await user.type(
@@ -392,7 +392,7 @@ describe("CatalogueSearchPage", () => {
     const user = userEvent.setup();
 
     const { router } = await renderRoute(
-      "/catalogue?q=ferritin&after=0.5%3Aabc%3ANPTC-000100",
+      "/catalogue?q=ferritin&after=0.5%3Aabc%3AAPTC-000100",
     );
     await user.click(await screen.findByRole("combobox", { name: "Discipline" }));
 
@@ -657,11 +657,11 @@ describe("CatalogueSearchPage", () => {
 
   describe("results from a different search are never shown as current", () => {
     const ACID_ROW = entrySummary({
-      business_key: "NPTC-000310",
+      business_key: "APTC-000310",
       preferred_term: "Acid phosphatase",
     });
     const IRON_ROW = entrySummary({
-      business_key: "NPTC-000320",
+      business_key: "APTC-000320",
       preferred_term: "Iron studies",
     });
 
@@ -766,7 +766,7 @@ describe("CatalogueSearchPage", () => {
     const EMPTY_PAGE = { items: [], next_cursor: null };
 
     it.each([
-      ["/catalogue?after=NPTC-999999", "No more catalogue entries."],
+      ["/catalogue?after=APTC-999999", "No more catalogue entries."],
       ["/catalogue", "The catalogue has no published entries yet."],
       ["/catalogue?filter.discipline=chem", "No catalogue entries match these filters."],
     ])("while browsing %s", async (url, text) => {

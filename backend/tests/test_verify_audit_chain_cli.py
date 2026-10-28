@@ -27,7 +27,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
-from nptc.audit.writer import AuditContext, append_audit_event
+from aptc.audit.writer import AuditContext, append_audit_event
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
 import verify_audit_chain as verify
@@ -43,7 +43,7 @@ def owner_url(owner_engine: Engine, migrated: None) -> str:
 
 @pytest.fixture
 def app_url(owner_engine: Engine, app_login_credentials: tuple[str, str], migrated: None) -> str:
-    """The `nptc_app_login` DSN - proves the CLI verifies without the
+    """The `aptc_app_login` DSN - proves the CLI verifies without the
     write role, an explicit acceptance criterion."""
     username, password = app_login_credentials
     login_url = owner_engine.url.set(username=username, password=password)

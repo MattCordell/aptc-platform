@@ -40,7 +40,7 @@ describe("describeChange", () => {
   });
 
   // The field sets below are the audited columns of each model, as the history
-  // route sends them (`__audit_fields__` in `backend/src/nptc/db/models`).
+  // route sends them (`__audit_fields__` in `backend/src/aptc/db/models`).
   it.each([
     [
       "a code binding created",

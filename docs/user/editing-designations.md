@@ -9,7 +9,7 @@ You need the Administrator role to change terms. Acknowledging a possible duplic
 only the Reviewer role.
 
 Open an entry for editing at **Administration → Catalogue**, or go straight to
-`/admin/catalogue/NPTC-000247/edit`. Terms are part of the one
+`/admin/catalogue/APTC-000247/edit`. Terms are part of the one
 [edit form](editing-an-entry.md), so they save with **Save** and share the form's changelog
 note.
 
@@ -137,7 +137,7 @@ is the default, you never see this note.
 
 ## If something goes wrong
 
-**"This term is already in use on NPTC-000012, once case, spacing and punctuation are
+**"This term is already in use on APTC-000012, once case, spacing and punctuation are
 ignored."** The refused case above, with the identifier of the entry it clashes with. Choose
 a different term, or resolve it on that entry.
 

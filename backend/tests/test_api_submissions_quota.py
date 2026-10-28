@@ -23,13 +23,13 @@ import pytest
 from sqlalchemy import func, select, text
 from sqlalchemy.engine import Connection, Engine
 
-from nptc.auth.permissions import Role
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.catalogue_entry import CatalogueEntry
-from nptc.db.models.submission import Submission, SubmissionKind
-from nptc.db.models.user import User
-from nptc.db.models.user_identity import UserIdentity
-from nptc_shared.terminology import AU_LANGUAGE_TAG, StubConcept
+from aptc.auth.permissions import Role
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.catalogue_entry import CatalogueEntry
+from aptc.db.models.submission import Submission, SubmissionKind
+from aptc.db.models.user import User
+from aptc.db.models.user_identity import UserIdentity
+from aptc_shared.terminology import AU_LANGUAGE_TAG, StubConcept
 
 
 def _load(name: str) -> Any:
@@ -78,7 +78,7 @@ def _token(api: ApiTestApp, role: Role) -> tuple[str, User]:
 
 def _entry(api: ApiTestApp) -> CatalogueEntry:
     entry = CatalogueEntry(
-        business_key=f"NPTC-{random.randrange(100_000_000, 999_999_999)}",
+        business_key=f"APTC-{random.randrange(100_000_000, 999_999_999)}",
         preferred_term=f"Quota target {uuid.uuid4()}",
         status="active",
     )

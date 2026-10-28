@@ -1,4 +1,4 @@
-"""Offline unit tests for nptc.audit.hashing (issue #36, NFR-10).
+"""Offline unit tests for aptc.audit.hashing (issue #36, NFR-10).
 
 No container, no network - pure digest construction. See
 test_audit_chain.py/test_audit_tamper_detection.py for the integration
@@ -11,14 +11,14 @@ import re
 import uuid
 from datetime import UTC, datetime, timedelta, timezone
 
-from nptc.audit.hashing import (
+from aptc.audit.hashing import (
     EXCLUDED_DIGEST_COLUMNS,
     GENESIS_HASH,
     canonical_payload,
     compute_entry_hash,
     digest_field_names,
 )
-from nptc.db.models.audit import AuditEvent
+from aptc.db.models.audit import AuditEvent
 
 _HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
 
@@ -119,7 +119,7 @@ def test_canonical_payload_is_deterministic_json_bytes() -> None:
 
 def test_golden_vector_digest_is_unchanged_by_the_serialisation_refactor() -> None:
     """Issue #37 refactored `_normalise` to delegate leaf-level typing to
-    `nptc.audit.serialisation.normalise_json_value` - this hard-coded
+    `aptc.audit.serialisation.normalise_json_value` - this hard-coded
     expected digest proves that refactor moved no existing hash. There was
     no golden vector before this issue; this is where one earns its place,
     since determinism tests alone (above) would not have caught a
@@ -129,7 +129,7 @@ def test_golden_vector_digest_is_unchanged_by_the_serialisation_refactor() -> No
     would prove nothing about the refactor**: this digest was computed
     directly from the literal pre-issue-#37 `_normalise` (the version at
     this repository's `901ea0b`/issue #36 state, reproduced standalone -
-    not imported from `nptc.audit.hashing`, which now contains the
+    not imported from `aptc.audit.hashing`, which now contains the
     refactored version) against the exact `_sample_fields()`/
     `_SAMPLE_PREV_HASH` below, then confirmed to match what the refactored
     `compute_entry_hash` produces for the same inputs. Every type

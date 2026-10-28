@@ -9,10 +9,10 @@ from pathlib import Path
 import openpyxl
 import pytest
 
-from nptc_shared.terminology.models import PROCEDURE_ROOT_CODE, SPECIMEN_ROOT_CODE
-from nptc_shared.terminology.stub import StubConcept, StubTerminologyClient
-from nptc_shared.terminology.sweep import TerminologySweep
-from nptc_transform.dataset import (
+from aptc_shared.terminology.models import PROCEDURE_ROOT_CODE, SPECIMEN_ROOT_CODE
+from aptc_shared.terminology.stub import StubConcept, StubTerminologyClient
+from aptc_shared.terminology.sweep import TerminologySweep
+from aptc_transform.dataset import (
     DATASET_JSON_NAME,
     ImportDataset,
     PropertyValue,
@@ -20,8 +20,8 @@ from nptc_transform.dataset import (
     build_dataset,
     write_dataset,
 )
-from nptc_transform.pipeline import Mode, RunResult, run_transform
-from nptc_transform.workbook import Sheet, read_workbook
+from aptc_transform.pipeline import Mode, RunResult, run_transform
+from aptc_transform.workbook import Sheet, read_workbook
 
 HEADERS = [
     "RCPA Preferred term",
@@ -468,11 +468,11 @@ def test_business_key_sequence_is_stable_and_gap_free(tmp_path: Path) -> None:
 
     first = _build(workbook_path)
     assert [entry.business_key for entry in first.entries] == [
-        "NPTC-000001",
-        "NPTC-000002",
-        "NPTC-000003",
-        "NPTC-000004",
-        "NPTC-000005",
+        "APTC-000001",
+        "APTC-000002",
+        "APTC-000003",
+        "APTC-000004",
+        "APTC-000005",
     ]
 
     second = _build(workbook_path)

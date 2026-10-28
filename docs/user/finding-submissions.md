@@ -46,7 +46,7 @@ Each row shows:
 - **Requesting term**, the proposed name. Choose it to open the submission. See
   [Reading a submission, registering interest and withdrawing](reading-a-submission.md).
 - **Kind**. A new test says "New test". A change says "Amendment to" and the identifier of
-  the entry it changes, for example NPTC-000247. Choose the identifier to open that entry.
+  the entry it changes, for example APTC-000247. Choose the identifier to open that entry.
 - **State**, written out in words as well as shown in colour.
 - **Submitted**, the date, in your own time zone.
 - **Submitter**. Most people see a username. Reviewers and Administrators see more. See

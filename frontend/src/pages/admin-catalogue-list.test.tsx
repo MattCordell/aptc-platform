@@ -25,14 +25,14 @@ const SIGNED_IN = {
   },
 };
 
-const DRAFT_KEY = "NPTC-000901";
-const ACTIVE_KEY = "NPTC-000247";
+const DRAFT_KEY = "APTC-000901";
+const ACTIVE_KEY = "APTC-000247";
 const DRAFT_TERM = "Ferritin";
 const ACTIVE_TERM = "Full blood count";
 
 function entrySummary(overrides: Record<string, unknown>) {
   return {
-    business_key: "NPTC-000000",
+    business_key: "APTC-000000",
     preferred_term: "Placeholder",
     length: 11,
     status: "active",
@@ -805,7 +805,7 @@ describe("AdminCatalogueListPage", () => {
               "cursor-2": {
                 items: [
                   entrySummary({
-                    business_key: "NPTC-000500",
+                    business_key: "APTC-000500",
                     preferred_term: THIRD_TERM,
                   }),
                 ],

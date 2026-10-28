@@ -10,7 +10,7 @@ import { createAppRouter } from "./router.tsx";
  * entry and its history on arrival). The other rows never call it.
  */
 const ENTRY_STUB = {
-  business_key: "NPTC-000247",
+  business_key: "APTC-000247",
   preferred_term: "Ferritin",
   length: 8,
   status: "active",
@@ -40,7 +40,7 @@ afterEach(() => {
  * own component renders.
  */
 const ROUTES = [
-  { to: "/", heading: /NPTC Catalogue Maintenance Platform/i },
+  { to: "/", heading: /APTC Catalogue Maintenance Platform/i },
   { to: "/catalogue", heading: /Search the catalogue/i },
   {
     to: "/catalogue/lookup",
@@ -54,13 +54,13 @@ const ROUTES = [
   },
   {
     to: "/catalogue/$businessKey",
-    params: { businessKey: "NPTC-000247" },
+    params: { businessKey: "APTC-000247" },
     heading: /^Ferritin$/,
   },
   {
     to: "/catalogue/$businessKey/history",
-    params: { businessKey: "NPTC-000247" },
-    heading: /^Change history for NPTC-000247$/,
+    params: { businessKey: "APTC-000247" },
+    heading: /^Change history for APTC-000247$/,
   },
   { to: "/releases", heading: /^Releases$/i },
   {
@@ -103,13 +103,13 @@ describe("route table", () => {
       },
       {
         method: "GET",
-        path: "/catalogue/entries/NPTC-000247",
+        path: "/catalogue/entries/APTC-000247",
         status: 200,
         body: ENTRY_STUB,
       },
       {
         method: "GET",
-        path: "/catalogue/entries/NPTC-000247/history",
+        path: "/catalogue/entries/APTC-000247/history",
         status: 200,
         body: { items: [], next_cursor: null },
       },
@@ -184,11 +184,11 @@ describe("route table", () => {
 
   it("restores search, filter and cursor state from a pasted URL", async () => {
     const { router } = await renderRoute(
-      "/catalogue?q=glucose&filter.discipline=chem&filter.discipline=haem&after=NPTC-000123",
+      "/catalogue?q=glucose&filter.discipline=chem&filter.discipline=haem&after=APTC-000123",
     );
     expect(router.state.matches.at(-1)?.search).toEqual({
       q: "glucose",
-      after: "NPTC-000123",
+      after: "APTC-000123",
       "filter.discipline": ["chem", "haem"],
     });
   });

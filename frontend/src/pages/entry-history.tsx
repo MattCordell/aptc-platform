@@ -57,7 +57,7 @@ export function EntryHistoryPage() {
     keepPreviousPage: true,
   });
   const { message, politeness, announce } = useAnnounce();
-  useDocumentTitle(`Change history for ${businessKey} — NPTC Catalogue`);
+  useDocumentTitle(`Change history for ${businessKey} — APTC Catalogue`);
 
   // The cursors of pages already visited, so "Previous page" can return to
   // one. The stack survives a change of `before` only when that change is the

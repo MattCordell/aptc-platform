@@ -5,7 +5,7 @@
 
 ## Context
 
-Issue #40 (ADR-0014) landed a Keycloak realm with a `nptc-api` audience mapper specifically so
+Issue #40 (ADR-0014) landed a Keycloak realm with a `aptc-api` audience mapper specifically so
 this issue would have a real `aud` to verify. Issue #42 (ADR-0015) landed `OidcIdentityClaims`
 and `resolve_user_for_claims`, with an explicit comment that this issue produces one of those
 from a verified token. Nothing in the repository had ever looked at a JWT before this issue.
@@ -33,7 +33,7 @@ exists to make it mandatory *for*.
 `joserfc`.** PyJWT's `PyJWKClient` already does the two things worth not reimplementing —
 parsing a JWK Set and matching `kid` to key — leaving exactly two gaps worth a wrapper over:
 surviving cache expiry during an IdP outage, and a refresh cooldown against `kid`-spraying (see
-`nptc.auth.jwks.SigningKeys`, and `docs/architecture/token-verification.md`). `python-jose` is
+`aptc.auth.jwks.SigningKeys`, and `docs/architecture/token-verification.md`). `python-jose` is
 unmaintained upstream past 2021; `joserfc` is capable but would be this repository's only
 consumer, with no compensating benefit over PyJWT's much wider adoption and simpler API for the
 one thing this issue needs (`decode` plus a `PyJWKClient`).
@@ -60,7 +60,7 @@ forever — so `max_fallback_age_seconds` (default `10 * cache_seconds`) now age
 out once an outage has outlasted a rotation window, timestamped against when the key was *last
 confirmed present* in a fetch (not merely first seen), so a key still being served right up
 until an outage starts gets the full window, not whatever was left over from its first
-appearance. Deliberately not exposed as an `NPTC_*` variable alongside the other JWKS knobs: it
+appearance. Deliberately not exposed as an `APTC_*` variable alongside the other JWKS knobs: it
 derives from `cache_seconds` rather than adding a fifth knob for a rare-outage safety margin, not
 routine deployment tuning.
 
@@ -77,11 +77,11 @@ one cooldown window late.
 **Errors that previously escaped the `TokenError` hierarchy are now wrapped, not merely
 documented as caught.** `jwt.get_unverified_header` on a structurally invalid bearer value
 (anything an unauthenticated caller sends, not just a well-formed-but-wrong token) raised a raw
-`jwt.exceptions.DecodeError` in both `tokens.py` and `jwks.py`; `nptc.auth.discovery`'s
+`jwt.exceptions.DecodeError` in both `tokens.py` and `jwks.py`; `aptc.auth.discovery`'s
 transport failures, non-JSON bodies and a document missing `jwks_uri` propagated raw `httpx`/
 `ValueError`/`KeyError` instances. Both are now caught and re-raised as `TokenInvalidError`/
 `SigningKeyUnavailableError` respectively, so a future FastAPI dependency can genuinely catch one
-exception family and map it to a 401, as `nptc.auth.errors`'s own module docstring already
+exception family and map it to a 401, as `aptc.auth.errors`'s own module docstring already
 claimed before this was true in every case. The NFR-21 plain-http/non-localhost check in
 `resolve_jwks_url` was also reordered to run *before* the discovery request rather than after, so
 a refused issuer is never actually contacted over cleartext.
@@ -89,8 +89,8 @@ a refused issuer is never actually contacted over cleartext.
 **OIDC discovery, not string-concatenating Keycloak's own `/protocol/openid-connect/certs`
 path.** Discovery is one HTTP round trip on `TokenVerifier` construction (not per-request — the
 resolved `jwks_url` is cached in the constructed `SigningKeys`), and it is what lets
-`NPTC_JWKS_URL` be genuinely optional rather than a required, always-set variable duplicating
-information the issuer's own document already carries. `nptc.auth.discovery.resolve_jwks_url`
+`APTC_JWKS_URL` be genuinely optional rather than a required, always-set variable duplicating
+information the issuer's own document already carries. `aptc.auth.discovery.resolve_jwks_url`
 refuses a document whose own `issuer` doesn't match, whose `jwks_uri` is cross-origin, or whose
 issuer is plain `http` on a non-localhost host (NFR-21) — a discovery document is fetched
 *before* anything is verified, so if it could redirect trust anywhere, the whole chain would be
@@ -113,7 +113,7 @@ request — and it is what `test_token_verification_guard.py`'s AST guard can me
 `jwt.decode`.
 
 **Refusing, never degrading, when key material is unavailable.** `SigningKeyUnavailableError`
-is a rejection, not a fallback outcome — there is no code path in `nptc.auth` from "no key could
+is a rejection, not a fallback outcome — there is no code path in `aptc.auth` from "no key could
 be obtained" to "accept the token anyway". This is the load-bearing distinction between the
 JWKS fallback cache (which *does* let a previously-seen key keep verifying during an outage,
 deliberately) and every other failure mode, which refuses outright.

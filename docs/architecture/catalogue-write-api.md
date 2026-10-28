@@ -2,8 +2,8 @@
 
 The first state-changing HTTP routes in this platform, plus the one authenticated read
 route alongside them. Everything they call already existed and was already tested as a
-library - `nptc.catalogue.bindings` (issue #48), `nptc.catalogue.designations`/
-`nptc.catalogue.collisions` (issues #47, #49) - so this document is about the HTTP
+library - `aptc.catalogue.bindings` (issue #48), `aptc.catalogue.designations`/
+`aptc.catalogue.collisions` (issues #47, #49) - so this document is about the HTTP
 adapter: what it exposes, how it addresses a resource with no internal identifier on the
 wire, and what it deliberately leaves for later issues.
 
@@ -20,7 +20,7 @@ onward).
 | `/catalogue/admin/entries/{business_key}` | `GET` | `200 EntryDetail` |
 | `/catalogue/admin/entries/{business_key}/history` | `GET` | `200 HistoryPage` |
 
-`nptc.api.routers.catalogue_admin` - a router separate from `catalogue.py` (the public
+`aptc.api.routers.catalogue_admin` - a router separate from `catalogue.py` (the public
 read surface) for the same reason `catalogue_bindings.py`/`catalogue_designations.py`
 stay apart from it: `test_api_public_status_filter.py`/`test_api_public_response_
 hygiene.py` both derive what they scan from `catalogue.py`'s own route table, and this
@@ -64,7 +64,7 @@ takes the same gate as the entry read. Every caller is authenticated, so `change
 carries the display name when a person made the change, and is `null` for a system
 change or a pseudonymised account; NFR-26's anonymous withholding never applies. The
 route resolves the entry with `load_entry_for_update` and calls the same
-`nptc.catalogue.history.load_history` as the public route, so what an event reveals
+`aptc.catalogue.history.load_history` as the public route, so what an event reveals
 (field names, never values or the internal entry id) is identical. The response models
 live in `catalogue_shared.py`, and the public route still 404s a draft for every caller,
 an Administrator included.
@@ -76,7 +76,7 @@ an Administrator included.
 | 401 | No credential, or one that could not be verified. |
 | 403 | Authenticated but missing `catalogue.edit_published`, or holding it without MFA (carries the step-up challenge). |
 | 404 | No catalogue entry, of any status, has this `business_key`. Deliberately the same generic body the public route's 404 carries (they share the same `EntryNotFoundError` handler) - this route exists so an authenticated caller can see a `draft`, not so it can distinguish "never minted" from "exists but hidden". |
-| 422 | The business key is not `NPTC-nnnnnn`. On the history route, also a `limit` outside 1-200 or a `before` that is not a cursor this API issued. |
+| 422 | The business key is not `APTC-nnnnnn`. On the history route, also a `limit` outside 1-200 or a `before` that is not a cursor this API issued. |
 | 500 | A published code binding's stored FSN is not in the form the terminology server serves (FR-83), same as the public detail route's own 500. |
 
 ## All-status listing and search (issue #266)
@@ -98,9 +98,9 @@ their public counterparts - see [public-api.md](public-api.md#pagination) and
 [search.md](search.md#maintenance-search-issue-266) - with two differences:
 
 - **Every `CatalogueEntryStatus` is in scope**, not `active` alone.
-  `nptc.catalogue.maintenance.MAINTENANCE_STATUSES` is derived from the enum rather than
+  `aptc.catalogue.maintenance.MAINTENANCE_STATUSES` is derived from the enum rather than
   hand-listed, so a fifth status is covered the day it is added.
-  `nptc.catalogue.queries`'s own rule that `PUBLIC_STATUSES` is the *only* status filter
+  `aptc.catalogue.queries`'s own rule that `PUBLIC_STATUSES` is the *only* status filter
   that module applies is why the listing query lives in a new `maintenance.py` instead of
   a `statuses=` parameter bolted onto `queries.list_entries`.
 - **`status` is meaningful to filter on.** `?filter.status=draft` is a 422 on the public
@@ -155,7 +155,7 @@ not a missing resource, matching the public collection routes' own contract.
 |---|---|---|
 | `/catalogue/admin/preferred-term-length-distribution` | `GET` | `200 LengthDistributionReport {buckets: [{length, count, entries_exceeding}], maximum}` |
 
-Served by `nptc.api.routers.catalogue_admin`, gated on `catalogue.edit_published` like the
+Served by `aptc.api.routers.catalogue_admin`, gated on `catalogue.edit_published` like the
 other admin reads. It counts entries of every status. What each field means, and how to
 choose a maximum from it, is in
 [configuration.md](../operations/configuration.md#the-fr-87-length-distribution-report).
@@ -180,7 +180,7 @@ All under `/api/v1/catalogue`, same path space as the public read routes.
 | `/entries/{business_key}/bindings/{code}/replacement` | `POST` | `{successor: {code, fsn, au_preferred_term?, edition_hint?}, reason, expected_row_version}` | `200 BindingReplacementResult {items, row_version}` (both rows) |
 
 `business_key` accepts any status, not only `active` - an editing surface has to reach a
-`draft` entry before it can ever become `active`. `nptc.catalogue.entries.
+`draft` entry before it can ever become `active`. `aptc.catalogue.entries.
 load_entry_for_update` is the loader, shared with `save_entry`/`save_entries` rather than
 re-querying `CatalogueEntry` by hand. Pinned by an explicit test for every status
 (`draft`/`active`/`deprecated`/`withdrawn`), not just exercised incidentally.
@@ -199,7 +199,7 @@ The public `Binding` model deliberately carries no `id` or `entry_id` -
 retiring or replacing a binding therefore addresses it by the SNOMED CT code it was
 bound with, not a row id it was never given.
 
-`nptc.catalogue.bindings.load_active_binding(session, entry_id=..., code=...)` resolves
+`aptc.catalogue.bindings.load_active_binding(session, entry_id=..., code=...)` resolves
 this: `ix_code_binding_one_active_per_entry` guarantees at most one **active** binding
 exists per entry, so scoping the lookup to `(entry_id, code, status='active')` returns at
 most one row. A code that has already been retired, or was never bound, is a `404`
@@ -221,7 +221,7 @@ the only system in use today; the model and the unique index already key on
 
 ### Replacement is one request, not three
 
-`nptc.catalogue.bindings`' own module docstring explains why replacing a binding is a
+`aptc.catalogue.bindings`' own module docstring explains why replacing a binding is a
 three-step sequence at the service layer - retire the predecessor, create the successor,
 link them - rather than one function:
 `ix_code_binding_one_active_per_entry` forbids a successor existing active while its
@@ -230,7 +230,7 @@ predecessor still is, so no other order is valid.
 Exposing that as three separate HTTP calls would let a client's failed second or third
 request strand an entry with no active binding and no successor recorded. The
 `/replacement` route instead runs all three service-layer calls inside the one request's
-transaction (`nptc.api.dependencies.get_session` / `session_scope` commits on success),
+transaction (`aptc.api.dependencies.get_session` / `session_scope` commits on success),
 so all three audit events land together or none do.
 
 One `reason` covers all three steps: a caller explaining *why* a code is being replaced
@@ -246,8 +246,8 @@ unable to tell the two rows apart by code.
 ### `expected_row_version` (code bindings) - issue #60
 
 `code_binding` carries no version of its own, so all three routes share `catalogue_entry.
-row_version` as their lock - the same argument `nptc.catalogue.property_values.
-save_property_values` already makes for `property_value`, via `nptc.catalogue.entries.
+row_version` as their lock - the same argument `aptc.catalogue.property_values.
+save_property_values` already makes for `property_value`, via `aptc.catalogue.entries.
 entry_child_write`.
 
 **Required, not optional.** Contrast the designations route's `/amendment`, which added
@@ -293,8 +293,8 @@ read-then-write, so two concurrent binds racing for the same entry or the same c
 pass the pre-check and only one wins at insert - `ix_code_binding_one_active_per_entry`/
 `ix_code_binding_one_active_entry_per_code` are what actually decide. The loser's
 `IntegrityError` is translated to the same `409` domain error the pre-check would have
-raised, via `nptc.db.errors.unique_violation_constraint` - the same constraint-name unwrap
-`nptc.auth.identity._is_username_collision` already needed, pulled out to one shared
+raised, via `aptc.db.errors.unique_violation_constraint` - the same constraint-name unwrap
+`aptc.auth.identity._is_username_collision` already needed, pulled out to one shared
 helper rather than a second copy - so a lost race still reads as a normal conflict, not a
 500. Forced deterministically (an `after_cursor_execute` hook supplying the ordering plain
 sequential test code cannot express) in
@@ -322,15 +322,15 @@ above, not a version conflict. The index-level race is otherwise unchanged and s
 applies wherever `entry_child_write` cannot see it at all - two *different* entries, or two
 callers each holding a version that was still current when they read it.
 
-Every `CodeBinding*` exception from `nptc.catalogue.bindings` is mapped in
-`nptc.api.errors` by the same convention every other handler in that module follows:
+Every `CodeBinding*` exception from `aptc.catalogue.bindings` is mapped in
+`aptc.api.errors` by the same convention every other handler in that module follows:
 read `exc.http_status`, never echo `str(exc)` into the response body (an exception
 message may name an internal id, for the log only - NFR-04/NFR-26), and log at `INFO`
 for a routine, expected refusal.
 
 ## Designations
 
-All under `/api/v1/catalogue`, in `nptc.api.routers.catalogue_designations` - a router
+All under `/api/v1/catalogue`, in `aptc.api.routers.catalogue_designations` - a router
 separate from both `catalogue.py` (the public read surface) and `catalogue_bindings.py`,
 for the same reason those two stay apart from each other.
 
@@ -351,23 +351,23 @@ for the same reason those two stay apart from each other.
 - `CollisionWarning` (`kind: "collision"`, FR-05) is `{term, business_key, preferred_term,
   label_provenance}`. It names another live entry that holds the same synonym.
 - `LengthWarning` (`kind: "length"`, FR-86) is `{length, max_length}`. It is present only when
-  the request took the amend route's preferred-term branch, `NPTC_MAX_PREFERRED_TERM_LENGTH`
+  the request took the amend route's preferred-term branch, `APTC_MAX_PREFERRED_TERM_LENGTH`
   is set, and the saved preferred term is longer than it. It never blocks the save or becomes a
   4xx of its own. The add and reinstate responses use the same type, but cannot produce this
   member today. A further warning class is a new member and a new `kind`, not a new response
   field. See
-[configuration.md](../operations/configuration.md#choosing-a-maximum-preferred-term-length-nptc_max_preferred_term_length).
+[configuration.md](../operations/configuration.md#choosing-a-maximum-preferred-term-length-aptc_max_preferred_term_length).
 
-The check is not the route's alone. `nptc.catalogue.entries.create_entry`, `save_entry` and
+The check is not the route's alone. `aptc.catalogue.entries.create_entry`, `save_entry` and
 `save_entries` take an optional `max_preferred_term_length`, and when a written preferred term
 is over it they log one warning carrying the business key and the length (never the term).
 `save_entries` logs one summary record per call instead of one per entry, after every save has
 succeeded. They never raise, and a save that does not change the term logs nothing. The record
 is written as the save is made, so a later rollback of the request does not retract it. Only the
-amendment route passes `NPTC_MAX_PREFERRED_TERM_LENGTH` today. A writer that omits the argument
+amendment route passes `APTC_MAX_PREFERRED_TERM_LENGTH` today. A writer that omits the argument
 is not checked, so a future loader must pass it; `ApiSettings` itself may not be read inside
-`nptc.catalogue`. All three callers, and the FR-87 report's `entries_exceeding`, decide "over the
-maximum" with `nptc.catalogue.term_hygiene.exceeds_maximum_length`: a length equal to the
+`aptc.catalogue`. All three callers, and the FR-87 report's `entries_exceeding`, decide "over the
+maximum" with `aptc.catalogue.term_hygiene.exceeds_maximum_length`: a length equal to the
 maximum is within it.
 
 ### Addressing a designation: by term in the body, never a path segment or an id
@@ -379,9 +379,9 @@ routing, so a term with a slash in a `{term}` path parameter would either 404 ag
 the wrong route or need a client-side double-encoding scheme nobody should have to
 reason about. Every route above therefore takes its target term in the request body.
 
-`nptc.catalogue.designations.load_active_designation(session, entry_id=..., term=...)`
+`aptc.catalogue.designations.load_active_designation(session, entry_id=..., term=...)`
 resolves it, mirroring `load_active_binding`: looked up by *comparison
-key* (`nptc_shared.similarity.collision_key` over the cleaned term), not the raw
+key* (`aptc_shared.similarity.collision_key` over the cleaned term), not the raw
 string, since `ix_designation_no_duplicate_active_term` is itself keyed on `term_key` -
 a caller naming a case or punctuation variant of the stored term still resolves the
 same row. `(entry_id, term_key)` identifies at most one active row.
@@ -390,7 +390,7 @@ more, not a conflicting state - matching code bindings' own `404`-not-`409` reas
 for a retired code.
 
 **`/reinstatement` addresses a designation the other way round (issue #313): by its
-currently-*retired* term, not its active one.** `nptc.catalogue.designations.
+currently-*retired* term, not its active one.** `aptc.catalogue.designations.
 find_retired_designation`/`load_retired_designation` are the retired-row siblings of
 `find_active_designation`/`load_active_designation` above - same comparison-key lookup,
 same `(entry_id, term_key)` scope, `status = 'retired'` instead of `'active'`.
@@ -416,7 +416,7 @@ Re-reading a just-written row (to build the response) is by the row's own `id`, 
 term, for the same reason `_row_to_binding` avoids a code-keyed re-read: `(entry_id,
 term_key)` is unique only among *active* rows, so a term retired and re-added
 would leave two retired rows sharing a `term_key`, and only `id` still tells them apart.
-`nptc.catalogue.queries.load_designations_any_status` is the retired-inclusive loader
+`aptc.catalogue.queries.load_designations_any_status` is the retired-inclusive loader
 this needs - `load_designations` (the FR-20 public read path) stays active-only. The
 admin entry read (issue #239) also serves retired designations for the same reason:
 its reader is an editor, not an implementer.
@@ -435,7 +435,7 @@ unrelated-looking creation - the same "one editorial decision, one audit trail" 
 retirement left behind, rather than the only remedy that existed before this issue -
 re-adding the term, which `ix_designation_no_duplicate_active_term` (active-only)
 happily allows and which creates a **new** row sharing nothing with the original but its
-`term`. `nptc.catalogue.history.load_history` keys a designation's history on the row's
+`term`. `aptc.catalogue.history.load_history` keys a designation's history on the row's
 own `id`, so re-adding orphans the original row's history and starts the new row's
 history empty; reinstating keeps both intact as one continuous record - created,
 retired, reinstated.
@@ -462,7 +462,7 @@ ADR-0022 keeps the catalogue's own preferred term on
 `catalogue_entry.preferred_term`, never a `designation` row. Rather than expose that split as a second
 endpoint, `/amendment` resolves `term` against both: an active `designation` row if
 there is one, otherwise the entry's own preferred term, saved through
-`nptc.catalogue.entries.save_entry`. Every term the catalogue holds is a designation as
+`aptc.catalogue.entries.save_entry`. Every term the catalogue holds is a designation as
 far as this API is concerned - one route, one mental model, two storage homes - and the
 preferred-term branch returns its result shaped as a `Designation`
 (`label_provenance.designation` is `au_preferred_term` rather than `synonym`, with
@@ -522,7 +522,7 @@ case or punctuation variant resolves either one.
 accepted without the caller's version. `designation` has no version of its own, so all
 four routes here (`/designations`, `/amendment`'s designation branch, `/retirement`,
 `/reinstatement`) share `catalogue_entry.row_version` as their lock, the same argument
-`nptc.catalogue.property_values.save_property_values` already makes for `property_value`
+`aptc.catalogue.property_values.save_property_values` already makes for `property_value`
 and `catalogue_bindings.py` makes for `code_binding` (issue #60). `expected_row_version`
 is required on every route below - no exceptions, no optional branch (issue #300;
 `/reinstatement` gained the field at the same moment its only client learned to send it,
@@ -533,8 +533,8 @@ writes `catalogue_entry` directly and the other does not:
 
 | `term` resolves to | Lock taken via |
 |---|---|
-| the entry's own preferred term | `nptc.catalogue.entries.save_entry`, which already required and bumped the version before issue #300 - unchanged by it. |
-| an active `designation` row | `nptc.catalogue.entries.entry_child_write`, the same helper `/designations` and `/retirement` use - new in issue #300. |
+| the entry's own preferred term | `aptc.catalogue.entries.save_entry`, which already required and bumped the version before issue #300 - unchanged by it. |
+| an active `designation` row | `aptc.catalogue.entries.entry_child_write`, the same helper `/designations` and `/retirement` use - new in issue #300. |
 
 Required outright everywhere, not left optional on `/amendment`'s designation branch the
 way issue #227 originally shipped it: bumping the version on a write that let the field
@@ -563,7 +563,7 @@ amend and retire, now conflict with each other.
 
 ### Warning-severity collisions ride back on the write response
 
-`nptc.catalogue.collisions.warning_collisions` never raises - a warning permits the
+`aptc.catalogue.collisions.warning_collisions` never raises - a warning permits the
 save by construction (FR-05). `add_designations`/`amend_designation`/`reinstate_
 designation_route` (issue #313) call it after their own write and return whatever it
 finds as `warnings` on the same response, rather than exposing it as a separate `GET`
@@ -595,7 +595,7 @@ an `ErrorResponse` - one sentence, and deliberately nothing else. FR-05's collis
 FR-38's version conflict are not, because a bare sentence withholds exactly what those
 requirements exist to give the caller: the colliding entry (PRD §17.2 item 5), and the
 conflicting values to reconcile against. Both are declared response models
-(`DesignationCollisionResponse`, `VersionConflictResponse` in `nptc.api.errors`) rather
+(`DesignationCollisionResponse`, `VersionConflictResponse` in `aptc.api.errors`) rather
 than prose, `anyOf`-ed with `ErrorResponse`, so #147's generated client can read the
 payload instead of typing the branch as `{detail}` and dropping it. The models are
 constructed by the handlers that emit them, so the declared schema and the real body
@@ -606,16 +606,16 @@ They are declared only where they can occur: `POST .../designations`, `/amendmen
 `/amendment` writes an entry. Retirement and acknowledgement can produce neither, and a
 documented body a route cannot emit is a branch a generated client can never exercise.
 
-Every exception `nptc.catalogue.designations`/`nptc.catalogue.collisions` raises is
-mapped in `nptc.api.errors` the same way the `CodeBinding*` family is: read
+Every exception `aptc.catalogue.designations`/`aptc.catalogue.collisions` raises is
+mapped in `aptc.api.errors` the same way the `CodeBinding*` family is: read
 `exc.http_status`, never echo `str(exc)`, log at `INFO`. Closing this mapping (four
 constraints were previously unmapped `IntegrityError`s - see
-`nptc.api.errors`'s own former "Known gap" note) is this issue's own contribution, not
+`aptc.api.errors`'s own former "Known gap" note) is this issue's own contribution, not
 inherited from #219.
 
 ## Property values (issue #248)
 
-All under `/api/v1/catalogue`, in `nptc.api.routers.catalogue_properties` - a router
+All under `/api/v1/catalogue`, in `aptc.api.routers.catalogue_properties` - a router
 separate from `registry.py` (which owns `PropertyDefinition`, what a property *is*) for
 the same reason `catalogue_bindings.py`/`catalogue_designations.py` stay apart from
 `catalogue.py`: this one owns `PropertyValue`, what an entry *holds* for a property.
@@ -625,7 +625,7 @@ the same reason `catalogue_bindings.py`/`catalogue_designations.py` stay apart f
 | `/entries/{business_key}/properties/{key}` | `PUT` | `{values: [{value, justification?}], reason, expected_row_version}` | `200 {values: [PropertyValue], row_version}` |
 
 Everything below HTTP already existed and was already tested as a library -
-`nptc.catalogue.property_values.save_property_values` (issue #52) - so this route is
+`aptc.catalogue.property_values.save_property_values` (issue #52) - so this route is
 purely the HTTP adapter: whole-property replace, cardinality bounds, FR-10 binding
 strength, FR-11 deprecation refusal, FR-89's rule that the specimen root stands alone,
 FR-38's optimistic lock and the audit event are all handled by that existing service. `key`
@@ -640,14 +640,14 @@ re-fetch the entry just to learn its next lock token.
 ### `form_control` and `scope` on the read side (issue #248)
 
 Two contract gaps blocked a generated form from consuming this route at all, closed on
-the *read* side (`GET /registry/properties`, `nptc.api.routers.registry`) alongside the
+the *read* side (`GET /registry/properties`, `aptc.api.routers.registry`) alongside the
 write route above:
 
 - **`form_control: {control, params}`** on `PropertyDefinitionResponse` - the wire form
   of each datatype handler's own `FormControlDescriptor` (ADR-0013 §3, FR-77).
   `control` is typed against the closed `ControlKind` enum, so OpenAPI emits a union a
   generated client can switch over exhaustively, and a form never has to branch on
-  `datatype` (which FR-77 forbids). A datatype registered nowhere in `nptc.registry.
+  `datatype` (which FR-77 forbids). A datatype registered nowhere in `aptc.registry.
   datatypes.BUILTIN_DATATYPES` still appears correctly - no route or response model is
   edited per datatype - because the value comes from resolving the live
   `DatatypeRegistry`, not a hand-maintained mapping.
@@ -659,9 +659,9 @@ write route above:
 
 ### The 422 body is a declared model, not a hand-built dict (issue #248)
 
-`nptc.catalogue.property_values.PropertyValidationError`'s `issues[]` - naming
+`aptc.catalogue.property_values.PropertyValidationError`'s `issues[]` - naming
 `property_key`, `label`, `code`, `message` and `ordinal` for each failing value - is now
-`PropertyIssueItem`/`PropertyValidationResponse` in `nptc.api.errors`, constructed by the
+`PropertyIssueItem`/`PropertyValidationResponse` in `aptc.api.errors`, constructed by the
 handler rather than assembled as a raw dict. Declared in the route's `responses={422:
 ...}` alongside `ErrorResponse` (via a `model` union, the same `_RESPONSE_409_AMENDMENT`
 mechanism designations use above) so both schemas actually land in
@@ -702,9 +702,9 @@ The server half of #63's bulk reclassify - discipline, across a set of entries a
 editor selected on screen, is the motivating case, but the route is generic over
 `property_key` (FR-90's cardinality `0..*` and system origin apply to discipline, not to
 this route). `save_property_values` (above) has no plural form of its own: it takes one
-`CatalogueEntry`, not many. `nptc.catalogue.property_values.
+`CatalogueEntry`, not many. `aptc.catalogue.property_values.
 save_property_values_for_entries` is the seam this route adapts - **not**
-`nptc.catalogue.entries.save_entries`, which batches `EntryChanges`' own columns
+`aptc.catalogue.entries.save_entries`, which batches `EntryChanges`' own columns
 (`preferred_term`/`status`), not `property_value` rows.
 
 **Selection is an explicit list, not a filter.** `entries` names every target as
@@ -762,7 +762,7 @@ above passed, but another writer committed before this one's flush) is caught pe
 by the same `session.begin_nested()`/`StaleDataError` pattern `save_entry` uses for a
 single write - that entry becomes a `conflict` outcome, and the rest of the batch still
 applies. A whole-request failure (an unhandled exception)
-discards the entire batch, applied entries included: `nptc.db.session.session_scope`
+discards the entire batch, applied entries included: `aptc.db.session.session_scope`
 commits once per request and rolls back on any exception.
 
 **One audit event per applied entry, plus one batch header when at least one entry
@@ -773,7 +773,7 @@ so it gets the same `property_value.set` event the singular route produces (an
 distinct from `property_value_set` so a value-diff history query cannot pick up a header
 it cannot render as one; `entity_id=key`) is appended once, after the loop, carrying the
 outcome tallies structurally in its `after` payload
-(`{"applied": n, "unchanged": n, "conflict": n, "not-found": n}`) via `nptc.audit.
+(`{"applied": n, "unchanged": n, "conflict": n, "not-found": n}`) via `aptc.audit.
 recording.record_batch_summary` - `reason` stays the operator's own changelog note,
 identical to the per-entry events', never decorated with counts. A batch where nothing
 applied (every target `conflict`/`not-found`) emits no header at all, matching ADR-0018's
@@ -783,15 +783,15 @@ from the log via that one value. See ADR-0035's addendum.
 
 **Lock ordering (issue #265 round-2 review; closed by issue #281).** This route is the
 first HTTP surface that can hold row-exclusive locks on more than one `catalogue_entry`
-row in one transaction, which makes a cycle against `nptc.audit.writer`'s own
+row in one transaction, which makes a cycle against `aptc.audit.writer`'s own
 `pg_advisory_xact_lock` reachable: a bulk request already holding that lock (from an
 earlier entry's audit append) can block on a row a concurrent single-entry writer holds,
 while that writer blocks on the same advisory lock. `save_property_values_for_entries`,
-the singular `save_property_values`, `nptc.catalogue.entries.create_entry`/`save_entry`/
-`save_entries`, and `nptc.catalogue.designations.add_designation`/`amend_designation`/
-`add_synonyms`/`retire_designation`, `nptc.catalogue.bindings.create_binding`/`retire_binding`/
-`link_replacement` and `nptc.catalogue.seed_import.seed_baseline`
-(`nptc.audit.writer.acquire_append_lock`) each acquire the lock before **any session-touching statement** (only session-free input checks such as
+the singular `save_property_values`, `aptc.catalogue.entries.create_entry`/`save_entry`/
+`save_entries`, and `aptc.catalogue.designations.add_designation`/`amend_designation`/
+`add_synonyms`/`retire_designation`, `aptc.catalogue.bindings.create_binding`/`retire_binding`/
+`link_replacement` and `aptc.catalogue.seed_import.seed_baseline`
+(`aptc.audit.writer.acquire_append_lock`) each acquire the lock before **any session-touching statement** (only session-free input checks such as
 `validate_changelog_note` may run first, so a rejected note takes no lock), not merely
 "before" the row/collision lock or "once, before a loop" - two rounds of review on this same fix each found that a
 later placement still left an ORM `select()` or two in between (the bulk seam's own
@@ -800,7 +800,7 @@ property-definition lookup included), each of which autoflushes any already-pend
 lock before any row lock or collision lock it can also take, closing the cycle rather than
 narrowing it to bulk-vs-bulk. See ADR-0035's own addendum for the full history, and
 `backend/tests/test_lock_ordering.py` for both the concurrency regression coverage and a
-pure-`ast` guard that derives, from the source of every module in `nptc.catalogue`, every
+pure-`ast` guard that derives, from the source of every module in `aptc.catalogue`, every
 function required to satisfy the "lock before any session-touching statement" invariant - not a
 hand-maintained list, so a new writer added later is checked automatically. The guard names
 its exemptions, each by module and function: private helpers reached only from inside the lock's
@@ -814,11 +814,11 @@ scope, and the `local_codes` and `acknowledge_collision` writers, which take nei
 | 401 | No credential, or one that could not be verified. |
 | 403 | Authenticated but missing `catalogue.edit_published`, or holding it without MFA (carries the step-up challenge). |
 | 404 | No `property_definition` with `key`. An unknown `business_key` among `entries` is a `not-found` outcome in the 200 body, never a 404 for the whole request - and so is one deleted by a concurrent transaction mid-batch, rather than an uncaught `EntryNotFoundError` escaping as a whole-request 404. |
-| 422 | A missing or low-information `reason` (FR-37), a write against a deprecated property (FR-11), the shared `values` set failing its property's JSON Schema, cardinality bound, or FR-89's specimen root rule, a `business_key` not shaped `NPTC-nnnnnn` (the same `BusinessKeyPath` pattern the singular route's path segment enforces - a malformed key is never a `not-found` outcome, indistinguishable from a well-formed one that simply does not exist), a repeated `business_key`, or more than 100 `entries`. |
+| 422 | A missing or low-information `reason` (FR-37), a write against a deprecated property (FR-11), the shared `values` set failing its property's JSON Schema, cardinality bound, or FR-89's specimen root rule, a `business_key` not shaped `APTC-nnnnnn` (the same `BusinessKeyPath` pattern the singular route's path segment enforces - a malformed key is never a `not-found` outcome, indistinguishable from a well-formed one that simply does not exist), a repeated `business_key`, or more than 100 `entries`. |
 
 ## Entry core columns (issue #249)
 
-All under `/api/v1/catalogue`, in `nptc.api.routers.catalogue_entries` - a router
+All under `/api/v1/catalogue`, in `aptc.api.routers.catalogue_entries` - a router
 separate from every module above, the same one-router-per-thing-written pattern: this
 one owns `CatalogueEntry`'s own core columns, not a sub-resource attached to it.
 
@@ -836,7 +836,7 @@ admin `patch` (tag `catalogue-admin`), the same write family every route above l
 in rather than `catalogue_admin.py`'s separate `/admin/` prefix.
 
 Everything below HTTP already existed and was already tested as a library -
-`nptc.catalogue.entries.save_entry` (issue #46) - so this route is purely the HTTP
+`aptc.catalogue.entries.save_entry` (issue #46) - so this route is purely the HTTP
 adapter: FR-37's reason gate and FR-38's optimistic lock are handled by that existing
 service, the same posture `/properties/{key}` above takes for `save_property_values`.
 
@@ -873,8 +873,8 @@ resubmission (see above) is not a rejection - it is a `200`.
 
 ## Mapping a domain exception to a response
 
-Every exception under `nptc` or `nptc_shared` that names an `http_status` needs a handler.
-Most need only a row in `_REFUSALS` in `backend/src/nptc/api/errors.py`: a fixed `detail`
+Every exception under `aptc` or `aptc_shared` that names an `http_status` needs a handler.
+Most need only a row in `_REFUSALS` in `backend/src/aptc/api/errors.py`: a fixed `detail`
 sentence, one log line and a log level. A subclass is served by its base's row. A refusal
 that builds its own body, or branches on the raised instance, is a function in
 `register_exception_handlers` instead. `backend/tests/test_api_error_table.py` fails and
@@ -887,7 +887,7 @@ that name a status, so nothing checks for this case.
 
 ## What these issues do not cover
 
-- Entry creation over HTTP. `nptc.catalogue.entries.create_entry` is library-only -
+- Entry creation over HTTP. `aptc.catalogue.entries.create_entry` is library-only -
   same FR-36 family as the writes above, different gap, not covered by any issue here.
 - Reinstating a retired **code binding** or a deprecated property definition (issue
   #313's own out-of-scope note). Bindings carry FR-08 supersession semantics

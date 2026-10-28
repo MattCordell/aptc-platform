@@ -21,11 +21,11 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from nptc.audit.writer import AuditContext
-from nptc.catalogue import queries
-from nptc.catalogue.changelog import ChangelogNoteError
-from nptc.catalogue.collisions import DesignationCollisionError
-from nptc.catalogue.designations import (
+from aptc.audit.writer import AuditContext
+from aptc.catalogue import queries
+from aptc.catalogue.changelog import ChangelogNoteError
+from aptc.catalogue.collisions import DesignationCollisionError
+from aptc.catalogue.designations import (
     DesignationAlreadyRetiredError,
     DesignationNotFoundError,
     DesignationNotRetiredError,
@@ -39,12 +39,12 @@ from nptc.catalogue.designations import (
     reinstate_designation,
     retire_designation,
 )
-from nptc.catalogue.entries import create_entry
-from nptc.catalogue.term_hygiene import TermCleaningError, preferred_term_length
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.catalogue_entry import CatalogueEntry
-from nptc.db.models.designation import Designation, DesignationStatus
-from nptc_transform.cell_defects import split_synonyms
+from aptc.catalogue.entries import create_entry
+from aptc.catalogue.term_hygiene import TermCleaningError, preferred_term_length
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.catalogue_entry import CatalogueEntry
+from aptc.db.models.designation import Designation, DesignationStatus
+from aptc_transform.cell_defects import split_synonyms
 
 _NBSP = chr(0x00A0)
 _ZERO_WIDTH_SPACE = chr(0x200B)
@@ -195,7 +195,7 @@ def test_designations_module_does_not_import_the_code_binding_side() -> None:
     module.__file__` string check is vacuously true for any module that
     simply isn't named `code_binding` and asserts nothing about what it
     imports."""
-    import nptc.catalogue.designations as module
+    import aptc.catalogue.designations as module
 
     source = inspect.getsource(module)
     assert "code_binding" not in source
@@ -685,7 +685,7 @@ def test_load_retired_designation_raises_when_no_retired_match(app_session: Sess
 @pytest.mark.integration
 def test_reinstate_designation_restores_the_same_row(app_session: Session) -> None:
     """The whole point of #313: the reinstated row keeps its `id`, so
-    `nptc.catalogue.history.load_history` reads one continuous record
+    `aptc.catalogue.history.load_history` reads one continuous record
     across create, retire and reinstate - not a retirement paired with an
     unrelated-looking new row, the way re-adding the term today does."""
     entry = _new_entry(app_session)

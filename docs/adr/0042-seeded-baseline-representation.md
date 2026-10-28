@@ -11,7 +11,7 @@ emit that release as the `baseline_release` block of `import-dataset.json`, and 
 entry's hand-typed `Version` and `History` cells verbatim as `source.legacy_version` and
 `source.legacy_history`, so cutover destroys no information.
 
-The `release` table is P4's (FR-57, FR-58, FR-61, FR-60). `nptc.releases` is still a stub,
+The `release` table is P4's (FR-57, FR-58, FR-61, FR-60). `aptc.releases` is still a stub,
 and the API and history rows already carry always-`null` `release` slots that wait for it
 (ADR-0034). The seed loader therefore has to decide how the baseline is recorded now, and
 where the legacy cells live, without fixing P4's design early.
@@ -27,7 +27,7 @@ where the legacy cells live, without fixing P4's design early.
    workbook sheet and row and the verbatim `Version` and `History` cells. `catalogue_entry`
    gains no columns, so it carries nothing that is null for every entry created after
    cutover.
-3. **Written once, never edited.** `nptc_app` holds `SELECT, INSERT` on both tables and no
+3. **Written once, never edited.** `aptc_app` holds `SELECT, INSERT` on both tables and no
    other privilege, so ADR-0010's "never an editable field" holds at the privilege level, as
    it does for `designation_collision_acknowledgement`.
 4. **Fail closed on a non-empty catalogue.** The loader refuses if any `catalogue_entry` row

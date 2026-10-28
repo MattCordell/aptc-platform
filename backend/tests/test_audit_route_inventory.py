@@ -4,7 +4,7 @@ third acceptance criterion).
 
 Neither existing guard proves this: `test_audit_write_path_guard.py` (#37)
 is a call-site AST guard - it proves nobody writes `audit_event` outside
-`nptc.audit.writer`, not that every endpoint reaches that writer at all.
+`aptc.audit.writer`, not that every endpoint reaches that writer at all.
 `test_authz_inventory.py` (#44) walks the same route table but for
 negative-auth coverage, not auditing.
 
@@ -12,9 +12,9 @@ This enumerates every non-GET route from the real `create_app()` via
 `route_inventory_support.mutating_routes_with_endpoints` (shared with #44's
 walker, not a hand-maintained list and not a second walker), then for each
 one asks `audit_call_graph_support.reachable` whether
-`nptc.audit.recording.record_change`/`record_snapshot_change` is reachable
+`aptc.audit.recording.record_change`/`record_snapshot_change` is reachable
 from the endpoint's own source, through a static call-graph walk confined
-to `nptc.*` under `backend/src`. `audit_call_graph_support.is_resolvable`
+to `aptc.*` under `backend/src`. `audit_call_graph_support.is_resolvable`
 is checked first, and separately: an endpoint whose source the walker
 cannot even find (see that module's own docstring for what "reachable"
 does and does not claim) must not quietly read the same as "resolved, and
@@ -45,8 +45,8 @@ from typing import TYPE_CHECKING
 import pytest
 from fastapi import FastAPI
 
-from nptc.api.app import create_app
-from nptc.api.openapi_document import GENERATION_FRONTEND_BASE_URL
+from aptc.api.app import create_app
+from aptc.api.openapi_document import GENERATION_FRONTEND_BASE_URL
 
 if TYPE_CHECKING:
     from fastapi.routing import APIRoute
@@ -247,7 +247,7 @@ def test_positive_control_a_write_route_that_never_audits_is_flagged(
             monkeypatch,
             tmp_path,
             "synthetic_audited",
-            "from nptc.audit.recording import record_change\n\n\n"
+            "from aptc.audit.recording import record_change\n\n\n"
             "def handler():\n    record_change()\n",
         )
     )
@@ -278,7 +278,7 @@ def test_negative_control_a_known_good_route_resolves_through_the_graph(
 
 def test_mutating_route_count_sanity_check(real_app_routes: dict[object, APIRoute]) -> None:
     """Not itself an acceptance criterion, but the plan's own sanity check
-    (issue #165): a route added or removed under `backend/src/nptc/api/
+    (issue #165): a route added or removed under `backend/src/aptc/api/
     routers` without updating this count is a signal to look again, not a
     silent drift in what "every mutating endpoint" means."""
     assert len(real_app_routes) == 32, (

@@ -15,7 +15,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import IntegrityError, ProgrammingError
 
-from nptc_shared.sctid import has_valid_check_digit, has_valid_format
+from aptc_shared.sctid import has_valid_check_digit, has_valid_format
 
 _UNIQUE_VIOLATION = "23505"
 _CHECK_VIOLATION = "23514"
@@ -44,7 +44,7 @@ _INSERT_BINDING = text(
 def _insert_entry(
     connection: Connection,
     *,
-    business_key: str = "NPTC-200001",
+    business_key: str = "APTC-200001",
     preferred_term: str = "Full blood count",
 ) -> object:
     return connection.execute(
@@ -107,7 +107,7 @@ def test_code_of_18_digits_is_accepted(db: Connection) -> None:
     valid 18-digit code to exist at all in the fixture set this table can
     accept - `111111111111111118` (seventeen `1`s plus a check digit of
     `8`), chosen so its Verhoeff checksum reduces to zero (verified below
-    against `nptc_shared.sctid.has_valid_check_digit`, not merely
+    against `aptc_shared.sctid.has_valid_check_digit`, not merely
     asserted)."""
     entry_id = _insert_entry(db)
     eighteen_digit_code = "111111111111111118"
@@ -166,7 +166,7 @@ def test_fsn_cannot_be_blank(db: Connection) -> None:
 
 @pytest.mark.integration
 def test_au_preferred_term_may_be_null(db: Connection) -> None:
-    """Not every edition serves an AU preferred term - `nptc_transform.
+    """Not every edition serves an AU preferred term - `aptc_transform.
     dataset` already types this `str | None`."""
     entry_id = _insert_entry(db)
 
@@ -222,7 +222,7 @@ def test_same_code_active_on_two_entries_is_refused(db: Connection) -> None:
     only rules out one entry holding two active bindings, not the same
     code bound active on two *different* entries."""
     first_entry_id = _insert_entry(db)
-    second_entry_id = _insert_entry(db, business_key="NPTC-200002", preferred_term="Other")
+    second_entry_id = _insert_entry(db, business_key="APTC-200002", preferred_term="Other")
     _insert_binding(db, entry_id=first_entry_id)
 
     with pytest.raises(IntegrityError) as exc_info:
@@ -235,7 +235,7 @@ def test_same_code_active_on_two_entries_is_refused(db: Connection) -> None:
 @pytest.mark.integration
 def test_same_code_is_rebindable_once_the_first_binding_is_retired(db: Connection) -> None:
     first_entry_id = _insert_entry(db)
-    second_entry_id = _insert_entry(db, business_key="NPTC-200003", preferred_term="Other")
+    second_entry_id = _insert_entry(db, business_key="APTC-200003", preferred_term="Other")
     _insert_binding(
         db,
         entry_id=first_entry_id,
@@ -318,7 +318,7 @@ def test_active_binding_with_replaced_by_is_refused(db: Connection) -> None:
     itself retired - a binding cannot be active and superseded at once.
     Two different entries, so the FR-08 "one active binding per entry"
     index can't also explain the rejection."""
-    successor_entry_id = _insert_entry(db, business_key="NPTC-200008")
+    successor_entry_id = _insert_entry(db, business_key="APTC-200008")
     successor_id = _insert_binding(
         db,
         entry_id=successor_entry_id,
@@ -326,7 +326,7 @@ def test_active_binding_with_replaced_by_is_refused(db: Connection) -> None:
         fsn="Procedure (procedure)",
         status="active",
     )
-    other_entry_id = _insert_entry(db, business_key="NPTC-200009")
+    other_entry_id = _insert_entry(db, business_key="APTC-200009")
 
     with pytest.raises(IntegrityError) as exc_info:
         _insert_binding(
@@ -394,7 +394,7 @@ def test_retired_binding_may_name_its_successor(db: Connection) -> None:
 
 @pytest.mark.integration
 def test_app_role_can_insert_select_and_update(app_db: Connection) -> None:
-    entry_id = _insert_entry(app_db, business_key="NPTC-200002")
+    entry_id = _insert_entry(app_db, business_key="APTC-200002")
     binding_id = _insert_binding(app_db, entry_id=entry_id)
 
     app_db.execute(
@@ -412,7 +412,7 @@ def test_app_role_can_insert_select_and_update(app_db: Connection) -> None:
 
 @pytest.mark.integration
 def test_app_role_is_refused_update_of_code(app_db: Connection) -> None:
-    entry_id = _insert_entry(app_db, business_key="NPTC-200003")
+    entry_id = _insert_entry(app_db, business_key="APTC-200003")
     binding_id = _insert_binding(app_db, entry_id=entry_id)
 
     with pytest.raises(ProgrammingError) as exc_info:
@@ -425,8 +425,8 @@ def test_app_role_is_refused_update_of_code(app_db: Connection) -> None:
 
 @pytest.mark.integration
 def test_app_role_is_refused_update_of_entry_id(app_db: Connection) -> None:
-    first_entry = _insert_entry(app_db, business_key="NPTC-200004")
-    second_entry = _insert_entry(app_db, business_key="NPTC-200005", preferred_term="Other")
+    first_entry = _insert_entry(app_db, business_key="APTC-200004")
+    second_entry = _insert_entry(app_db, business_key="APTC-200005", preferred_term="Other")
     binding_id = _insert_binding(app_db, entry_id=first_entry)
 
     with pytest.raises(ProgrammingError) as exc_info:
@@ -442,7 +442,7 @@ def test_app_role_is_refused_update_of_entry_id(app_db: Connection) -> None:
 def test_app_role_is_refused_delete(app_db: Connection) -> None:
     """A binding is retained once published, never deleted - FR-08's own
     acceptance criterion, enforced at the privilege level."""
-    entry_id = _insert_entry(app_db, business_key="NPTC-200006")
+    entry_id = _insert_entry(app_db, business_key="APTC-200006")
     binding_id = _insert_binding(app_db, entry_id=entry_id)
 
     with pytest.raises(ProgrammingError) as exc_info:
@@ -453,7 +453,7 @@ def test_app_role_is_refused_delete(app_db: Connection) -> None:
 
 @pytest.mark.integration
 def test_app_role_is_refused_truncate(app_db: Connection) -> None:
-    entry_id = _insert_entry(app_db, business_key="NPTC-200007")
+    entry_id = _insert_entry(app_db, business_key="APTC-200007")
     _insert_binding(app_db, entry_id=entry_id)
 
     with pytest.raises(ProgrammingError) as exc_info:

@@ -6,21 +6,21 @@
 ## Context
 
 PRD SS6.5 calls the property registry the highest-risk requirement in the brief. Four P1
-issues - [#51](https://github.com/MattCordell/nptc-platform/issues/51) (`PropertyDefinition`
-model + JSONB `PropertyValue`), [#52](https://github.com/MattCordell/nptc-platform/issues/52)
+issues - [#51](https://github.com/MattCordell/aptc-platform/issues/51) (`PropertyDefinition`
+model + JSONB `PropertyValue`), [#52](https://github.com/MattCordell/aptc-platform/issues/52)
 (per-property JSON Schema validation),
-[#54](https://github.com/MattCordell/nptc-platform/issues/54) (automatic index generation)
-and [#55](https://github.com/MattCordell/nptc-platform/issues/55) (deprecation / key
+[#54](https://github.com/MattCordell/aptc-platform/issues/54) (automatic index generation)
+and [#55](https://github.com/MattCordell/aptc-platform/issues/55) (deprecation / key
 immutability) - are each blocked on this ADR. Without it, four PRs each choose a slightly
 different shape for the same two tables, and the design gets discovered inside whichever
 one lands first.
 
-`backend/src/nptc/registry/` is a one-line docstring stub today. Nothing is being changed;
+`backend/src/aptc/registry/` is a one-line docstring stub today. Nothing is being changed;
 this is a documentation-only PR that fixes the design so #51-#55 implement a schema rather
 than pick one.
 
 Three constraints collide specifically on FR-13 and are why this ADR is long:
-[roles.py](../../backend/src/nptc/db/roles.py)'s `nptc_app` is `NOLOGIN` with `USAGE` +
+[roles.py](../../backend/src/aptc/db/roles.py)'s `aptc_app` is `NOLOGIN` with `USAGE` +
 table `SELECT`/`INSERT` only and cannot `CREATE INDEX`; NFR-22 and
 [test_sql_parameterisation.py](../../backend/tests/test_sql_parameterisation.py) forbid
 runtime data reaching argument 0 of an `execute` call; and
@@ -35,7 +35,7 @@ the storage envelope and names the seams a handler plugs into.
 **`property_definition` is a conventional, fully-constrained relational table, not a
 document.** Columns, fixed against PRD SS6.5's field table: `id` UUID PK + `index_seq`
 BIGINT `GENERATED ALWAYS AS IDENTITY` (mirroring
-[audit.py](../../backend/src/nptc/db/models/audit.py)'s `id`/`sequence` pair, for the ACL
+[audit.py](../../backend/src/aptc/db/models/audit.py)'s `id`/`sequence` pair, for the ACL
 reason ADR-0011 proved - identity, not `serial`, so `INSERT` alone suffices without a
 separate sequence grant), `key` TEXT NOT NULL UNIQUE with
 `CHECK (key ~ '^[a-z][a-z0-9_]{0,62}$')`, `label` TEXT NOT NULL, `datatype` TEXT NOT NULL,
@@ -59,7 +59,7 @@ change landing wherever the migration author happens to put it) plus its own tra
 restrictions. CHECK is the right tool everywhere else - `cardinality`, `scope`, `origin`,
 `status`, `binding_target` and `strength` are closed, stable vocabularies that are not FR-77's
 extension point - and each is table-local, named deterministically by
-[base.py](../../backend/src/nptc/db/base.py)'s `NAMING_CONVENTION`, and already covered by
+[base.py](../../backend/src/aptc/db/base.py)'s `NAMING_CONVENTION`, and already covered by
 the round-trip reflection fingerprint.
 
 **FR-10's binding is four real columns, not a JSONB sub-document**, with
@@ -159,12 +159,12 @@ and CHECK-paired to `binding_target = 'local_code_system'` exactly as
 do this itself, since `local_code_system` (#56) had not landed yet, so the column
 was left out entirely rather than added FK-less; #52 adds it as a real FK from the
 start. This is also the issue that builds the JSON Schema derivation/memoisation
-module `#137` named as its own seam (`nptc.registry.schema`, keyed on `(key,
+module `#137` named as its own seam (`aptc.registry.schema`, keyed on `(key,
 row_version)` exactly as specified above), the write path
-(`nptc.catalogue.property_values.save_property_values`, whole-set replace, validate
+(`aptc.catalogue.property_values.save_property_values`, whole-set replace, validate
 before any row is touched) and the cardinality upper bound enforcement this ADR
 assigned to it. One correction to this ADR's own Decision text: widening
-`nptc.db.roles.GRANT_PROPERTY_DEFINITION_UPDATE_SQL` in place to include the new
+`aptc.db.roles.GRANT_PROPERTY_DEFINITION_UPDATE_SQL` in place to include the new
 column would have silently rewritten migration 0010's own replayed history (that
 migration re-executes the constant verbatim on every fresh migrate) - the actual
 fix is a second, narrower grant statement executed by 0013 itself, not a wider
@@ -211,7 +211,7 @@ Fix:
   fingerprint** via an `include_object` hook matching `^ix_propval_p\d+_[12]$` - this is the
   concrete reason the naming scheme is a strict regex rather than a loose convention.
 - **Executor deferred to #54**, stated as an open question with what is already ruled out
-  recorded so it is not relitigated: granting `nptc_app` ownership (Postgres has no grantable
+  recorded so it is not relitigated: granting `aptc_app` ownership (Postgres has no grantable
   "create index" privilege short of ownership, which also confers `DROP`/`ALTER`/`TRUNCATE` -
   turning a least-privilege runtime role into the schema owner for one DDL operation), and
   running it inline in a request handler (`CREATE INDEX CONCURRENTLY` cannot run inside a
@@ -241,12 +241,12 @@ Fix:
 
 - **Executor topology: an in-process reconciler, callable as a library, plus a CLI - not a
   separate deployable.** The separate-process candidate would have to learn that
-  `filterable` changed by polling `property_definition`, which is the P3 `nptc.jobs` SKIP
+  `filterable` changed by polling `property_definition`, which is the P3 `aptc.jobs` SKIP
   LOCKED queue in a different hat - the very thing this ADR's own alternatives-rejected
-  table already forbids pulling forward for this issue. `nptc.db.property_reconciler.
-  reconcile_property_indexes()` runs on its own `NPTC_INDEXER_DATABASE_URL` credential
-  (`nptc.settings.IndexerSettings`, empty-default fail-closed, deliberately not a fallback
-  to `NPTC_MIGRATION_DATABASE_URL` or `NPTC_DATABASE_URL`), on an `AUTOCOMMIT` connection -
+  table already forbids pulling forward for this issue. `aptc.db.property_reconciler.
+  reconcile_property_indexes()` runs on its own `APTC_INDEXER_DATABASE_URL` credential
+  (`aptc.settings.IndexerSettings`, empty-default fail-closed, deliberately not a fallback
+  to `APTC_MIGRATION_DATABASE_URL` or `APTC_DATABASE_URL`), on an `AUTOCOMMIT` connection -
   verified directly against `postgres:18.6` that `CREATE INDEX CONCURRENTLY` raises `25001`
   otherwise. `scripts/reconcile_property_indexes.py` is the operator/scheduled-check path.
   Not wired into `create_app()`: that would make the API require a DDL credential at boot
@@ -276,7 +276,7 @@ Fix:
   built - a second index per filterable property would double write amplification on
   `property_value` for a fallback the proof found unnecessary.
 - **The numeric expression is made cast-safe, not gated on the P3 conformance sweep.**
-  `nptc_numeric_or_null(text) RETURNS numeric` (`nptc.db.functions`, migration 0014,
+  `aptc_numeric_or_null(text) RETURNS numeric` (`aptc.db.functions`, migration 0014,
   [ADR-0027](0027-cast-safe-numeric-index-expression.md)) turns a non-castable retained
   value into `NULL` rather than failing `CREATE INDEX` outright - verified directly that a
   bare `CAST(value AS NUMERIC)` raises "cannot cast jsonb string to type numeric" against
@@ -295,7 +295,7 @@ Fix:
   value - a latent correctness bug independent of indexing; `DecimalHandler`/
   `PositiveIntHandler` rendered `CAST(value AS NUMERIC)`, exactly the cast-unsafe shape
   this ADR itself warned against. #54 realigned all five handlers' `filter_clause()` (via a
-  new shared `nptc.registry.handlers.jsonb_root_as_text()` for the `TEXT_SCALAR`/
+  new shared `aptc.registry.handlers.jsonb_root_as_text()` for the `TEXT_SCALAR`/
   `NUMERIC_SCALAR` shapes, and `@>` containment - an `OR` of containments for `IN`, since
   `@> ANY(array)` is not GIN-indexable - for `CodeHandler`), bound to the index expressions
   by a parity test (`test_datatype_handlers.py`) so the two representations cannot silently
@@ -307,7 +307,7 @@ Fix:
   already grown a fourth (`versioned-table-bulk-statement`, issue #46) since this ADR's
   original text, without its docstring's "Three rules" header being updated to match. Rule
   5 scopes `psycopg.sql` composition to exactly one module,
-  `nptc.db.property_indexes` - a call to `sql.SQL(...)` anywhere else fails outright, and
+  `aptc.db.property_indexes` - a call to `sql.SQL(...)` anywhere else fails outright, and
   inside that module a `.format()` call is safe only when it is a `sql.SQL(<string
   literal>)` receiver called directly (never a variable reference) with every argument
   itself a `sql.SQL`/`sql.Identifier`/`sql.Literal` call.
@@ -320,7 +320,7 @@ gaps, all fixed in the same PR before merge:
   audited `property_definition` column - an amendment leaves an index that is present and
   `indisvalid` yet serves nothing the property's *current* `filter_clause` renders. Fixed by
   comparing `pg_get_indexdef(indexrelid)` against the expression/key the property's
-  *current* configuration would render (`nptc.db.property_indexes.matches_indexdef`) and
+  *current* configuration would render (`aptc.db.property_indexes.matches_indexdef`) and
   rebuilding on any mismatch, not just re-commenting - a stale `COMMENT ON INDEX` alone is
   now insufficient evidence that only the comment drifted. (`key` is compared too, as
   defence in depth against a raw-SQL rename, though `PropertyDefinition.key` is itself
@@ -337,7 +337,7 @@ gaps, all fixed in the same PR before merge:
 - **`facet_expression` kept the exact defects `filter_clause` was fixed for** on
   `string`/`url` (`CAST(value AS VARCHAR)`, still JSON-quoted) and `positiveInt`
   (`CAST(value AS integer)`, still raises on a retained non-numeric value) - realigned to
-  `jsonb_root_as_text`/`nptc_numeric_or_null` respectively, with a parity test.
+  `jsonb_root_as_text`/`aptc_numeric_or_null` respectively, with a parity test.
 - **One failing index aborted the whole convergence run.** Each desired/orphaned index now
   gets its own `try`/`except` (safe under `AUTOCOMMIT`: a failed statement leaves no aborted
   transaction for the next one to inherit, verified directly), collected into a new
@@ -352,7 +352,7 @@ gaps, all fixed in the same PR before merge:
   (`public.property_value` - `CREATE INDEX` cannot itself schema-qualify the index name,
   since Postgres always creates an index in its table's schema), and `drop_statement`/
   `comment_statement` qualify the index name instead (which those two statements do accept).
-- **A whitespace-only `NPTC_INDEXER_DATABASE_URL` passed the fail-closed guard.**
+- **A whitespace-only `APTC_INDEXER_DATABASE_URL` passed the fail-closed guard.**
   `IndexerSettings.indexer_database_url` gained a `field_validator` that strips the value,
   so `"   "` now correctly triggers `IndexerNotConfiguredError` instead of failing later,
   less legibly, inside `create_engine`.
@@ -361,18 +361,18 @@ gaps, all fixed in the same PR before merge:
   Postgres has no such privilege, and the tests hid it by connecting as a superuser. A login
   needs ownership of the table, plus `CREATE` on schema `public` (checked for every new index)
   and `SELECT` on `property_definition` (the reconciler reads it). Migration 0025 gives
-  ownership of `property_value` to a `NOLOGIN` role, `nptc_property_index_owner`, and
-  `nptc_indexer` is a member, so the login holds these rights without being the migration
-  owner or `nptc_app`. The cost is that the login can also alter, drop and truncate
+  ownership of `property_value` to a `NOLOGIN` role, `aptc_property_index_owner`, and
+  `aptc_indexer` is a member, so the login holds these rights without being the migration
+  owner or `aptc_app`. The cost is that the login can also alter, drop and truncate
   `property_value` and create objects in `public`; `backend/tests/test_indexer_role.py` pins
   that it can touch no other table. It can also plant a function, and a trigger, rule or index
-  expression that calls it, which then run as whoever writes the table: `nptc_app`, or the
+  expression that calls it, which then run as whoever writes the table: `aptc_app`, or the
   migration role during a migration (a superuser in compose). So a leaked
-  `NPTC_INDEXER_DATABASE_URL` is as serious as the migration credential. This is accepted, not
+  `APTC_INDEXER_DATABASE_URL` is as serious as the migration credential. This is accepted, not
   removed: a migration that writes `property_value` calls
-  `nptc.db.migration_guards.refuse_foreign_code_on_property_value` first, and `upgrade.md` says
+  `aptc.db.migration_guards.refuse_foreign_code_on_property_value` first, and `upgrade.md` says
   to run migrations as a non-superuser in production. The registry write path now dispatches the reconciler
-  after the commit, through `nptc.db.session.after_commit`, not FastAPI's `BackgroundTasks`:
+  after the commit, through `aptc.db.session.after_commit`, not FastAPI's `BackgroundTasks`:
   those run before a request-scoped session commits, so a task would read the old
   definition (`backend/tests/test_after_commit.py` pins the ordering).
 - **`finally: connection.execute(_UNLOCK_SQL, ...)` could mask the original exception** if
@@ -383,9 +383,9 @@ gaps, all fixed in the same PR before merge:
 the drift-detection marker itself was under-specified, plus five smaller gaps:
 
 - **`matches_indexdef`'s `TEXT_SCALAR` marker was a substring of the `NUMERIC_SCALAR` one.**
-  `value #>> '{}'::text[]` appears inside `nptc_numeric_or_null((value #>> '{}'::text[]))`
+  `value #>> '{}'::text[]` appears inside `aptc_numeric_or_null((value #>> '{}'::text[]))`
   too, so a `decimal`/`positiveInt` -> `string`/`url` amendment (the untested direction of
-  the pair) went undetected: the property kept a `nptc_numeric_or_null(...)` btree no
+  the pair) went undetected: the property kept a `aptc_numeric_or_null(...)` btree no
   `StringHandler.filter_clause` predicate can use. Fixed by anchoring the `TEXT_SCALAR`
   marker on `text_pattern_ops` instead - the opclass only that shape's `create_statement`
   ever specifies, so it cannot appear in either of the other two shapes' `pg_get_indexdef`
@@ -393,9 +393,9 @@ the drift-detection marker itself was under-specified, plus five smaller gaps:
   (default opclass, no `text_pattern_ops` in its own `pg_get_indexdef`): it now correctly
   reads as stale and gets rebuilt with the corrected opclass, rather than the `PREFIX` fix
   silently never reaching an already-reconciled database.
-- **`nptc_numeric_or_null` was left unqualified inside the index expression** while the table
+- **`aptc_numeric_or_null` was left unqualified inside the index expression** while the table
   reference beside it was already schema-qualified for the identical `search_path` reason -
-  `create_statement` now calls `public.nptc_numeric_or_null(...)`.
+  `create_statement` now calls `public.aptc_numeric_or_null(...)`.
 - **`FilterOp.PREFIX` still had no query-plan evidence.** `test_db_property_index_plan.py`
   gained an `EXPLAIN` case proving `PREFIX` itself uses the `text_pattern_ops` index (the
   pattern is two constants either side of `||`, which Postgres constant-folds before
@@ -421,13 +421,13 @@ second-pass marker fix is exclusive in both directions, and found one new proble
 things worth deciding before merge:
 
 - **The `public.` qualification on the function reference was one-sided.** `create_statement`
-  was fixed to call `public.nptc_numeric_or_null(...)`, but `nptc.db.functions.
+  was fixed to call `public.aptc_numeric_or_null(...)`, but `aptc.db.functions.
   CREATE_NUMERIC_OR_NULL_FUNCTION_SQL` still created the function unqualified - so migration
   0014 puts it in whatever schema the *migration* role's `search_path` names first, while the
   reconciler, on a different role's connection, now insists on `public`. Unlike the table
   reference, a mismatch here is not silently wrong but a permanent failure (`function
-  public.nptc_numeric_or_null(text) does not exist`) retried forever. Fixed by qualifying both
-  the `CREATE` and the `DROP` in `functions.py`. `nptc_sctid_is_valid`/`nptc_search_text` do
+  public.aptc_numeric_or_null(text) does not exist`) retried forever. Fixed by qualifying both
+  the `CREATE` and the `DROP` in `functions.py`. `aptc_sctid_is_valid`/`aptc_search_text` do
   not have this problem and were not touched: they are only ever referenced by other
   migration-created objects under the same role, so they are self-consistent either way - this
   function is the first one referenced from a genuinely different connection, which is what
@@ -482,7 +482,7 @@ unknown `datatype` on a single `property_definition` row aborted the entire run.
 
 **FR-11/FR-12 enforcement: column-level privilege is what makes both unconditional, never a
 trigger** - the FK above is a secondary backstop, conditional on a dependent value existing,
-not the mechanism itself. `nptc_app` gets `UPDATE` at column level on every
+not the mechanism itself. `aptc_app` gets `UPDATE` at column level on every
 `property_definition` column except `key`, `id`, `index_seq`, `origin` and `created_at`
 (never table-level `UPDATE`, which would supersede the column list) - FR-12 reduces to
 "`INSERT` may set `key`, `UPDATE` may not touch it", failing with `42501` regardless of what
@@ -543,9 +543,9 @@ storage code path as an admin-defined one. `Length` is absent from the registry 
 | A handler-populated `json_schema` cache column | Reintroduces the staleness problem the in-process `(key, row_version)` memoisation exists to avoid - a column-based cache needs its own invalidation trigger (banned) or its own bump logic duplicating `row_version`. |
 | A per-value schema version pin | N live schema versions in the catalogue simultaneously, and every reader special-cases which version a value was validated against - the failure this design exists to avoid. |
 | One generic whole-table GIN index | Can't express a numeric range predicate for `decimal`/`positiveInt` properties, and mixes selectivity across unrelated properties in one index, defeating the planner's ability to reason about any one property's filter. |
-| Granting `nptc_app` ownership of `property_value` | Postgres has no grantable "create index" privilege short of ownership, which also confers `DROP`/`ALTER`/`TRUNCATE` - turns a least-privilege runtime role into the schema owner for one DDL operation. |
+| Granting `aptc_app` ownership of `property_value` | Postgres has no grantable "create index" privilege short of ownership, which also confers `DROP`/`ALTER`/`TRUNCATE` - turns a least-privilege runtime role into the schema owner for one DDL operation. |
 | Running the index DDL inline in a request handler | `CREATE INDEX CONCURRENTLY` cannot run inside a transaction block; inline execution either drops `CONCURRENTLY` (a read-blocking lock) or splits the handler across an implicit autocommit boundary mid-request. |
-| Building `nptc/jobs/`'s general SKIP LOCKED queue now | The DDL executor is a single, infrequent, schema-privileged operation, not a stream of application jobs - pulls forward work #54 (and the queue's real consumer, P3) doesn't need yet. |
+| Building `aptc/jobs/`'s general SKIP LOCKED queue now | The DDL executor is a single, infrequent, schema-privileged operation, not a stream of application jobs - pulls forward work #54 (and the queue's real consumer, P3) doesn't need yet. |
 | `ix_property_value_<key>` index names | The key is exactly data-model.md's caveat's likely first victim of 63-byte truncation - a property key long enough to be a good label collides silently with the table-name-based prefix, and two truncated names can collide with each other. |
 | A `# noqa`-style guard exemption instead of a fourth NFR-22 rule | An exemption is a hole that widens - the next dynamic-DDL call site copies the exemption rather than the narrower rule it was meant to encode. |
 | A trigger for FR-11/FR-12 | PRD Section 14.1 bans business logic in database triggers/functions - invisible to tests and review - and a trigger is bypassable by the table owner in the same way a privilege grant is not. |
@@ -575,7 +575,7 @@ storage code path as an admin-defined one. `Length` is absent from the registry 
   table-level and is blind to FR-12's column-level `UPDATE` grant - and must filter generated
   indexes (the `include_object`-excluded names) out of the comparison, or the fingerprint
   would fail the moment #54 creates the first one.
-- `backend/migrations/env.py` gains the `include_object` hook; `nptc.db.roles` extends its
+- `backend/migrations/env.py` gains the `include_object` hook; `aptc.db.roles` extends its
   constants pattern to the new column-level grant and the `property_value` grants.
 - FR-09 through FR-13 stay `planned` - this ADR is a design record, not evidence of
   implementation (ADR-0002's distinction).

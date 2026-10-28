@@ -12,7 +12,7 @@ applies here.
 Issue #47 (FR-04, FR-24, FR-37, FR-85): catalogue-side designations
 (synonyms and non-en-AU preferred-term variants), never the SNOMED
 CT-served labels that live on `code_binding` (#48) - see
-`nptc.db.models.designation`'s own module docstring for the full
+`aptc.db.models.designation`'s own module docstring for the full
 three-strings reasoning.
 
 Three invariants enforced at the database layer, not merely by
@@ -54,7 +54,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-from nptc.db import roles
+from aptc.db import roles
 
 # revision identifiers, used by Alembic.
 revision: str = "0007"

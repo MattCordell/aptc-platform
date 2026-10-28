@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from nptc_shared.sctid import has_valid_check_digit
-from nptc_shared.terminology.models import SPECIMEN_ROOT_CODE
-from nptc_transform.specimen_map import (
+from aptc_shared.sctid import has_valid_check_digit
+from aptc_shared.terminology.models import SPECIMEN_ROOT_CODE
+from aptc_transform.specimen_map import (
     SPECIMEN_MAP,
     SpecimenMapError,
     normalise_specimen_key,

@@ -76,7 +76,7 @@ export function RegisterPage() {
       actions={<BackToLandingLink />}
     >
       <p className="m-0">
-        You are being sent to the NPTC sign-in service to create an account. If nothing
+        You are being sent to the APTC sign-in service to create an account. If nothing
         happens, your browser may have blocked the redirect - reload this page to try
         again.
       </p>

@@ -5,7 +5,7 @@ account to use it.
 
 ## What you see
 
-- **A title and a one-sentence description** of the National Pathology Test Catalogue.
+- **A title and a one-sentence description** of the Australian Pathology Test Catalogue.
 - **A search box.** Type a test name or a code, then choose **Search** or press Enter.
 - **Account actions.** These change with your sign-in state; see below.
 - **Three cards** that say what the catalogue is, who maintains it, and how to contribute.

@@ -4,7 +4,7 @@ Revision ID: 0017
 Revises: 0016
 Create Date: 2026-09-07
 
-Issue #140 (FR-17): `nptc.catalogue.queries.get_entry_by_code` looks up a
+Issue #140 (FR-17): `aptc.catalogue.queries.get_entry_by_code` looks up a
 `code_binding` by `(system, code)` with no `status` predicate - it must see
 retired rows as well as active ones (FR-08), unlike every other query
 against this table. Every existing `(system, code)`/`code` index is partial

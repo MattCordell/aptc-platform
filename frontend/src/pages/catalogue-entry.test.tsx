@@ -13,7 +13,7 @@ import { waitForSession } from "../test/wait-for-session.ts";
  * the real route and signed out, as an anonymous visitor uses it.
  */
 
-const KEY = "NPTC-000247";
+const KEY = "APTC-000247";
 // Eighteen digits: past `Number.MAX_SAFE_INTEGER`, so a coerced code would
 // render differently (FR-06).
 const LONG_CODE = "999480561000168100";
@@ -107,7 +107,7 @@ function snomedSynonyms(status: "available" | "unavailable", terms: string[] = [
   };
 }
 
-const LOCAL_SYSTEM = "https://nptc.example.org/CodeSystem/discipline";
+const LOCAL_SYSTEM = "https://aptc.example.org/CodeSystem/discipline";
 
 /** The shape a coded property value has on the wire. */
 function coded(code: string, display: string | null, system: string) {
@@ -238,7 +238,7 @@ describe("the entry heading and header", () => {
     await renderEntry();
 
     await screen.findByRole("heading", { level: 1, name: "Ferritin" });
-    await waitFor(() => expect(document.title).toBe("Ferritin — NPTC Catalogue"));
+    await waitFor(() => expect(document.title).toBe("Ferritin — APTC Catalogue"));
   });
 
   it("requests the entry by its business key", async () => {

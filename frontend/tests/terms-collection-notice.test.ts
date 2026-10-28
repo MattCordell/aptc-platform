@@ -19,7 +19,7 @@ import { COLLECTION_NOTICE } from "../src/shell/collection-notice.ts";
 
 const MESSAGES = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  "../../deploy/keycloak/themes/nptc/login/messages/messages_en.properties",
+  "../../deploy/keycloak/themes/aptc/login/messages/messages_en.properties",
 );
 
 function keycloakMessages(): Map<string, string> {
@@ -37,12 +37,12 @@ describe("the gate's collection notice matches Keycloak's registration notice", 
   const messages = keycloakMessages();
 
   it.each([
-    ["title", "nptcRegisterNoticeTitle"],
-    ["visible", "nptcRegisterNoticeVisible"],
-    ["retention", "nptcRegisterNoticeRetention"],
-    ["organisation", "nptcRegisterNoticeOrganisation"],
-    ["access", "nptcRegisterNoticeAccess"],
-    ["privacyLink", "nptcRegisterPrivacyLink"],
+    ["title", "aptcRegisterNoticeTitle"],
+    ["visible", "aptcRegisterNoticeVisible"],
+    ["retention", "aptcRegisterNoticeRetention"],
+    ["organisation", "aptcRegisterNoticeOrganisation"],
+    ["access", "aptcRegisterNoticeAccess"],
+    ["privacyLink", "aptcRegisterPrivacyLink"],
   ] as const)("says the same as %s", (field, key) => {
     expect(COLLECTION_NOTICE[field]).toBe(messages.get(key));
   });
@@ -52,7 +52,7 @@ describe("the gate's collection notice matches Keycloak's registration notice", 
   it("says the same as collect, naming the registration form", () => {
     expect(COLLECTION_NOTICE.collect).toBe(
       messages
-        .get("nptcRegisterNoticeCollect")
+        .get("aptcRegisterNoticeCollect")
         ?.replace("on this form", "on the registration form"),
     );
   });

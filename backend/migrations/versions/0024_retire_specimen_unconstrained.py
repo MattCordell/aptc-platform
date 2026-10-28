@@ -25,12 +25,12 @@ property definition is absent. The loader creates that definition before it writ
 a catalogue with entries has it.
 
 Both directions refuse to write `property_value` while a trigger, rule or index-owner function is
-on it (`nptc.db.migration_guards`): migration 0025 lets another login create those, and they would
+on it (`aptc.db.migration_guards`): migration 0025 lets another login create those, and they would
 run as the migration role.
 
 Downgrade re-adds the column and puts back what the upgrade took: an entry whose only specimen
 is the root becomes flagged again, and that value is removed, which restores the old rule that
-an entry holds the flag or specimens, never both. The column's `UPDATE` grant for `nptc_app` is
+an entry holds the flag or specimens, never both. The column's `UPDATE` grant for `aptc_app` is
 re-granted.
 """
 
@@ -43,8 +43,8 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-from nptc.db import roles
-from nptc.db.migration_guards import refuse_foreign_code_on_property_value
+from aptc.db import roles
+from aptc.db.migration_guards import refuse_foreign_code_on_property_value
 
 # revision identifiers, used by Alembic.
 revision: str = "0024"

@@ -5,7 +5,7 @@ Revises: 0037
 Create Date: 2026-10-15
 
 FR-28, FR-29, NFR-08: `submission.created_entry_id`, the catalogue entry that approving a new test
-created. See `nptc.db.models.submission` for the reasoning.
+created. See `aptc.db.models.submission` for the reasoning.
 
 The column is nullable, and a check allows a value only on a new test, because an amendment already
 names its entry in `entry_id`. No approval exists at revision 0037, so every stored row is null and
@@ -28,7 +28,7 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-from nptc.db import roles
+from aptc.db import roles
 
 # revision identifiers, used by Alembic.
 revision: str = "0038"

@@ -1,4 +1,4 @@
-"""NFR-08/NFR-10 structural guard: `nptc.audit.writer.append_audit_event`
+"""NFR-08/NFR-10 structural guard: `aptc.audit.writer.append_audit_event`
 is the only sanctioned way to write `audit_event` (issue #36) - nothing
 short of a structural check enforces that claim, since a bare
 `AuditEvent(...)` + `session.add()` or a raw `INSERT INTO audit_event`
@@ -12,19 +12,19 @@ walker match nothing still fails loudly, rather than this genre of test
 rotting into one that always passes.
 
 Three rules, all scoped to every file *except*
-`backend/src/nptc/audit/writer.py` itself (which legitimately constructs
+`backend/src/aptc/audit/writer.py` itself (which legitimately constructs
 `AuditEvent` and is the writer this guard exists to keep unique):
 
 1. Calling `AuditEvent(...)` as a constructor.
 2. A string literal SQL `INSERT` targeting `audit_event`.
-3. **`audit-diff-bypass`** (issue #37) - outside `backend/src/nptc/audit/`,
+3. **`audit-diff-bypass`** (issue #37) - outside `backend/src/aptc/audit/`,
    a call to `append_audit_event` carrying a `before=` or `after=` keyword
    whose value is not the literal `None`. Deliberately narrower than "no
-   `append_audit_event` outside `nptc/audit/`": a diff-free event (e.g. a
+   `append_audit_event` outside `aptc/audit/`": a diff-free event (e.g. a
    future `release.published`) is legitimate and must still be callable
    directly. What is not legitimate is a caller hand-building a
    `before`/`after` payload instead of going through
-   `nptc.audit.recording.record_change`/`record_snapshot_change` - that is
+   `aptc.audit.recording.record_change`/`record_snapshot_change` - that is
    exactly the per-endpoint reimplementation issue #37 exists to close off.
 """
 
@@ -40,7 +40,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCAN_DIR = REPO_ROOT / "backend" / "src"
-_EXEMPT_FILE = REPO_ROOT / "backend" / "src" / "nptc" / "audit" / "writer.py"
+_EXEMPT_FILE = REPO_ROOT / "backend" / "src" / "aptc" / "audit" / "writer.py"
 
 _INSERT_AUDIT_EVENT_RE = re.compile(r"^\s*insert\s+into\s+[\"']?audit_event\b", re.IGNORECASE)
 
@@ -94,10 +94,10 @@ def _hand_built_diff_keywords(node: ast.Call) -> list[ast.keyword]:
 
 
 #: Rule 3 (`audit-diff-bypass`) is scoped to every file *outside* this
-#: package - `nptc.audit` itself is where a hand-built `before`/`after`
-#: payload is legitimately assembled (`nptc.audit.recording` is the thing
+#: package - `aptc.audit` itself is where a hand-built `before`/`after`
+#: payload is legitimately assembled (`aptc.audit.recording` is the thing
 #: doing the assembling), not a bypass of it.
-_AUDIT_PACKAGE_DIR = REPO_ROOT / "backend" / "src" / "nptc" / "audit"
+_AUDIT_PACKAGE_DIR = REPO_ROOT / "backend" / "src" / "aptc" / "audit"
 
 
 def _check_source(
@@ -113,7 +113,7 @@ def _check_source(
                     display_path,
                     node.lineno,
                     "audit-event-constructor",
-                    "AuditEvent(...) constructed outside nptc.audit.writer",
+                    "AuditEvent(...) constructed outside aptc.audit.writer",
                 )
             )
 
@@ -143,8 +143,8 @@ def _check_source(
                         node.lineno,
                         "audit-diff-bypass",
                         f"append_audit_event(...) called with a hand-built {kw.arg}= "
-                        "payload outside nptc.audit - use "
-                        "nptc.audit.recording.record_change/record_snapshot_change instead",
+                        "payload outside aptc.audit - use "
+                        "aptc.audit.recording.record_change/record_snapshot_change instead",
                     )
                 )
 
@@ -171,7 +171,7 @@ def test_no_second_unaudited_write_path_to_audit_event() -> None:
     violations = [v for path in _iter_source_files() for v in _check_file(path)]
 
     assert not violations, (
-        "found a write path to audit_event outside nptc.audit.writer:\n"
+        "found a write path to audit_event outside aptc.audit.writer:\n"
         + "\n".join(str(v) for v in violations)
     )
 
@@ -182,8 +182,8 @@ def test_guard_flags_known_violations() -> None:
     own function, so the guard can't silently rot into a no-op that never
     fires."""
     bad_source = """
-from nptc.audit.writer import append_audit_event
-from nptc.db.models.audit import AuditEvent
+from aptc.audit.writer import append_audit_event
+from aptc.db.models.audit import AuditEvent
 
 
 def direct_constructor(session):
@@ -220,7 +220,7 @@ def test_guard_does_not_flag_a_diff_free_append_audit_event_call() -> None:
     `append_audit_event` must stay callable directly for - e.g. a future
     `release.published` with nothing to diff."""
     good_source = """
-from nptc.audit.writer import append_audit_event
+from aptc.audit.writer import append_audit_event
 
 
 def diff_free_event(session, ctx):
@@ -240,11 +240,11 @@ def diff_free_event(session, ctx):
 
 
 def test_guard_exempts_the_audit_package_itself_from_the_bypass_rule() -> None:
-    """`nptc.audit.recording` is the module that legitimately builds
+    """`aptc.audit.recording` is the module that legitimately builds
     `before=`/`after=` and calls `append_audit_event` with them - the
     bypass rule must not flag its own implementation."""
     source_inside_audit_package = """
-from nptc.audit.writer import append_audit_event
+from aptc.audit.writer import append_audit_event
 
 
 def record_change(session, ctx):

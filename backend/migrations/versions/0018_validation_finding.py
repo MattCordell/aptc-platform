@@ -7,14 +7,14 @@ Create Date: 2026-09-07
 Issue #141 (FR-18, FR-45, FR-55): PRD SS6.1's `CatalogueEntry --<
 ValidationFinding (open / acknowledged / resolved / superseded)`, landed
 minimal and read-only ahead of the P3 sweep that will populate it - see
-`nptc.db.models.validation_finding`'s own module docstring for the full
-reasoning, and `nptc.db.roles.GRANT_VALIDATION_FINDING_SQL`'s comment for
+`aptc.db.models.validation_finding`'s own module docstring for the full
+reasoning, and `aptc.db.roles.GRANT_VALIDATION_FINDING_SQL`'s comment for
 why the grant is SELECT-only rather than this file's usual SELECT+INSERT.
 
 Also adds `ix_audit_event_entity_type_entity_id_sequence` (PR #278 review):
-`nptc.catalogue.history.load_history`'s public, unbounded read of
+`aptc.catalogue.history.load_history`'s public, unbounded read of
 `audit_event` had no supporting index until this - see
-`nptc.db.models.audit.AuditEvent.__table_args__`'s own comment.
+`aptc.db.models.audit.AuditEvent.__table_args__`'s own comment.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-from nptc.db import roles
+from aptc.db import roles
 
 # revision identifiers, used by Alembic.
 revision: str = "0018"

@@ -1,7 +1,7 @@
 """`route_inventory_support`'s own correctness (issue #44/#165): the
 checker must fail when a mutating route has no declared coverage, fail
 when a covered entry names a route that no longer exists, and pass when
-neither is true - proven against synthetic apps here, since `nptc/api/`
+neither is true - proven against synthetic apps here, since `aptc/api/`
 has no real `FastAPI()` app yet (it is a docstring stub, landing with
 P1-9/#142/#143). Once that app exists, the same `mutating_routes`/
 `assert_inventory_covers_every_mutating_route` should be pointed at it
@@ -19,8 +19,8 @@ from pathlib import Path
 import pytest
 from fastapi import FastAPI
 
-from nptc.api.app import create_app
-from nptc.api.openapi_document import GENERATION_FRONTEND_BASE_URL
+from aptc.api.app import create_app
+from aptc.api.openapi_document import GENERATION_FRONTEND_BASE_URL
 
 
 def _load(name: str):

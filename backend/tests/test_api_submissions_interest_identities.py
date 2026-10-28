@@ -20,17 +20,17 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.engine import Connection
 
-from nptc.api.dependencies import current_principal
-from nptc.audit.writer import AuditContext
-from nptc.auth.identity import close_account
-from nptc.auth.permissions import Permission, Role
-from nptc.auth.principal import Principal
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.submission import CLOSED_SUBMISSION_STATES, Submission, SubmissionKind
-from nptc.db.models.submission_interest import SubmissionInterest
-from nptc.db.models.user import User
-from nptc.db.models.user_identity import UserIdentity
-from nptc.submissions.interest_identities import NO_ORGANISATION_LABEL
+from aptc.api.dependencies import current_principal
+from aptc.audit.writer import AuditContext
+from aptc.auth.identity import close_account
+from aptc.auth.permissions import Permission, Role
+from aptc.auth.principal import Principal
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.submission import CLOSED_SUBMISSION_STATES, Submission, SubmissionKind
+from aptc.db.models.submission_interest import SubmissionInterest
+from aptc.db.models.user import User
+from aptc.db.models.user_identity import UserIdentity
+from aptc.submissions.interest_identities import NO_ORGANISATION_LABEL
 
 
 def _load(name: str) -> Any:

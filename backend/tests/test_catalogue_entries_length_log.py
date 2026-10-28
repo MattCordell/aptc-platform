@@ -14,12 +14,12 @@ import logging
 import pytest
 from sqlalchemy.orm import Session
 
-from nptc.audit.writer import AuditContext
-from nptc.catalogue.entries import EntryChanges, create_entry, save_entries, save_entry
-from nptc.catalogue.errors import EntryVersionConflictError
-from nptc.db.models.catalogue_entry import CatalogueEntry
+from aptc.audit.writer import AuditContext
+from aptc.catalogue.entries import EntryChanges, create_entry, save_entries, save_entry
+from aptc.catalogue.errors import EntryVersionConflictError
+from aptc.db.models.catalogue_entry import CatalogueEntry
 
-_LOGGER = "nptc.catalogue.entries"
+_LOGGER = "aptc.catalogue.entries"
 _REASON = "Created for the FR-86 write-path test"
 
 

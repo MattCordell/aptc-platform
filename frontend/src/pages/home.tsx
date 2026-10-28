@@ -126,12 +126,11 @@ export function HomePage() {
       <section aria-labelledby="home-heading" className="flex flex-col gap-6">
         <div className="flex max-w-3xl flex-col gap-3">
           <h1 id="home-heading" className="m-0 text-4xl">
-            NPTC Catalogue Maintenance Platform
+            APTC Catalogue Maintenance Platform
           </h1>
           <p className="m-0 text-lg text-[var(--color-text-muted)]">
-            The National Pathology Test Catalogue: the SPIA Requesting terminology,
-            curated by RCPA-QAP, published by NCTS as a SNOMED CT reference set and FHIR
-            ValueSet.
+            The pathology test catalogue: the SPIA Requesting terminology, curated by
+            RCPA-QAP, published by NCTS as a SNOMED CT reference set and FHIR ValueSet.
           </p>
         </div>
         <div className="max-w-3xl">

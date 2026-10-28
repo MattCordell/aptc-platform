@@ -14,16 +14,16 @@ application convention:
 
 - `business_key` (FR-03) is immutable and never reused: `UNIQUE`, no
   column-level `UPDATE` grant, and no `DELETE`/`TRUNCATE` grant at all -
-  see `nptc.db.roles`'s comments on each constant for the full reasoning.
+  see `aptc.db.roles`'s comments on each constant for the full reasoning.
 - `row_version` (FR-38) is bumped by exactly one write path - SQLAlchemy's
   `version_id_col` machinery on `CatalogueEntry`'s mapped `UPDATE` - which
   is why `row_version` sits inside the column-level `UPDATE` grant rather
   than being excluded alongside `business_key`.
 
-`catalogue_entry_business_key_seq` backs `nptc.catalogue.entries.
+`catalogue_entry_business_key_seq` backs `aptc.catalogue.entries.
 allocate_business_key`'s `nextval()` call - a plain sequence, not an
 `IDENTITY` column, because the application must read the next value and
-format it into `NPTC-######` *before* the row exists, unlike
+format it into `APTC-######` *before* the row exists, unlike
 `audit_event.sequence`'s `IDENTITY` column (see that model's own comment on
 why an identity column's backing sequence needs no separate grant, and a
 plain sequence does). `ALTER SEQUENCE ... OWNED BY` ties the sequence's
@@ -37,7 +37,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-from nptc.db import roles
+from aptc.db import roles
 
 # revision identifiers, used by Alembic.
 revision: str = "0006"
@@ -84,7 +84,7 @@ def upgrade() -> None:
             name=op.f("ck_catalogue_entry_status"),
         ),
         sa.CheckConstraint(
-            "business_key ~ '^NPTC-[0-9]{6,}$'",
+            "business_key ~ '^APTC-[0-9]{6,}$'",
             name=op.f("ck_catalogue_entry_business_key"),
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_catalogue_entry")),

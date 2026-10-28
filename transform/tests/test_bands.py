@@ -10,13 +10,13 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from nptc_transform.bands import BAND_BY_CODE, Band, FindingCode, band_for, blocks_import
-from nptc_transform.cell_defects import scan_workbook
-from nptc_transform.cellref import CellRef
-from nptc_transform.cli import app
-from nptc_transform.findings import Finding
-from nptc_transform.pipeline import Mode, run_transform
-from nptc_transform.workbook import read_workbook
+from aptc_transform.bands import BAND_BY_CODE, Band, FindingCode, band_for, blocks_import
+from aptc_transform.cell_defects import scan_workbook
+from aptc_transform.cellref import CellRef
+from aptc_transform.cli import app
+from aptc_transform.findings import Finding
+from aptc_transform.pipeline import Mode, run_transform
+from aptc_transform.workbook import read_workbook
 
 runner = CliRunner()
 

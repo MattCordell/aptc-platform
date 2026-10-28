@@ -14,7 +14,7 @@ configurable, single-line change rather than an oversight."
 
 ADR-0001/FR-74 already settled that the transform must not have a second, divergent
 implementation of anything the backend also validates — that is what `shared/` exists
-for, and both `shared/src/nptc_shared/__init__.py` and `shared/pyproject.toml`'s
+for, and both `shared/src/aptc_shared/__init__.py` and `shared/pyproject.toml`'s
 description already named "the terminology client contract" as work owed to this package.
 Two consumers need to *call* a server, not merely describe one: the transform, for FR-74's
 dual-edition validation at seeding (P0-5, issue #27); and the backend, for FR-26's live
@@ -27,13 +27,13 @@ even there.
 ## Decision
 
 1. The `TerminologyClient` Protocol, `StubTerminologyClient`, and the Ontoserver HTTP
-   implementation (`OntoserverClient`) all live in `shared/src/nptc_shared/terminology/`.
+   implementation (`OntoserverClient`) all live in `shared/src/aptc_shared/terminology/`.
    One implementation, used identically by `backend` and `transform` (FR-74).
 2. `shared/` takes `httpx` as its first runtime dependency (`shared/pyproject.toml`:
    `dependencies = ["httpx>=0.28"]`).
 3. The contract is synchronous (`httpx.Client`, not `httpx.AsyncClient`).
 4. Authentication is anonymous by default against `https://tx.ontoserver.csiro.au/fhir`,
-   with an optional static bearer token read from `NPTC_TX_TOKEN`. Full OAuth2
+   with an optional static bearer token read from `APTC_TX_TOKEN`. Full OAuth2
    client-credentials is deferred to a future issue.
 5. Configuration is an explicit frozen dataclass (`TerminologyConfig`) with a
    `from_env()` classmethod reading `os.environ`, not `pydantic-settings`.
@@ -63,16 +63,16 @@ contract test suite") made mechanical rather than a documentation claim.
 
 - `shared/` is no longer dependency-free. `transform/` and `backend/` both pick up
   `httpx` (and its own transitive dependencies: `httpcore`, `certifi`, `h11`) via
-  `nptc-shared`, even when a consumer never calls the terminology client — accepted, since
+  `aptc-shared`, even when a consumer never calls the terminology client — accepted, since
   both already needed it directly or would soon.
 - FastAPI's `TestClient` (which itself requires `httpx`) becomes available to the backend
   test suite at no additional dependency cost, once the backend has any routes to test.
-- Repointing at NCTS production or a self-hosted Ontoserver is a `NPTC_TX_BASE_URL`
+- Repointing at NCTS production or a self-hosted Ontoserver is a `APTC_TX_BASE_URL`
   change, not a code change — the configurable-endpoint mitigation PRD Section 15.2
   promises for its accepted risk.
 - OAuth2 client-credentials, if a future NCTS endpoint requires it, adds fields to
   `TerminologyConfig` and a token-acquisition path inside `OntoserverClient` without
   changing the `TerminologyClient` Protocol or `StubTerminologyClient` at all.
 - Issue #27 (chunked FR-52/FR-84 validation) adds bounded concurrency over this
-  synchronous client via `ThreadPoolExecutor`, plus `NPTC_TX_CHUNK_SIZE` and
-  `NPTC_TX_MAX_CONCURRENCY` configuration, without changing this contract.
+  synchronous client via `ThreadPoolExecutor`, plus `APTC_TX_CHUNK_SIZE` and
+  `APTC_TX_MAX_CONCURRENCY` configuration, without changing this contract.

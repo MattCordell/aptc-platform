@@ -1,4 +1,4 @@
-"""`nptc.comments.service` tests (FR-95, FR-63, NFR-08).
+"""`aptc.comments.service` tests (FR-95, FR-63, NFR-08).
 
 Each refusal asserts that no comment row and no audit event was added. `backend/tests` shares one
 Postgres container (see `CLAUDE.md`), so every query is scoped to the rows this test created, and an
@@ -15,15 +15,15 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from nptc.audit.diffing import REDACTED_KEY
-from nptc.audit.writer import AuditContext
-from nptc.catalogue.errors import EntryNotFoundError
-from nptc.comments.errors import (
+from aptc.audit.diffing import REDACTED_KEY
+from aptc.audit.writer import AuditContext
+from aptc.catalogue.errors import EntryNotFoundError
+from aptc.comments.errors import (
     CommentAlreadyWithdrawnError,
     CommentNotFoundError,
     CommentTextRequiredError,
 )
-from nptc.comments.service import (
+from aptc.comments.service import (
     CommentTarget,
     EntryTarget,
     SubmissionTarget,
@@ -31,12 +31,12 @@ from nptc.comments.service import (
     post_comment,
     withdraw_comment,
 )
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
-from nptc.db.models.internal_comment import InternalComment
-from nptc.db.models.submission import Submission, SubmissionKind
-from nptc.db.models.user import User
-from nptc.submissions.errors import FreeTextField, FreeTextRefusedError, SubmissionNotFoundError
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
+from aptc.db.models.internal_comment import InternalComment
+from aptc.db.models.submission import Submission, SubmissionKind
+from aptc.db.models.user import User
+from aptc.submissions.errors import FreeTextField, FreeTextRefusedError, SubmissionNotFoundError
 
 _BODY = "Check the reference range with the lab."
 _REASON = "Posted on the wrong submission"
@@ -73,7 +73,7 @@ def _submission(session: Session, submitter: User) -> Submission:
 
 def _entry(session: Session, *, status: CatalogueEntryStatus) -> CatalogueEntry:
     entry = CatalogueEntry(
-        business_key=f"NPTC-9{random.SystemRandom().randrange(10**8):08d}",
+        business_key=f"APTC-9{random.SystemRandom().randrange(10**8):08d}",
         preferred_term=f"Comment entry {uuid.uuid4()}",
         status=status.value,
     )
@@ -106,7 +106,7 @@ def _events(session: Session, comment_id: uuid.UUID) -> list[AuditEvent]:
 
 def _events_naming(session: Session, target_id: uuid.UUID) -> list[AuditEvent]:
     """Events that name `target_id` under the target's own entity type, which a comment must never
-    add: the public history of an entry is built from them (`nptc.catalogue.history`)."""
+    add: the public history of an entry is built from them (`aptc.catalogue.history`)."""
     return list(
         session.execute(
             select(AuditEvent).where(
@@ -298,7 +298,7 @@ def test_a_body_with_an_invisible_character_is_refused_and_writes_nothing(
     "target, refusal",
     [
         (SubmissionTarget(uuid.UUID(int=0)), SubmissionNotFoundError),
-        (EntryTarget("NPTC-999999999"), EntryNotFoundError),
+        (EntryTarget("APTC-999999999"), EntryNotFoundError),
     ],
     ids=["submission", "entry"],
 )

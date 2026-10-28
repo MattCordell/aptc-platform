@@ -1,5 +1,5 @@
 """NFR-07 acceptance criteria 3 (rotation) and 4 (fails closed, does not
-discard valid cached keys) for `nptc.auth.jwks.SigningKeys` (issue #43).
+discard valid cached keys) for `aptc.auth.jwks.SigningKeys` (issue #43).
 
 Offline, no Docker: a local `ThreadingHTTPServer`
 (`auth_jwt_support.StubIdp`) stands in for Keycloak's JWKS endpoint, so the
@@ -15,8 +15,8 @@ from pathlib import Path
 import jwt
 import pytest
 
-from nptc.auth.errors import SigningKeyUnavailableError, TokenInvalidError
-from nptc.auth.jwks import SigningKeys
+from aptc.auth.errors import SigningKeyUnavailableError, TokenInvalidError
+from aptc.auth.jwks import SigningKeys
 
 _support_spec = importlib.util.spec_from_file_location(
     "_test_auth_jwks_cache_support", Path(__file__).parent / "auth_jwt_support.py"
@@ -47,7 +47,7 @@ def test_token_with_no_kid_is_refused() -> None:
         # all (rather than mint_token's usual `kid=...`) is the only way
         # to produce this case.
         token = jwt.encode(
-            {"iss": stub.issuer_url, "sub": "s", "aud": "nptc-api", "iat": 0, "exp": 9_999_999_999},
+            {"iss": stub.issuer_url, "sub": "s", "aud": "aptc-api", "iat": 0, "exp": 9_999_999_999},
             key,
             algorithm="RS256",
         )

@@ -12,9 +12,9 @@ from pathlib import Path
 import openpyxl
 import pytest
 
-from nptc_transform.bands import Band, FindingCode
-from nptc_transform.collision_check import check_collisions
-from nptc_transform.workbook import Sheet, read_workbook
+from aptc_transform.bands import Band, FindingCode
+from aptc_transform.collision_check import check_collisions
+from aptc_transform.workbook import Sheet, read_workbook
 
 NBSP = chr(0xA0)
 HEADERS = ["RCPA Preferred term", "RCPA Synonyms", "Terminology binding (SNOMED CT-AU)"]

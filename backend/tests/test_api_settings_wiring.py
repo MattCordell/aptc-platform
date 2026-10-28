@@ -19,11 +19,11 @@ import pytest
 from pydantic import ValidationError
 from sqlalchemy.engine import Connection
 
-from nptc.api.app import create_app
-from nptc.api.dependencies import get_api_settings
-from nptc.api.labels import LabelProvenance
-from nptc.api.routers import catalogue_shared
-from nptc.settings import ApiSettings
+from aptc.api.app import create_app
+from aptc.api.dependencies import get_api_settings
+from aptc.api.labels import LabelProvenance
+from aptc.api.routers import catalogue_shared
+from aptc.settings import ApiSettings
 
 
 def _load(name: str) -> Any:
@@ -74,7 +74,7 @@ def test_create_app_fails_at_startup_on_a_bad_env_value(
     """The principal failure mode: `lru_cache` does not cache a raised
     exception, so a lazily-resolved bad value would be a 500 on every
     request. Resolved in the factory it is a start-up failure instead."""
-    monkeypatch.setenv("NPTC_FSN_SEMANTIC_TAG", "stripped")
+    monkeypatch.setenv("APTC_FSN_SEMANTIC_TAG", "stripped")
 
     with pytest.raises(ValidationError, match="fsn_semantic_tag"):
         create_app()
@@ -90,7 +90,7 @@ def api(app_db: Connection) -> Iterator[ApiTestApp]:
 def test_routes_ignore_an_invalid_env_value_when_settings_are_injected(
     api: ApiTestApp, hostile_api_settings_env: None
 ) -> None:
-    """The bug this closes: `NPTC_FSN_SEMANTIC_TAG=stripped` makes a fresh
+    """The bug this closes: `APTC_FSN_SEMANTIC_TAG=stripped` makes a fresh
     `ApiSettings()` raise, so any route still resolving its own env-read
     instance answered 500 even though the app was built with good settings."""
     seeded = _seed.seed_public_catalogue(api.session)

@@ -18,20 +18,20 @@ CONTRIBUTING.md's "A schema change's prose has one home each".
 |---|---|
 | `backend/migrations/env.py` | Resolves the migration connection, targets `Base.metadata`, `compare_type=True` |
 | `backend/migrations/script.py.mako` | Repo-local revision template (see below) |
-| `backend/src/nptc/db/base.py` | `NAMING_CONVENTION`, `MetaData`, `Base(DeclarativeBase)` |
-| `backend/src/nptc/db/models/__init__.py` | Import-aggregator so `Base.metadata` is complete for autogenerate |
-| `backend/src/nptc/db/models/audit.py` | The `audit_event` table |
-| `backend/src/nptc/db/models/user.py` | The `app_user` table (issue #42) |
-| `backend/src/nptc/db/models/user_identity.py` | The `user_identity` table (issue #42) |
-| `backend/src/nptc/db/models/catalogue_entry.py` | The `catalogue_entry` table (issue #46) |
-| `backend/src/nptc/db/models/designation.py` | The `designation` table (issue #47) |
-| `backend/src/nptc/db/models/code_binding.py` | The `code_binding` table (issue #48) |
-| `backend/src/nptc/db/models/submission.py` | The `submission` table |
-| `backend/src/nptc/db/functions.py` | `nptc_sctid_is_valid`, the database-level Verhoeff check (issue #48, ADR-0023); `nptc_search_text`, the search normalisation primitive (issue #142, ADR-0024) |
-| `backend/src/nptc/db/models/local_code_system.py` | The `local_code_system` table (issue #56) |
-| `backend/src/nptc/db/models/local_code.py` | The `local_code` table (issue #56) |
-| `backend/src/nptc/db/models/local_code_snomed_map.py` | The `local_code_snomed_map` table (issue #56) |
-| `backend/src/nptc/db/roles.py` | `APP_ROLE` and every grant/revoke SQL statement, imported by both the migration that applies them and the tests that assert them |
+| `backend/src/aptc/db/base.py` | `NAMING_CONVENTION`, `MetaData`, `Base(DeclarativeBase)` |
+| `backend/src/aptc/db/models/__init__.py` | Import-aggregator so `Base.metadata` is complete for autogenerate |
+| `backend/src/aptc/db/models/audit.py` | The `audit_event` table |
+| `backend/src/aptc/db/models/user.py` | The `app_user` table (issue #42) |
+| `backend/src/aptc/db/models/user_identity.py` | The `user_identity` table (issue #42) |
+| `backend/src/aptc/db/models/catalogue_entry.py` | The `catalogue_entry` table (issue #46) |
+| `backend/src/aptc/db/models/designation.py` | The `designation` table (issue #47) |
+| `backend/src/aptc/db/models/code_binding.py` | The `code_binding` table (issue #48) |
+| `backend/src/aptc/db/models/submission.py` | The `submission` table |
+| `backend/src/aptc/db/functions.py` | `aptc_sctid_is_valid`, the database-level Verhoeff check (issue #48, ADR-0023); `aptc_search_text`, the search normalisation primitive (issue #142, ADR-0024) |
+| `backend/src/aptc/db/models/local_code_system.py` | The `local_code_system` table (issue #56) |
+| `backend/src/aptc/db/models/local_code.py` | The `local_code` table (issue #56) |
+| `backend/src/aptc/db/models/local_code_snomed_map.py` | The `local_code_snomed_map` table (issue #56) |
+| `backend/src/aptc/db/roles.py` | `APP_ROLE` and every grant/revoke SQL statement, imported by both the migration that applies them and the tests that assert them |
 
 Alembic's configuration lives in the root `pyproject.toml` as `[tool.alembic]`, not a
 `backend/alembic.ini` - see ADR-0011 for why a relative `script_location` there would break
@@ -47,7 +47,7 @@ run ruff by hand.
 
 ## Naming convention
 
-`nptc.db.base.NAMING_CONVENTION` gives every constraint and index a deterministic,
+`aptc.db.base.NAMING_CONVENTION` gives every constraint and index a deterministic,
 autogenerate-produced name (`pk_<table>`, `uq_<table>_<column>`, `ck_<table>_<name>`,
 `fk_<table>_<column>_<referred_table>`, `ix_<column_label>`) instead of Postgres's own
 anonymous or driver-dependent defaults. Without this, the same model can autogenerate a
@@ -65,14 +65,14 @@ characters from a generated name as a defect to raise against whichever issue in
 
 ## Role and privilege model
 
-One least-privilege application role, `nptc_app` (`NOLOGIN` - nothing ever authenticates
+One least-privilege application role, `aptc_app` (`NOLOGIN` - nothing ever authenticates
 directly as it; a `LOGIN` role is granted membership in it instead - see
 [`upgrade.md`](../operations/upgrade.md) for the operator-side provisioning step, and
-`backend/tests/conftest.py`'s `nptc_app_login` for the equivalent inside the test harness).
+`backend/tests/conftest.py`'s `aptc_app_login` for the equivalent inside the test harness).
 
-For `audit_event` specifically: `GRANT SELECT, INSERT ... TO nptc_app`, with an explicit
-(belt-and-braces) `REVOKE UPDATE, DELETE, TRUNCATE ... FROM nptc_app` alongside it. Nothing
-ever grants `ALL` on this table - `nptc.db.roles` never spells that statement, and
+For `audit_event` specifically: `GRANT SELECT, INSERT ... TO aptc_app`, with an explicit
+(belt-and-braces) `REVOKE UPDATE, DELETE, TRUNCATE ... FROM aptc_app` alongside it. Nothing
+ever grants `ALL` on this table - `aptc.db.roles` never spells that statement, and
 `backend/tests/test_sql_parameterisation.py`'s NFR-22 guard fails outright on any migration
 that does (rule 3). `TRUNCATE` is a distinct, owner-only Postgres privilege not implied by
 `DELETE` - but it *is* included in `GRANT ALL`, which is exactly why that shorthand is
@@ -83,7 +83,7 @@ banned here rather than merely discouraged.
 sequence is not ACL-checked against the inserting role, so `INSERT` on the table alone is
 sufficient. A `serial` default is a plain `nextval(...)` evaluated with the *inserting*
 role's own privileges, and would silently need a separate
-`GRANT USAGE ON SEQUENCE ... TO nptc_app` - the classic thing forgotten on a re-migration.
+`GRANT USAGE ON SEQUENCE ... TO aptc_app` - the classic thing forgotten on a re-migration.
 This is proven empirically by `backend/tests/test_db_audit_privileges.py`
 (`test_app_role_can_insert_and_select`), not assumed: if it were wrong, the insert would
 fail immediately with `42501` and the fix is one `GRANT`.
@@ -103,7 +103,7 @@ tests) - see the `audit_event` section below for what each of the two catches.
 For `app_user` (issue #42): `GRANT SELECT, INSERT` plus a **column-level**
 `GRANT UPDATE (username, display_name, organisation, status, closed_at, updated_at)` -
 excluding `id` and `created_at`, so the retained UUID is immutable even to the app role
-itself - and an explicit `REVOKE DELETE, TRUNCATE`. There is no path by which `nptc_app`
+itself - and an explicit `REVOKE DELETE, TRUNCATE`. There is no path by which `aptc_app`
 can delete a row from this table; NFR-17's "pseudonymise, never delete" is a database
 invariant, not an application convention. For `user_identity`: ordinary
 `SELECT, INSERT, UPDATE, DELETE` (closing an account deletes its identity rows outright -
@@ -116,7 +116,7 @@ column-level `app_user` grant is not silently invisible to the round-trip check.
 
 The table NFR-08 is built on. `prev_hash`/`entry_hash` (NFR-10, the hash chain) landed
 with issue #36 (ADR-0017); `scripts/verify_audit_chain.py`, the operator CLI wrapping
-`nptc.audit.verification.verify_chain`, landed with #38 (see
+`aptc.audit.verification.verify_chain`, landed with #38 (see
 `docs/operations/runbooks/verify-audit-chain.md`). The append-only re-assertion after a
 downgrade/upgrade round-trip (part of #35's acceptance criteria) was already satisfied by
 `backend/tests/test_db_round_trip.py`'s reflection fingerprint, which folds
@@ -126,7 +126,7 @@ round-trip and gone after it makes `before` and `after` differ, so a grant that
 spot. The same file's `test_app_role_is_still_refused_update_after_round_trip`,
 `..._delete_after_round_trip` and `..._truncate_after_round_trip` tests add a *behavioural*
 confirmation on top: real UPDATE/DELETE/TRUNCATE statements, run as the genuinely separate
-`nptc_app_login` login (never a superuser connection), against the schema produced by an
+`aptc_app_login` login (never a superuser connection), against the schema produced by an
 actual `downgrade base` -> `upgrade head` round-trip. That stays meaningful independently of
 what columns `_fingerprint` happens to query - a grant present in both fingerprints but
 ineffective for some other reason would still fail these tests - whereas a grant that was
@@ -154,10 +154,10 @@ never made in the first place is the fingerprint's own blind spot, and is instea
 ### The hash chain (NFR-10, issue #36, ADR-0017)
 
 Each row's `entry_hash` is a SHA-256 digest, computed by
-`nptc.audit.hashing.compute_entry_hash`, over a canonical JSON encoding of the row's own
+`aptc.audit.hashing.compute_entry_hash`, over a canonical JSON encoding of the row's own
 content plus `prev_hash`:
 `json.dumps(fields, sort_keys=True, separators=(",", ":"), ensure_ascii=False)`, UTF-8
-encoded - the same canonicalisation idiom `transform/src/nptc_transform/report_writer.py`
+encoded - the same canonicalisation idiom `transform/src/aptc_transform/report_writer.py`
 already uses. A `UUID`/`INET` value is normalised to its string form and a `datetime` to
 UTC with a fixed 6-digit microsecond field, so the same instant hashes identically
 regardless of the timezone attached to it in memory.
@@ -177,10 +177,10 @@ than trusting a hand-maintained list not to drift):
   `GRANT USAGE ON SEQUENCE` issue #33 deliberately designed away and let a caller override
   the value.
 
-**Genesis.** The first row's `prev_hash` is `nptc.audit.hashing.GENESIS_HASH` (64 `0`s) -
+**Genesis.** The first row's `prev_hash` is `aptc.audit.hashing.GENESIS_HASH` (64 `0`s) -
 there is no predecessor for it to point to.
 
-**The append writer** (`nptc.audit.writer.append_audit_event`) is the only sanctioned way
+**The append writer** (`aptc.audit.writer.append_audit_event`) is the only sanctioned way
 to insert a row. It acquires `pg_advisory_xact_lock` first, to serialise concurrent
 appends - two concurrent appenders would otherwise both read the same chain tail and fork
 it, the principal failure mode the chain exists to catch. The lock needs no grant (it is
@@ -193,7 +193,7 @@ and recomputes its digest from what Postgres actually stored, raising
 `AuditChainWriteError` on any divergence (e.g. a JSONB round-trip normalisation) rather
 than letting it surface as an unexplained chain break months later.
 
-**Verification** (`nptc.audit.verification.verify_chain`) streams rows in `sequence`
+**Verification** (`aptc.audit.verification.verify_chain`) streams rows in `sequence`
 order, `SELECT`-only, and reports the *first* row where either `prev_hash` no longer
 matches the previous row's `entry_hash`, or the row's own recomputed digest no longer
 matches its stored `entry_hash`. An empty table and a single-row chain both verify
@@ -232,13 +232,13 @@ a transaction's snapshot is fixed before it acquires the lock, so a blocked appe
 gets its turn after the previous holder commits can still read a stale tail and fork the
 chain - the lock alone is insufficient above `READ COMMITTED`. `append_audit_event` checks
 `current_setting('transaction_isolation')` immediately after acquiring the lock and raises
-`nptc.audit.writer.AuditIsolationLevelError` unless it is `'read committed'`, rather than
+`aptc.audit.writer.AuditIsolationLevelError` unless it is `'read committed'`, rather than
 risking a silent fork under a caller's stricter isolation level.
 
 ### Field-level before/after (NFR-08, issue #37, ADR-0018)
 
-`before`/`after` are never hand-built by call-site code: `nptc.audit.recording.record_change`
-diffs a mapped instance via its own SQLAlchemy attribute history (`nptc.audit.diffing.
+`before`/`after` are never hand-built by call-site code: `aptc.audit.recording.record_change`
+diffs a mapped instance via its own SQLAlchemy attribute history (`aptc.audit.diffing.
 diff_instance`), and `record_snapshot_change` diffs a pair of plain snapshots
 (`diff_snapshots`) for content with no ORM instance to read history from (e.g. a future JSONB
 property bag). Both raise `AuditNoOpError` on an empty diff rather than emit nothing silently -
@@ -246,10 +246,10 @@ see ADR-0018 for the full flush-ordering caveat this exists to catch loudly.
 
 **Payload shape.** `before`/`after` are flat JSON objects: one key per changed field (never one
 per column - a field nobody touched is completely absent, not present as `null`), each value
-normalised by `nptc.audit.serialisation.normalise_json_value` (`SCTID` to its `str` value never
+normalised by `aptc.audit.serialisation.normalise_json_value` (`SCTID` to its `str` value never
 a number - FR-06; `Decimal` to `str`, never `float`; `UUID`/`ipaddress` to `str`; `datetime` to
 UTC with a fixed 6-digit microsecond field; recursion into nested mappings/lists). Unlike
-`nptc.audit.hashing`'s own normalisation (which must stay total - see below), this normalisation
+`aptc.audit.hashing`'s own normalisation (which must stay total - see below), this normalisation
 **raises** on anything it does not recognise, on a NaN/±Inf float, on a non-`str` mapping key,
 and on a `str` containing a NUL byte (`U+0000`) - Postgres `jsonb` cannot store one at all, and
 ADR-0017 already flagged this as becoming live "once a future caller puts real catalogue content
@@ -259,10 +259,10 @@ through this path". `CREATED` yields `before is None`; `DELETED` yields `after i
 *withheld* is never recorded by value, only by name, under `_redacted`, in both `before` and
 `after` - so a change to it is never invisible in the log merely because its value must not be
 recorded. `_redacted` has a leading underscore precisely so it can never collide with a real
-column name; `nptc.audit.policy.AuditFieldPolicy` refuses any declared field name starting with
+column name; `aptc.audit.policy.AuditFieldPolicy` refuses any declared field name starting with
 `_` for the same reason.
 
-**Allowlist + deny-list, layered (`nptc.audit.policy`).** A model declares
+**Allowlist + deny-list, layered (`aptc.audit.policy`).** A model declares
 `__audit_fields__` (recorded in full), `__audit_withheld_fields__` (changed-by-name only), and
 `__audit_ignored_fields__` (never appears in a diff at all) as `ClassVar`s; `policy_for` (cached)
 combines them with the model's real column set from `sqlalchemy.inspect`. A deny-list regex
@@ -292,7 +292,7 @@ instead of the true prior value. `policy_for` raises if a declared column lacks
 `active_history=True`, at policy-construction time - see ADR-0018 for how this was found (an
 in-memory `test_audit_diffing.py` reproduction, not a hypothetical).
 
-**Strict vs. total normalisation, and why both exist.** `nptc.audit.hashing._normalise` must
+**Strict vs. total normalisation, and why both exist.** `aptc.audit.hashing._normalise` must
 stay total: `compute_entry_hash` also runs over rows read back *from* Postgres (this writer's
 own write-time self-check, and `verify_chain`), where raising on unfamiliar content would turn a
 verifiable chain into an unverifiable one. `normalise_json_value`'s callers, by contrast, are
@@ -311,9 +311,9 @@ digest test (computed independently from the literal pre-issue-#37 implementatio
 from the refactored code) proving this refactor moved no existing hash.
 
 **No second, unaudited write path (`test_audit_write_path_guard.py`'s `audit-diff-bypass`
-rule).** Outside `nptc.audit` itself, a call to `append_audit_event` carrying a `before=`/
+rule).** Outside `aptc.audit` itself, a call to `append_audit_event` carrying a `before=`/
 `after=` keyword whose value is not the literal `None` is a violation - deliberately narrower
-than banning `append_audit_event` outside `nptc.audit` entirely, since a diff-free event (a
+than banning `append_audit_event` outside `aptc.audit` entirely, since a diff-free event (a
 future `release.published`, NFR-12's `audit.exported`) is legitimate and must stay directly
 callable. What is not legitimate is hand-building a diff instead of calling `record_change`/
 `record_snapshot_change`, which is exactly the per-endpoint reimplementation this rule exists to
@@ -376,11 +376,11 @@ column only (`column_0_name`), so this constraint is `uq_user_identity_issuer`, 
 not a bug to "fix" without changing every other multi-column unique/index name in the
 schema.
 
-**Auto-linking (NFR-05).** `nptc.auth.linking.may_auto_link` gates whether the
+**Auto-linking (NFR-05).** `aptc.auth.linking.may_auto_link` gates whether the
 *incoming* `(iss, sub)` may be linked automatically: its issuer must be in an explicit,
-exact-match trusted-issuer allowlist (`NPTC_TRUSTED_ISSUERS`, empty by default - fail
+exact-match trusted-issuer allowlist (`APTC_TRUSTED_ISSUERS`, empty by default - fail
 closed) *and* its `email_verified` must be `True` (`is True`, never merely truthy). That
-alone is not sufficient - `nptc.auth.identity.resolve_user_for_claims`'s own candidate
+alone is not sufficient - `aptc.auth.identity.resolve_user_for_claims`'s own candidate
 query additionally requires the *matched* `user_identity` row's own issuer to be trusted
 too. Without that second check, a first registration through any issuer at all (including
 an untrusted one) could plant a verified email that a later, genuinely trusted login would
@@ -392,7 +392,7 @@ against *verified identities* in `user_identity`, never a mutable, unverified fi
 user itself. See `resolve_user_for_claims`'s docstring for the full resolution (existing
 identity, no candidate, auto-link, ambiguous/untrusted candidate, manual-link-required).
 
-**Account closure** (`nptc.auth.identity.close_account`) nulls the three identifying
+**Account closure** (`aptc.auth.identity.close_account`) nulls the three identifying
 columns, sets `status = 'closed'`/`closed_at = now()`, and deletes every `user_identity`
 row for that user - but never deletes the `app_user` row itself, which the privilege
 grants below make structurally impossible regardless. Idempotent. Does **not** emit an
@@ -402,7 +402,7 @@ identity row is gone, the same OIDC subject logging in again after closure creat
 user", which this satisfies; disabling the account on the Keycloak side is a separate
 operator concern from the #41-era realm.
 
-**`nptc.auth.identity.UserRef`** is the NFR-04 serialisation boundary: a frozen Pydantic
+**`aptc.auth.identity.UserRef`** is the NFR-04 serialisation boundary: a frozen Pydantic
 model carrying `username`/`display_name`/`organisation`/`status` and **no `id` field at
 all**, so a future response model or export renderer routes through a type that cannot
 leak the internal UUID, rather than relying on reviewer memory. Its own test
@@ -411,7 +411,7 @@ check itself would fire on a payload that actually does leak the UUID.
 
 ## `user_role` (issue #44, ADR-0019)
 
-A granted role, and who granted it. `nptc.auth.permissions.Permission`/`Role`/
+A granted role, and who granted it. `aptc.auth.permissions.Permission`/`Role`/
 `ROLE_PERMISSIONS` (the PRD §4.7 matrix itself) are code, not database rows - see
 ADR-0019 for why; this table holds only the *grants*.
 
@@ -438,13 +438,13 @@ which a role grant is not.
 not the blanket no-`UPDATE`-at-all a role-is-never-edited posture would first suggest.
 Postgres requires *some* `UPDATE` privilege on a table before it honours `SELECT ... FOR
 UPDATE` at all (confirmed against a real container while building this), and
-`nptc.auth.grants.assert_not_last_administrator`'s row lock (FR-01, below) depends on
+`aptc.auth.grants.assert_not_last_administrator`'s row lock (FR-01, below) depends on
 exactly that. `granted_at` is the one column nothing ever writes to after insert, so this
 satisfies Postgres's requirement while `user_id`/`role`/`granted_by_user_id` - the columns
 that would actually rewrite "who granted this, and when" - stay immutable at the
 privilege level.
 
-**FR-01's last-administrator guard** (`nptc.auth.grants.assert_not_last_administrator`) is
+**FR-01's last-administrator guard** (`aptc.auth.grants.assert_not_last_administrator`) is
 an application check, not a database constraint - Postgres cannot express "at least one row
 across the whole table satisfies X" as a `CHECK`/`UNIQUE`/`EXCLUDE`, and PRD §14.1 /
 ADR-0011 forbid business logic in triggers. It locks every `user_role` row naming
@@ -454,7 +454,7 @@ makes two concurrent revocations of the last two administrators resolve to exact
 survivor rather than zero (proven directly, with two real concurrent connections, in
 `backend/tests/test_grants.py`).
 
-**Default grant on registration.** `nptc.auth.identity._create_user` grants
+**Default grant on registration.** `aptc.auth.identity._create_user` grants
 `Role.PROVISIONAL` to every newly-created `app_user`, inside the same `SAVEPOINT` as the
 identity insert (PRD §4.3: a new user *is* Provisional) - a real row, not an implicit
 default, so a dashboard can answer "what roles does this user hold" with one query.
@@ -468,7 +468,7 @@ designations/code bindings (#47/#48) are separate tables layered on top.
 | Column | Type | Notes |
 |---|---|---|
 | `id` | `UUID` | PK, `gen_random_uuid()`. Internal, never exposed in exports. |
-| `business_key` | `TEXT` | `NOT NULL`, `UNIQUE`, `CHECK (business_key ~ '^NPTC-[0-9]{6,}$')`. Immutable (FR-03). |
+| `business_key` | `TEXT` | `NOT NULL`, `UNIQUE`, `CHECK (business_key ~ '^APTC-[0-9]{6,}$')`. Immutable (FR-03). |
 | `preferred_term` | `TEXT` | `NOT NULL` |
 | `status` | `TEXT` | `NOT NULL DEFAULT 'draft'`, `CHECK IN ('draft','active','deprecated','withdrawn')` - `TEXT` + `CHECK`, not a native `ENUM`, matching `app_user.status`'s own precedent (`ALTER TYPE ... ADD VALUE` cannot run in a transaction, and autogenerate mishandles the create/drop pair on downgrade) |
 | `created_at` / `updated_at` | `TIMESTAMPTZ` | `NOT NULL`, `now()` |
@@ -481,22 +481,22 @@ any specimen" is now the `specimen` property value `123038009 |Specimen|`, held 
 
 ### `business_key` minting and immutability (FR-03)
 
-`business_key` is minted in Python (`nptc.catalogue.entries.allocate_business_key`),
-not as a column `server_default`: the format (`NPTC-` plus a zero-padded sequence
+`business_key` is minted in Python (`aptc.catalogue.entries.allocate_business_key`),
+not as a column `server_default`: the format (`APTC-` plus a zero-padded sequence
 value) has exactly one source of truth this way, shared by the mint path, the
 seed-reconciliation path, and the `CHECK` constraint's own regular expression. A
 dedicated `catalogue_entry_business_key_seq` sequence backs it - not
 `GENERATED ALWAYS AS IDENTITY` (unlike `audit_event.sequence`), because the
-application must read the next value and format it into `NPTC-######` *before* the
+application must read the next value and format it into `APTC-######` *before* the
 row exists. Unlike an identity column's backing sequence, a plain sequence's
-`nextval()`/`setval()` run with the *inserting* role's own privileges, so `nptc_app`
+`nextval()`/`setval()` run with the *inserting* role's own privileges, so `aptc_app`
 needs an explicit `GRANT USAGE, SELECT, UPDATE ON SEQUENCE ...` (`UPDATE`, not
 `USAGE` alone, is what Postgres actually requires to run `setval` - confirmed
 against a real container).
 
 **Reconciliation with the P0 seed (ADR-0010).** The transform mints its own
 `business_key`s deterministically and positionally for the seeded baseline; the
-backend does not re-mint them. `nptc.catalogue.entries.advance_sequence_past` moves
+backend does not re-mint them. `aptc.catalogue.entries.advance_sequence_past` moves
 the sequence past the highest seeded key after import, and is written to never move
 it *backwards* (a stale, lower reconciliation call is a no-op) - moving it backwards
 unconditionally would silently reissue keys already minted since the last
@@ -506,7 +506,7 @@ reconciliation, which is precisely the defect FR-03 exists to prevent.
 convention**, at two independent layers:
 
 - The app role's column-level `UPDATE` grant on `catalogue_entry`
-  (`nptc.db.roles.GRANT_CATALOGUE_ENTRY_UPDATE_SQL`) excludes `id`, `business_key`
+  (`aptc.db.roles.GRANT_CATALOGUE_ENTRY_UPDATE_SQL`) excludes `id`, `business_key`
   and `created_at` - the same trick `app_user`'s own grant plays for `id`/
   `created_at`. `row_version` is deliberately *inside* the grant (see below).
 - There is **no `DELETE`/`TRUNCATE` grant on `catalogue_entry` at all**
@@ -534,7 +534,7 @@ fails the build on exactly that shape, under `backend/src` only (a migration's o
 one-off backfill is a legitimate bulk statement; a domain write path reaching for
 one is not).
 
-`nptc.catalogue.entries.save_entry` enforces FR-38 at two layers, deliberately:
+`aptc.catalogue.entries.save_entry` enforces FR-38 at two layers, deliberately:
 
 1. An explicit precondition check against the caller's `expected_row_version`,
    *before* any attribute is mutated. This is the path that can build a useful
@@ -549,8 +549,8 @@ one is not).
    transaction.
 
 **A rejected save never leaves an audit event behind.** Layer 1 raises before
-`nptc.audit.recording.record_change` is ever called. Layer 2's `StaleDataError` is
-raised by the `session.flush()` inside `nptc.audit.writer.append_audit_event`'s own
+`aptc.audit.recording.record_change` is ever called. Layer 2's `StaleDataError` is
+raised by the `session.flush()` inside `aptc.audit.writer.append_audit_event`'s own
 append sequence, which runs *before* that function ever constructs or adds an
 `AuditEvent` row - so the savepoint rollback discards only the attempted (and
 never-persisted) `UPDATE`. The savepoint must be opened before any attribute is
@@ -560,7 +560,7 @@ database and clear SQLAlchemy's attribute history before the diff is ever taken 
 turning every save into a spurious empty-diff failure regardless of whether it
 actually conflicts.
 
-`nptc.catalogue.entries.save_entries` applies a batch of updates through this same
+`aptc.catalogue.entries.save_entries` applies a batch of updates through this same
 per-entry path (one `save_entry` call, one savepoint, per entry) rather than a
 single Core bulk statement - the seam #63's bulk reclassify is meant to call instead
 of inventing one under deadline.
@@ -588,21 +588,21 @@ never on a `designation` row (see "Where the preferred term lives" below) -
 `Designation.length` applies the same computation to a designation's own `term` (a
 synonym), for the same reason, but is a distinct,
 non-authoritative figure. Both are bare Python `@property`s computed by
-`nptc.catalogue.term_hygiene.preferred_term_length`
-(`len(nptc_shared.text.normalise_for_comparison(term))`), with deliberately no
+`aptc.catalogue.term_hygiene.preferred_term_length`
+(`len(aptc_shared.text.normalise_for_comparison(term))`), with deliberately no
 setter. PRD §6.5's migration note is the test that actually matters here: because the
 current `=LEN()` formula counts a trailing non-breaking space, cleaning that
 whitespace reduces the published length for roughly one entry in five - covered
 directly on `CatalogueEntry.length` in `backend/tests/test_catalogue_designations.py`.
 
 **FR-86's configurable maximum (issue #152) adds no column either.** It is
-`ApiSettings.max_preferred_term_length` (`NPTC_MAX_PREFERRED_TERM_LENGTH`,
+`ApiSettings.max_preferred_term_length` (`APTC_MAX_PREFERRED_TERM_LENGTH`,
 [configuration.md](../operations/configuration.md)), compared against `CatalogueEntry.length`
-at write time, by `nptc.catalogue.term_hygiene.exceeds_maximum_length`, in the
-designation-amendment route (and in `nptc.catalogue.entries` for a writer that passes the
+at write time, by `aptc.catalogue.term_hygiene.exceeds_maximum_length`, in the
+designation-amendment route (and in `aptc.catalogue.entries` for a writer that passes the
 maximum) - never stored, and unset by
 default so no entry is ever warned until an operator sets one. FR-87's distribution report
-(`nptc.catalogue.length_report`) is likewise computed on demand, from
+(`aptc.catalogue.length_report`) is likewise computed on demand, from
 `char_length(catalogue_entry.preferred_term)` in one aggregate statement, not a
 materialised or cached table. That `char_length` equals FR-85's length only for a row written
 through the ORM, which runs `clean_term`; a bulk loader must use `create_entry` rather than
@@ -647,7 +647,7 @@ the rows this table creates and is not implemented here. FR-08's blocking severi
 | `id` | `UUID` | PK, `gen_random_uuid()` |
 | `entry_id` | `UUID` | `NOT NULL`, FK to `catalogue_entry.id`. Immutable - see below. |
 | `system` | `TEXT` | `NOT NULL DEFAULT 'http://snomed.info/sct'`, `CHECK` not-blank. Immutable - see below. |
-| `code` | `TEXT` | `NOT NULL`. **Never numeric, at any layer (FR-06).** `CHECK (nptc_sctid_is_valid(code))` - format (`^[0-9]{6,18}$`) and Verhoeff, both at the database layer. Immutable - see below. |
+| `code` | `TEXT` | `NOT NULL`. **Never numeric, at any layer (FR-06).** `CHECK (aptc_sctid_is_valid(code))` - format (`^[0-9]{6,18}$`) and Verhoeff, both at the database layer. Immutable - see below. |
 | `fsn` | `TEXT` | `NOT NULL`, `CHECK` not-blank. Stored exactly as served, semantic tag intact (FR-82) - no cleaning hook of any kind. |
 | `au_preferred_term` | `TEXT` | Nullable (not every edition serves an AU preferred term), `CHECK` not-blank when present. Stored exactly as served (FR-82). |
 | `edition_hint` | `TEXT` | `NOT NULL DEFAULT 'unknown'`, `CHECK IN ('au','int','unknown')` |
@@ -665,14 +665,14 @@ whitespace normalisation. A stored value that has been transformed cannot be
 distinguished from one that has not, and that ambiguity is the entire source of
 FR-83's tag-stripping hazard (below); storing as served makes every value's state
 unambiguous by construction. `backend/tests/test_catalogue_bindings.py` asserts this
-structurally: `nptc.db.models.code_binding`'s source has no reference to
+structurally: `aptc.db.models.code_binding`'s source has no reference to
 `clean_term`/`normalise_for_comparison`/`strip_semantic_tag`.
 
 ### FR-06: the database enforces format and Verhoeff, not just Python
 
-`ck_code_binding_code` calls `nptc_sctid_is_valid(code)` - a `LANGUAGE sql IMMUTABLE`
-function (`nptc.db.functions`, migration 0008) that folds the Verhoeff D5 tables the
-same way `nptc_shared.sctid.has_valid_check_digit` does in Python, because a `CHECK`
+`ck_code_binding_code` calls `aptc_sctid_is_valid(code)` - a `LANGUAGE sql IMMUTABLE`
+function (`aptc.db.functions`, migration 0008) that folds the Verhoeff D5 tables the
+same way `aptc_shared.sctid.has_valid_check_digit` does in Python, because a `CHECK`
 constraint permits no subquery or CTE and the fold cannot be spelled as a plain
 inline expression. See `docs/adr/0023-database-level-sctid-validation.md` for why a
 database function is the right shape here and not the kind of hidden business logic
@@ -698,7 +698,7 @@ test that keeps it from silently diverging from the Python implementation.
   'retired') = (retired_at IS NOT NULL)` - mandatory on retirement, forbidden while
   active, the same shape as `ck_code_binding_retirement_reason` above.
 - `ix_code_binding_system_code` (migration 0017, issue #140, FR-17) - non-partial,
-  non-unique `(system, code)`. `nptc.catalogue.queries.get_entry_by_code` looks up a
+  non-unique `(system, code)`. `aptc.catalogue.queries.get_entry_by_code` looks up a
   binding by `(system, code)` with no `status` predicate - it must see retired rows
   too, unlike every other query against this table - so none of the partial indexes
   above (each `WHERE status = 'active'`) can be proven applicable by the planner.
@@ -722,9 +722,9 @@ later migration.
 
 ### FR-83: the semantic tag strip has exactly one call site
 
-`nptc.exports.semantic_tag.render_display_term` is the one place a served FSN's
+`aptc.exports.semantic_tag.render_display_term` is the one place a served FSN's
 final parenthesised group is ever removed. It wraps
-`nptc_shared.terminology.strip_semantic_tag` (which exists separately for FR-97's
+`aptc_shared.terminology.strip_semantic_tag` (which exists separately for FR-97's
 seeding-time reconciliation, and deliberately returns its input unchanged rather than
 raising when there is no trailing group) with the two defensive assertions FR-83
 requires of an export that runs unattended: the input must end with a parenthesised
@@ -738,7 +738,7 @@ is exactly why FR-83 makes the no-double-strip guarantee structural (a served,
 never-transformed `fsn` column feeding exactly one call site) rather than something
 `render_display_term` could ever detect from its input alone. `backend/tests/
 test_catalogue_bindings.py` asserts structurally, across `backend/src`, `transform/src`
-and `shared/src`, that the strip is referenced from no module outside `nptc.exports` -
+and `shared/src`, that the strip is referenced from no module outside `aptc.exports` -
 except the two pre-existing FR-97 seeding-reconciliation sites (ADR-0006) and the
 shared package's own re-export of the functions themselves.
 
@@ -757,21 +757,21 @@ is enforced at the database layer rather than by application convention.
 
 ## Collision detection (issue #49, FR-05, FR-08)
 
-Three severities, three different postures - `nptc.catalogue.collisions`'s own module
+Three severities, three different postures - `aptc.catalogue.collisions`'s own module
 docstring is the authoritative account; this section is the schema-shape summary.
 
 **Error - the save is rejected.** A synonym that exactly matches another live entry's
 preferred term, or the symmetric case (a preferred term matching another live entry's
 active synonym or preferred term) - FR-05 only states the first direction, but the
 PRD's own A.5 fixture is symmetric: whichever side is edited second creates the
-identical ordering hazard. `nptc.catalogue.collisions.assert_no_error_collisions` runs
-before any row is constructed in every write path of `nptc.catalogue.designations` and
-`nptc.catalogue.entries`, so a rejected save leaves no audit event - the same
+identical ordering hazard. `aptc.catalogue.collisions.assert_no_error_collisions` runs
+before any row is constructed in every write path of `aptc.catalogue.designations` and
+`aptc.catalogue.entries`, so a rejected save leaves no audit event - the same
 precondition-before-mutation posture FR-38's optimistic locking already holds.
 
 **Warning - the save is permitted.** The same synonym on multiple live entries (PRD
 A.5's `'ADA2'`, genuinely attached to three adenosine deaminase entries disambiguated
-by specimen). Never raised - `nptc.catalogue.collisions.warning_collisions` is a query
+by specimen). Never raised - `aptc.catalogue.collisions.warning_collisions` is a query
 a caller (#149's edit screen) asks, and `acknowledge_collision` (gated on
 `Permission.VALIDATION_ACKNOWLEDGE`, FR-44) records that the warning has been seen and
 accepted for one entry, so it does not recur on that entry's next save.
@@ -779,7 +779,7 @@ accepted for one entry, so it does not recur on that entry's next save.
 **Blocking - unrepresentable.** FR-08's other half: one active SNOMED code bound to at
 most one entry across the whole catalogue, not merely per entry -
 `ix_code_binding_one_active_entry_per_code` (above) is the database invariant;
-`nptc.catalogue.bindings.create_binding`'s `CodeBindingCodeAlreadyBoundError` is the
+`aptc.catalogue.bindings.create_binding`'s `CodeBindingCodeAlreadyBoundError` is the
 pre-insert domain error. No acknowledgement path: a code is either free or it isn't.
 
 ### Error severity is check-then-insert, so it takes an advisory lock
@@ -788,12 +788,12 @@ Unlike the blocking severity above, FR-05's error check has no cross-row, cross-
 `UNIQUE` index to fall back on - "no two live rows, across either of two tables, share
 this key" is not expressible as plain DDL, and a trigger is not the answer (PRD
 §14.1). `assert_no_error_collisions` therefore takes the same precaution
-`nptc.audit.writer.append_audit_event` already does for its own read-then-write race:
+`aptc.audit.writer.append_audit_event` already does for its own read-then-write race:
 `pg_advisory_xact_lock(hashtext(key))`, acquired before the comparison queries run,
 serialises exactly the transactions contending for the *same* key (an unrelated key
 hashing to the same lock only costs extra, harmless serialisation, never a false
 negative) and releases automatically at commit/rollback. This relies on
-`nptc.db.session.REQUIRED_ISOLATION_LEVEL` already pinning every connection to `READ
+`aptc.db.session.REQUIRED_ISOLATION_LEVEL` already pinning every connection to `READ
 COMMITTED`, the same guarantee `append_audit_event`'s own runtime check re-verifies for
 its higher-stakes NFR-10 purpose - collision detection trusts the connection-level
 setting rather than re-checking it itself.
@@ -801,9 +801,9 @@ setting rather than re-checking it itself.
 ### The comparison key: casefolded, punctuation-folded, not merely whitespace-cleaned
 
 FR-05 requires normalising case, Unicode whitespace *and punctuation* before
-comparing - strictly more than `nptc.catalogue.term_hygiene.clean_term`'s own
-whitespace-only fold (`nptc_shared.text.normalise_for_comparison`, which deliberately
-preserves case and punctuation for FR-82's own reasons). `nptc_shared.similarity.
+comparing - strictly more than `aptc.catalogue.term_hygiene.clean_term`'s own
+whitespace-only fold (`aptc_shared.text.normalise_for_comparison`, which deliberately
+preserves case and punctuation for FR-82's own reasons). `aptc_shared.similarity.
 collision_key` composes that module's existing `tokenise`/`token_key` primitives
 instead of adding a second implementation: punctuation and whitespace both become
 token separators, and each token is casefolded - so `'17-OHP'`/`'17 OHP'` collide,
@@ -814,7 +814,7 @@ The key is **stored and indexed**, not recomputed per comparison:
 `designation.term_key` and `catalogue_entry.preferred_term_key` are written by the
 same `@validates` hook that already cleans the underlying term
 (`Designation._validate_term`, `CatalogueEntry._validate_preferred_term`), so the two
-can never drift apart, and `nptc.catalogue.collisions` reads them via a plain indexed
+can never drift apart, and `aptc.catalogue.collisions` reads them via a plain indexed
 equality lookup (`ix_designation_term_key`, `ix_catalogue_entry_preferred_term_key`)
 rather than scanning every entry on every save. Both carry `server_default = ''` -
 not a correct key for any real term, only so a raw `INSERT` that bypasses the ORM
@@ -828,7 +828,7 @@ FR-05's own wording is "a different *active* entry", but this is deliberately wi
 `deprecated`/`withdrawn` entries never collide (the PRD's own acceptance criterion),
 while a `draft` entry colliding with another live entry is exactly the same hazard the
 moment either is published - catching it before that point is strictly safer than the
-literal reading. `nptc.catalogue.collisions._LIVE_STATUSES` is the one place this is
+literal reading. `aptc.catalogue.collisions._LIVE_STATUSES` is the one place this is
 spelled out.
 
 ### `designation_collision_acknowledgement` (warning-severity acknowledgement)
@@ -876,14 +876,14 @@ cheaper than retrofitting it once P3 lands.
 | `created_at` / `updated_at` | `TIMESTAMPTZ` | `NOT NULL`, `now()` |
 
 `ix_validation_finding_open_entry_id` - a partial index on `entry_id WHERE status =
-'open'` - is the only access pattern P1 has: `nptc.catalogue.queries.
+'open'` - is the only access pattern P1 has: `aptc.catalogue.queries.
 open_finding_business_keys` batches `entry_id IN (...) AND status = 'open'` for a page
 of search/list results.
 
 **Grants: `SELECT` only** - the first table in this codebase with no app-role write
 path at all. Every other table above grants at least `SELECT, INSERT`, because the app
 role genuinely does insert those rows in production; nothing in P1 ever inserts a
-finding through the interactive `nptc_app` role, since FR-45's sweep and FR-55's
+finding through the interactive `aptc_app` role, since FR-45's sweep and FR-55's
 lifecycle transitions are both P3, and whichever process eventually runs the sweep is
 P3's own decision. Test fixtures seed rows via the owner connection instead, committed,
 matching the "two separate connections in their own uncommitted transaction cannot see
@@ -896,7 +896,7 @@ their own, and are deliberately not assigned one here - inventing a name now ris
 P3 sweep needing a different one and forcing a second migration to fix it.
 
 This migration also adds `ix_audit_event_entity_type_entity_id_sequence` on `audit_event`
-(PR #278 review): `nptc.catalogue.history.load_history` (FR-19, see
+(PR #278 review): `aptc.catalogue.history.load_history` (FR-19, see
 [`public-api.md`](public-api.md#change-history-fr-19)) is the first read against
 `audit_event` from an anonymous, unauthenticated endpoint, and until this index existed
 the only one on that table was `sequence`'s own `UNIQUE` - useless against a query that
@@ -904,12 +904,12 @@ equates on `entity_type`/`entity_id` first.
 
 ### Term hygiene at entry (FR-63)
 
-`nptc.catalogue.term_hygiene.clean_term` (called from both `CatalogueEntry`'s own
+`aptc.catalogue.term_hygiene.clean_term` (called from both `CatalogueEntry`'s own
 `@validates("preferred_term")` hook and `Designation`'s own `@validates("term")` hook -
 one shared function, since FR-85's published length depends on the same cleaning
 having happened on both fields) collapses every normalisable space - a non-breaking
 space, a narrow no-break space, PRD Appendix A.1 - to an ordinary space and strips the
-edges, via the same `nptc_shared.text.normalise_for_comparison` the P0 transform and
+edges, via the same `aptc_shared.text.normalise_for_comparison` the P0 transform and
 FR-05 collision detection share (ADR-0001). Anything that survives that pass - a
 zero-width space, a bidi override, a genuine control character - has no single
 correct repair, so it is rejected (`TermCleaningError`) rather than silently
@@ -919,8 +919,8 @@ dropped, quoting the offending character escaped (`escape_invisible`), never raw
 ### FR-04: synonyms are rows, never a delimited string
 
 There is no delimited-string column anywhere in this table - each synonym is its own
-row, added via `nptc.catalogue.designations.add_synonyms`. The backend does not
-reimplement the delimiter-splitting logic: `transform/src/nptc_transform/
+row, added via `aptc.catalogue.designations.add_synonyms`. The backend does not
+reimplement the delimiter-splitting logic: `transform/src/aptc_transform/
 cell_defects.split_synonyms` (already the ADR-0001-shared implementation for the P0
 seed import) is what turns a spreadsheet cell like `'ADA RBC, ADA red cells'` or
 `'Zovirax;;Cyclir'` into the individual strings this table's rows are built from.
@@ -936,7 +936,7 @@ different entry, never reparented - and no `DELETE`/`TRUNCATE` grant at all. See
 
 ### FR-37: every write requires a changelog note
 
-`nptc.catalogue.changelog.validate_changelog_note` is the server-side authority every
+`aptc.catalogue.changelog.validate_changelog_note` is the server-side authority every
 write path in this table (and `catalogue_entry`'s own `create_entry`/`save_entry`/
 `save_entries`) calls before any mutation: an empty note, one matching a
 low-information list (`'update'`, `'fix'`, `'.'`, and neighbours), or one shorter
@@ -955,33 +955,33 @@ workflow and the `PropertyDefinition` admin router) have all landed.
 
 **#55's deprecation lifecycle, in one direction only.** `status` moves `active` ->
 `deprecated` via `POST /registry/properties/{key}/deprecation`
-(`nptc.db.definitions.deprecate_definition`) and never back - there is no "reactivate"
+(`aptc.db.definitions.deprecate_definition`) and never back - there is no "reactivate"
 function, and an attempt to move `deprecated` -> `active` (whether through the HTTP layer
 or a direct service call) is refused with a typed 409. Deprecating an `origin = 'system'`
 property (Discipline, Subgroup, Specimen, Usage guidance - the four bootstrap-seeded rows)
 is likewise refused with a typed 409: an explicit assumption issue #55 takes, not something
 the PRD itself states. Deprecating never touches a single `property_value` row - FR-11's
 whole point is that recorded values remain readable indefinitely; only this definition's own
-`status`/`deprecated_at` change. `nptc.db.definitions.list_definitions`'s `audience`
+`status`/`deprecated_at` change. `aptc.db.definitions.list_definitions`'s `audience`
 parameter is what actually governs visibility: `DefinitionAudience.DATA_ENTRY` (the default
 for `GET /registry/properties`) excludes a deprecated property entirely, so it is never
 offered as something new to record a value against; `DefinitionAudience.EXPORT`
 (`?include_deprecated=true`) returns every status, since a historical value recorded
 against a since-deprecated property must still resolve to a spec and a handler when
 re-serialised. A value write against a deprecated property
-(`nptc.catalogue.property_values.save_property_values`) is refused 422, naming the
+(`aptc.catalogue.property_values.save_property_values`) is refused 422, naming the
 property. `DELETE /registry/properties/{key}` always refuses with a typed 409 regardless of
 whether `key` exists - `property_definition` has no `DELETE` grant at the database layer at
 all (issue #51); this is the HTTP-visible refusal for the same invariant, not a second
 enforcement mechanism. `key` immutability is enforced twice at the application layer beyond
 the database's own `@validates`/privilege guard (issue #51): `PATCH /registry/properties/{key}`'s
 request model carries no `key` field at all and is `extra="forbid"`, so a client naming one
-gets a pydantic 422 before the service layer is ever reached; `nptc.db.definitions.
+gets a pydantic 422 before the service layer is ever reached; `aptc.db.definitions.
 amend_definition` raises a typed `PropertyKeyImmutableError` (409) before touching any other
 attribute if called directly with a key-change attempt.
 
 Out of scope for #55, by design: byte-level regeneration of a *historical, already-published*
-export that references a since-deprecated property - `nptc.exports`/`nptc.releases` are
+export that references a since-deprecated property - `aptc.exports`/`aptc.releases` are
 still P4 stubs with no release/export_config table to regenerate against. The
 `DefinitionAudience.EXPORT` listing above is the resolver half only; the follow-up issue
 filed alongside #55's PR covers the rest.
@@ -1011,7 +1011,7 @@ filed alongside #55's PR covers the rest.
 | `display_order` | `INTEGER` | `NOT NULL` |
 | `deprecated_at` | `TIMESTAMPTZ` | Nullable. `CHECK` ties it to `status = 'deprecated'` |
 | `created_at` / `updated_at` | `TIMESTAMPTZ` | `NOT NULL` |
-| `row_version` | `INTEGER` | `NOT NULL DEFAULT 1`. The cache key (with `key`) for `nptc.registry.schema.property_schema`'s in-process JSON Schema memoisation (issue #52) - owned by exactly one write path, the ORM's `version_id_col` on this table's mapped `UPDATE` (see ADR-0012), and covered by `test_sql_parameterisation.py`'s `VERSIONED_TABLE_MODELS` guard alongside `catalogue_entry.row_version` |
+| `row_version` | `INTEGER` | `NOT NULL DEFAULT 1`. The cache key (with `key`) for `aptc.registry.schema.property_schema`'s in-process JSON Schema memoisation (issue #52) - owned by exactly one write path, the ORM's `version_id_col` on this table's mapped `UPDATE` (see ADR-0012), and covered by `test_sql_parameterisation.py`'s `VERSIONED_TABLE_MODELS` guard alongside `catalogue_entry.row_version` |
 
 **A client learns the valid datatypes from `GET /registry/datatypes`** (`registry.read`), which
 reads the live `DatatypeRegistry` and returns, for each handler, its `name`, its
@@ -1047,8 +1047,8 @@ exists); the unconditional guarantee for both comes from the column-level privil
 not from this FK - see ADR-0012 for why the two must not be conflated. The PK's own
 uniqueness on `ordinal` closes only the duplicate-ordinal race, not cardinality's upper
 bound (a `0..1` property can still race two inserts at `ordinal` 0 and 1); issue #52's
-`nptc.registry.schema.validate_values` enforces the upper (and lower) bound at validation
-time, called from `nptc.catalogue.property_values.save_property_values` before any row is
+`aptc.registry.schema.validate_values` enforces the upper (and lower) bound at validation
+time, called from `aptc.catalogue.property_values.save_property_values` before any row is
 touched. `property_value.entry_id` carries a real FK to
 `catalogue_entry(id)`: ADR-0012 flagged this FK as unavailable when it was written, but #46
 landed first, so migration 0010 adds it directly rather than deferring it to a follow-on
@@ -1057,18 +1057,18 @@ migration. `property_key` also gets its own plain btree index
 without a standalone index both FK-side maintenance on `property_definition` and a "which
 entries use this property" lookup (#55's deprecation workflow) would be a sequential scan.
 
-`nptc_app` gets `UPDATE` at column level on `property_definition`, excluding `key`, `id`,
+`aptc_app` gets `UPDATE` at column level on `property_definition`, excluding `key`, `id`,
 `index_seq`, `origin` and `created_at`, and no `DELETE` grant at all (FR-11's unconditional
 form) - this is FR-12 as a database invariant, not an ORM convention. `property_value` gets
 ordinary `SELECT`/`INSERT`/`UPDATE`/`DELETE`, since removing a value is normal editing, not
 the case FR-11 protects against.
 
 The four `origin = 'system'` properties - `discipline`, `subgroup`, `specimen`,
-`usage_guidance` - are seeded by `nptc.db.bootstrap.seed_system_properties`, an idempotent
+`usage_guidance` - are seeded by `aptc.db.bootstrap.seed_system_properties`, an idempotent
 application-level function that inserts through `PropertyDefinition`'s own mapped `INSERT`,
 never `op.bulk_insert` (ADR-0012): a data migration would bypass the validation a real write
-goes through. It lives under `nptc.db`, not `nptc.registry`, because ADR-0013 (#137) fixes
-`nptc.registry` as a leaf package that never imports `nptc.db` - this module imports the
+goes through. It lives under `aptc.db`, not `aptc.registry`, because ADR-0013 (#137) fixes
+`aptc.registry` as a leaf package that never imports `aptc.db` - this module imports the
 `PropertyDefinition` ORM model directly, which is exactly what that rule keeps out of
 `registry/`. It is safe to call repeatedly, and safe under two concurrent callers racing the
 same key (each row's insert runs in its own `SAVEPOINT`, catching only a genuine unique
@@ -1085,15 +1085,15 @@ queries), an expression btree with the `text_pattern_ops` opclass on `(value #>>
 `string`/`url` (that opclass, verified directly against `postgres:18.6`, is the one that
 serves `EQUALS`/`IN` *and* a `PREFIX`/`LIKE 'foo%'` filter from the same index under a
 non-`C` collation, so no second index is needed), and one on
-`nptc_numeric_or_null(value #>> '{}')` (see `nptc.db.functions` and
+`aptc_numeric_or_null(value #>> '{}')` (see `aptc.db.functions` and
 [ADR-0027](../adr/0027-cast-safe-numeric-index-expression.md); a `plpgsql` function, because a
 `sql` body raises on a fresh Postgres 18 connection) for `decimal`/`positiveInt` -
 **without a hand-written migration**, matching FR-09's own "a property definition is a plain
 row insert" property one level up.
 
-**A desired-state reconciler, not an event handler** - `nptc.db.property_reconciler.
+**A desired-state reconciler, not an event handler** - `aptc.db.property_reconciler.
 reconcile_property_indexes()` reads every `property_definition` row, computes each one's
-desired index from its handler's `index_shape()` (`nptc.registry.handlers`), diffs the
+desired index from its handler's `index_shape()` (`aptc.registry.handlers`), diffs the
 result against actual `pg_index` state (not `pg_indexes`, which is blind to `indisvalid`),
 and creates/drops/repairs to converge. This is what makes un-flagging a property remove its
 index rather than leave it orphaned, and what notices and rebuilds an index a failed
@@ -1102,7 +1102,7 @@ gone stale against an amended `datatype` (an ordinary mutable, audited column, u
 immutable `index_seq` the index name is derived from - `key` is compared too as defence in
 depth, though it is not actually mutable in practice, FR-12): the diff also compares
 `pg_get_indexdef` against what the property's *current* configuration would render
-(`nptc.db.property_indexes.matches_indexdef`), not just the index's name and validity, and
+(`aptc.db.property_indexes.matches_indexdef`), not just the index's name and validity, and
 rebuilds rather than merely re-commenting on a mismatch. One index failing to converge does
 not abort the run - every other desired/orphaned index still gets a chance, and the failure
 is collected into the report rather than raised. The same holds for a filterable property
@@ -1112,12 +1112,12 @@ an early seed, or a raw-SQL amendment): it is reported separately
 (`ReconciliationReport.skipped_unknown_datatype`) and its existing index, if any, is held
 back from the orphan-drop sweep rather than being dropped just because nothing could compute
 a desired shape for it this run. Runs on its own `AUTOCOMMIT` connection
-(`NPTC_INDEXER_DATABASE_URL` - see [`configuration.md`](../operations/configuration.md)),
+(`APTC_INDEXER_DATABASE_URL` - see [`configuration.md`](../operations/configuration.md)),
 since `CREATE INDEX CONCURRENTLY` cannot run inside a transaction block; guarded by a
 `pg_try_advisory_lock` so two concurrent runs converging on the same state is a no-op, not a
 race. The registry write path dispatches it: after a property is created, deprecated, or
-amended with `filterable`, `nptc.db.property_reconciler_dispatch.request_reconciliation`
-queues one run through `nptc.db.session.after_commit`, which `session_scope` runs once the
+amended with `filterable`, `aptc.db.property_reconciler_dispatch.request_reconciliation`
+queues one run through `aptc.db.session.after_commit`, which `session_scope` runs once the
 request's commit has succeeded (FastAPI's `BackgroundTasks` would run before the commit and
 read the old definition). The run happens on one worker thread; a held advisory lock is
 retried; a run that fails is logged and recorded as a `property_index.reconciliation_failed`
@@ -1129,12 +1129,12 @@ argument, never via `os.environ`, so a DDL-capable credential is never left wher
 subprocess could inherit it.
 
 **Who owns `property_value`.** `CREATE INDEX` needs table ownership, so migration 0025 makes
-the `NOLOGIN` role `nptc_property_index_owner` the owner of `property_value`, with `CREATE`
+the `NOLOGIN` role `aptc_property_index_owner` the owner of `property_value`, with `CREATE`
 on schema `public` (Postgres checks it for every new index) and `SELECT` on
-`property_definition` (the reconciler reads it). The `nptc_indexer` login is a member. The
-privileges `nptc_app` holds on `property_value` do not change. Owning the table lets the login
+`property_definition` (the reconciler reads it). The `aptc_indexer` login is a member. The
+privileges `aptc_app` holds on `property_value` do not change. Owning the table lets the login
 plant a trigger, rule or function that runs as the next writer, so a migration that writes
-`property_value` first calls `nptc.db.migration_guards.refuse_foreign_code_on_property_value`
+`property_value` first calls `aptc.db.migration_guards.refuse_foreign_code_on_property_value`
 (see [`upgrade.md`](../operations/upgrade.md)).
 
 Every generated index is named `ix_propval_p{index_seq}_{slot}` (see the truncation caveat
@@ -1156,10 +1156,10 @@ function the public catalogue search matches through, and the two indexes built 
 See [ADR-0024](../adr/0024-catalogue-search-and-pagination.md) for the decision record
 and [`public-api.md`](public-api.md) for the endpoint behaviour.
 
-`nptc_search_text(value text) RETURNS text` is
+`aptc_search_text(value text) RETURNS text` is
 `lower(public.unaccent('public.unaccent'::regdictionary, value))`, declared `LANGUAGE sql
 IMMUTABLE STRICT PARALLEL SAFE`. It is the *second* database function in the schema, and
-unlike `nptc_sctid_is_valid` it decides nothing - it lowercases and strips diacritics, so
+unlike `aptc_sctid_is_valid` it decides nothing - it lowercases and strips diacritics, so
 it is a normalisation primitive rather than the stored business logic PRD 14.1 warns
 about. It exists as a function only because an expression index's expression must be
 `IMMUTABLE`.
@@ -1182,8 +1182,8 @@ dropped:
 
 | Index | Table | Expression | Partial |
 |---|---|---|---|
-| `ix_catalogue_entry_preferred_term_trgm` | `catalogue_entry` | `nptc_search_text(preferred_term) gin_trgm_ops` | No - #149's maintenance search covers drafts too |
-| `ix_designation_term_trgm` | `designation` | `nptc_search_text(term) gin_trgm_ops` | `WHERE status = 'active'` - search never matches a retired synonym |
+| `ix_catalogue_entry_preferred_term_trgm` | `catalogue_entry` | `aptc_search_text(preferred_term) gin_trgm_ops` | No - #149's maintenance search covers drafts too |
+| `ix_designation_term_trgm` | `designation` | `aptc_search_text(term) gin_trgm_ops` | `WHERE status = 'active'` - search never matches a retired synonym |
 
 Both are declared in the models' `__table_args__` **as well as** in the migration, with
 the operator class supplied via `postgresql_ops` rather than appended to the expression
@@ -1193,7 +1193,7 @@ reflects the indexes and proposes dropping them on every autogenerate run
 inside the expression string, alembic warns that it cannot compare the expression and
 skips the comparison entirely, which is a silently weaker check rather than a failure.
 
-The query predicate must apply `nptc_search_text(...)` to the column exactly as the index
+The query predicate must apply `aptc_search_text(...)` to the column exactly as the index
 expression does, and must match with the `%` operator - a GIN trigram index cannot
 accelerate a comparison against a `similarity()` result. Both spellings return identical
 answers, so `backend/tests/test_db_search_index.py` `EXPLAIN`s the real statement and
@@ -1210,24 +1210,24 @@ and adding a full-text scan alongside each trigram one. See
 `REINDEX` obligations.
 
 ```sql
--- nptc_search_document(value text) RETURNS tsvector
-SELECT to_tsvector('pg_catalog.english'::regconfig, public.nptc_search_text(value));
+-- aptc_search_document(value text) RETURNS tsvector
+SELECT to_tsvector('pg_catalog.english'::regconfig, public.aptc_search_text(value));
 
--- nptc_search_query(value text) RETURNS tsquery
-SELECT websearch_to_tsquery('pg_catalog.english'::regconfig, public.nptc_search_text(value));
+-- aptc_search_query(value text) RETURNS tsquery
+SELECT websearch_to_tsquery('pg_catalog.english'::regconfig, public.aptc_search_text(value));
 ```
 
 Both `LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE`. They are the third and fourth database
-functions in the schema and, like `nptc_search_text` and unlike `nptc_sctid_is_valid`, they
+functions in the schema and, like `aptc_search_text` and unlike `aptc_sctid_is_valid`, they
 decide nothing - they normalise.
 
-The same three load-bearing details as `nptc_search_text`, for the same reasons, plus one
+The same three load-bearing details as `aptc_search_text`, for the same reasons, plus one
 of their own:
 
 - **`IMMUTABLE` requires the two-argument `to_tsvector`/`websearch_to_tsquery`.** The
   one-argument forms resolve the configuration through `default_text_search_config`, a
   GUC, and so are only `STABLE`.
-- **Every object is schema-qualified**, including the nested `public.nptc_search_text`
+- **Every object is schema-qualified**, including the nested `public.aptc_search_text`
   call - these functions are inlined into index expressions, which Postgres evaluates
   under the secure `pg_catalog, pg_temp` path.
 - **`STRICT`**, so a `NULL` `au_preferred_term` indexes as `NULL` rather than as an empty
@@ -1238,12 +1238,12 @@ of their own:
 
 | Index | Table | Expression | Partial |
 |---|---|---|---|
-| `ix_catalogue_entry_preferred_term_fts` | `catalogue_entry` | `nptc_search_document(preferred_term)` | No - as for the trigram index above |
-| `ix_designation_term_fts` | `designation` | `nptc_search_document(term)` | `WHERE status = 'active'` |
-| `ix_code_binding_fsn_trgm` | `code_binding` | `nptc_search_text(fsn) gin_trgm_ops` | `WHERE status = 'active'` |
-| `ix_code_binding_fsn_fts` | `code_binding` | `nptc_search_document(fsn)` | `WHERE status = 'active'` |
-| `ix_code_binding_au_preferred_term_trgm` | `code_binding` | `nptc_search_text(au_preferred_term) gin_trgm_ops` | `WHERE status = 'active'` |
-| `ix_code_binding_au_preferred_term_fts` | `code_binding` | `nptc_search_document(au_preferred_term)` | `WHERE status = 'active'` |
+| `ix_catalogue_entry_preferred_term_fts` | `catalogue_entry` | `aptc_search_document(preferred_term)` | No - as for the trigram index above |
+| `ix_designation_term_fts` | `designation` | `aptc_search_document(term)` | `WHERE status = 'active'` |
+| `ix_code_binding_fsn_trgm` | `code_binding` | `aptc_search_text(fsn) gin_trgm_ops` | `WHERE status = 'active'` |
+| `ix_code_binding_fsn_fts` | `code_binding` | `aptc_search_document(fsn)` | `WHERE status = 'active'` |
+| `ix_code_binding_au_preferred_term_trgm` | `code_binding` | `aptc_search_text(au_preferred_term) gin_trgm_ops` | `WHERE status = 'active'` |
+| `ix_code_binding_au_preferred_term_fts` | `code_binding` | `aptc_search_document(au_preferred_term)` | `WHERE status = 'active'` |
 | `ix_code_binding_code` | `code_binding` | `code` (btree) | `WHERE status = 'active'` |
 
 Every `code_binding` index is partial for the same reason `ix_designation_term_trgm` is: a
@@ -1261,7 +1261,7 @@ model would make the declaration and the reflected index disagree on every autog
 run. The trigram indexes must name `gin_trgm_ops` because it is *not* the default and does
 appear in `indexdef`. Both spellings exist to keep `compare_metadata` comparing rather than
 skipping.
-**`discipline`/`subgroup` name the local code systems #56 lands below.** `nptc.db.bootstrap`'s
+**`discipline`/`subgroup` name the local code systems #56 lands below.** `aptc.db.bootstrap`'s
 `key="discipline"`/`key="subgroup"` rows set `binding_target = BindingTarget.LOCAL_CODE_SYSTEM`
 with `local_code_system_key` set to `"discipline"`/`"subgroup"` respectively - #51 left this
 FK-less (`local_code_system` did not exist yet); issue #52 adds `local_code_system_key` as a
@@ -1336,7 +1336,7 @@ under it - seeding one now would be the guessing-at-structure FR-92 forbids.
 | `id` | `UUID` | PK |
 | `local_code_id` | `UUID` | `NOT NULL`, FK to `local_code.id`, immutable |
 | `system` | `TEXT` | `NOT NULL DEFAULT 'http://snomed.info/sct'`, not blank |
-| `code` | `TEXT` | `NOT NULL`, `CHECK (nptc_sctid_is_valid(code))` - reuses `code_binding`'s own Verhoeff function |
+| `code` | `TEXT` | `NOT NULL`, `CHECK (aptc_sctid_is_valid(code))` - reuses `code_binding`'s own Verhoeff function |
 | `display` | `TEXT` | `NOT NULL`, not blank - the served label at the time the row was written |
 | `match_strength` | `TEXT` | `NOT NULL`, `CHECK IN ('exact','narrower','broader','ambiguous')` - FR-91's "match strength per row" |
 | `advisory_note` | `TEXT` | `NOT NULL`, not blank - why this row is advisory / its caveat |
@@ -1351,7 +1351,7 @@ posture.
 There is no `entry_id` anywhere on this table, and no foreign key to `catalogue_entry`
 at all - a `code_binding` row is authoritative and revalidated by the FR-45 sweep; a row
 here is advisory and never revalidated. `backend/tests/test_catalogue_local_codes.py`
-pins this with an AST guard: no module under `nptc.validation` or `nptc.catalogue.
+pins this with an AST guard: no module under `aptc.validation` or `aptc.catalogue.
 bindings` may reference `LocalCodeSnomedMap` at all, plus a structural check that the
 mapped table has neither an `entry_id` column nor a foreign key to `catalogue_entry`.
 
@@ -1376,29 +1376,29 @@ refactor of the service layer cannot silently rewrite this migration's history.
 ### Version history: deferred, not dropped
 
 FR-90's third bullet asks for local-code version history "tied to catalogue releases",
-but `release` does not exist yet (`nptc.releases` is a P4 stub). `status`/
+but `release` does not exist yet (`aptc.releases` is a P4 stub). `status`/
 `deprecated_at` plus the NFR-08 audit trail every write here goes through make past
 state reconstructable in the meantime, matching `designation_collision_acknowledgement`'s
 own "narrow table now, expected to be subsumed later" precedent. Pinning a code's state
-to a specific release is filed as [#199](https://github.com/MattCordell/nptc-platform/issues/199)
+to a specific release is filed as [#199](https://github.com/MattCordell/aptc-platform/issues/199)
 rather than attempted here.
 
 ### `LocalCodeLookup` (issue #56, ADR-0013)
 
-`nptc.registry.handlers.LocalCodeLookup` is the read contract a `code`-datatype property
+`aptc.registry.handlers.LocalCodeLookup` is the read contract a `code`-datatype property
 bound to `binding_target = 'local_code_system'` will use (PRD line 415: "validated
 internally against the platform's own `LocalCode` table, because Ontoserver does not
 hold them") - a `Protocol`, not the ORM model directly, matching
-`nptc.terminology.TerminologyClient`'s own contract-not-implementation shape (ADR-0003,
+`aptc.terminology.TerminologyClient`'s own contract-not-implementation shape (ADR-0003,
 NFR-37). It replaces the placeholder #197/#53 landed alongside `HandlerDeps`, staying
 leaf-safe (stdlib only) per that PR's own module-boundary rule (ADR-0013 SS2).
 
-`nptc.catalogue.local_codes.DatabaseLocalCodeLookup` is the database-backed
+`aptc.catalogue.local_codes.DatabaseLocalCodeLookup` is the database-backed
 implementation, built on that module's own `find_local_code_with_system_status` - it
-lives in `nptc.catalogue`, not `nptc.registry`, precisely because it needs a live
-`Session` and the write path it is built on, which the leaf rule forbids `nptc.registry`
+lives in `aptc.catalogue`, not `aptc.registry`, precisely because it needs a live
+`Session` and the write path it is built on, which the leaf rule forbids `aptc.registry`
 itself from depending on. Issue #52 wires it into `CodeHandler`:
-`nptc.api.dependencies.get_datatype_registry` constructs `HandlerDeps` with a
+`aptc.api.dependencies.get_datatype_registry` constructs `HandlerDeps` with a
 `DatabaseLocalCodeLookup(session)` built from the request's own `Session` (request-scoped,
 not the process-lifetime `lru_cache` the registry used before this needed a `Session`), and
 `CodeHandler._validate_binding`'s `local_code_system` branch now calls `resolve()` for real,
@@ -1408,9 +1408,9 @@ the code's own status) to a distinct `ValidationIssue` code each.
 ## Seeded baseline provenance (issue #329, FR-76, ADR-0010, ADR-0042)
 
 Two tables record the one-off seeding of the catalogue from the RCPA workbook. Both are
-written once by the seed loader (`nptc.catalogue.seed_import`, run by
+written once by the seed loader (`aptc.catalogue.seed_import`, run by
 [`scripts/seed_baseline.py`](../../scripts/seed_baseline.py)) and never edited or removed:
-`nptc_app` holds `SELECT, INSERT` only, so ADR-0010's "never an editable field" is a
+`aptc_app` holds `SELECT, INSERT` only, so ADR-0010's "never an editable field" is a
 privilege-level guarantee rather than a convention. There is no `release` table yet; it
 lands with P4, and ADR-0042 records why the baseline is not a placeholder `Release` row.
 
@@ -1447,7 +1447,7 @@ through the application has no provenance row. Both tables emit a `created` audi
 
 ## `terms_acceptance` (NFR-45, NFR-47, ADR-0043)
 
-One row per acceptance of a terms version by a user. It is append-only: `nptc_app` holds
+One row per acceptance of a terms version by a user. It is append-only: `aptc_app` holds
 `SELECT, INSERT` only, so an acceptance is never edited or removed and the prior record
 survives a later acceptance (NFR-45). It is a table and not a column on `app_user`, which
 could hold only the latest.
@@ -1463,7 +1463,7 @@ could hold only the latest.
 per request: a user's latest row, as a backwards index scan with no sort.
 
 **The latest row decides.** A user has accepted the current version only when their latest
-row names exactly that version (`nptc.terms.acceptance.has_accepted`). `id` finds the latest
+row names exactly that version (`aptc.terms.acceptance.has_accepted`). `id` finds the latest
 row because `accepted_at` could tie inside one transaction. Because the test is equality, a
 version rolled back to an earlier one asks for acceptance again.
 
@@ -1491,7 +1491,7 @@ submission, held in [`submission_interest`](#submission_interest-fr-32-fr-34-nfr
 | `created_entry_id` | `UUID` | Nullable, FK to `catalogue_entry.id`. The entry that approving a new test created, null until then. `CHECK (created_entry_id IS NULL OR kind = 'new_test')`, and a partial unique index (`ix_submission_created_entry_id`, `WHERE created_entry_id IS NOT NULL`) lets one entry come from at most one submission. The only content column the app role may update, and only the approval service writes it (FR-28) |
 | `preferred_term` | `TEXT` | `NOT NULL`, `CHECK` not blank. Cleaned at entry like an entry's term (FR-63). On an amendment, a copy of the entry's preferred term when it was proposed |
 | `synonyms` | `JSONB` | `NOT NULL DEFAULT '[]'`, `CHECK` a JSON array. Each term is cleaned at entry. A term that folds to the same comparison key as an earlier one, or as `preferred_term`, is dropped, as `add_synonyms` drops it, so the list converts to designations without a duplicate |
-| `snomed_code` | `TEXT` | Nullable. `CHECK nptc_sctid_is_valid`, so the format and the check digit hold in the database (FR-06) |
+| `snomed_code` | `TEXT` | Nullable. `CHECK aptc_sctid_is_valid`, so the format and the check digit hold in the database (FR-06) |
 | `snomed_fsn` | `TEXT` | Nullable, `CHECK` not blank. Present exactly when `snomed_code` is: `CHECK ((snomed_code IS NULL) = (snomed_fsn IS NULL))`. The terminology server's label, stored as served (FR-82) |
 | `property_values` | `JSONB` | `NOT NULL DEFAULT '{}'`, `CHECK` a JSON object. See below |
 | `notes` | `TEXT` | Nullable, `CHECK` not blank. The submitter's free-text justification (FR-27). May span lines. Normalised like a term, and refused if it holds an invisible character other than a line break or tab (FR-63) |
@@ -1511,7 +1511,7 @@ serves "newest first" and `ix_submission_entry_id` serves "the amendments propos
 entry".
 
 **The read routes treat a submission as open unless its state is closed (FR-28, FR-42).**
-`nptc.db.models.submission.CLOSED_SUBMISSION_STATES` lists `Published in release`, `Rejected` and
+`aptc.db.models.submission.CLOSED_SUBMISSION_STATES` lists `Published in release`, `Rejected` and
 `Withdrawn`. `GET /api/v1/submissions` leaves those out when the caller names no `state`, and its
 statement says `state NOT IN (...)` over that tuple and never lists the open states, so a state added
 later is open until it is listed there. `Approved` is open on purpose: an approved submission still
@@ -1519,7 +1519,7 @@ waits for a release (FR-29), so it stays in the default list and a user can stil
 it. `mine=true` with no `state` lifts the default, so a submitter's
 own list holds their whole history. The list pages on `(created_at, id)`, newest first, using
 `ix_submission_created_at`, and one joined statement also reads the submitter and the amended entry's
-business key (`nptc.submissions.queries`).
+business key (`aptc.submissions.queries`).
 
 **Who sees the submitter (FR-42, NFR-20).** The submitter's id never reaches a response; the read
 returns a `UserRef`. A caller who holds `submitter_identity.view` (Reviewer, Administrator) gets
@@ -1569,10 +1569,10 @@ Closing an account clears the profile's organisation (NFR-17) and leaves the cop
 submission. The audit policy withholds it, as it does `app_user.organisation` (NFR-26): an event
 records that it was set, never its value.
 
-**What the submitter sent is fixed by privilege.** `nptc_app` holds `SELECT, INSERT` and a
+**What the submitter sent is fixed by privilege.** `aptc_app` holds `SELECT, INSERT` and a
 column-level `UPDATE` on `state`, `updated_at` and `row_version` only. It holds no `DELETE` or
 `TRUNCATE`, so a submission leaves the workflow through `state`. A column added later that must
-change gets its own grant constant, as `nptc.db.roles` explains.
+change gets its own grant constant, as `aptc.db.roles` explains.
 
 Each create emits a `submission.created` audit event carrying the content, `kind` and `entry_id`,
 and naming `organisation` in `_redacted` (NFR-08). Every column is classified in the model's audit policy.
@@ -1616,13 +1616,13 @@ own submission.
 
 **The count.** A submission's `interest_count` is its live rows, from every user.
 `GET /api/v1/submissions` and `GET /api/v1/submissions/{id}` carry it with `has_registered_interest`,
-and read a page's counts in one grouped statement (`nptc.submissions.interest.interest_summaries`).
+and read a page's counts in one grouped statement (`aptc.submissions.interest.interest_summaries`).
 The count is null for a caller without `interest.view_counts`. Who registered is not served here.
 
 **The identities** are `GET /api/v1/submissions/{id}/interest`, gated on `interest.identities.view`
 (Reviewer and Administrator, FR-34, FR-33). It returns the live records (display name, username, the
 organisation copy and the registration time, newest first) and `distinct_organisations`, each
-organisation represented with its count (`nptc.submissions.interest_identities`). A closed submission's
+organisation represented with its count (`aptc.submissions.interest_identities`). A closed submission's
 live records are returned too. A closed account's person reads `Closed account` and the record still
 counts under its organisation copy. The route is a read, so it emits no audit event.
 
@@ -1642,7 +1642,7 @@ page's counts come from one grouped statement.
 (NFR-17); the record's `user_id` and `organisation` stay and the record keeps counting. The audit policy
 withholds `organisation`, as it does on `submission` and `app_user` (NFR-26).
 
-**What happened is fixed by privilege.** `nptc_app` holds `SELECT, INSERT` and a column-level `UPDATE`
+**What happened is fixed by privilege.** `aptc_app` holds `SELECT, INSERT` and a column-level `UPDATE`
 on `revoked_at` only. It holds no `DELETE` or `TRUNCATE`.
 
 Registering emits a `submission_interest.registered` audit event and revoking emits a
@@ -1652,7 +1652,7 @@ naming `organisation` in `_redacted` (NFR-08). A call that changes nothing emits
 ## `submission_transition` (FR-28, NFR-08)
 
 One row for each change of a submission's `state`: who changed it, from which state, to which, why,
-and when. Every change goes through `nptc.submissions.transitions.transition_submission`, so the new
+and when. Every change goes through `aptc.submissions.transitions.transition_submission`, so the new
 `state`, this row and the audit event are written in one transaction and agree, or none exists.
 The changes are the review moves and the withdrawals in the table below. `POST
 /api/v1/submissions/{id}/transitions` makes any of them except the two moves of `Awaiting terminology`,
@@ -1690,7 +1690,7 @@ absent and not null. A closed account's actor shows the placeholder `Closed acco
 There is no role label: `user_role` can hold several roles, and they change, so a label would describe
 the actor today and not at the time of the move.
 
-**The permitted moves are rows in code.** `nptc.submissions.transitions.PERMITTED_TRANSITIONS` is keyed
+**The permitted moves are rows in code.** `aptc.submissions.transitions.PERMITTED_TRANSITIONS` is keyed
 by `(from_state, to_state)`. Each row names the audit action and the ways an actor may make the move: a
 permission, and whether the actor must be the submitter. A move with no row is refused with a 409, so a
 closed submission is never reinterpreted, and a second withdrawal is refused and not repeated. A new
@@ -1731,7 +1731,7 @@ them through their own route.
 **The route and the detail read one table.** `POST /api/v1/submissions/{id}/transitions` takes
 `to_state`, `reason` and `expected_row_version`. Its gate turns away a caller who holds none of the
 permissions the table names (`TRANSITION_PERMISSIONS`, derived from it), and the service then judges the
-particular move. `nptc.submissions.transitions.available_transitions` applies the same requirement test,
+particular move. `aptc.submissions.transitions.available_transitions` applies the same requirement test,
 and `GET /api/v1/submissions/{id}` returns its answer as `available_transitions`: the states this caller
 may move this submission to now. The transition response carries the same field for the state it
 reports, so a screen keeps no copy of the graph.
@@ -1747,7 +1747,7 @@ update is the backstop for a writer that skipped the lock, and it gives the same
 move sends it back as `expected_row_version`, and the move's response carries the next one.
 A stale value is a 409 that carries `current_row_version`.
 
-**The row is fixed by privilege.** `nptc_app` holds `SELECT, INSERT` and no `UPDATE`, `DELETE` or
+**The row is fixed by privilege.** `aptc_app` holds `SELECT, INSERT` and no `UPDATE`, `DELETE` or
 `TRUNCATE`, as for `terms_acceptance`.
 
 Each move emits one audit event on the `submission`, carrying `state` in `before` and `after` and the
@@ -1761,7 +1761,7 @@ transition row is not a second event. `submission.terminology_attached` also car
 ### Approval writes the catalogue (FR-28, FR-29, FR-35)
 
 `POST /api/v1/submissions/{id}/approve` is the one move that changes the catalogue. It is a row of the
-table with `needs_payload`, and `nptc.submissions.approval.approve_submission` makes it. The service
+table with `needs_payload`, and `aptc.submissions.approval.approve_submission` makes it. The service
 takes the audit append lock, reads the submission, judges the move and the `row_version` as every move
 does, and then writes inside one outer savepoint. The entry writes, the new `state`, the transition row
 and every audit event succeed or fail together, so a refusal at any step leaves the submission in
@@ -1794,8 +1794,8 @@ code.
 ## `internal_comment` (FR-95, NFR-08, NFR-23)
 
 A staff-only comment on one submission or one catalogue entry. Reviewers and Administrators write and
-read them through `nptc.comments.service`, which backs the routes in
-[`routers/comments.py`](../../backend/src/nptc/api/routers/comments.py). A submitter, a member or the
+read them through `aptc.comments.service`, which backs the routes in
+[`routers/comments.py`](../../backend/src/aptc/api/routers/comments.py). A submitter, a member or the
 public never sees one, and never learns that one exists.
 
 | Column | Type | Notes |
@@ -1813,7 +1813,7 @@ public never sees one, and never learns that one exists.
 `ix_internal_comment_submission_id_created_at` and `ix_internal_comment_entry_id_created_at` serve the
 one read, a target's comments, oldest first.
 
-**A comment is append-only, fixed by privilege.** `nptc_app` holds `SELECT, INSERT` and a column-level
+**A comment is append-only, fixed by privilege.** `aptc_app` holds `SELECT, INSERT` and a column-level
 `UPDATE` on the three `withdrawn_*` columns only. It holds no `UPDATE` on `body`, `author_id`,
 `created_at` or either target column, and no `DELETE` or `TRUNCATE`, so what was said, by whom and when
 cannot be edited or removed.
@@ -1843,7 +1843,7 @@ neither shows the reason to anyone who could not already read it.
 ## `submission_working_copy` (FR-23, NFR-08)
 
 A reviewer's edited copy of a submission's content. A Reviewer or Administrator edits it through
-`PATCH /api/v1/submissions/{id}/working-copy`, which `nptc.submissions.working_copy` backs. The
+`PATCH /api/v1/submissions/{id}/working-copy`, which `aptc.submissions.working_copy` backs. The
 submission's own content never changes: `GRANT_SUBMISSION_UPDATE_SQL` still leaves every content
 column out. A submission with no row has not been edited, and its working content is its original.
 
@@ -1852,7 +1852,7 @@ column out. A submission with no row has not been edited, and its working conten
 | `submission_id` | `UUID` | PK and FK to `submission.id`, so a submission has at most one working copy |
 | `preferred_term` | `TEXT` | `NOT NULL`, `CHECK` not blank. On an amendment it stays the copy of the entry's term, because an amendment proposes only `synonyms` and `snomed_code` |
 | `synonyms` | `JSONB` | `NOT NULL DEFAULT '[]'`, `CHECK` array. Replaced whole on every edit |
-| `snomed_code` | `TEXT` | Nullable, `CHECK nptc_sctid_is_valid` (FR-06, ADR-0023). A string end to end |
+| `snomed_code` | `TEXT` | Nullable, `CHECK aptc_sctid_is_valid` (FR-06, ADR-0023). A string end to end |
 | `snomed_fsn` | `TEXT` | Nullable, `CHECK` not blank. Always the label the terminology server returned (FR-82), never from the request. `CHECK ((snomed_code IS NULL) = (snomed_fsn IS NULL))` |
 | `property_values` | `JSONB` | `NOT NULL DEFAULT '{}'`, `CHECK` object. Keyed by property key, replaced whole on every edit |
 | `notes` | `TEXT` | Nullable, `CHECK` not blank |
@@ -1868,7 +1868,7 @@ edit the evidence the submitter sent.
 original content would then be partly mutable by privilege. A separate table keeps the original fixed at
 the privilege level and leaves "has this been edited" as the presence of one row.
 
-**Fixed by privilege.** `nptc_app` holds `SELECT, INSERT` and a column-level `UPDATE` on the six content
+**Fixed by privilege.** `aptc_app` holds `SELECT, INSERT` and a column-level `UPDATE` on the six content
 columns and `updated_at`. It holds no `UPDATE` on `submission_id` or `created_at`, and no `DELETE` or
 `TRUNCATE`, so a working copy is never moved or removed.
 
@@ -1895,7 +1895,7 @@ no event, does not bump `row_version` and does not create the row.
 
 The record of a request for a SNOMED CT code that does not exist yet. A Reviewer who cannot find a
 code for a proposed test moves the submission from `Under review` to `Awaiting terminology` through
-`POST /api/v1/submissions/{id}/terminology-request`, which `nptc.submissions.terminology_request`
+`POST /api/v1/submissions/{id}/terminology-request`, which `aptc.submissions.terminology_request`
 backs, and the record is written in the same transaction as the move. A submission never waits
 without a complete record. One row for each request. A submission can wait more than once: a reviewer may
 take it back to `Under review` when the request is declined or abandoned, and ask again later. The earlier
@@ -1920,7 +1920,7 @@ newest row of the submission.
 the system or the identifier. Both are required. No integration with a concept-request system exists
 yet, so the platform stores them and calls nothing.
 
-**What was asked for is fixed by privilege.** `nptc_app` holds `SELECT, INSERT` and a column-level
+**What was asked for is fixed by privilege.** `aptc_app` holds `SELECT, INSERT` and a column-level
 `UPDATE` on the two `external_reference_*` columns, `expected_release` and `updated_at` only. It holds no
 `UPDATE` on the other columns, `id` and `submission_id` included, and no `DELETE` or `TRUNCATE`, so the request can be tracked while the
 submission waits and never rewritten or removed. A wrong request is a new submission or an amendment.
@@ -1969,6 +1969,6 @@ superuser (or a role with `CREATEDB`/appropriate grant) to install; see
 Postgres pinned to the exact tag `deploy/compose.yml` specifies (NFR-39) - parsed at
 runtime so there is exactly one pin, never `metadata.create_all` and never an in-memory
 substitute. See ADR-0011 for the full fixture graph and the reasoning behind each piece
-(the dedicated round-trip database, the genuinely separate `nptc_app_login`
+(the dedicated round-trip database, the genuinely separate `aptc_app_login`
 authentication, why each privilege refusal gets its own test function, and the
 `backend-integration` CI job that proves NFR-37 for this test tree).

@@ -8,7 +8,7 @@
 Issue #48 adds `code_binding.code`, the first column in the platform actually bound
 to a live SNOMED CT identifier. FR-06 (MUST) is explicit about what that column's own
 constraint has to enforce: "The database column MUST carry a check constraint
-enforcing `^\d{6,18}$` **plus Verhoeff check-digit validation**." `nptc_shared.sctid`
+enforcing `^\d{6,18}$` **plus Verhoeff check-digit validation**." `aptc_shared.sctid`
 already implements both halves in Python (`has_valid_format`, `has_valid_check_digit`,
 the `SCTID` dataclass) - that is FR-06's application layer, and it is not what this
 ADR is about. This ADR is about the database layer FR-06 separately requires.
@@ -24,7 +24,7 @@ only as a loop, a recursive query, or a function.
 
 PRD §14.1 is direct about why that should give us pause: "Business logic in database
 triggers or functions... is invisible to the test suite, invisible in code review,
-and it will be the thing nobody can find in two years." `nptc.db.roles.
+and it will be the thing nobody can find in two years." `aptc.db.roles.
 CREATE_APP_ROLE_SQL`'s own comment already reads that ban narrowly, as targeting
 "stored server-side logic... that runs on every future write", and treats its own
 one-shot `DO $$` role-creation block as outside that ban for exactly that reason. This
@@ -35,7 +35,7 @@ count as the kind of business logic §14.1 means?
 ## Decision
 
 **Yes to a function, no to anything with side effects or hidden behaviour.**
-`backend/src/nptc/db/functions.py` defines `nptc_sctid_is_valid(code text) RETURNS
+`backend/src/aptc/db/functions.py` defines `aptc_sctid_is_valid(code text) RETURNS
 boolean`, `LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE`, created by migration 0008
 before `code_binding` (whose own `ck_code_binding_code` references it) and referenced
 by nothing else. `code_binding.code` stays `TEXT` throughout - this function's
@@ -48,18 +48,18 @@ Three properties keep this narrower than what §14.1 is actually warning against
   runs "on every future write" the way a trigger would - it only ever appears inside a
   `CHECK`, deciding whether a row is valid, never changing what gets stored.
 - **It is visible, not hidden.** It lives in a versioned `backend/src` module and a
-  migration, discoverable and reviewable exactly the way `nptc.db.roles`'s grant SQL
+  migration, discoverable and reviewable exactly the way `aptc.db.roles`'s grant SQL
   already is - not typed once into a psql session and then invisible to `git log`.
 - **It cannot silently diverge from the Python implementation it mirrors.**
   `backend/tests/test_db_sctid_function.py` asserts, over an exhaustive corpus (every
   PRD sample SCTID, boundary lengths, single-digit perturbations of known-valid codes,
-  and format junk), that `nptc_sctid_is_valid` agrees with `has_valid_format(v) and
+  and format junk), that `aptc_sctid_is_valid` agrees with `has_valid_format(v) and
   has_valid_check_digit(v)` for every candidate. A future edit to either side that lets
   them disagree fails CI - the two-years-from-now discoverability problem §14.1 warns
   about is answered by a test, not by hoping nobody touches the SQL.
 
 The `_D`/`_P` tables inside the function are a direct, values-only transliteration of
-`nptc_shared.sctid._D`/`_P` (Postgres 1-based array indexing is the only structural
+`aptc_shared.sctid._D`/`_P` (Postgres 1-based array indexing is the only structural
 difference), so the two are provably the same table, not independently re-derived and
 merely hoped to agree.
 
@@ -69,7 +69,7 @@ merely hoped to agree.
 
 Enforce `code ~ '^[0-9]{6,18}$'` at the database layer (matching
 `ck_catalogue_entry_business_key`'s own precedent exactly) and rely on
-`nptc.catalogue.bindings.create_binding`'s `SCTID(code)` construction for the check
+`aptc.catalogue.bindings.create_binding`'s `SCTID(code)` construction for the check
 digit.
 
 Rejected: FR-06's own wording is "plus Verhoeff check-digit validation" at the
@@ -107,13 +107,13 @@ codebase's existing patterns.
 
 - This is the repository's first database function. Any future column needing a
   predicate a `CHECK` cannot express inline should follow this same shape - an
-  `IMMUTABLE`, side-effect-free function in `nptc.db.functions`, with an exhaustive
+  `IMMUTABLE`, side-effect-free function in `aptc.db.functions`, with an exhaustive
   parity test against its Python equivalent - rather than each such case relitigating
   §14.1 from scratch.
 - `backend/tests/test_db_round_trip.py`'s fingerprint must include `pg_proc`, or a
   downgrade/upgrade cycle that silently drops and fails to recreate the function would
   pass unnoticed.
 - FR-06 is fully implemented from this issue on: string end-to-end in Python
-  (`nptc_shared.sctid`, existing), enforced at the database layer (this ADR). FR-07 -
+  (`aptc_shared.sctid`, existing), enforced at the database layer (this ADR). FR-07 -
   the spreadsheet export's explicit text formatting - remains a separate, later piece
   of the same requirement, owned by the export renderer.

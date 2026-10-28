@@ -75,7 +75,7 @@ const rootRoute = createRootRoute({
 });
 
 function titled(title: string) {
-  return () => ({ meta: [{ title: `${title} — NPTC Catalogue` }] });
+  return () => ({ meta: [{ title: `${title} — APTC Catalogue` }] });
 }
 
 // --- public: landing ------------------------------------------------------
@@ -84,7 +84,7 @@ const homeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
   component: HomePage,
-  head: titled("NPTC Catalogue"),
+  head: titled("APTC Catalogue"),
 });
 
 // --- public: catalogue (FR-14..19, FR-35; #140) ---------------------------
@@ -138,7 +138,7 @@ const catalogueCodeLookupRoute = createRoute({
   head: titled("Code lookup"),
 });
 
-// FR-17: /catalogue/{business_key}, e.g. /catalogue/NPTC-000247.
+// FR-17: /catalogue/{business_key}, e.g. /catalogue/APTC-000247.
 // `business_key` is the public identifier (FR-03); the internal UUID never
 // appears in a route (PRD SS6.2).
 const catalogueEntryRoute = createRoute({

@@ -1,4 +1,4 @@
-"""HTTP tests for `nptc.api.routers.catalogue_admin`'s all-status listing
+"""HTTP tests for `aptc.api.routers.catalogue_admin`'s all-status listing
 and search (issue #266, FR-14, FR-15, FR-16, FR-36, FR-44).
 
 `test_api_catalogue_admin_read.py` proves the single-entry admin read
@@ -28,9 +28,9 @@ from sqlalchemy import update
 from sqlalchemy.engine import Connection
 from sqlalchemy.orm import Session
 
-from nptc.auth.permissions import Role
-from nptc.catalogue.maintenance import MAINTENANCE_STATUSES
-from nptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
+from aptc.auth.permissions import Role
+from aptc.catalogue.maintenance import MAINTENANCE_STATUSES
+from aptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
 
 
 def _load(name: str) -> Any:
@@ -86,7 +86,7 @@ class SortableCatalogue:
     by_status: tuple[str, ...]
 
 
-#: `_STATUS_LIFECYCLE_ORDER`'s own key, matching `nptc.catalogue.maintenance.
+#: `_STATUS_LIFECYCLE_ORDER`'s own key, matching `aptc.catalogue.maintenance.
 #: MAINTENANCE_STATUSES` - both are `CatalogueEntryStatus`'s own declaration
 #: order (`draft`, `active`, `deprecated`, `withdrawn`), which is the
 #: lifecycle order `sort=status` actually orders by (a `CASE` expression, not
@@ -99,7 +99,7 @@ _STATUS_LIFECYCLE_ORDER: Final[dict[str, int]] = {
 #: A fixed, deterministic prefix - not `random.randrange(...)` like `public_
 #: catalogue_support.py`'s own fixtures - review finding: this fixture's own
 #: business keys must never collide with `test_db_search_index.py`'s
-#: `_BULK_LISTING_ENTRIES_SQL` (`NPTC-900000001`..`NPTC-900005000`), and a
+#: `_BULK_LISTING_ENTRIES_SQL` (`APTC-900000001`..`APTC-900005000`), and a
 #: hand-picked, reproducible value is both easier to debug on failure (no
 #: seed to hunt down) and impossible to place inside that range by chance.
 #: Reused unchanged across every test invocation is safe: each test's own
@@ -113,7 +113,7 @@ def _seed_sortable(session: Session) -> SortableCatalogue:
     base = _SORTABLE_BUSINESS_KEY_BASE
 
     def key(offset: int) -> str:
-        return f"NPTC-{base + offset}"
+        return f"APTC-{base + offset}"
 
     # (offset, preferred_term, status) - three `active` rows (a guaranteed
     # status tie among them), one each of the other three statuses, and two
@@ -193,7 +193,7 @@ def test_maintenance_statuses_is_every_catalogue_entry_status() -> None:
 
 def test_maintenance_statuses_is_ordered_by_lifecycle() -> None:
     """A literal, order-sensitive guard the set comparison above deliberately
-    is not (review finding): `sort=status` (`nptc.catalogue.maintenance.
+    is not (review finding): `sort=status` (`aptc.catalogue.maintenance.
     _SORT_COLUMNS`) and this file's own `_STATUS_LIFECYCLE_ORDER` both derive
     their ordering from `enumerate(MAINTENANCE_STATUSES)`, i.e. from
     `CatalogueEntryStatus`'s declaration order - so reordering the enum, or
@@ -392,7 +392,7 @@ def test_the_status_facet_has_more_than_one_bucket(
 ) -> None:
     """The public search's own `status` facet has exactly one bucket
     (`active`) because `PUBLIC_STATUSES` is one status - see
-    `nptc.catalogue.facets._core_facets`'s own docstring. This surface's
+    `aptc.catalogue.facets._core_facets`'s own docstring. This surface's
     facet context is built from `MAINTENANCE_STATUSES` instead, so the same
     facet has real buckets to offer once more than one status is actually
     present in the matched result set."""
@@ -414,7 +414,7 @@ def test_the_status_facet_has_more_than_one_bucket(
 def test_the_status_facet_count_matches_the_filtered_page(
     api: ApiTestApp, seeded: SeededCatalogue
 ) -> None:
-    """`search_entries` and `search_facets` (`nptc.catalogue.search`) take
+    """`search_entries` and `search_facets` (`aptc.catalogue.search`) take
     `statuses` as two independent parameters with a "must agree" contract
     the type system does not enforce (issue #266 review) -
     `_matching_entry_ids`'s own docstring says the shared scored CTE exists

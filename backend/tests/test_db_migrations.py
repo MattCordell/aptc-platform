@@ -15,13 +15,13 @@ from alembic.runtime.migration import MigrationContext
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
-from nptc.db.base import Base
-from nptc.db.models import (  # noqa: F401 -- import for side effect: populates Base.metadata
+from aptc.db.base import Base
+from aptc.db.models import (  # noqa: F401 -- import for side effect: populates Base.metadata
     AuditEvent,
     User,
     UserIdentity,
 )
-from nptc.db.property_indexes import include_object
+from aptc.db.property_indexes import include_object
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 COMPOSE_FILE = REPO_ROOT / "deploy" / "compose.yml"
@@ -35,7 +35,7 @@ def test_upgrade_head_matches_models(db: Connection) -> None:
     extensions and grants - see test_db_round_trip.py for those.
 
     ``include_object`` matters here specifically: this runs against the
-    shared session-scoped ``nptc_test`` database, and #54's reconciler DDL
+    shared session-scoped ``aptc_test`` database, and #54's reconciler DDL
     runs on its own autocommit connection, so a generated
     ``ix_propval_p*`` index from another test in the run survives this
     fixture's rollback and would otherwise show up as a spurious diff."""

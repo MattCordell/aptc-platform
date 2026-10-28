@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from nptc_transform.cellref import CellRef
+from aptc_transform.cellref import CellRef
 
 
 def test_str_renders_the_a1_style_reference() -> None:

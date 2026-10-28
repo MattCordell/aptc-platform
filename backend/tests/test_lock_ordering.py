@@ -1,7 +1,7 @@
 """Regression tests for issue #281: every catalogue-entry writer acquires
-the audit append lock (`nptc.audit.writer.acquire_append_lock`) before it
+the audit append lock (`aptc.audit.writer.acquire_append_lock`) before it
 can take either a `catalogue_entry` row lock or the collision-key advisory
-lock (`nptc.catalogue.collisions.assert_no_error_collisions`) - as the
+lock (`aptc.catalogue.collisions.assert_no_error_collisions`) - as the
 first session-touching statement of the function, before any other
 operation that reads or writes the database. Only `_SESSION_FREE_PRECHECKS`
 (validation that never sees a session) may run ahead of it, and a writer
@@ -22,7 +22,7 @@ follow-up comments and ADR-0035's addendum:
   values`) only acquired it via `record_snapshot_change`, *after* the
   `row_version` bump/flush that takes the implicit row lock - the reverse
   order.
-- **Collision lock vs. append lock**: `nptc.catalogue.entries.entry_child_
+- **Collision lock vs. append lock**: `aptc.catalogue.entries.entry_child_
   write` (issue #60) already takes the append lock before its wrapped
   body. Before this issue, `save_entry`/`create_entry`, and `add_
   designation`/`amend_designation` themselves, took the collision-key lock
@@ -90,41 +90,41 @@ from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import StaleDataError
 
-import nptc.catalogue as catalogue_package
-import nptc.submissions as submissions_package
-from nptc.audit.writer import AUDIT_APPEND_LOCK_KEY, AuditContext
-from nptc.catalogue.bindings import create_binding, link_replacement, retire_binding
-from nptc.catalogue.changelog import ChangelogNoteError
-from nptc.catalogue.collisions import DesignationCollisionError
-from nptc.catalogue.designations import (
+import aptc.catalogue as catalogue_package
+import aptc.submissions as submissions_package
+from aptc.audit.writer import AUDIT_APPEND_LOCK_KEY, AuditContext
+from aptc.catalogue.bindings import create_binding, link_replacement, retire_binding
+from aptc.catalogue.changelog import ChangelogNoteError
+from aptc.catalogue.collisions import DesignationCollisionError
+from aptc.catalogue.designations import (
     add_designation,
     add_synonyms,
     amend_designation,
     reinstate_designation,
     retire_designation,
 )
-from nptc.catalogue.entries import (
+from aptc.catalogue.entries import (
     EntryChanges,
     create_entry,
     entry_child_write,
     save_entries,
     save_entry,
 )
-from nptc.catalogue.errors import EntryVersionConflictError
-from nptc.catalogue.local_codes import DatabaseLocalCodeLookup
-from nptc.catalogue.property_values import (
+from aptc.catalogue.errors import EntryVersionConflictError
+from aptc.catalogue.local_codes import DatabaseLocalCodeLookup
+from aptc.catalogue.property_values import (
     EntryPropertyTarget,
     PropertyValueInput,
     save_property_values,
     save_property_values_for_entries,
 )
-from nptc.db.models.catalogue_entry import CatalogueEntry
-from nptc.db.models.code_binding import SNOMED_CT_SYSTEM, CodeBinding
-from nptc.db.models.designation import Designation
-from nptc.db.models.property_definition import PropertyDefinition, PropertyOrigin, PropertyScope
-from nptc.registry.datatypes import build_builtin_handlers
-from nptc.registry.handlers import DatatypeRegistry, HandlerDeps
-from nptc_shared.terminology.stub import StubTerminologyClient
+from aptc.db.models.catalogue_entry import CatalogueEntry
+from aptc.db.models.code_binding import SNOMED_CT_SYSTEM, CodeBinding
+from aptc.db.models.designation import Designation
+from aptc.db.models.property_definition import PropertyDefinition, PropertyOrigin, PropertyScope
+from aptc.registry.datatypes import build_builtin_handlers
+from aptc.registry.handlers import DatatypeRegistry, HandlerDeps
+from aptc_shared.terminology.stub import StubTerminologyClient
 
 _FuncDef = ast.FunctionDef | ast.AsyncFunctionDef
 _FuncKey = tuple[str, str]

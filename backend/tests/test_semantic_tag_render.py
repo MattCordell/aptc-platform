@@ -1,4 +1,4 @@
-"""`nptc.exports.semantic_tag.render_display_term` tests (issue #48, FR-83,
+"""`aptc.exports.semantic_tag.render_display_term` tests (issue #48, FR-83,
 NFR-38 tests 11 and 12).
 """
 
@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import pytest
 
-from nptc.exports.semantic_tag import (
+from aptc.exports.semantic_tag import (
     EmptyDisplayTermError,
     NotAServedFSNError,
     render_display_term,

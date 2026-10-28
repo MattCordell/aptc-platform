@@ -5,7 +5,7 @@ Revises: 0015
 Create Date: 2026-09-07
 
 Issue #140 (FR-17): a real retirement timestamp on `code_binding`, so
-`nptc.catalogue.queries.get_entry_by_code` has an honest tie-break when the
+`aptc.catalogue.queries.get_entry_by_code` has an honest tie-break when the
 same code was retired on more than one entry (a code is retired and
 replaced, never rebound in place, so each retirement is a new row -
 `ix_code_binding_one_active_entry_per_code` only rules out the *active*
@@ -41,7 +41,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-from nptc.db import roles
+from aptc.db import roles
 
 # revision identifiers, used by Alembic.
 revision: str = "0016"

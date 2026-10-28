@@ -1,7 +1,7 @@
 [project]
-name = "nptc-platform"
+name = "aptc-platform"
 version = "0.0.0"
-description = "NPTC Catalogue Maintenance Platform - workspace root (not published)"
+description = "APTC Catalogue Maintenance Platform - workspace root (not published)"
 requires-python = ">=3.14"
 license = "Apache-2.0"
 readme = "README.md"
@@ -16,7 +16,7 @@ dev = [
     "pyyaml>=6.0",
     "types-pyyaml>=6.0.12.20260815",
     "types-openpyxl>=3.1.5.20260807",
-    # nptc.registry.schema (issue #52, FR-09) is the first *production*
+    # aptc.registry.schema (issue #52, FR-09) is the first *production*
     # (non-test) importer of jsonschema - backend/pyproject.toml's own
     # dependency comment.
     "types-jsonschema>=4.23",
@@ -64,7 +64,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["nptc", "nptc_transform", "nptc_shared"]
+known-first-party = ["aptc", "aptc_transform", "aptc_shared"]
 
 # --- mypy ----------------------------------------------------------------
 # `files`, not `packages`: mypy rejects specifying both module/package and
@@ -78,7 +78,7 @@ files = ["backend/src", "transform/src", "shared/src", "scripts", "backend/migra
 strict = true
 warn_unreachable = true
 disallow_untyped_decorators = false
-# Required for nptc.settings.DatabaseSettings/MigrationSettings (issue #33,
+# Required for aptc.settings.DatabaseSettings/MigrationSettings (issue #33,
 # first pydantic-settings consumer): without this plugin, mypy sees a
 # BaseSettings subclass as a plain class and demands every required field
 # as an explicit __init__ kwarg, even though pydantic-settings populates

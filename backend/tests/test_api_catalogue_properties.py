@@ -1,10 +1,10 @@
-"""HTTP tests for `nptc.api.routers.catalogue_properties` (issue #248,
+"""HTTP tests for `aptc.api.routers.catalogue_properties` (issue #248,
 FR-09, FR-10, FR-11, FR-37, FR-38, FR-44, FR-88, FR-89, NFR-08).
 
 Follows `test_api_catalogue_bindings.py`'s own precedent exactly: the
 service layer already has its own unit tests (`test_catalogue_property_
 values.py`); this module proves the HTTP adapter - request/response shape,
-status codes, the exception-handler mapping in `nptc.api.errors`, and
+status codes, the exception-handler mapping in `aptc.api.errors`, and
 authorisation - against the real `create_app()`.
 """
 
@@ -21,13 +21,13 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.engine import Connection
 
-from nptc.audit.writer import AuditContext
-from nptc.auth.permissions import Role
-from nptc.catalogue.entries import create_entry
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.catalogue_entry import CatalogueEntry
-from nptc.db.models.property_value import PropertyValue
-from nptc_shared.terminology.models import SNOMED_CT_AU, ValidationResult
+from aptc.audit.writer import AuditContext
+from aptc.auth.permissions import Role
+from aptc.catalogue.entries import create_entry
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.catalogue_entry import CatalogueEntry
+from aptc.db.models.property_value import PropertyValue
+from aptc_shared.terminology.models import SNOMED_CT_AU, ValidationResult
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -360,7 +360,7 @@ def test_save_property_values_unknown_business_key_is_404(api: ApiTestApp) -> No
     response = _put_values(
         api,
         token,
-        business_key="NPTC-999999",
+        business_key="APTC-999999",
         property_key=key,
         values=[{"value": "a value"}],
         expected_row_version=1,
@@ -453,7 +453,7 @@ def test_save_property_values_schema_violation_is_422_with_named_issue(api: ApiT
     assert issue["label"] == created["label"]
     assert issue["ordinal"] == 0
     # The `maxLength` constraint is enforced by the generic JSON Schema
-    # check `nptc.registry.schema.validate_values` runs before a value ever
+    # check `aptc.registry.schema.validate_values` runs before a value ever
     # reaches the handler's own `validate()` - see that function's own
     # docstring - so the issue code is the generic `schema-violation`, not
     # `StringHandler.validate`'s own `max-length-exceeded`.
@@ -522,7 +522,7 @@ def test_save_property_values_against_a_deprecated_property_is_422_untouched(
 @pytest.mark.req("FR-88")
 @pytest.mark.integration
 def test_specimen_accepts_the_samples_seven_specimen_worst_case(api: ApiTestApp) -> None:
-    from nptc.db.bootstrap import seed_system_properties
+    from aptc.db.bootstrap import seed_system_properties
 
     token = api.admin_token(subject="sub-specimen-seven")
     seed_system_properties(api.session)
@@ -554,7 +554,7 @@ def test_specimen_accepts_the_samples_seven_specimen_worst_case(api: ApiTestApp)
 @pytest.mark.integration
 def test_specimen_rejects_the_literal_text_any_because_it_is_not_a_code(api: ApiTestApp) -> None:
     """`Any` is the code `123038009`, never the text (ADR-0044)."""
-    from nptc.db.bootstrap import seed_system_properties
+    from aptc.db.bootstrap import seed_system_properties
 
     token = api.admin_token(subject="sub-specimen-any")
     seed_system_properties(api.session)
@@ -593,7 +593,7 @@ def _seed_specimen_codes(api: ApiTestApp, *codes: str) -> None:
 @pytest.mark.req("FR-89")
 @pytest.mark.integration
 def test_specimen_root_alone_is_accepted_as_any_specimen(api: ApiTestApp) -> None:
-    from nptc.db.bootstrap import seed_system_properties
+    from aptc.db.bootstrap import seed_system_properties
 
     token = api.admin_token(subject="sub-specimen-root-alone")
     seed_system_properties(api.session)
@@ -619,7 +619,7 @@ def test_specimen_root_alone_is_accepted_as_any_specimen(api: ApiTestApp) -> Non
 def test_specimen_root_beside_a_named_specimen_is_422_and_names_the_root(
     api: ApiTestApp,
 ) -> None:
-    from nptc.db.bootstrap import seed_system_properties
+    from aptc.db.bootstrap import seed_system_properties
 
     token = api.admin_token(subject="sub-specimen-root-conflict")
     seed_system_properties(api.session)
@@ -905,7 +905,7 @@ def test_bulk_save_a_missing_business_key_is_a_not_found_outcome(api: ApiTestApp
         property_key=key,
         values=[{"value": "bulk value"}],
         entries=[
-            {"business_key": "NPTC-999998", "expected_row_version": 1},
+            {"business_key": "APTC-999998", "expected_row_version": 1},
             {"business_key": entry.business_key, "expected_row_version": entry.row_version},
         ],
     )
@@ -913,8 +913,8 @@ def test_bulk_save_a_missing_business_key_is_a_not_found_outcome(api: ApiTestApp
     assert response.status_code == 200, response.text
     body = response.json()
     outcomes = {outcome["business_key"]: outcome for outcome in body["outcomes"]}
-    assert outcomes["NPTC-999998"]["status"] == "not-found"
-    assert outcomes["NPTC-999998"]["row_version"] is None
+    assert outcomes["APTC-999998"]["status"] == "not-found"
+    assert outcomes["APTC-999998"]["row_version"] is None
     assert outcomes[entry.business_key]["status"] == "applied"
 
 
@@ -1017,7 +1017,7 @@ def test_bulk_save_more_than_the_batch_cap_is_422(api: ApiTestApp) -> None:
         token,
         property_key=key,
         values=[{"value": "bulk value"}],
-        entries=[{"business_key": f"NPTC-{n:06d}", "expected_row_version": 1} for n in range(101)],
+        entries=[{"business_key": f"APTC-{n:06d}", "expected_row_version": 1} for n in range(101)],
     )
 
     assert response.status_code == 422, response.text
@@ -1110,7 +1110,7 @@ def test_bulk_save_emits_no_batch_header_when_nothing_applied(api: ApiTestApp) -
         token,
         property_key=key,
         values=[{"value": "bulk value"}],
-        entries=[{"business_key": "NPTC-999996", "expected_row_version": 1}],
+        entries=[{"business_key": "APTC-999996", "expected_row_version": 1}],
     )
 
     assert response.status_code == 200, response.text
@@ -1129,7 +1129,7 @@ def test_bulk_specimen_root_beside_a_named_specimen_is_refused_before_any_entry_
     """The root-alone rule depends on the submitted values only, so a bulk write checks it once,
     up front, with the other whole-request checks. No entry is touched and no audit event is
     written, whatever the entries' own states."""
-    from nptc.db.bootstrap import seed_system_properties
+    from aptc.db.bootstrap import seed_system_properties
 
     token = api.admin_token(subject="sub-bulk-specimen-root")
     entry_a = _new_entry(api, "Bulk HTTP specimen root a")

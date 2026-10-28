@@ -1,4 +1,4 @@
-"""A small, test-only FastAPI app exercising `nptc.auth.authorisation.
+"""A small, test-only FastAPI app exercising `aptc.auth.authorisation.
 require_permission` end to end over real HTTP (issue #44).
 
 There is no FastAPI app anywhere in `backend/src` - this issue is
@@ -20,10 +20,10 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
-from nptc.auth.authorisation import require_permission
-from nptc.auth.errors_authorisation import AuthorisationError
-from nptc.auth.permissions import Permission
-from nptc.auth.principal import Principal
+from aptc.auth.authorisation import require_permission
+from aptc.auth.errors_authorisation import AuthorisationError
+from aptc.auth.permissions import Permission
+from aptc.auth.principal import Principal
 
 
 def _unauthenticated() -> Principal:
@@ -92,7 +92,7 @@ def assert_http_forbidden(
     2. With no credential at all (the override cleared): 401, not 403 -
        the pair endpoints most reliably get backwards.
     """
-    from nptc.auth.permissions import Role
+    from aptc.auth.permissions import Role
 
     harness.as_principal(principal)
     try:
@@ -107,7 +107,7 @@ def assert_http_forbidden(
         # substring (Permission.ROLE_GRANT_MEMBER's value contains
         # "member"), which is not itself a leak of Role.MEMBER. See
         # authz_support.py's assert_permission_refused for the same fix.
-        from nptc.auth.permissions import Permission
+        from aptc.auth.permissions import Permission
 
         body_without_permissions = body
         for permission in Permission:

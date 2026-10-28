@@ -17,13 +17,13 @@ from sqlalchemy import func, select, text
 from sqlalchemy.engine import Connection
 from sqlalchemy.orm import Session
 
-from nptc.audit.verification import verify_chain
-from nptc.audit.writer import AuditContext
-from nptc.catalogue.changelog import SEED_IMPORT_NOTE
-from nptc.catalogue.entries import BUSINESS_KEY_PATTERN, allocate_business_key, create_entry
-from nptc.catalogue.local_codes import create_local_code_unchecked
-from nptc.catalogue.seed_dataset import ImportDataset, read_import_dataset
-from nptc.catalogue.seed_import import (
+from aptc.audit.verification import verify_chain
+from aptc.audit.writer import AuditContext
+from aptc.catalogue.changelog import SEED_IMPORT_NOTE
+from aptc.catalogue.entries import BUSINESS_KEY_PATTERN, allocate_business_key, create_entry
+from aptc.catalogue.local_codes import create_local_code_unchecked
+from aptc.catalogue.seed_dataset import ImportDataset, read_import_dataset
+from aptc.catalogue.seed_import import (
     CatalogueNotEmptyError,
     SeedEntryError,
     SeedPrerequisiteError,
@@ -31,15 +31,15 @@ from nptc.catalogue.seed_import import (
     find_unclean_preferred_terms,
     seed_baseline,
 )
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.catalogue_entry import CatalogueEntry
-from nptc.db.models.code_binding import CodeBinding
-from nptc.db.models.designation import Designation
-from nptc.db.models.entry_seed_provenance import EntrySeedProvenance
-from nptc.db.models.local_code import LocalCode
-from nptc.db.models.local_code_system import LocalCodeSystem
-from nptc.db.models.property_value import PropertyValue
-from nptc.db.models.seed_import import SeedImport
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.catalogue_entry import CatalogueEntry
+from aptc.db.models.code_binding import CodeBinding
+from aptc.db.models.designation import Designation
+from aptc.db.models.entry_seed_provenance import EntrySeedProvenance
+from aptc.db.models.local_code import LocalCode
+from aptc.db.models.local_code_system import LocalCodeSystem
+from aptc.db.models.property_value import PropertyValue
+from aptc.db.models.seed_import import SeedImport
 
 pytestmark = pytest.mark.usefixtures("pristine_catalogue")
 
@@ -91,7 +91,7 @@ def test_every_entry_is_written_with_its_designations_bindings_and_properties(
     assert report.property_values == 3 * 2 + 1
     assert _count(app_session, CatalogueEntry) == 3
 
-    first = _entry(app_session, "NPTC-500000")
+    first = _entry(app_session, "APTC-500000")
     assert first.preferred_term == "1,1,1-Trichloroethane"
     synonyms = (
         app_session.execute(select(Designation).where(Designation.entry_id == first.id))
@@ -125,7 +125,7 @@ def test_the_dataset_status_is_used_not_the_draft_default(
 ) -> None:
     _seed(app_session, make_dataset_document(1), write_dataset)
 
-    assert _entry(app_session, "NPTC-500000").status == "active"
+    assert _entry(app_session, "APTC-500000").status == "active"
 
 
 @pytest.mark.req("FR-06")
@@ -181,11 +181,11 @@ def test_provenance_and_the_seed_record_are_stored_verbatim(
         _entry_key(app_session, row.entry_id): row
         for row in app_session.execute(select(EntrySeedProvenance)).scalars()
     }
-    assert rows["NPTC-500000"].source_row == 2
-    assert rows["NPTC-500000"].legacy_version == "2024-07-01T00:00:00"
-    assert rows["NPTC-500000"].legacy_history == "Jul 2024 - Added by PI Pilot 22-24"
-    assert rows["NPTC-500001"].legacy_version is None
-    assert rows["NPTC-500001"].legacy_history is None
+    assert rows["APTC-500000"].source_row == 2
+    assert rows["APTC-500000"].legacy_version == "2024-07-01T00:00:00"
+    assert rows["APTC-500000"].legacy_history == "Jul 2024 - Added by PI Pilot 22-24"
+    assert rows["APTC-500001"].legacy_version is None
+    assert rows["APTC-500001"].legacy_history is None
     assert all(row.seed_import_id == seed.id for row in rows.values())
 
 
@@ -204,7 +204,7 @@ def test_the_next_minted_key_is_above_every_seeded_key(
 
     minted = allocate_business_key(app_session)
 
-    assert report.highest_business_key == "NPTC-500002"
+    assert report.highest_business_key == "APTC-500002"
     match = BUSINESS_KEY_PATTERN.match(minted)
     assert match is not None
     assert int(match.group(1)) > 500002
@@ -267,7 +267,7 @@ def test_a_non_empty_catalogue_is_refused_and_nothing_is_written(
         AuditContext.system(),
         preferred_term="An existing entry",
         reason=SEED_IMPORT_NOTE,
-        business_key="NPTC-499999",
+        business_key="APTC-499999",
     )
     dataset = _read(make_dataset_document(2), write_dataset)
 
@@ -310,12 +310,12 @@ def test_a_collision_names_the_entry_and_rolls_everything_back(
     app_session.rollback()
 
     error = exc_info.value
-    assert error.business_key == "NPTC-500002"
+    assert error.business_key == "APTC-500002"
     assert error.preferred_term == clash
     assert repr(clash) in str(error)
     assert error.row == 4
     assert error.cause_type == "DesignationCollisionError"
-    assert "NPTC-500000" in error.detail
+    assert "APTC-500000" in error.detail
     assert _count(app_session, CatalogueEntry) == 0
     assert _count(app_session, SeedImport) == 0
     assert _count(app_session, Designation) == 0
@@ -355,7 +355,7 @@ def test_discipline_matches_the_governed_code_ignoring_case(
 
     _seed(app_session, document, write_dataset)
 
-    (value,) = _values(app_session, _entry(app_session, "NPTC-500000"), "discipline")
+    (value,) = _values(app_session, _entry(app_session, "APTC-500000"), "discipline")
     assert (value["code"], value["display"]) == ("haematology", "Haematology")
 
 
@@ -385,7 +385,7 @@ def test_subgroup_labels_become_provisional_local_codes_once_each(
         ("Coagulation", "Coagulation", True),
         ("Drug measurement", "Drug measurement", True),
     ]
-    second = _values(app_session, _entry(app_session, "NPTC-500001"), "subgroup")
+    second = _values(app_session, _entry(app_session, "APTC-500001"), "subgroup")
     assert [value["code"] for value in second] == ["Coagulation"]
 
 
@@ -401,7 +401,7 @@ def test_any_is_stored_as_the_specimen_root_code(
 
     _seed(app_session, document, write_dataset)
 
-    values = _values(app_session, _entry(app_session, "NPTC-500000"), "specimen")
+    values = _values(app_session, _entry(app_session, "APTC-500000"), "specimen")
     assert [value["code"] for value in values] == ["123038009"]
 
 
@@ -417,7 +417,7 @@ def test_a_specimen_is_stored_with_the_datasets_display_not_the_workbook_wording
 
     _seed(app_session, document, write_dataset)
 
-    assert _values(app_session, _entry(app_session, "NPTC-500000"), "specimen") == [
+    assert _values(app_session, _entry(app_session, "APTC-500000"), "specimen") == [
         {"system": "http://snomed.info/sct", "code": "122575003", "display": "Urine specimen"}
     ]
 
@@ -435,7 +435,7 @@ def test_a_specimen_with_no_display_is_stored_by_code_alone(
 
     _seed(app_session, document, write_dataset)
 
-    assert _values(app_session, _entry(app_session, "NPTC-500000"), "specimen") == [
+    assert _values(app_session, _entry(app_session, "APTC-500000"), "specimen") == [
         {"system": "http://snomed.info/sct", "code": "122575003"}
     ]
 
@@ -453,7 +453,7 @@ def test_two_strings_with_one_code_are_stored_once(
 
     _seed(app_session, document, write_dataset)
 
-    values = _values(app_session, _entry(app_session, "NPTC-500000"), "specimen")
+    values = _values(app_session, _entry(app_session, "APTC-500000"), "specimen")
     assert [value["code"] for value in values] == ["309051001"]
 
 
@@ -470,18 +470,18 @@ def test_the_whole_table_check_finds_a_term_that_skipped_clean_term(
     app_session.execute(
         text(
             "INSERT INTO catalogue_entry (business_key, preferred_term) "
-            "VALUES ('NPTC-499998', 'Trailing space' || chr(160))"
+            "VALUES ('APTC-499998', 'Trailing space' || chr(160))"
         )
     )
 
     app_session.execute(
         text(
             "INSERT INTO catalogue_entry (business_key, preferred_term) "
-            "VALUES ('NPTC-499997', 'Zero width' || chr(8203))"
+            "VALUES ('APTC-499997', 'Zero width' || chr(8203))"
         )
     )
 
-    assert sorted(find_unclean_preferred_terms(app_session)) == ["NPTC-499997", "NPTC-499998"]
+    assert sorted(find_unclean_preferred_terms(app_session)) == ["APTC-499997", "APTC-499998"]
 
 
 @pytest.mark.integration
@@ -580,7 +580,7 @@ def test_an_existing_subgroup_code_is_reused_by_display_ignoring_case(
     report, _ = _seed(app_session, document, write_dataset)
 
     assert report.provisional_subgroup_codes == ()
-    (value,) = _values(app_session, _entry(app_session, "NPTC-500000"), "subgroup")
+    (value,) = _values(app_session, _entry(app_session, "APTC-500000"), "subgroup")
     assert (value["code"], value["display"]) == ("coag_slug", "Coagulation")
     matching = app_session.execute(
         select(func.count())
@@ -672,7 +672,7 @@ def test_subgroup_labels_differing_only_in_case_share_one_provisional_code(
         .where(func.lower(LocalCode.display) == "coagulation")
     ).scalar_one()
     assert created == 1
-    for key in ("NPTC-500000", "NPTC-500001"):
+    for key in ("APTC-500000", "APTC-500001"):
         (value,) = _values(app_session, _entry(app_session, key), "subgroup")
         assert value["code"] == "Coagulation"
 
@@ -689,7 +689,7 @@ def test_two_spellings_of_one_label_in_one_entry_are_stored_once(
 
     _seed(app_session, document, write_dataset)
 
-    values = _values(app_session, _entry(app_session, "NPTC-500000"), "discipline")
+    values = _values(app_session, _entry(app_session, "APTC-500000"), "discipline")
     assert [value["code"] for value in values] == ["chemical_pathology"]
 
 
@@ -706,6 +706,6 @@ def test_a_specimen_named_twice_with_one_code_is_stored_once(
 
     report, _ = _seed(app_session, document, write_dataset)
 
-    values = _values(app_session, _entry(app_session, "NPTC-500000"), "specimen")
+    values = _values(app_session, _entry(app_session, "APTC-500000"), "specimen")
     assert [value["code"] for value in values] == ["119364003", "119361006"]
     assert report.property_values == 1 + 2 + 0

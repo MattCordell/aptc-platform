@@ -9,7 +9,7 @@ URL resolution has exactly two routes, tried in this order:
 2. ``MigrationSettings().migration_database_url`` - the operator path,
    documented in docs/operations/upgrade.md. A dedicated settings class,
    not the combined app ``Settings`` - an operator running a migration
-   should never need ``NPTC_DATABASE_URL`` set too.
+   should never need ``APTC_DATABASE_URL`` set too.
 
 Deliberately no fallback to ``config.get_main_option("sqlalchemy.url")``: no
 ``sqlalchemy.url`` is ever committed (NFR-26), and falling back to it would
@@ -28,10 +28,10 @@ from alembic import context
 from sqlalchemy import create_engine, pool
 from sqlalchemy.engine import Connection
 
-from nptc.db import models  # noqa: F401 -- side effect: registers every model with Base.metadata
-from nptc.db.base import Base
-from nptc.db.property_indexes import include_object
-from nptc.settings import MigrationSettings
+from aptc.db import models  # noqa: F401 -- side effect: registers every model with Base.metadata
+from aptc.db.base import Base
+from aptc.db.property_indexes import include_object
+from aptc.settings import MigrationSettings
 
 config = context.config
 

@@ -10,7 +10,7 @@ where `get_api_settings` builds the process-wide instance. The environment-free
 forms `ApiSettings.model_construct()` and `.model_validate()` are flagged too, with
 `openapi_document.py` as their one allowed caller.
 
-Pure ``ast`` over ``backend/src/nptc/api``, modelled on
+Pure ``ast`` over ``backend/src/aptc/api``, modelled on
 ``test_token_verification_guard.py``, with a positive control over an inline
 source string so the guard cannot rot into an always-pass.
 """
@@ -23,11 +23,11 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-API_DIR = REPO_ROOT / "backend" / "src" / "nptc" / "api"
+API_DIR = REPO_ROOT / "backend" / "src" / "aptc" / "api"
 
 _ALLOWED_PATHS = {
-    "get_api_settings": {"backend/src/nptc/api/app.py"},
-    "ApiSettings": {"backend/src/nptc/api/dependencies.py"},
+    "get_api_settings": {"backend/src/aptc/api/app.py"},
+    "ApiSettings": {"backend/src/aptc/api/dependencies.py"},
 }
 
 #: `ApiSettings.model_construct(...)` and `.model_validate(...)` build an instance
@@ -35,7 +35,7 @@ _ALLOWED_PATHS = {
 #: and the `ApiSettings(...)` check never fires. They bypass `dependency_overrides`
 #: just as a bare construction does, so they get their own allow-list.
 _ENV_FREE_BUILDERS = {"model_construct", "model_validate"}
-_ENV_FREE_BUILD_ALLOWED_PATHS = {"backend/src/nptc/api/openapi_document.py"}
+_ENV_FREE_BUILD_ALLOWED_PATHS = {"backend/src/aptc/api/openapi_document.py"}
 
 
 def _display(path: Path) -> str:
@@ -95,7 +95,7 @@ def test_no_api_module_resolves_api_settings_outside_the_allow_list() -> None:
 def test_guard_flags_direct_use_and_ignores_depends() -> None:
     source = """
 from fastapi import Depends
-from nptc.api import dependencies
+from aptc.api import dependencies
 
 def bare():
     return get_api_settings()
@@ -121,7 +121,7 @@ def other_model(settings=Depends(get_api_settings)):
 def injected(settings=Depends(get_api_settings)):
     return settings
 """
-    assert len(_direct_uses(source, "backend/src/nptc/api/routers/x.py")) == 6
-    assert len(_direct_uses(source, "backend/src/nptc/api/app.py")) == 4
-    assert len(_direct_uses(source, "backend/src/nptc/api/dependencies.py")) == 5
-    assert len(_direct_uses(source, "backend/src/nptc/api/openapi_document.py")) == 3
+    assert len(_direct_uses(source, "backend/src/aptc/api/routers/x.py")) == 6
+    assert len(_direct_uses(source, "backend/src/aptc/api/app.py")) == 4
+    assert len(_direct_uses(source, "backend/src/aptc/api/dependencies.py")) == 5
+    assert len(_direct_uses(source, "backend/src/aptc/api/openapi_document.py")) == 3

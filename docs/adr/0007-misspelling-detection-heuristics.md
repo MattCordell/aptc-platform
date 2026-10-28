@@ -31,14 +31,14 @@ heuristics 1 and 2 - see Decision 3 below for why that is a refinement, not a de
 
 ## Decision
 
-**1. A new module, `shared/src/nptc_shared/similarity.py`, owns tokenising and bounded
-edit distance; `transform/src/nptc_transform/misspelling.py` owns the two heuristics and
+**1. A new module, `shared/src/aptc_shared/similarity.py`, owns tokenising and bounded
+edit distance; `transform/src/aptc_transform/misspelling.py` owns the two heuristics and
 their thresholds.**
 
 `shared/` is where FR-74/ADR-0003 already put the terminology client for the identical
 reason: FR-36's on-save check (deferred to a second PR) and the seeding transform's check
 are two call sites that must call the same function, not two independently maintained
-ideas of "near enough". `nptc_shared.text` was not extended in place - its own docstring
+ideas of "near enough". `aptc_shared.text` was not extended in place - its own docstring
 scopes it to Unicode hygiene (NFC normalisation, invisible-character detection), and
 `similarity.py`'s comparison logic is a different concern that happens to build on it
 (`tokenise` calls `normalise_for_comparison` rather than reimplementing it).
@@ -95,7 +95,7 @@ suggested reading order: a token with an in-entry reference has direct, local ev
 corpus-wide frequency gap that says nothing about *this* entry specifically.
 
 **7. Thresholds are module constants (`similarity.py`'s three, plus `misspelling.py`'s rare/
-common/ratio trio), never an `NPTC_TX_*` environment variable.**
+common/ratio trio), never an `APTC_TX_*` environment variable.**
 
 Contrast ADR-0005, whose chunk-size/concurrency defaults are configurable precisely because
 FR-52 explicitly requires the concurrency ceiling to be tunable and the chunk size to be
@@ -136,17 +136,17 @@ If a specific catalogue turns out to produce too many/few findings:
 | `difflib.SequenceMatcher.ratio()` | Wrong shape: a normalised similarity ratio, not a count of edits. FR-79's own words are "differ by one or two characters" - a character count, not a 0-1 score a caller would then have to reverse-engineer a threshold for. |
 | Trigram/n-gram similarity | Answers a different question (shared substrings) than "differ by N characters" - and PRD:878 states the requirement as edit distance explicitly, alongside trigram similarity as a *complementary* signal it does not actually specify how to combine. Implementing only what the requirement pins down avoids inventing a fusion rule nobody asked for. |
 | Whole-designation string comparison (compare `RCPA Synonyms` cell text directly, not per-token) | Forces exactly the delimiter question FR-71 leaves open for that column (comma vs. semicolon, PRD Appendix A.4) - tokenising first sidesteps it entirely, since every non-word character is an equally valid separator (see `similarity.tokenise`'s own tests). |
-| An `NPTC_TX_*` environment variable per threshold | See Decision 7 - contrast ADR-0005, where the configurability is a direct answer to FR-52's explicit tunability requirement against a live server. Nothing plays that role here. |
+| An `APTC_TX_*` environment variable per threshold | See Decision 7 - contrast ADR-0005, where the configurability is a direct answer to FR-52's explicit tunability requirement against a live server. Nothing plays that role here. |
 | Treating adjacent workbook rows as heuristic-1 reference material | Annex A.5's own negative controls are near-identical adjacent entries differing only by specimen (PRD's collision-detection examples) - row adjacency is not evidence of a shared designation, and using it would manufacture false positives on exactly the rows FR-05's own hazard log entries are about. |
 | A blocking band (`data-defect`/`requires-human-decision`) for either finding code | PRD:884 states plainly: "warnings for editorial review, never auto-corrections." A heuristic guess about spelling is not the kind of "the source data is wrong or unrecoverable" claim the data-defect band makes (see `bands.py`), and aborting an otherwise-clean seeding run over a guess would be a worse failure mode than an occasional false positive in a report nobody is forced to act on. |
 | Auto-correcting the flagged token | PRD:884's second sentence, verbatim: "Automatically 'fixing' a term in a clinical terminology on the basis of an edit-distance heuristic is not acceptable." Both codes are informational precisely so nothing downstream ever treats a heuristic guess as ground truth. |
 
 ## Consequences
 
-- `shared/src/nptc_shared/similarity.py` is a new module with no dependency on
-  `nptc_transform` - FR-36's future on-save check (backend) imports it directly, the same
-  way the backend will eventually import `nptc_shared.terminology`.
-- `transform/src/nptc_transform/misspelling.py` is a new pass, wired into
+- `shared/src/aptc_shared/similarity.py` is a new module with no dependency on
+  `aptc_transform` - FR-36's future on-save check (backend) imports it directly, the same
+  way the backend will eventually import `aptc_shared.terminology`.
+- `transform/src/aptc_transform/misspelling.py` is a new pass, wired into
   `pipeline.run_transform_sheets` on both branches (with and without `--check-terminology`)
   - unlike designation reconciliation (ADR-0006), this pass does not require a sweep to run
   at all, only to run at full precision.

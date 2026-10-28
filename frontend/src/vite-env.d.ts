@@ -3,7 +3,7 @@
 /**
  * The build-time configuration the sign-in flow needs (issue #41).
  *
- * Both are safe to ship in a bundle: ADR-0021's `nptc-frontend` is a public
+ * Both are safe to ship in a bundle: ADR-0021's `aptc-frontend` is a public
  * client, so an issuer URL and a client id are public facts, not secrets.
  * No `VITE_*` variable may ever carry a credential - `pnpm build` is
  * followed by `scripts/assert-no-secret-in-bundle.mjs`, which checks that

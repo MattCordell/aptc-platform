@@ -1,8 +1,8 @@
-"""Parity test for `nptc_sctid_is_valid` (issue #48, ADR-0023).
+"""Parity test for `aptc_sctid_is_valid` (issue #48, ADR-0023).
 
 This is the whole basis of ADR-0023's argument for accepting a database
 function at all: it must be exhaustive over a real corpus, not illustrative,
-or a future edit to either side (the SQL function, or `nptc_shared.sctid`)
+or a future edit to either side (the SQL function, or `aptc_shared.sctid`)
 could let them silently disagree with nothing to catch it.
 """
 
@@ -12,7 +12,7 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
-from nptc_shared.sctid import has_valid_check_digit, has_valid_format
+from aptc_shared.sctid import has_valid_check_digit, has_valid_format
 
 
 #: A corpus built to exercise every boundary this function has to get
@@ -65,7 +65,7 @@ def test_function_agrees_with_the_python_implementation(db: Connection, candidat
     expected = has_valid_format(candidate) and has_valid_check_digit(candidate)
 
     actual = db.execute(
-        text("SELECT nptc_sctid_is_valid(:code) AS result"), {"code": candidate}
+        text("SELECT aptc_sctid_is_valid(:code) AS result"), {"code": candidate}
     ).scalar_one()
 
     assert actual is expected, f"{candidate!r}: expected {expected}, got {actual}"

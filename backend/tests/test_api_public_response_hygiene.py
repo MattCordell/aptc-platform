@@ -42,10 +42,10 @@ from urllib.parse import quote
 import pytest
 from sqlalchemy.engine import Connection
 
-from nptc.audit.writer import AuditContext
-from nptc.catalogue.entries import create_entry
-from nptc.db.models.code_binding import SNOMED_CT_SYSTEM
-from nptc_shared.terminology import AU_LANGUAGE_TAG, StubConcept
+from aptc.audit.writer import AuditContext
+from aptc.catalogue.entries import create_entry
+from aptc.db.models.code_binding import SNOMED_CT_SYSTEM
+from aptc_shared.terminology import AU_LANGUAGE_TAG, StubConcept
 
 
 def _load(name: str) -> Any:
@@ -78,7 +78,7 @@ _UUID_RE = re.compile(
 #: distinction: `"391483001"` is a correctly-serialised SCTID and must not
 #: match, while `391483001` (bare, as a JSON number) must. Six digits is
 #: the floor because that is the shortest legal SCTID
-#: (`nptc_shared.sctid`'s own `^[0-9]{6,18}$`).
+#: (`aptc_shared.sctid`'s own `^[0-9]{6,18}$`).
 #:
 #: The `(?<![0-9.\-])`/`(?![0-9.])` guards keep this from firing on a digit
 #: run that is part of a longer number or a decimal - a `score` of
@@ -218,7 +218,7 @@ def test_the_codes_are_actually_present_so_the_scan_proves_something(
 def test_the_uuid_pattern_actually_matches_a_uuid() -> None:
     assert _UUID_RE.search('{"id": "0f6c2e1a-4b7d-4c9e-8a1f-2b3c4d5e6f70"}')
     assert _UUID_RE.search('{"replaced_by_binding_id":"0F6C2E1A-4B7D-4C9E-8A1F-2B3C4D5E6F70"}')
-    assert _UUID_RE.search('{"business_key": "NPTC-000247"}') is None
+    assert _UUID_RE.search('{"business_key": "APTC-000247"}') is None
 
 
 def test_the_unquoted_code_pattern_actually_matches_a_numeric_code() -> None:

@@ -7,7 +7,7 @@ export type CodeSystem = {
 };
 
 /**
- * The code systems the API registers (`nptc.catalogue.code_systems`). The API
+ * The code systems the API registers (`aptc.catalogue.code_systems`). The API
  * has no endpoint that lists them, so this is the one place the screens learn
  * them. Add a system here in the same change that registers it server-side.
  */

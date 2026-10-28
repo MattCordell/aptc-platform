@@ -71,7 +71,7 @@ other moves in three ways:
   submission, the entry takes the working copy's content, and the box names that term. See
   [Editing a submission](editing-a-submission.md).
 - An **amendment** changes the entry it names. The box shows that entry's identifier, for
-  example NPTC-000247.
+  example APTC-000247.
 - The reason you write becomes the entry's changelog note. It appears in the entry's
   **History**, and the platform also records it in the audit log and in this submission's
   history. Write a note that explains the change to the next person who reads the entry.
@@ -84,7 +84,7 @@ To approve:
 3. Choose **Confirm approval**.
 
 The state changes to Approved at once, without reloading the page. Focus moves to a line such as
-"Approved. Created entry NPTC-000123." For an amendment the line reads "Approved. Amended entry"
+"Approved. Created entry APTC-000123." For an amendment the line reads "Approved. Amended entry"
 and the identifier. Choose the identifier to open the entry. The **Kind** line in **Details**
 links to the same entry, and it still does after you reload the page.
 

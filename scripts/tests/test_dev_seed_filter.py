@@ -16,11 +16,11 @@ from typing import Any
 
 import pytest
 
-from nptc.catalogue.seed_dataset import read_import_dataset
-from nptc_shared.similarity import collision_key
-from nptc_transform.dataset import DATASET_JSON_NAME, build_dataset, write_dataset
-from nptc_transform.pipeline import Mode, run_transform
-from nptc_transform.workbook import read_workbook
+from aptc.catalogue.seed_dataset import read_import_dataset
+from aptc_shared.similarity import collision_key
+from aptc_transform.dataset import DATASET_JSON_NAME, build_dataset, write_dataset
+from aptc_transform.pipeline import Mode, run_transform
+from aptc_transform.workbook import read_workbook
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import dev_seed_filter as cli
@@ -33,10 +33,10 @@ FIXTURE = (
     / "spia-requesting-sample.xlsx"
 )
 
-#: Recorded from a real run: the Adrenal Ab pair (NPTC-000045's preferred term is a synonym on
-#: NPTC-000009). The excerpt once held eight entries with an uncoded specimen; the reviewed specimen
+#: Recorded from a real run: the Adrenal Ab pair (APTC-000045's preferred term is a synonym on
+#: APTC-000009). The excerpt once held eight entries with an uncoded specimen; the reviewed specimen
 #: map covers them all now.
-COLLIDING_KEYS = {"NPTC-000045"}
+COLLIDING_KEYS = {"APTC-000045"}
 
 
 @pytest.fixture(scope="module")
@@ -149,7 +149,7 @@ def test_the_filtered_excerpt_still_varies(emitted_dataset: Path, tmp_path: Path
 
 
 def test_everything_outside_entries_passes_through() -> None:
-    document = _document(_entry("NPTC-000001", "Sodium"))
+    document = _document(_entry("APTC-000001", "Sodium"))
 
     filtered, dropped = cli.filter_dataset(document)
 
@@ -159,57 +159,57 @@ def test_everything_outside_entries_passes_through() -> None:
 
 def test_an_uncoded_specimen_drops_the_entry_and_says_which_value() -> None:
     document = _document(
-        _entry("NPTC-000001", "Sodium"), _entry("NPTC-000002", "Potassium", specimen_code=None)
+        _entry("APTC-000001", "Sodium"), _entry("APTC-000002", "Potassium", specimen_code=None)
     )
 
     filtered, dropped = cli.filter_dataset(document)
 
-    assert [e["business_key"] for e in filtered["entries"]] == ["NPTC-000001"]
-    assert [d.business_key for d in dropped] == ["NPTC-000002"]
+    assert [e["business_key"] for e in filtered["entries"]] == ["APTC-000001"]
+    assert [d.business_key for d in dropped] == ["APTC-000002"]
     assert "Serum" in dropped[0].reason
 
 
 def test_a_preferred_term_matching_an_earlier_synonym_drops_the_later_entry() -> None:
     document = _document(
-        _entry("NPTC-000001", "21-Hydroxylase Ab", synonyms=("Adrenal Ab",)),
-        _entry("NPTC-000002", "adrenal  AB"),
+        _entry("APTC-000001", "21-Hydroxylase Ab", synonyms=("Adrenal Ab",)),
+        _entry("APTC-000002", "adrenal  AB"),
     )
 
     filtered, dropped = cli.filter_dataset(document)
 
-    assert [e["business_key"] for e in filtered["entries"]] == ["NPTC-000001"]
-    assert [d.business_key for d in dropped] == ["NPTC-000002"]
+    assert [e["business_key"] for e in filtered["entries"]] == ["APTC-000001"]
+    assert [d.business_key for d in dropped] == ["APTC-000002"]
 
 
 def test_a_synonym_matching_an_earlier_preferred_term_drops_the_later_entry() -> None:
     document = _document(
-        _entry("NPTC-000001", "Adrenal Ab"),
-        _entry("NPTC-000002", "21-Hydroxylase Ab", synonyms=("Adrenal Ab",)),
+        _entry("APTC-000001", "Adrenal Ab"),
+        _entry("APTC-000002", "21-Hydroxylase Ab", synonyms=("Adrenal Ab",)),
     )
 
     _, dropped = cli.filter_dataset(document)
 
-    assert [d.business_key for d in dropped] == ["NPTC-000002"]
+    assert [d.business_key for d in dropped] == ["APTC-000002"]
 
 
 def test_a_code_already_bound_to_an_earlier_entry_drops_the_later_entry() -> None:
     document = _document(
-        _entry("NPTC-000001", "Sodium", code="25197003"),
-        _entry("NPTC-000002", "Natrium", code="25197003"),
+        _entry("APTC-000001", "Sodium", code="25197003"),
+        _entry("APTC-000002", "Natrium", code="25197003"),
     )
 
     filtered, dropped = cli.filter_dataset(document)
 
-    assert [e["business_key"] for e in filtered["entries"]] == ["NPTC-000001"]
-    assert [d.business_key for d in dropped] == ["NPTC-000002"]
+    assert [e["business_key"] for e in filtered["entries"]] == ["APTC-000001"]
+    assert [d.business_key for d in dropped] == ["APTC-000002"]
     assert "25197003" in dropped[0].reason
-    assert "NPTC-000001" in dropped[0].reason
+    assert "APTC-000001" in dropped[0].reason
 
 
 def test_a_synonym_shared_between_entries_is_only_a_warning_and_stays() -> None:
     document = _document(
-        _entry("NPTC-000001", "17-OHP serum", synonyms=("17-OHP",)),
-        _entry("NPTC-000002", "17-OHP plasma", synonyms=("17-OHP",)),
+        _entry("APTC-000001", "17-OHP serum", synonyms=("17-OHP",)),
+        _entry("APTC-000002", "17-OHP plasma", synonyms=("17-OHP",)),
     )
 
     filtered, dropped = cli.filter_dataset(document)
@@ -220,7 +220,7 @@ def test_a_synonym_shared_between_entries_is_only_a_warning_and_stays() -> None:
 
 def test_an_entry_missing_a_field_is_a_shape_error() -> None:
     with pytest.raises(cli.DatasetShapeError):
-        cli.filter_dataset(_document({"business_key": "NPTC-000001"}))
+        cli.filter_dataset(_document({"business_key": "APTC-000001"}))
 
 
 def test_a_document_without_entries_is_a_shape_error() -> None:
@@ -237,7 +237,7 @@ def test_main_refuses_unreadable_input(tmp_path: Path) -> None:
 def test_main_refuses_when_no_entry_survives_and_writes_nothing(tmp_path: Path) -> None:
     source = tmp_path / "in.json"
     source.write_text(
-        json.dumps(_document(_entry("NPTC-000001", "Sodium", specimen_code=None))),
+        json.dumps(_document(_entry("APTC-000001", "Sodium", specimen_code=None))),
         encoding="utf-8",
     )
     output = tmp_path / "out.json"

@@ -1,5 +1,5 @@
-"""Service-layer tests for `nptc.db.definitions` and
-`nptc.registry.definitions` (issue #55, FR-11, FR-12, NFR-38).
+"""Service-layer tests for `aptc.db.definitions` and
+`aptc.registry.definitions` (issue #55, FR-11, FR-12, NFR-38).
 
 Uses an ORM `Session` bound to `app_db`, matching `test_catalogue_bindings.
 py`'s own module docstring for why (one session-scoped Postgres container
@@ -15,26 +15,26 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from nptc.audit.writer import AuditContext
-from nptc.catalogue.entries import create_entry
-from nptc.catalogue.property_values import (
+from aptc.audit.writer import AuditContext
+from aptc.catalogue.entries import create_entry
+from aptc.catalogue.property_values import (
     PropertyDefinitionNotFoundError,
     PropertyValueInput,
     save_property_values,
 )
-from nptc.db.bootstrap import seed_system_properties
-from nptc.db.definitions import (
+from aptc.db.bootstrap import seed_system_properties
+from aptc.db.definitions import (
     amend_definition,
     create_definition,
     deprecate_definition,
     list_definitions,
     load_definition,
 )
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.property_definition import PropertyDefinition
-from nptc.db.models.property_value import PropertyValue
-from nptc.registry.datatypes import build_builtin_handlers
-from nptc.registry.definitions import (
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.property_definition import PropertyDefinition
+from aptc.db.models.property_value import PropertyValue
+from aptc.registry.datatypes import build_builtin_handlers
+from aptc.registry.definitions import (
     DefinitionAudience,
     DeprecatedPropertyWriteError,
     PropertyAlreadyDeprecatedError,
@@ -46,7 +46,7 @@ from nptc.registry.definitions import (
     PropertyReactivationRefusedError,
     SystemPropertyDeprecationRefusedError,
 )
-from nptc.registry.handlers import DatatypeRegistry, HandlerDeps
+from aptc.registry.handlers import DatatypeRegistry, HandlerDeps
 
 _REASON = "Created for the #55 property deprecation test suite."
 
@@ -571,7 +571,7 @@ def test_list_definitions_data_entry_omits_a_deprecated_property(app_session: Se
 def test_export_listing_resolves_to_a_usable_spec_and_handler(
     app_session: Session, registry: DatatypeRegistry
 ) -> None:
-    from nptc.db.property_specs import spec_for
+    from aptc.db.property_specs import spec_for
 
     definition = _create(app_session)
     app_session.flush()

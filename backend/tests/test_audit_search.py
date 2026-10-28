@@ -1,4 +1,4 @@
-"""Tests for `nptc.audit.queries.search_audit_events` (issue #286, NFR-12).
+"""Tests for `aptc.audit.queries.search_audit_events` (issue #286, NFR-12).
 
 The four filters (actor, entity, action, date range), independently and
 combined; keyset pagination stable under a concurrent append (issue #190);
@@ -24,16 +24,16 @@ import pytest
 from sqlalchemy.engine import Connection
 from sqlalchemy.orm import Session
 
-from nptc.audit.queries import (
+from aptc.audit.queries import (
     AuditEventFilter,
     AuditFilterError,
     MalformedAuditCursorError,
     search_audit_events,
     stream_audit_events,
 )
-from nptc.audit.writer import AuditContext, append_audit_event
-from nptc.auth.identity import close_account
-from nptc.db.models.user import User
+from aptc.audit.writer import AuditContext, append_audit_event
+from aptc.auth.identity import close_account
+from aptc.db.models.user import User
 
 # --- offline: validation errors raised before any query runs --------------
 
@@ -46,7 +46,7 @@ def test_cursor_beyond_bigint_range_is_refused() -> None:
 def test_entity_id_without_entity_type_is_refused() -> None:
     """`entity_id` alone cannot use `ix_audit_event_entity_type_entity_id_
     sequence` and cannot mean anything on its own - `entity_id` is not
-    unique across entity types (see `nptc.catalogue.history`'s own
+    unique across entity types (see `aptc.catalogue.history`'s own
     `property_value_set` composite-key precedent)."""
     with pytest.raises(AuditFilterError):
         search_audit_events(Session(), AuditEventFilter(entity_id="some-id"), limit=50)
@@ -185,7 +185,7 @@ def test_filter_by_action_narrows_the_result_set(app_db: Connection) -> None:
 def test_filter_by_occurred_range_narrows_the_result_set(app_db: Connection) -> None:
     """The range is half-open `[from, to)` - see `AuditEventFilter`'s own
     docstring. `occurred_at` is set by the database clock
-    (`nptc.audit.writer.append_audit_event`), never the test, so this reads
+    (`aptc.audit.writer.append_audit_event`), never the test, so this reads
     the two real timestamps back rather than asserting against ones it
     picked itself."""
     session = Session(bind=app_db)
@@ -251,7 +251,7 @@ def test_pagination_is_stable_under_a_concurrent_append(app_db: Connection) -> N
     event is appended. `sequence` is a globally monotonic identity column,
     so the second page's `sequence < before` predicate excludes anything
     appended after the first page was fetched, regardless of insertion
-    order - see `nptc.audit.queries`' own module docstring."""
+    order - see `aptc.audit.queries`' own module docstring."""
     session = Session(bind=app_db)
     user = _create_active_user(session, "henry-audit-search")
     entity_type = f"test-paging-{uuid.uuid4()}"
@@ -284,7 +284,7 @@ def test_a_closed_accounts_actor_resolves_by_id_not_display_name(app_db: Connect
     """A closed account is a tombstone (`User`'s own `tombstone` CHECK):
     `display_name` is `NULL`. The row must still resolve to the actor's
     internal UUID with `is_closed=True`, not go blank - matching
-    `nptc.catalogue.history`'s own precedent of never dropping attribution
+    `aptc.catalogue.history`'s own precedent of never dropping attribution
     to a pseudonymised account."""
     session = Session(bind=app_db)
     user = _create_active_user(session, "iris-audit-search")
@@ -319,7 +319,7 @@ def test_a_system_events_actor_is_none(app_db: Connection) -> None:
 @pytest.mark.integration
 def test_before_after_are_served_exactly_as_stored(app_db: Connection) -> None:
     """NFR-12's administrator surface serves the raw JSONB verbatim - see
-    `nptc.audit.queries`' own module docstring for why that is safe here.
+    `aptc.audit.queries`' own module docstring for why that is safe here.
     A field already withheld under `REDACTED_KEY` at write time (issue #37)
     is served under that same key, never a value - proving this module
     adds no second redaction step and removes none either."""

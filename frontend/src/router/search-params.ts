@@ -152,7 +152,7 @@ export function validateSubmissionListSearch(
 
 /**
  * The `filter.<key>` parameter name prefix (ADR-0032, matching the backend's
- * own `FILTER_PARAM_PREFIX` in `nptc.catalogue.facets`). Declared once here
+ * own `FILTER_PARAM_PREFIX` in `aptc.catalogue.facets`). Declared once here
  * rather than repeated as a string literal at every call site in this module
  * and in `api/filter-params.ts`.
  */
@@ -177,7 +177,7 @@ function asStringArray(value: unknown): string[] {
 
 /**
  * The `sort` values `GET /catalogue/admin/entries` accepts (issue #287),
- * matching `nptc.catalogue.maintenance.SortName` on the backend. Only the
+ * matching `aptc.catalogue.maintenance.SortName` on the backend. Only the
  * *browse* surface is sortable - `GET /catalogue/admin/search` stays
  * relevance-ranked, and the public endpoints offer no sort at all.
  */
@@ -438,7 +438,7 @@ export function clearAllFilters<S extends FilteredListSearch>(search: S): S {
  *
  * Drops `after` for the identical reason `toggleFilterValue` does: the
  * keyset ordering a cursor was paging over no longer exists once `sort`
- * changes underneath it - `nptc.catalogue.maintenance`'s cursor digest
+ * changes underneath it - `aptc.catalogue.maintenance`'s cursor digest
  * refuses a replayed cursor server-side for exactly this reason (issue
  * #287), and this is that same fact applied before a stale cursor is ever
  * sent.

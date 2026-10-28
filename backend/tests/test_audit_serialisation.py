@@ -1,4 +1,4 @@
-"""Offline unit tests for nptc.audit.serialisation (issue #37).
+"""Offline unit tests for aptc.audit.serialisation (issue #37).
 
 No container, no network - pure value normalisation.
 """
@@ -14,8 +14,8 @@ from enum import Enum, StrEnum
 
 import pytest
 
-from nptc.audit.serialisation import UnserialisableAuditValueError, normalise_json_value
-from nptc_shared.sctid import SCTID
+from aptc.audit.serialisation import UnserialisableAuditValueError, normalise_json_value
+from aptc_shared.sctid import SCTID
 
 
 def test_none_bool_int_pass_through() -> None:

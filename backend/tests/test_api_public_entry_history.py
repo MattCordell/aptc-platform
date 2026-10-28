@@ -15,7 +15,7 @@ Because both the setup session and the API's own session share the one
 open transaction, a flushed-but-uncommitted write is visible to the API's
 read with no commit needed at all - unlike
 `test_api_public_finding_indicator.py`'s own `validation_finding` tests,
-where `nptc_app` cannot write that table under any connection.
+where `aptc_app` cannot write that table under any connection.
 """
 
 from __future__ import annotations
@@ -32,12 +32,12 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 from sqlalchemy.orm import Session
 
-from nptc.audit.writer import AuditContext
-from nptc.catalogue.bindings import create_binding
-from nptc.catalogue.designations import add_synonyms, reinstate_designation, retire_designation
-from nptc.catalogue.entries import EntryChanges, create_entry, save_entry
-from nptc.db.models.catalogue_entry import CatalogueEntryStatus
-from nptc.db.models.user import User
+from aptc.audit.writer import AuditContext
+from aptc.catalogue.bindings import create_binding
+from aptc.catalogue.designations import add_synonyms, reinstate_designation, retire_designation
+from aptc.catalogue.entries import EntryChanges, create_entry, save_entry
+from aptc.db.models.catalogue_entry import CatalogueEntryStatus
+from aptc.db.models.user import User
 
 
 def _load(name: str) -> Any:
@@ -72,11 +72,11 @@ def test_an_entry_never_edited_since_seeding_has_empty_history(
     session.execute(
         text(
             "INSERT INTO catalogue_entry (business_key, preferred_term, status) "
-            "VALUES ('NPTC-430001', 'Never edited entry', 'active')"
+            "VALUES ('APTC-430001', 'Never edited entry', 'active')"
         )
     )
 
-    body = api.get("/catalogue/entries/NPTC-430001/history").json()
+    body = api.get("/catalogue/entries/APTC-430001/history").json()
 
     assert body == {"items": [], "next_cursor": None}
 
@@ -94,7 +94,7 @@ def test_history_shows_the_changelog_note_matching_the_audit_record(
         preferred_term="History fixture assay",
         reason="seeded for FR-19 history test",
         status=CatalogueEntryStatus.ACTIVE,
-        business_key="NPTC-430002",
+        business_key="APTC-430002",
     )
 
     updated = save_entry(
@@ -138,7 +138,7 @@ def test_history_includes_designation_changes(api: ApiTestApp, app_db: Connectio
         preferred_term="Designation history fixture",
         reason="seeded for FR-19 history test",
         status=CatalogueEntryStatus.ACTIVE,
-        business_key="NPTC-430003",
+        business_key="APTC-430003",
     )
 
     add_synonyms(
@@ -177,7 +177,7 @@ def test_history_shows_reinstatement_as_one_continuous_record_with_retirement(
         preferred_term="Reinstatement history fixture",
         reason="seeded for issue #313 history test",
         status=CatalogueEntryStatus.ACTIVE,
-        business_key="NPTC-430010",
+        business_key="APTC-430010",
     )
     (designation,) = add_synonyms(
         session,
@@ -225,7 +225,7 @@ def test_history_includes_code_binding_changes(api: ApiTestApp, app_db: Connecti
         preferred_term="Binding history fixture",
         reason="seeded for FR-19 history test",
         status=CatalogueEntryStatus.ACTIVE,
-        business_key="NPTC-430006",
+        business_key="APTC-430006",
     )
 
     create_binding(
@@ -259,11 +259,11 @@ def test_history_rejects_a_cursor_beyond_the_sequence_range(
     session.execute(
         text(
             "INSERT INTO catalogue_entry (business_key, preferred_term, status) "
-            "VALUES ('NPTC-430007', 'Cursor overflow fixture', 'active')"
+            "VALUES ('APTC-430007', 'Cursor overflow fixture', 'active')"
         )
     )
 
-    response = api.get("/catalogue/entries/NPTC-430007/history?before=9223372036854775808")
+    response = api.get("/catalogue/entries/APTC-430007/history?before=9223372036854775808")
 
     assert response.status_code == 422, response.text
 
@@ -295,7 +295,7 @@ def test_changed_by_is_withheld_from_an_anonymous_caller_but_shown_when_signed_i
         preferred_term="Authenticated history fixture",
         reason="seeded for FR-19 history test",
         status=CatalogueEntryStatus.ACTIVE,
-        business_key="NPTC-430009",
+        business_key="APTC-430009",
     )
     session.flush()
 
@@ -325,7 +325,7 @@ def test_history_never_leaks_a_raw_value_or_internal_id(
         preferred_term="Redaction fixture original term",
         reason="seeded for FR-19 history test",
         status=CatalogueEntryStatus.ACTIVE,
-        business_key="NPTC-430004",
+        business_key="APTC-430004",
     )
     save_entry(
         session,
@@ -357,7 +357,7 @@ def test_history_pages_with_a_keyset_cursor(api: ApiTestApp, app_db: Connection)
         preferred_term="Paging fixture",
         reason="seeded for FR-19 history test",
         status=CatalogueEntryStatus.ACTIVE,
-        business_key="NPTC-430005",
+        business_key="APTC-430005",
     )
     save_entry(
         session,

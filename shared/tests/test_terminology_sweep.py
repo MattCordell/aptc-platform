@@ -13,14 +13,14 @@ import threading
 import httpx
 import pytest
 
-from nptc_shared.terminology.config import TerminologyConfig
-from nptc_shared.terminology.errors import (
+from aptc_shared.terminology.config import TerminologyConfig
+from aptc_shared.terminology.errors import (
     OperationOutcomeIssue,
     TerminologyConfigError,
     TerminologyStatusError,
     TerminologyTransportError,
 )
-from nptc_shared.terminology.models import (
+from aptc_shared.terminology.models import (
     AU_LANGUAGE_TAG,
     HAS_SPECIMEN_ATTRIBUTE,
     PROCEDURE_ROOT_CODE,
@@ -33,13 +33,13 @@ from nptc_shared.terminology.models import (
     Operation,
     ValidationResult,
 )
-from nptc_shared.terminology.ontoserver import OntoserverClient
-from nptc_shared.terminology.stub import StubConcept, StubTerminologyClient
-from nptc_shared.terminology.sweep import LabelConfirmation, SweepResult, TerminologySweep
+from aptc_shared.terminology.ontoserver import OntoserverClient
+from aptc_shared.terminology.stub import StubConcept, StubTerminologyClient
+from aptc_shared.terminology.sweep import LabelConfirmation, SweepResult, TerminologySweep
 
 # Codes are arbitrary but well-formed (6-18 digits): ecl_set_of refuses
 # anything else, and screening for that is the caller's job (see
-# nptc_transform.terminology_check), not the sweep's.
+# aptc_transform.terminology_check), not the sweep's.
 FIRST_CODE = 100000001
 
 
@@ -158,7 +158,7 @@ def test_a_repeated_code_costs_one_slot_not_one_per_binding() -> None:
 
 @pytest.mark.req("FR-52")
 def test_chunk_size_is_configurable_from_the_environment() -> None:
-    config = TerminologyConfig.from_env({"NPTC_TX_CHUNK_SIZE": "2", "NPTC_TX_MAX_CONCURRENCY": "1"})
+    config = TerminologyConfig.from_env({"APTC_TX_CHUNK_SIZE": "2", "APTC_TX_MAX_CONCURRENCY": "1"})
     client = _stub(*(_procedure(code) for code in _codes(4)))
 
     sweep = TerminologySweep.from_config(client, config)

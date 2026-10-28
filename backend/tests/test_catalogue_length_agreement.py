@@ -15,9 +15,9 @@ from typing import Any
 
 import pytest
 
-from nptc.api.routers.catalogue_designations import _length_warning
-from nptc.catalogue.length_report import distribution_from_buckets
-from nptc.db.models.catalogue_entry import CatalogueEntry
+from aptc.api.routers.catalogue_designations import _length_warning
+from aptc.catalogue.length_report import distribution_from_buckets
+from aptc.db.models.catalogue_entry import CatalogueEntry
 
 
 def _load(name: str) -> Any:

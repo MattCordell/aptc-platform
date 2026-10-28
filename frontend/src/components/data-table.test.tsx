@@ -7,8 +7,8 @@ import { DataTable } from "./data-table.tsx";
 type Entry = { id: string; term: string; status: string };
 
 const ENTRIES: Entry[] = [
-  { id: "NPTC-1", term: "Full blood count", status: "Active" },
-  { id: "NPTC-2", term: "Urea and electrolytes", status: "Retired" },
+  { id: "APTC-1", term: "Full blood count", status: "Active" },
+  { id: "APTC-2", term: "Urea and electrolytes", status: "Retired" },
 ];
 
 const COLUMNS = [
@@ -85,7 +85,7 @@ describe("DataTable", () => {
       />,
     );
 
-    const row = screen.getByRole("rowheader", { name: "NPTC-1" }).closest("tr");
+    const row = screen.getByRole("rowheader", { name: "APTC-1" }).closest("tr");
     expect(row).not.toBeNull();
     expect(row!.className).toContain("hover:bg-[var(--color-surface-sunken)]");
   });
@@ -101,7 +101,7 @@ describe("DataTable", () => {
       />,
     );
 
-    const rowHeader = screen.getByRole("rowheader", { name: "NPTC-1" });
+    const rowHeader = screen.getByRole("rowheader", { name: "APTC-1" });
     expect(rowHeader).toHaveAttribute("scope", "row");
     // and it is inside the row it identifies, alongside that row's data
     const row = rowHeader.closest("tr");
@@ -134,7 +134,7 @@ describe("DataTable", () => {
     // Exactly one <th scope="row"> per row - "term" degrades to a plain
     // data cell rather than also becoming a row header.
     expect(screen.getAllByRole("rowheader")).toHaveLength(ENTRIES.length);
-    expect(screen.getByRole("rowheader", { name: "NPTC-1" })).toBeInTheDocument();
+    expect(screen.getByRole("rowheader", { name: "APTC-1" })).toBeInTheDocument();
     expect(
       screen.queryByRole("rowheader", { name: "Full blood count" }),
     ).not.toBeInTheDocument();

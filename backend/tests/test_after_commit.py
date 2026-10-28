@@ -1,4 +1,4 @@
-"""`nptc.db.session.after_commit` (FR-13): work queued during a request runs only once the
+"""`aptc.db.session.after_commit` (FR-13): work queued during a request runs only once the
 request's session has committed, and never when it rolled back.
 
 The first group needs no container. The second runs the real `session_scope` under a real FastAPI
@@ -23,15 +23,15 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 from testcontainers.community.postgres import PostgresContainer
 
-from nptc.api.dependencies import get_session
-from nptc.db import session as session_module
-from nptc.db.models.property_definition import (
+from aptc.api.dependencies import get_session
+from aptc.db import session as session_module
+from aptc.db.models.property_definition import (
     PropertyCardinality,
     PropertyDefinition,
     PropertyOrigin,
     PropertyScope,
 )
-from nptc.db.session import (
+from aptc.db.session import (
     after_commit,
     discard_after_commit_actions,
     run_after_commit_actions,
@@ -135,7 +135,7 @@ def committed_visibility(
     login_url = make_url(postgres_container.get_connection_url()).set(
         username=role, password=password
     )
-    monkeypatch.setenv("NPTC_DATABASE_URL", login_url.render_as_string(hide_password=False))
+    monkeypatch.setenv("APTC_DATABASE_URL", login_url.render_as_string(hide_password=False))
     session_module.get_engine.cache_clear()
     session_module.get_sessionmaker.cache_clear()
     probed: set[str] = set()

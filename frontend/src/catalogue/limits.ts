@@ -9,7 +9,7 @@
  */
 
 /**
- * `_MAX_TERMS_PER_BATCH` in `nptc.api.routers.catalogue_designations`.
+ * `_MAX_TERMS_PER_BATCH` in `aptc.api.routers.catalogue_designations`.
  *
  * A copy, because a list's `max_length` does not survive into `schema.ts` -
  * `openapi-typescript` has nowhere to put it in a TypeScript type. It is

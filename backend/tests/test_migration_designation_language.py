@@ -20,7 +20,7 @@ from sqlalchemy.exc import IntegrityError
 from testcontainers.community.postgres import PostgresContainer
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-_DB = "nptc_designation_language"
+_DB = "aptc_designation_language"
 
 _ENTRY = text(
     "INSERT INTO catalogue_entry (business_key, preferred_term, preferred_term_key) "
@@ -141,7 +141,7 @@ def _index_definitions(engine: Engine, table: str) -> dict[str, str]:
         )
 
 
-_SYNONYM = {"key": "NPTC-900001", "term": "Full blood count", "term_key": "full blood count"}
+_SYNONYM = {"key": "APTC-900001", "term": "Full blood count", "term_key": "full blood count"}
 
 
 @pytest.mark.req("FR-04")
@@ -149,7 +149,7 @@ _SYNONYM = {"key": "NPTC-900001", "term": "Full blood count", "term_key": "full 
 def test_the_upgrade_drops_the_language_and_use_columns_and_their_constraints(
     engine: Engine,
 ) -> None:
-    _at_0025_with(engine, [_SYNONYM], [{"key": "NPTC-900001", "term_key": "fbc"}])
+    _at_0025_with(engine, [_SYNONYM], [{"key": "APTC-900001", "term_key": "fbc"}])
 
     _migrate(engine, "upgrade", "0026")
 
@@ -179,7 +179,7 @@ def test_the_upgrade_keeps_every_row(engine: Engine) -> None:
     _at_0025_with(
         engine,
         [_SYNONYM, {**_SYNONYM, "term": "FBC", "term_key": "fbc", "status": "retired"}],
-        [{"key": "NPTC-900001", "term_key": "fbc"}],
+        [{"key": "APTC-900001", "term_key": "fbc"}],
     )
 
     _migrate(engine, "upgrade", "0026")
@@ -232,7 +232,7 @@ def test_a_case_or_punctuation_variant_shares_the_term_key_and_is_blocked_too(
 def test_a_retired_duplicate_and_another_entrys_synonym_are_still_allowed(
     engine: Engine,
 ) -> None:
-    _at_0025_with(engine, [_SYNONYM, {**_SYNONYM, "key": "NPTC-900002"}])
+    _at_0025_with(engine, [_SYNONYM, {**_SYNONYM, "key": "APTC-900002"}])
     _migrate(engine, "upgrade", "0026")
 
     with engine.begin() as connection:
@@ -260,7 +260,7 @@ def test_the_upgrade_refuses_a_designation_that_is_not_an_en_au_synonym(
     with pytest.raises(RuntimeError, match="not an en-AU synonym") as raised:
         _migrate(engine, "upgrade", "0026")
 
-    assert "NPTC-900001" in str(raised.value)
+    assert "APTC-900001" in str(raised.value)
     assert "Hemogram" in str(raised.value)
     assert named in str(raised.value)
     assert "Full blood count" not in str(raised.value)
@@ -271,9 +271,9 @@ def test_the_upgrade_refuses_a_designation_that_is_not_an_en_au_synonym(
 @pytest.mark.req("FR-05")
 @pytest.mark.integration
 def test_the_upgrade_refuses_an_acknowledgement_in_another_language(engine: Engine) -> None:
-    _at_0025_with(engine, [_SYNONYM], [{"key": "NPTC-900001", "term_key": "fbc", "language": "fr"}])
+    _at_0025_with(engine, [_SYNONYM], [{"key": "APTC-900001", "term_key": "fbc", "language": "fr"}])
 
-    with pytest.raises(RuntimeError, match="collision acknowledgement on NPTC-900001"):
+    with pytest.raises(RuntimeError, match="collision acknowledgement on APTC-900001"):
         _migrate(engine, "upgrade", "0026")
 
     assert _revision(engine) == "0025"
@@ -292,7 +292,7 @@ def test_the_refusal_lists_at_most_fifty_rows_and_counts_the_rest(engine: Engine
         _migrate(engine, "upgrade", "0026")
 
     assert "and 2 more" in str(raised.value)
-    assert str(raised.value).count("designation on NPTC-900001") == 50
+    assert str(raised.value).count("designation on APTC-900001") == 50
 
 
 @pytest.mark.req("FR-04")
@@ -300,7 +300,7 @@ def test_the_refusal_lists_at_most_fifty_rows_and_counts_the_rest(engine: Engine
 def test_the_downgrade_restores_the_columns_constraints_indexes_and_grant(
     engine: Engine,
 ) -> None:
-    _at_0025_with(engine, [_SYNONYM], [{"key": "NPTC-900001", "term_key": "fbc"}])
+    _at_0025_with(engine, [_SYNONYM], [{"key": "APTC-900001", "term_key": "fbc"}])
     _migrate(engine, "upgrade", "0026")
 
     _migrate(engine, "downgrade", "0025")
@@ -312,8 +312,8 @@ def test_the_downgrade_restores_the_columns_constraints_indexes_and_grant(
         ).scalar_one()
         granted = connection.execute(
             text(
-                "SELECT has_column_privilege('nptc_app', 'designation', 'use', 'UPDATE') "
-                "AND has_column_privilege('nptc_app', 'designation', 'language', 'UPDATE')"
+                "SELECT has_column_privilege('aptc_app', 'designation', 'use', 'UPDATE') "
+                "AND has_column_privilege('aptc_app', 'designation', 'language', 'UPDATE')"
             )
         ).scalar_one()
     assert restored == ("synonym", "en-AU")

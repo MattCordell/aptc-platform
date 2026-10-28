@@ -5,7 +5,7 @@ Revises: 0027
 Create Date: 2026-10-10
 
 FR-27: a new-test submission carries a supporting reference link, with when the server checked it
-and the HTTP status it answered. See `nptc.db.models.submission` for the reasoning.
+and the HTTP status it answered. See `aptc.db.models.submission` for the reasoning.
 
 The three columns are nullable, because an amendment may leave the reference out. A submission
 saved at revision 0027 has none, so the rule that a new test must carry one is added `NOT VALID`:

@@ -97,7 +97,7 @@ export function SignInPage() {
       actions={<BackToLandingLink />}
     >
       <p className="m-0">
-        You are being sent to the NPTC sign-in service. If nothing happens, your browser
+        You are being sent to the APTC sign-in service. If nothing happens, your browser
         may have blocked the redirect - reload this page to try again.
       </p>
     </NoticePage>

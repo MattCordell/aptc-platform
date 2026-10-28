@@ -3,7 +3,7 @@
 the first Administrator on a fresh deployment (issue #44, FR-01, FR-44).
 
 **Why this exists at all.** This issue's scope deliberately has no grant/
-revoke HTTP endpoint or admin UI - those stay P2. But `nptc.auth.grants.
+revoke HTTP endpoint or admin UI - those stay P2. But `aptc.auth.grants.
 grant_role`/`revoke_role` both require a `Principal` holding
 `role.grant.any`, and FR-01's last-administrator guard means a role can
 never be revoked down to zero Administrators - so on a fresh deployment,
@@ -13,13 +13,13 @@ escape hatch: an operator with direct database access, not a token, not a
 claim.
 
 It is not a bypass of the framework - it calls the same
-`nptc.auth.grants.grant_role_unchecked` a first-login Provisional grant
+`aptc.auth.grants.grant_role_unchecked` a first-login Provisional grant
 uses, which still emits a `user_role.granted` audit event
 (`granted_by_user_id=None`, the one case that field is nullable for - see
-`nptc.db.models.user_role`) and is still idempotent. There is no `--force`
+`aptc.db.models.user_role`) and is still idempotent. There is no `--force`
 and no way to revoke through this script: once a second Administrator
 exists, every further grant/revoke is expected to go through the ordinary
-`Principal`-checked path (`nptc.auth.grants.grant_role`/`revoke_role`,
+`Principal`-checked path (`aptc.auth.grants.grant_role`/`revoke_role`,
 landing with the P2 user-administration endpoints).
 
 Usage:
@@ -41,7 +41,7 @@ EXIT_NOT_FOUND = 3
 EXIT_REFUSED = 4
 EXIT_COULD_NOT_COMPLETE = 5
 
-#: Kept in sync with `nptc.auth.permissions.GRANTABLE_ROLES` by
+#: Kept in sync with `aptc.auth.permissions.GRANTABLE_ROLES` by
 #: `scripts/tests/test_grant_role.py` - this list is user-facing argparse
 #: `choices`, so it is written out rather than imported, to keep --help
 #: usable even if the workspace import fails; the test is what keeps it
@@ -61,7 +61,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--database-url",
         default=None,
-        help="DSN to connect with. Falls back to NPTC_DATABASE_URL if not given.",
+        help="DSN to connect with. Falls back to APTC_DATABASE_URL if not given.",
     )
     return parser.parse_args(argv)
 
@@ -78,7 +78,7 @@ def _resolve_database_url(cli_value: str | None) -> str | None:
 
     from pydantic import ValidationError
 
-    from nptc.settings import DatabaseSettings
+    from aptc.settings import DatabaseSettings
 
     try:
         return DatabaseSettings().database_url
@@ -102,22 +102,22 @@ def main(argv: list[str] | None = None) -> int:
 
     if not database_url:
         print(
-            "error: no database URL configured - pass --database-url or set NPTC_DATABASE_URL",
+            "error: no database URL configured - pass --database-url or set APTC_DATABASE_URL",
             file=sys.stderr,
         )
         return EXIT_USAGE_ERROR
 
     try:
         # Deferred, as in verify_audit_chain.py: keeps --help/usage-error
-        # paths free of a hard SQLAlchemy/nptc import requirement.
+        # paths free of a hard SQLAlchemy/aptc import requirement.
         from sqlalchemy import create_engine, select
         from sqlalchemy.orm import Session
 
-        from nptc.audit.writer import AuditContext
-        from nptc.auth.errors_authorisation import LastAdministratorError
-        from nptc.auth.grants import grant_role_unchecked
-        from nptc.auth.permissions import Role
-        from nptc.db.models.user import User
+        from aptc.audit.writer import AuditContext
+        from aptc.auth.errors_authorisation import LastAdministratorError
+        from aptc.auth.grants import grant_role_unchecked
+        from aptc.auth.permissions import Role
+        from aptc.db.models.user import User
 
         engine = create_engine(database_url)
         # Deliberately not `with Session(engine) as session, session.begin():`

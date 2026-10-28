@@ -9,7 +9,7 @@ import ipaddress
 
 import pytest
 
-from nptc.api.client_ip import bucket_key, parse_address, resolve_client_address
+from aptc.api.client_ip import bucket_key, parse_address, resolve_client_address
 
 
 def _resolve(peer: str | None, forwarded_for: str | None, *trusted: str) -> str | None:
@@ -61,7 +61,7 @@ def test_a_chain_of_only_trusted_addresses_resolves_to_its_leftmost() -> None:
 
 
 @pytest.mark.req("NFR-24")
-@pytest.mark.parametrize("peer", ["testclient", "/run/nptc.sock", "", None])
+@pytest.mark.parametrize("peer", ["testclient", "/run/aptc.sock", "", None])
 def test_a_connecting_address_that_is_not_an_ip_resolves_to_none(peer: str | None) -> None:
     assert _resolve(peer, "203.0.113.7", "10.0.0.0/8") is None
 

@@ -12,10 +12,10 @@ from pathlib import Path
 
 import pytest
 
-from nptc_transform.bands import FindingCode, blocks_import
-from nptc_transform.dataset import build_dataset
-from nptc_transform.pipeline import Mode, run_transform
-from nptc_transform.workbook import read_workbook
+from aptc_transform.bands import FindingCode, blocks_import
+from aptc_transform.dataset import build_dataset
+from aptc_transform.pipeline import Mode, run_transform
+from aptc_transform.workbook import read_workbook
 
 FIXTURE = Path(__file__).parent / "fixtures" / "spia-requesting-sample.xlsx"
 
@@ -88,5 +88,5 @@ def test_the_real_excerpts_business_keys_are_sequential_and_gap_free() -> None:
     dataset = build_dataset(sheets, result, release_name="2026-06")
 
     assert [entry.business_key for entry in dataset.entries] == [
-        f"NPTC-{n:06d}" for n in range(1, EXPECTED_ENTRY_COUNT + 1)
+        f"APTC-{n:06d}" for n in range(1, EXPECTED_ENTRY_COUNT + 1)
     ]

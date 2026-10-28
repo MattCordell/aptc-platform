@@ -23,20 +23,20 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.engine import Connection
 
-from nptc.api.errors import _DETAIL_AMENDMENT_NO_LONGER_APPLICABLE
-from nptc.api.terms_gate import TERMS_ACCEPTANCE_REQUIRED_CODE
-from nptc.auth.permissions import Role
-from nptc.catalogue.entries import allocate_business_key
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.catalogue_entry import CatalogueEntry
-from nptc.db.models.code_binding import CodeBinding
-from nptc.db.models.designation import Designation
-from nptc.db.models.submission import Submission, SubmissionKind
-from nptc.db.models.submission_transition import SubmissionTransition
-from nptc.db.models.user import User
-from nptc.db.models.user_identity import UserIdentity
-from nptc.submissions.errors import AmendmentNoLongerApplicableCause
-from nptc_shared.sctid import has_valid_check_digit
+from aptc.api.errors import _DETAIL_AMENDMENT_NO_LONGER_APPLICABLE
+from aptc.api.terms_gate import TERMS_ACCEPTANCE_REQUIRED_CODE
+from aptc.auth.permissions import Role
+from aptc.catalogue.entries import allocate_business_key
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.catalogue_entry import CatalogueEntry
+from aptc.db.models.code_binding import CodeBinding
+from aptc.db.models.designation import Designation
+from aptc.db.models.submission import Submission, SubmissionKind
+from aptc.db.models.submission_transition import SubmissionTransition
+from aptc.db.models.user import User
+from aptc.db.models.user_identity import UserIdentity
+from aptc.submissions.errors import AmendmentNoLongerApplicableCause
+from aptc_shared.sctid import has_valid_check_digit
 
 
 def _load(name: str) -> Any:

@@ -1,4 +1,4 @@
-"""Offline unit tests for `nptc.api.labels` (issue #144, FR-98).
+"""Offline unit tests for `aptc.api.labels` (issue #144, FR-98).
 
 No container, no network - pure enum/model/helper plumbing.
 """
@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from nptc.api.labels import (
+from aptc.api.labels import (
     AU_PREFERRED_TERM_PROVENANCE,
     SYNONYM_PROVENANCE,
     DesignationType,

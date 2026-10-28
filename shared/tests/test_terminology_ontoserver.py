@@ -18,8 +18,8 @@ from pathlib import Path
 import httpx
 import pytest
 
-from nptc_shared.terminology.config import TerminologyConfig
-from nptc_shared.terminology.errors import (
+from aptc_shared.terminology.config import TerminologyConfig
+from aptc_shared.terminology.errors import (
     TerminologyOutcomeError,
     TerminologyProtocolError,
     TerminologyRateLimitError,
@@ -27,9 +27,9 @@ from nptc_shared.terminology.errors import (
     TerminologyTimeoutError,
     TerminologyTransportError,
 )
-from nptc_shared.terminology.models import PROCEDURE_ROOT_CODE, SNOMED_CT_AU
-from nptc_shared.terminology.ontoserver import OntoserverClient
-from nptc_shared.terminology.snomed import ecl_set_of, implicit_value_set_url
+from aptc_shared.terminology.models import PROCEDURE_ROOT_CODE, SNOMED_CT_AU
+from aptc_shared.terminology.ontoserver import OntoserverClient
+from aptc_shared.terminology.snomed import ecl_set_of, implicit_value_set_url
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "terminology"
 

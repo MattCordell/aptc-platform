@@ -18,8 +18,8 @@ afterEach(() => {
 
 describe("readAuthConfig", () => {
   it("derives the redirect URIs from the current origin", () => {
-    vi.stubEnv("VITE_OIDC_ISSUER", "https://idp.test/realms/nptc");
-    vi.stubEnv("VITE_OIDC_CLIENT_ID", "nptc-frontend");
+    vi.stubEnv("VITE_OIDC_ISSUER", "https://idp.test/realms/aptc");
+    vi.stubEnv("VITE_OIDC_CLIENT_ID", "aptc-frontend");
 
     const config = readAuthConfig("https://app.test");
 
@@ -30,23 +30,23 @@ describe("readAuthConfig", () => {
   it("strips a trailing slash from the issuer", () => {
     // `${issuer}/.well-known/...` would otherwise contain `//`, which some
     // reverse proxies do not normalise.
-    vi.stubEnv("VITE_OIDC_ISSUER", "https://idp.test/realms/nptc/");
-    vi.stubEnv("VITE_OIDC_CLIENT_ID", "nptc-frontend");
+    vi.stubEnv("VITE_OIDC_ISSUER", "https://idp.test/realms/aptc/");
+    vi.stubEnv("VITE_OIDC_CLIENT_ID", "aptc-frontend");
 
     expect(readAuthConfig("https://app.test").issuer).toBe(
-      "https://idp.test/realms/nptc",
+      "https://idp.test/realms/aptc",
     );
   });
 
   it("throws, naming the variable, when the issuer is missing", () => {
     vi.stubEnv("VITE_OIDC_ISSUER", "");
-    vi.stubEnv("VITE_OIDC_CLIENT_ID", "nptc-frontend");
+    vi.stubEnv("VITE_OIDC_CLIENT_ID", "aptc-frontend");
 
     expect(() => readAuthConfig("https://app.test")).toThrow(/VITE_OIDC_ISSUER/);
   });
 
   it("throws, naming the variable, when the client id is missing", () => {
-    vi.stubEnv("VITE_OIDC_ISSUER", "https://idp.test/realms/nptc");
+    vi.stubEnv("VITE_OIDC_ISSUER", "https://idp.test/realms/aptc");
     vi.stubEnv("VITE_OIDC_CLIENT_ID", "");
 
     expect(() => readAuthConfig("https://app.test")).toThrow(/VITE_OIDC_CLIENT_ID/);
@@ -54,7 +54,7 @@ describe("readAuthConfig", () => {
 
   it("treats a whitespace-only value as missing", () => {
     vi.stubEnv("VITE_OIDC_ISSUER", "   ");
-    vi.stubEnv("VITE_OIDC_CLIENT_ID", "nptc-frontend");
+    vi.stubEnv("VITE_OIDC_CLIENT_ID", "aptc-frontend");
 
     expect(() => readAuthConfig("https://app.test")).toThrow(/VITE_OIDC_ISSUER/);
   });

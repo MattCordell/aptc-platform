@@ -39,7 +39,7 @@ but a cell that's nothing *but* whitespace would be emptied entirely by strippin
 1. Add a fourth `Band` member, `INFORMATIONAL`, with `blocks_import() is False`. It is
    explicitly **not** one of FR-71's three defect bands - it exists for the "this is not a
    defect, but tell someone" outcome that FR-97 and FR-75 require and FR-71 does not name.
-2. Band is a pure function of a finding's `code` alone (`nptc_transform.bands.band_for`),
+2. Band is a pure function of a finding's `code` alone (`aptc_transform.bands.band_for`),
    never of its content. `Finding.band` is a property computed from `code`, not a field a
    detector sets, so every `Finding` that can be constructed is classified by construction.
 3. Where FR-71 puts different cases of the same PRD Appendix defect in different bands, the
@@ -63,7 +63,7 @@ but a cell that's nothing *but* whitespace would be emptied entirely by strippin
      identical signal, and must still block rather than being waved through because no
      column happened to be recognised.
 4. The Unicode category test behind the first split (`is_normalisable_space`) lives in
-   `nptc_shared.text`, not in the transform - the same module already exists so the
+   `aptc_shared.text`, not in the transform - the same module already exists so the
    transform's detection and the backend's entry-time prohibition (FR-63, FR-74) can never
    diverge on what counts as an invisible character, and the backend will need the same
    "does this repair deterministically" predicate at entry time.
@@ -97,5 +97,5 @@ but a cell that's nothing *but* whitespace would be emptied entirely by strippin
 - P0-6 (designation reconciliation, FR-97) and P0-7 (semantic-mismatch heuristics, FR-75)
   both land their informational outcomes on the `INFORMATIONAL` band already defined here,
   rather than inventing their own non-blocking mechanism.
-- `nptc_shared.text.is_normalisable_space` becomes a second predicate the backend's
+- `aptc_shared.text.is_normalisable_space` becomes a second predicate the backend's
   entry-time prohibition (FR-63/FR-74) can reuse when it lands, alongside `is_invisible`.

@@ -41,7 +41,7 @@ async function fetchEndpoints(issuer: string): Promise<OidcEndpoints> {
   // misconfigured or substituted document could point the login redirect at
   // an entirely different authorisation server - and the user would see a
   // convincing login form belonging to someone else. The backend's
-  // `nptc.auth.discovery` makes the same check for the same reason.
+  // `aptc.auth.discovery` makes the same check for the same reason.
   if (document.issuer !== issuer) {
     throw new Error(
       `OIDC discovery document names issuer ${String(document.issuer)}, expected ${issuer}`,

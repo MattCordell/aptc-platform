@@ -22,16 +22,16 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.engine import Connection
 
-from nptc.api.terms_gate import TERMS_ACCEPTANCE_REQUIRED_CODE
-from nptc.auth.permissions import Role
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
-from nptc.db.models.property_definition import PropertyDefinition, PropertyOrigin, PropertyScope
-from nptc.db.models.submission import Submission, SubmissionKind
-from nptc.db.models.submission_working_copy import SubmissionWorkingCopy
-from nptc.db.models.user import User
-from nptc.db.models.user_identity import UserIdentity
-from nptc_shared.terminology import (
+from aptc.api.terms_gate import TERMS_ACCEPTANCE_REQUIRED_CODE
+from aptc.auth.permissions import Role
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
+from aptc.db.models.property_definition import PropertyDefinition, PropertyOrigin, PropertyScope
+from aptc.db.models.submission import Submission, SubmissionKind
+from aptc.db.models.submission_working_copy import SubmissionWorkingCopy
+from aptc.db.models.user import User
+from aptc.db.models.user_identity import UserIdentity
+from aptc_shared.terminology import (
     AU_LANGUAGE_TAG,
     Operation,
     StubConcept,
@@ -131,7 +131,7 @@ def _submission(api: ApiTestApp, submitter: User, *, state: str = "Triage") -> S
 
 def _amendment(api: ApiTestApp, submitter: User) -> Submission:
     entry = CatalogueEntry(
-        business_key=f"NPTC-{uuid.uuid4().int % 900_000_000 + 100_000_000}",
+        business_key=f"APTC-{uuid.uuid4().int % 900_000_000 + 100_000_000}",
         preferred_term="Entry term",
         status=CatalogueEntryStatus.ACTIVE.value,
     )

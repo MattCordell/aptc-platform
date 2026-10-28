@@ -1,6 +1,6 @@
 """FR-44's strongest test: parses PRD Section 4.7's own markdown table out
-of `docs/prd/NPTC-Catalogue-Platform-PRD.md` and asserts
-`nptc.auth.permissions.ROLE_PERMISSIONS` reproduces it, cell by cell.
+of `docs/prd/APTC-Catalogue-Platform-PRD.md` and asserts
+`aptc.auth.permissions.ROLE_PERMISSIONS` reproduces it, cell by cell.
 
 The PRD table is a genuinely independent representation of the matrix -
 the maintainer's own words, "Authoritative. Where prose elsewhere in this
@@ -25,10 +25,10 @@ from pathlib import Path
 
 import pytest
 
-from nptc.auth.permissions import ROLE_PERMISSIONS, Permission, Role
+from aptc.auth.permissions import ROLE_PERMISSIONS, Permission, Role
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-PRD_PATH = REPO_ROOT / "docs" / "prd" / "NPTC-Catalogue-Platform-PRD.md"
+PRD_PATH = REPO_ROOT / "docs" / "prd" / "APTC-Catalogue-Platform-PRD.md"
 
 #: Column order exactly as PRD Section 4.7 states it.
 _COLUMN_ROLES = [
@@ -43,7 +43,7 @@ _COLUMN_ROLES = [
 #: The one row with a qualifier that changes *which* permission applies
 #: (own vs any) rather than merely how much (the max-5/20-hr quota rows,
 #: which map to the same permission regardless of the number - quotas are
-#: `nptc.auth.permissions.QUOTAS`, not permissions, see that module's
+#: `aptc.auth.permissions.QUOTAS`, not permissions, see that module's
 #: docstring).
 _WITHDRAW_ROW_LABEL = "Withdraw own submission before approval"
 

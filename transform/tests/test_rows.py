@@ -8,8 +8,8 @@ from pathlib import Path
 import openpyxl
 import pytest
 
-from nptc_transform.rows import group_rows
-from nptc_transform.workbook import ColumnRole, Sheet, read_workbook
+from aptc_transform.rows import group_rows
+from aptc_transform.workbook import ColumnRole, Sheet, read_workbook
 
 
 @pytest.fixture()

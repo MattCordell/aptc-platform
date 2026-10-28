@@ -13,10 +13,10 @@ from pathlib import Path
 import httpx
 import pytest
 
-from nptc.auth.discovery import resolve_jwks_url
-from nptc.auth.errors import SigningKeyUnavailableError, TokenIssuerError
-from nptc.auth.tokens import TokenVerifier
-from nptc.settings import AuthSettings
+from aptc.auth.discovery import resolve_jwks_url
+from aptc.auth.errors import SigningKeyUnavailableError, TokenIssuerError
+from aptc.auth.tokens import TokenVerifier
+from aptc.settings import AuthSettings
 
 _support_spec = importlib.util.spec_from_file_location(
     "_test_auth_discovery_support", Path(__file__).parent / "auth_jwt_support.py"
@@ -41,7 +41,7 @@ def test_issuer_mismatch_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
     `issuer` field exactly - a document is fetched before anything is
     verified, so if it could name a different issuer than the one asked
     for, the whole verification chain would be unanchored."""
-    requested_issuer = "http://127.0.0.1/realms/nptc"
+    requested_issuer = "http://127.0.0.1/realms/aptc"
 
     class _Response:
         status_code = 200
@@ -90,7 +90,7 @@ def test_plain_http_non_localhost_issuer_is_refused_without_contacting_it(
     """The refusal is checked *before* the request is made - a client
     whose `get` raises if called at all proves the refused issuer is
     never actually contacted over cleartext."""
-    issuer = "http://keycloak.internal/realms/nptc"
+    issuer = "http://keycloak.internal/realms/aptc"
 
     def _never_called(_url: str) -> None:
         raise AssertionError("client.get must not be called for a refused issuer")
@@ -105,9 +105,9 @@ def test_plain_http_non_localhost_issuer_is_refused_without_contacting_it(
 def test_transport_failure_is_wrapped() -> None:
     """A connection failure must map to `SigningKeyUnavailableError`, not
     propagate a raw `httpx.ConnectError` - the whole point of
-    `nptc.auth.errors` is one exception family a caller can catch."""
+    `aptc.auth.errors` is one exception family a caller can catch."""
     with httpx.Client() as client, pytest.raises(SigningKeyUnavailableError):
-        resolve_jwks_url("http://127.0.0.1:1/realms/nptc", client=client)
+        resolve_jwks_url("http://127.0.0.1:1/realms/aptc", client=client)
 
 
 @pytest.mark.req("NFR-07")
@@ -124,7 +124,7 @@ def test_non_json_response_is_wrapped(monkeypatch: pytest.MonkeyPatch) -> None:
     with httpx.Client() as client:
         monkeypatch.setattr(client, "get", lambda _url: _Response())
         with pytest.raises(SigningKeyUnavailableError):
-            resolve_jwks_url("http://127.0.0.1/realms/nptc", client=client)
+            resolve_jwks_url("http://127.0.0.1/realms/aptc", client=client)
 
 
 @pytest.mark.req("NFR-07")
@@ -141,12 +141,12 @@ def test_non_object_document_is_wrapped(monkeypatch: pytest.MonkeyPatch) -> None
     with httpx.Client() as client:
         monkeypatch.setattr(client, "get", lambda _url: _Response())
         with pytest.raises(SigningKeyUnavailableError):
-            resolve_jwks_url("http://127.0.0.1/realms/nptc", client=client)
+            resolve_jwks_url("http://127.0.0.1/realms/aptc", client=client)
 
 
 @pytest.mark.req("NFR-07")
 def test_document_missing_jwks_uri_is_wrapped(monkeypatch: pytest.MonkeyPatch) -> None:
-    issuer = "http://127.0.0.1/realms/nptc"
+    issuer = "http://127.0.0.1/realms/aptc"
 
     class _Response:
         status_code = 200
@@ -174,12 +174,12 @@ def test_plain_http_localhost_issuer_is_allowed() -> None:
 
 @pytest.mark.req("NFR-07")
 def test_explicit_jwks_url_bypasses_discovery() -> None:
-    """`NPTC_JWKS_URL` set means `TokenVerifier.from_settings` never
+    """`APTC_JWKS_URL` set means `TokenVerifier.from_settings` never
     attempts to fetch a discovery document at all - proven here by
     pointing `oidc_issuer` at a host discovery would have to fail to
     reach, and confirming construction succeeds anyway."""
     settings = AuthSettings(
-        oidc_issuer="http://issuer.invalid.example/realms/nptc",
+        oidc_issuer="http://issuer.invalid.example/realms/aptc",
         jwks_url="http://127.0.0.1:0/never-fetched",
     )
 

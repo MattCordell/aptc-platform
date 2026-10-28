@@ -148,7 +148,7 @@ values are fixed here and implemented by `PageContainer`, `PageHeader` and `Card
 The notes above describe four status colours and reference a generic "status" concept.
 The platform's real lifecycle (`STATUS_OPTIONS` in
 `frontend/src/catalogue/status-options.ts`, matching
-`nptc.catalogue.maintenance.MAINTENANCE_STATUSES` server-side) has four values: `draft`,
+`aptc.catalogue.maintenance.MAINTENANCE_STATUSES` server-side) has four values: `draft`,
 `active`, `deprecated`, `withdrawn`. Three reconciliations were needed to land the
 `--color-status-*` tokens in `frontend/src/styles/app.css`:
 

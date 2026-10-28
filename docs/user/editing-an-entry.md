@@ -8,7 +8,7 @@ You need the Administrator role to change an entry. Acknowledging a possible dup
 is the one exception. That needs only the Reviewer role.
 
 Open an entry for editing from **[Administration → Catalogue](finding-entries.md)**, or go
-straight to `/admin/catalogue/NPTC-000247/edit` for the entry you want. Entries that have not
+straight to `/admin/catalogue/APTC-000247/edit` for the entry you want. Entries that have not
 been published yet can be edited the same way as published ones.
 
 ## What the screen holds
@@ -18,7 +18,7 @@ change. When the window is narrow, that column moves below the form.
 
 The column beside the form holds:
 
-- **Details.** The **identifier**, for example `NPTC-000006`, which the platform creates and
+- **Details.** The **identifier**, for example `APTC-000006`, which the platform creates and
   which never changes. The **entry status**, as a badge. And when the entry **last
   changed**. You cannot edit any of these here.
 - **Retired synonyms**, each with a **Reinstate** button, when the entry has any. See

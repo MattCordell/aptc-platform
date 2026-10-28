@@ -5,10 +5,10 @@
 
 ## Context
 
-`nptc.catalogue.property_values.save_property_values` audits a property write via
+`aptc.catalogue.property_values.save_property_values` audits a property write via
 `record_snapshot_change`, with `before`/`after` shaped as `{"values": [...]}` - the
 entire value list for that `(entry, property_key)` pair, not a diff of only the value(s)
-that changed. PRD NFR-08 (`docs/prd/NPTC-Catalogue-Platform-PRD.md:951`) says an audit
+that changed. PRD NFR-08 (`docs/prd/APTC-Catalogue-Platform-PRD.md:951`) says an audit
 event's `before`/`after` content must be "field-level, not whole-record blobs".
 
 Issue #264 was raised while closing out #61 (entry-edit screens audit-payload
@@ -21,7 +21,7 @@ per-value diff?
 `property_value` row for `(entry_id, property_key)` and reinserts the submitted values
 fresh at `ordinal` 0..n-1 (ADR-0035 applies the same replace semantics to the bulk
 seam). `ordinal` is part of `property_value`'s primary key
-(`backend/src/nptc/db/models/property_value.py:85`) but is purely positional - it
+(`backend/src/aptc/db/models/property_value.py:85`) but is purely positional - it
 closes the trivial race of two inserts landing on the same slot, and carries no
 identity of its own across writes.
 
@@ -56,7 +56,7 @@ A content-based diff (matching old and new values by equality rather than positi
 report only genuinely added/removed values) was also considered and rejected: it
 requires a value-equality notion that holds across every property datatype
 `registry/datatypes/` supports (FR-77, ADR-0013), which is exactly the kind of
-datatype-specific dispatch ADR-0013 confines to that one package - `nptc.audit` has no
+datatype-specific dispatch ADR-0013 confines to that one package - `aptc.audit` has no
 business making a datatype-aware equality judgement to build a diff.
 
 ## Consequences
@@ -93,5 +93,5 @@ business making a datatype-aware equality judgement to build a diff.
 | Alternative | Why not |
 |---|---|
 | A per-ordinal diff, comparing old and new value lists by position | `ordinal` is reassigned fresh on every write and carries no identity across writes; an insertion or removal shifts every later value's position, so this would report spurious changes for values the write never touched. |
-| A content-based diff, matching old and new values by equality to report only genuinely added/removed values | Requires a value-equality notion that holds across every property datatype; that judgement belongs to `registry/datatypes/` alone (ADR-0013), not to `nptc.audit`. |
+| A content-based diff, matching old and new values by equality to report only genuinely added/removed values | Requires a value-equality notion that holds across every property datatype; that judgement belongs to `registry/datatypes/` alone (ADR-0013), not to `aptc.audit`. |
 | Leaving the question open pending a per-value identity mechanism | No requester or design for per-value identity exists today; deferring the decision indefinitely leaves the two tests' docstrings misdescribing settled behaviour as an open question. |

@@ -1,6 +1,6 @@
 # Searching the catalogue
 
-The catalogue page at `/catalogue` lists every published test in the National Pathology
+The catalogue page at `/catalogue` lists every published test in the Australian Pathology
 Test Catalogue. You can browse it, search it and filter the results. You do not need an
 account.
 

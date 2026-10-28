@@ -1,4 +1,4 @@
-# NPTC platform stack (NFR-41/42).
+# APTC platform stack (NFR-41/42).
 #
 # `docker compose -f deploy/compose.yml up -d --build` takes a clean checkout
 # to a working platform with only deploy/.env.example copied to deploy/.env
@@ -11,9 +11,9 @@
 # yet; the hardened production overlay (TLS, read-only containers, Keycloak
 # persistence) is P5 per the delivery plan. Both application images already
 # run as a non-root user. There is no worker
-# service because nothing under backend/src/nptc/jobs/ exists before P3.
+# service because nothing under backend/src/aptc/jobs/ exists before P3.
 
-name: nptc
+name: aptc
 
 services:
   postgres:
@@ -38,7 +38,7 @@ services:
       retries: 10
       start_period: 10s
     networks:
-      - nptc
+      - aptc
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.8.1-1
@@ -54,10 +54,10 @@ services:
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       KC_HEALTH_ENABLED: "true"
       KC_HOSTNAME_STRICT: "false"
-      NPTC_FRONTEND_BASE_URL: ${NPTC_FRONTEND_BASE_URL:-http://localhost:8081}
+      APTC_FRONTEND_BASE_URL: ${APTC_FRONTEND_BASE_URL:-http://localhost:8081}
     volumes:
       - ./keycloak/realm:/opt/keycloak/data/import:ro
-      - ./keycloak/themes/nptc:/opt/keycloak/themes/nptc:ro
+      - ./keycloak/themes/aptc:/opt/keycloak/themes/aptc:ro
     ports:
       - "${KEYCLOAK_PORT:-8080}:8080"
     healthcheck:
@@ -65,7 +65,7 @@ services:
       # instead. Two probes, both required: the management-port health
       # endpoint (KC_HEALTH_ENABLED above) proves the process started, and
       # the realm's own discovery document proves the import in
-      # deploy/keycloak/realm/nptc-realm.json actually completed (NFR-03) -
+      # deploy/keycloak/realm/aptc-realm.json actually completed (NFR-03) -
       # "healthy" means "the realm imported", not just "the process is up".
       # grep -E '^HTTP/1\.1 200' anchors to the response's own status line, not
       # merely "200 OK" anywhere in the response - the discovery document's
@@ -77,7 +77,7 @@ services:
           echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 &&
           grep -qE '^HTTP/1\.1 200' <&3 &&
           exec 4<>/dev/tcp/localhost/8080 &&
-          echo -e 'GET /realms/nptc/.well-known/openid-configuration HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&4 &&
+          echo -e 'GET /realms/aptc/.well-known/openid-configuration HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&4 &&
           grep -qE '^HTTP/1\.1 200' <&4
       # The window is start_period + retries x interval = 330 s. start-dev
       # repeats Quarkus augmentation (about 2 minutes), the schema setup and
@@ -89,7 +89,7 @@ services:
       retries: 30
       start_period: 30s
     networks:
-      - nptc
+      - aptc
 
   # One-shot: applies every migration as the owning role, then creates the
   # app runtime login and the index reconciler's login. It is the only service
@@ -106,21 +106,21 @@ services:
     build:
       context: ..
       dockerfile: backend/Dockerfile
-    image: nptc-backend:local
+    image: aptc-backend:local
     restart: "no"
     command:
       - sh
       - -c
-      - alembic upgrade head && python -m nptc.db.provision_login
+      - alembic upgrade head && python -m aptc.db.provision_login
     environment:
-      NPTC_MIGRATION_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      NPTC_APP_DB_PASSWORD: ${NPTC_APP_DB_PASSWORD:?set NPTC_APP_DB_PASSWORD in deploy/.env}
-      NPTC_INDEXER_DB_PASSWORD: ${NPTC_INDEXER_DB_PASSWORD:?set NPTC_INDEXER_DB_PASSWORD in deploy/.env}
+      APTC_MIGRATION_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      APTC_APP_DB_PASSWORD: ${APTC_APP_DB_PASSWORD:?set APTC_APP_DB_PASSWORD in deploy/.env}
+      APTC_INDEXER_DB_PASSWORD: ${APTC_INDEXER_DB_PASSWORD:?set APTC_INDEXER_DB_PASSWORD in deploy/.env}
     depends_on:
       postgres:
         condition: service_healthy
     networks:
-      - nptc
+      - aptc
 
   # Not published on a host port: the browser reaches it through the frontend
   # service's reverse proxy, so the SPA and the API share one origin.
@@ -128,41 +128,41 @@ services:
     build:
       context: ..
       dockerfile: backend/Dockerfile
-    image: nptc-backend:local
+    image: aptc-backend:local
     restart: unless-stopped
     environment:
-      NPTC_DATABASE_URL: postgresql+psycopg://nptc_app_login:${NPTC_APP_DB_PASSWORD:?set NPTC_APP_DB_PASSWORD in deploy/.env}@postgres:5432/${POSTGRES_DB}
+      APTC_DATABASE_URL: postgresql+psycopg://aptc_app_login:${APTC_APP_DB_PASSWORD:?set APTC_APP_DB_PASSWORD in deploy/.env}@postgres:5432/${POSTGRES_DB}
       # The reconciler's own login (FR-13): it owns property_value and nothing else, so it
       # can create the indexes a filterable property needs. The API runs the reconciler on
       # a worker thread after a registry write commits.
-      NPTC_INDEXER_DATABASE_URL: postgresql+psycopg://nptc_indexer:${NPTC_INDEXER_DB_PASSWORD:?set NPTC_INDEXER_DB_PASSWORD in deploy/.env}@postgres:5432/${POSTGRES_DB}
+      APTC_INDEXER_DATABASE_URL: postgresql+psycopg://aptc_indexer:${APTC_INDEXER_DB_PASSWORD:?set APTC_INDEXER_DB_PASSWORD in deploy/.env}@postgres:5432/${POSTGRES_DB}
       # The issuer is what the browser sees (Keycloak puts the request host in
       # `iss`), so it stays on localhost. The API fetches signing keys from
       # the internal address instead, which also skips OIDC discovery.
-      NPTC_OIDC_ISSUER: ${NPTC_OIDC_ISSUER:-http://localhost:8080/realms/nptc}
-      NPTC_OIDC_AUDIENCE: ${NPTC_OIDC_AUDIENCE:-nptc-api}
-      NPTC_JWKS_URL: http://keycloak:8080/realms/nptc/protocol/openid-connect/certs
-      NPTC_JWKS_CACHE_SECONDS: ${NPTC_JWKS_CACHE_SECONDS:-300}
-      NPTC_JWKS_REFRESH_COOLDOWN_SECONDS: ${NPTC_JWKS_REFRESH_COOLDOWN_SECONDS:-30}
-      NPTC_MFA_ACR_VALUES: ${NPTC_MFA_ACR_VALUES:-2}
-      NPTC_FRONTEND_BASE_URL: ${NPTC_FRONTEND_BASE_URL:-http://localhost:8081}
-      NPTC_FSN_SEMANTIC_TAG: ${NPTC_FSN_SEMANTIC_TAG:-intact}
-      NPTC_MAX_PREFERRED_TERM_LENGTH: ${NPTC_MAX_PREFERRED_TERM_LENGTH:-}
-      NPTC_TERMS_CURRENT_VERSION: ${NPTC_TERMS_CURRENT_VERSION:-}
-      NPTC_ANON_RATE_LIMIT_REQUESTS: ${NPTC_ANON_RATE_LIMIT_REQUESTS:-}
-      NPTC_ANON_RATE_LIMIT_WINDOW_SECONDS: ${NPTC_ANON_RATE_LIMIT_WINDOW_SECONDS:-}
-      NPTC_BULK_ARTEFACTS_URL: ${NPTC_BULK_ARTEFACTS_URL:-}
+      APTC_OIDC_ISSUER: ${APTC_OIDC_ISSUER:-http://localhost:8080/realms/aptc}
+      APTC_OIDC_AUDIENCE: ${APTC_OIDC_AUDIENCE:-aptc-api}
+      APTC_JWKS_URL: http://keycloak:8080/realms/aptc/protocol/openid-connect/certs
+      APTC_JWKS_CACHE_SECONDS: ${APTC_JWKS_CACHE_SECONDS:-300}
+      APTC_JWKS_REFRESH_COOLDOWN_SECONDS: ${APTC_JWKS_REFRESH_COOLDOWN_SECONDS:-30}
+      APTC_MFA_ACR_VALUES: ${APTC_MFA_ACR_VALUES:-2}
+      APTC_FRONTEND_BASE_URL: ${APTC_FRONTEND_BASE_URL:-http://localhost:8081}
+      APTC_FSN_SEMANTIC_TAG: ${APTC_FSN_SEMANTIC_TAG:-intact}
+      APTC_MAX_PREFERRED_TERM_LENGTH: ${APTC_MAX_PREFERRED_TERM_LENGTH:-}
+      APTC_TERMS_CURRENT_VERSION: ${APTC_TERMS_CURRENT_VERSION:-}
+      APTC_ANON_RATE_LIMIT_REQUESTS: ${APTC_ANON_RATE_LIMIT_REQUESTS:-}
+      APTC_ANON_RATE_LIMIT_WINDOW_SECONDS: ${APTC_ANON_RATE_LIMIT_WINDOW_SECONDS:-}
+      APTC_BULK_ARTEFACTS_URL: ${APTC_BULK_ARTEFACTS_URL:-}
       # The private ranges Docker assigns to compose networks. `backend` publishes no port, so
       # the only peer that can reach it is a container on this network, and the only one that
       # forwards a caller is `web`. Trusting these ranges lets the limiter and the audit log
       # read the caller's address from `web`'s `X-Forwarded-For` instead of recording Caddy's.
       # `-`, not `:-`, so an explicit empty value turns the trust off rather than reverting
       # to this default.
-      NPTC_TRUSTED_PROXIES: ${NPTC_TRUSTED_PROXIES-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
-      NPTC_TX_BASE_URL: ${NPTC_TX_BASE_URL:-https://tx.ontoserver.csiro.au/fhir}
-      NPTC_TX_TOKEN: ${NPTC_TX_TOKEN:-}
-      NPTC_TX_TIMEOUT_SECONDS: ${NPTC_TX_TIMEOUT_SECONDS:-30}
-      NPTC_TX_MAX_RETRIES: ${NPTC_TX_MAX_RETRIES:-3}
+      APTC_TRUSTED_PROXIES: ${APTC_TRUSTED_PROXIES-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
+      APTC_TX_BASE_URL: ${APTC_TX_BASE_URL:-https://tx.ontoserver.csiro.au/fhir}
+      APTC_TX_TOKEN: ${APTC_TX_TOKEN:-}
+      APTC_TX_TIMEOUT_SECONDS: ${APTC_TX_TIMEOUT_SECONDS:-30}
+      APTC_TX_MAX_RETRIES: ${APTC_TX_MAX_RETRIES:-3}
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -182,7 +182,7 @@ services:
       retries: 10
       start_period: 15s
     networks:
-      - nptc
+      - aptc
 
   # The single entry point: Caddy serves the built SPA and proxies /api/* to
   # the backend. The VITE_* values are baked into the bundle at build time, so
@@ -192,15 +192,15 @@ services:
       context: ..
       dockerfile: frontend/Dockerfile
       args:
-        VITE_OIDC_ISSUER: ${VITE_OIDC_ISSUER:-http://localhost:8080/realms/nptc}
-        VITE_OIDC_CLIENT_ID: ${VITE_OIDC_CLIENT_ID:-nptc-frontend}
-    image: nptc-frontend:local
+        VITE_OIDC_ISSUER: ${VITE_OIDC_ISSUER:-http://localhost:8080/realms/aptc}
+        VITE_OIDC_CLIENT_ID: ${VITE_OIDC_CLIENT_ID:-aptc-frontend}
+    image: aptc-frontend:local
     restart: unless-stopped
     depends_on:
       backend:
         condition: service_healthy
     ports:
-      - "${NPTC_WEB_PORT:-8081}:80"
+      - "${APTC_WEB_PORT:-8081}:80"
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1/"]
       interval: 10s
@@ -208,10 +208,10 @@ services:
       retries: 5
       start_period: 5s
     networks:
-      - nptc
+      - aptc
 
 volumes:
   postgres-data:
 
 networks:
-  nptc:
+  aptc:
