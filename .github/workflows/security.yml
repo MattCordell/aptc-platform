@@ -36,7 +36,9 @@ jobs:
     name: Detect changed paths
     # Only meaningful for pull_request - push already has its own paths-ignore
     # above, and schedule has no base ref to diff against and must always run
-    # the full daily audit regardless of what last changed.
+    # the full daily audit regardless of what last changed. The jobs that need
+    # this one call !cancelled() in their if:, because otherwise this job being
+    # skipped would skip them too.
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -66,7 +68,7 @@ jobs:
   python-audit:
     name: pip-audit (production dependencies)
     needs: changes
-    if: github.event_name != 'pull_request' || needs.changes.outputs.code == 'true'
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.changes.outputs.code == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -92,7 +94,7 @@ jobs:
   frontend-audit:
     name: pnpm audit (production dependencies)
     needs: changes
-    if: github.event_name != 'pull_request' || needs.changes.outputs.code == 'true'
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.changes.outputs.code == 'true') }}
     runs-on: ubuntu-latest
     # Worst case (issue #255, PR #258 review - the first version of this
     # budget under-allotted both figures below). One `pnpm audit` process
@@ -163,7 +165,7 @@ jobs:
   gitleaks:
     name: gitleaks (secret scanning)
     needs: changes
-    if: github.event_name != 'pull_request' || needs.changes.outputs.code == 'true'
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.changes.outputs.code == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
