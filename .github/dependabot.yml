@@ -6,7 +6,7 @@ updates:
   - package-ecosystem: "uv"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     open-pull-requests-limit: 5
     groups:
       # Typeshed stubs version as <semver>.<date> - types-pyyaml went
@@ -44,7 +44,7 @@ updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     open-pull-requests-limit: 5
     groups:
       npm-minor-and-patch:
@@ -69,7 +69,7 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     open-pull-requests-limit: 5
     groups:
       actions-minor-and-patch:
@@ -85,20 +85,20 @@ updates:
   - package-ecosystem: "docker-compose"
     directory: "/deploy"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     open-pull-requests-limit: 5
     labels: ["infra", "dependencies"]
 
   - package-ecosystem: "docker"
     directory: "/backend"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     open-pull-requests-limit: 5
     labels: ["infra", "dependencies"]
 
   - package-ecosystem: "docker"
     directory: "/frontend"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     open-pull-requests-limit: 5
     labels: ["infra", "dependencies"]
