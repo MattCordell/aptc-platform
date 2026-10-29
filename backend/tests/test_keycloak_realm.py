@@ -1,7 +1,7 @@
 """Realm-as-code acceptance criteria for issue #40 (NFR-03).
 
 Offline group: fast assertions over the committed
-deploy/keycloak/realm/nptc-realm.json and the compose.yml bind mount that
+deploy/keycloak/realm/aptc-realm.json and the compose.yml bind mount that
 imports it - no Docker needed, runs in the `python` job.
 
 Integration group (@pytest.mark.integration): starts the pinned Keycloak
@@ -34,7 +34,7 @@ from testcontainers.core.container import DockerContainer
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEPLOY_DIR = REPO_ROOT / "deploy"
 REALM_DIR = DEPLOY_DIR / "keycloak" / "realm"
-REALM_FILE = REALM_DIR / "nptc-realm.json"
+REALM_FILE = REALM_DIR / "aptc-realm.json"
 
 _conftest_spec = importlib.util.spec_from_file_location(
     "_test_keycloak_realm_conftest", Path(__file__).parent / "conftest.py"
@@ -167,7 +167,7 @@ def _client(realm: dict[str, Any], client_id: str) -> dict[str, Any]:
 
 @pytest.mark.req("NFR-03")
 def test_frontend_client_is_public_pkce_only(realm: dict[str, Any]) -> None:
-    frontend = _client(realm, "nptc-frontend")
+    frontend = _client(realm, "aptc-frontend")
 
     assert frontend["publicClient"] is True
     assert frontend["attributes"]["pkce.code.challenge.method"] == "S256"
@@ -179,7 +179,7 @@ def test_frontend_client_is_public_pkce_only(realm: dict[str, Any]) -> None:
 
 @pytest.mark.req("NFR-03")
 def test_frontend_client_has_no_wildcard_host_redirect_uri(realm: dict[str, Any]) -> None:
-    frontend = _client(realm, "nptc-frontend")
+    frontend = _client(realm, "aptc-frontend")
 
     for uri in frontend["redirectUris"]:
         assert "://*" not in uri, f"wildcard-host redirect URI: {uri!r}"
@@ -205,7 +205,7 @@ def test_login_pages_may_be_framed_by_the_frontend_origin_only(realm: dict[str, 
 
     ancestors = _csp_directives(headers["contentSecurityPolicy"])["frame-ancestors"]
 
-    assert ancestors == ["'self'", "${NPTC_FRONTEND_BASE_URL}"]
+    assert ancestors == ["'self'", "${APTC_FRONTEND_BASE_URL}"]
 
 
 #: Keycloak 26.7's own `browserSecurityHeaders`, read from a realm created
@@ -239,14 +239,14 @@ def test_overriding_the_csp_keeps_every_other_browser_security_header(
 
 @pytest.mark.req("NFR-07")
 def test_frontend_client_carries_the_api_audience_mapper(realm: dict[str, Any]) -> None:
-    """No shared `nptc-api-audience` client scope: declaring a top-level
+    """No shared `aptc-api-audience` client scope: declaring a top-level
     `clientScopes` array in this realm file was found (empirically, against
     a scratch Keycloak realm) to replace Keycloak's built-in default scopes
     wholesale rather than add to them, silently dropping `profile`/`email`/
     `web-origins` from every client that referenced them. A client-level
-    protocol mapper on nptc-frontend gets the same audience claim without
+    protocol mapper on aptc-frontend gets the same audience claim without
     that collateral damage - see ADR-0014."""
-    frontend = _client(realm, "nptc-frontend")
+    frontend = _client(realm, "aptc-frontend")
     mappers = [
         m
         for m in frontend.get("protocolMappers", [])
@@ -255,7 +255,7 @@ def test_frontend_client_carries_the_api_audience_mapper(realm: dict[str, Any]) 
 
     assert len(mappers) == 1
     mapper = mappers[0]
-    assert mapper["config"]["included.client.audience"] == "nptc-api"
+    assert mapper["config"]["included.client.audience"] == "aptc-api"
     assert mapper["config"]["access.token.claim"] == "true"
 
 
@@ -290,7 +290,7 @@ def test_username_cannot_be_an_email_address(realm: dict[str, Any]) -> None:
 
 @pytest.mark.req("FR-42")
 def test_organisation_length_matches_the_submission_limit(realm: dict[str, Any]) -> None:
-    from nptc.api.routers.submissions import CreateAmendmentRequest, CreateSubmissionRequest
+    from aptc.api.routers.submissions import CreateAmendmentRequest, CreateSubmissionRequest
 
     realm_limit = _user_profile(realm)["organisation"]["validations"]["length"]["max"]
 
@@ -308,7 +308,7 @@ def test_frontend_client_puts_the_organisation_in_the_access_token(
 ) -> None:
     mappers = [
         m
-        for m in _client(realm, "nptc-frontend")["protocolMappers"]
+        for m in _client(realm, "aptc-frontend")["protocolMappers"]
         if m["config"].get("claim.name") == "organisation"
     ]
 
@@ -326,7 +326,7 @@ def test_every_profile_message_key_exists_in_the_login_theme(realm: dict[str, An
         DEPLOY_DIR
         / "keycloak"
         / "themes"
-        / "nptc"
+        / "aptc"
         / "login"
         / "messages"
         / "messages_en.properties"
@@ -334,14 +334,14 @@ def test_every_profile_message_key_exists_in_the_login_theme(realm: dict[str, An
     organisation = _user_profile(realm)["organisation"]
     username_pattern = _user_profile(realm)["username"]["validations"]["pattern"]
 
-    assert organisation["displayName"] == "${nptcOrganisation}"
-    assert re.search(r"^nptcOrganisation=.+", messages, re.MULTILINE)
+    assert organisation["displayName"] == "${aptcOrganisation}"
+    assert re.search(r"^aptcOrganisation=.+", messages, re.MULTILINE)
     assert re.search(rf"^{username_pattern['error-message']}=.+", messages, re.MULTILINE)
 
 
 @pytest.mark.req("NFR-03")
 def test_api_client_is_audience_only(realm: dict[str, Any]) -> None:
-    api = _client(realm, "nptc-api")
+    api = _client(realm, "aptc-api")
 
     assert api["publicClient"] is True
     assert api["standardFlowEnabled"] is False
@@ -390,20 +390,20 @@ def _flow(realm: dict[str, Any], alias: str) -> dict[str, Any]:
 
 
 @pytest.mark.req("NFR-06")
-def test_browser_flow_is_bound_to_the_nptc_step_up_flow(realm: dict[str, Any]) -> None:
+def test_browser_flow_is_bound_to_the_aptc_step_up_flow(realm: dict[str, Any]) -> None:
     """issue #44: mandatory-MFA-for-administrators is enforced server-side
-    (nptc.auth.principal.principal_for), but Keycloak's realm is what
+    (aptc.auth.principal.principal_for), but Keycloak's realm is what
     makes the step-up *achievable* in the first place - a browser login
     that never offers OTP at all cannot ever satisfy it."""
-    assert realm["browserFlow"] == "nptc browser"
+    assert realm["browserFlow"] == "aptc browser"
 
 
 @pytest.mark.req("NFR-06")
-def test_nptc_browser_flow_delegates_to_the_forms_subflow(realm: dict[str, Any]) -> None:
-    top = _flow(realm, "nptc browser")
+def test_aptc_browser_flow_delegates_to_the_forms_subflow(realm: dict[str, Any]) -> None:
+    top = _flow(realm, "aptc browser")
     assert top["topLevel"] is True
     forms_executions = [
-        e for e in top["authenticationExecutions"] if e.get("flowAlias") == "nptc browser forms"
+        e for e in top["authenticationExecutions"] if e.get("flowAlias") == "aptc browser forms"
     ]
     assert len(forms_executions) == 1
     assert forms_executions[0]["requirement"] == "ALTERNATIVE"
@@ -417,7 +417,7 @@ def test_conditional_otp_subflow_gates_on_level_of_authentication(realm: dict[st
     to already have TOTP configured. That distinction is the entire point
     of this issue's NFR-06 half over the realm's pre-existing (but
     unconditional) `CONFIGURE_TOTP` required action."""
-    subflow = _flow(realm, "nptc browser forms conditional otp")
+    subflow = _flow(realm, "aptc browser forms conditional otp")
     executions = {
         e["authenticator"]: e for e in subflow["authenticationExecutions"] if "authenticator" in e
     }
@@ -425,7 +425,7 @@ def test_conditional_otp_subflow_gates_on_level_of_authentication(realm: dict[st
     assert executions["conditional-level-of-authentication"]["requirement"] == "REQUIRED"
     assert (
         executions["conditional-level-of-authentication"]["authenticatorConfig"]
-        == "nptc loa-2 condition"
+        == "aptc loa-2 condition"
     )
     assert executions["auth-otp-form"]["requirement"] == "REQUIRED"
 
@@ -438,7 +438,7 @@ def test_loa_condition_pins_level_2_matching_the_backend_default(realm: dict[str
     matches = [
         cfg
         for cfg in realm.get("authenticatorConfig", [])
-        if cfg["alias"] == "nptc loa-2 condition"
+        if cfg["alias"] == "aptc loa-2 condition"
     ]
     assert len(matches) == 1
     assert matches[0]["config"]["loa-condition-level"] == "2"
@@ -449,7 +449,7 @@ def test_frontend_client_tokens_carry_the_acr_claim(realm: dict[str, Any]) -> No
     """Keycloak writes `acr` only through the built-in `acr` client scope's
     mapper. Without that scope, `principal_for` never sees a satisfying
     `acr`, so MFA step-up can never succeed, however the user signs in."""
-    frontend = _client(realm, "nptc-frontend")
+    frontend = _client(realm, "aptc-frontend")
 
     assert "acr" in frontend["defaultClientScopes"]
 
@@ -460,13 +460,13 @@ def _wait_for_discovery_document(
     """Polls the realm's own discovery document rather than a log line or
     the /health/ready management endpoint: a log message is fragile across
     Keycloak versions, and this directly tests the acceptance criterion
-    ("--import-realm" actually imported nptc, not merely that the process
+    ("--import-realm" actually imported aptc, not merely that the process
     started)."""
     last_error: Exception | None = None
     for _ in range(attempts):
         try:
             response = httpx.get(
-                f"{base_url}/realms/nptc/.well-known/openid-configuration", timeout=5
+                f"{base_url}/realms/aptc/.well-known/openid-configuration", timeout=5
             )
             if response.status_code == 200:
                 return response
@@ -474,7 +474,7 @@ def _wait_for_discovery_document(
             last_error = error
         time.sleep(delay)
     raise TimeoutError(
-        f"Keycloak did not serve the nptc realm discovery document in time: {last_error}"
+        f"Keycloak did not serve the aptc realm discovery document in time: {last_error}"
     )
 
 
@@ -488,8 +488,8 @@ def test_keycloak_imports_the_realm_and_serves_discovery() -> None:
         DockerContainer(image)
         .with_exposed_ports(8080)
         .with_env("KC_BOOTSTRAP_ADMIN_USERNAME", "admin")
-        .with_env("KC_BOOTSTRAP_ADMIN_PASSWORD", "nptc-realm-test-only-not-a-real-secret")
-        .with_env("NPTC_FRONTEND_BASE_URL", frontend_base_url)
+        .with_env("KC_BOOTSTRAP_ADMIN_PASSWORD", "aptc-realm-test-only-not-a-real-secret")
+        .with_env("APTC_FRONTEND_BASE_URL", frontend_base_url)
         .with_volume_mapping(str(REALM_DIR), "/opt/keycloak/data/import", mode="ro")
         .with_command("start-dev --import-realm")
     )
@@ -501,7 +501,7 @@ def test_keycloak_imports_the_realm_and_serves_discovery() -> None:
         discovery = _wait_for_discovery_document(base_url)
         body = discovery.json()
 
-        assert body["issuer"] == f"{base_url}/realms/nptc"
+        assert body["issuer"] == f"{base_url}/realms/aptc"
         assert "S256" in body["code_challenge_methods_supported"]
 
         admin_token_response = httpx.post(
@@ -509,7 +509,7 @@ def test_keycloak_imports_the_realm_and_serves_discovery() -> None:
             data={
                 "client_id": "admin-cli",
                 "username": "admin",
-                "password": "nptc-realm-test-only-not-a-real-secret",
+                "password": "aptc-realm-test-only-not-a-real-secret",
                 "grant_type": "password",
             },
             timeout=30,
@@ -518,8 +518,8 @@ def test_keycloak_imports_the_realm_and_serves_discovery() -> None:
         admin_token = admin_token_response.json()["access_token"]
 
         clients_response = httpx.get(
-            f"{base_url}/admin/realms/nptc/clients",
-            params={"clientId": "nptc-frontend"},
+            f"{base_url}/admin/realms/aptc/clients",
+            params={"clientId": "aptc-frontend"},
             headers={"Authorization": f"Bearer {admin_token}"},
             timeout=30,
         )
@@ -531,7 +531,7 @@ def test_keycloak_imports_the_realm_and_serves_discovery() -> None:
         assert client["publicClient"] is True
         assert client["attributes"]["pkce.code.challenge.method"] == "S256"
 
-        # ${NPTC_FRONTEND_BASE_URL} is the realm's only placeholder and the
+        # ${APTC_FRONTEND_BASE_URL} is the realm's only placeholder and the
         # one thing the offline group cannot check - if Keycloak's ${VAR}
         # substitution doesn't fire (wrong syntax, unset var, a version
         # change), the imported client keeps the literal placeholder text
@@ -544,7 +544,7 @@ def test_keycloak_imports_the_realm_and_serves_discovery() -> None:
         # The offline test checks the name in the file; only the imported
         # client shows Keycloak bound it to its built-in `acr` scope.
         scopes_response = httpx.get(
-            f"{base_url}/admin/realms/nptc/clients/{client['id']}/default-client-scopes",
+            f"{base_url}/admin/realms/aptc/clients/{client['id']}/default-client-scopes",
             headers={"Authorization": f"Bearer {admin_token}"},
             timeout=30,
         )
@@ -552,7 +552,7 @@ def test_keycloak_imports_the_realm_and_serves_discovery() -> None:
         assert "acr" in {scope["name"] for scope in scopes_response.json()}
 
         required_actions_response = httpx.get(
-            f"{base_url}/admin/realms/nptc/authentication/required-actions",
+            f"{base_url}/admin/realms/aptc/authentication/required-actions",
             headers={"Authorization": f"Bearer {admin_token}"},
             timeout=30,
         )
@@ -570,20 +570,20 @@ def test_keycloak_imports_the_realm_and_serves_discovery() -> None:
         # would otherwise only surface as an opaque 500 the first time
         # anyone tries to log in, not at import time.
         realm_response = httpx.get(
-            f"{base_url}/admin/realms/nptc",
+            f"{base_url}/admin/realms/aptc",
             headers={"Authorization": f"Bearer {admin_token}"},
             timeout=30,
         )
         realm_response.raise_for_status()
-        assert realm_response.json()["browserFlow"] == "nptc browser"
+        assert realm_response.json()["browserFlow"] == "aptc browser"
 
         # The offline test checks the placeholder is in the CSP; only a real
         # login page shows that Keycloak substituted it inside a longer
         # string and actually sends the header the browser enforces.
         login_page = httpx.get(
-            f"{base_url}/realms/nptc/protocol/openid-connect/auth",
+            f"{base_url}/realms/aptc/protocol/openid-connect/auth",
             params={
-                "client_id": "nptc-frontend",
+                "client_id": "aptc-frontend",
                 "response_type": "code",
                 "scope": "openid",
                 "redirect_uri": f"{frontend_base_url}/auth/callback",
@@ -604,8 +604,8 @@ def test_keycloak_imports_the_realm_and_serves_discovery() -> None:
         assert "max-age=" in login_page.headers["strict-transport-security"]
 
         executions_response = httpx.get(
-            f"{base_url}/admin/realms/nptc/authentication/flows/"
-            "nptc%20browser%20forms%20conditional%20otp/executions",
+            f"{base_url}/admin/realms/aptc/authentication/flows/"
+            "aptc%20browser%20forms%20conditional%20otp/executions",
             headers={"Authorization": f"Bearer {admin_token}"},
             timeout=30,
         )

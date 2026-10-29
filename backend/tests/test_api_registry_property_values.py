@@ -3,7 +3,7 @@ FR-10, FR-52, FR-90).
 
 Follows `test_api_terminology.py`'s own precedent: the domain logic already
 has its own unit tests (`test_catalogue_property_value_sources.py`); this
-module proves the HTTP adapter - status codes, the `nptc.api.errors`
+module proves the HTTP adapter - status codes, the `aptc.api.errors`
 mapping, and `Permission.REGISTRY_READ` authorisation - against the real
 `create_app()`, with `api.terminology` (a `StubTerminologyClient`) standing
 in for the terminology server (NFR-37) and `api.session` for a real
@@ -22,10 +22,10 @@ from typing import Any
 import pytest
 from sqlalchemy.engine import Connection
 
-from nptc.api.errors import _DETAIL_PROPERTY_VALUE_SELECTION_CONFLICT
-from nptc.auth.permissions import Role
-from nptc.db.bootstrap import seed_system_properties
-from nptc.db.models.property_definition import (
+from aptc.api.errors import _DETAIL_PROPERTY_VALUE_SELECTION_CONFLICT
+from aptc.auth.permissions import Role
+from aptc.db.bootstrap import seed_system_properties
+from aptc.db.models.property_definition import (
     BindingStrength,
     BindingTarget,
     PropertyCardinality,
@@ -33,7 +33,7 @@ from nptc.db.models.property_definition import (
     PropertyOrigin,
     PropertyScope,
 )
-from nptc_shared.terminology import (
+from aptc_shared.terminology import (
     SNOMED_CT_AU,
     ExpandedConcept,
     Expansion,
@@ -328,7 +328,7 @@ def test_unknown_key_is_404(api: ApiTestApp) -> None:
 @pytest.mark.req("FR-10")
 @pytest.mark.integration
 def test_non_code_property_is_422(api: ApiTestApp) -> None:
-    """`usage_guidance` (`nptc.db.bootstrap`) is `datatype == "string"` - it
+    """`usage_guidance` (`aptc.db.bootstrap`) is `datatype == "string"` - it
     has no bound value source at all."""
     _seed(api)
     token = api.exact_role_token(subject="sub-values-non-code", role=Role.PROVISIONAL)

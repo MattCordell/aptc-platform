@@ -16,8 +16,8 @@ from typing import Any
 import pytest
 from sqlalchemy.engine import Connection
 
-from nptc.auth.permissions import Role
-from nptc_shared.terminology import (
+from aptc.auth.permissions import Role
+from aptc_shared.terminology import (
     AU_LANGUAGE_TAG,
     SNOMED_SYSTEM,
     ExpandedConcept,
@@ -32,7 +32,7 @@ from nptc_shared.terminology import (
     TerminologyTimeoutError,
     TerminologyTransportError,
 )
-from nptc_shared.terminology.stub import StubNotSeededError
+from aptc_shared.terminology.stub import StubNotSeededError
 
 
 def _load(name: str) -> Any:

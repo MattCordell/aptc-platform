@@ -78,9 +78,9 @@ describe("Checkbox", () => {
   });
 
   it("keeps a visually-hidden label in the accessible name (issue #267)", () => {
-    render(<Checkbox label="Select NPTC-000123" labelHidden />);
+    render(<Checkbox label="Select APTC-000123" labelHidden />);
 
-    const checkbox = screen.getByLabelText("Select NPTC-000123");
+    const checkbox = screen.getByLabelText("Select APTC-000123");
     const label = checkbox.parentElement?.querySelector("label");
     expect(label).toHaveClass("visually-hidden");
   });

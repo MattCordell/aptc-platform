@@ -20,13 +20,13 @@ import openpyxl
 import pytest
 from openpyxl.worksheet.worksheet import Worksheet
 
-from nptc_shared.terminology.models import (
+from aptc_shared.terminology.models import (
     AU_LANGUAGE_TAG,
     PROCEDURE_ROOT_CODE,
     SPECIMEN_ROOT_CODE,
 )
-from nptc_shared.terminology.stub import StubConcept, StubTerminologyClient
-from nptc_transform.specimen_map import SPECIMEN_MAP
+from aptc_shared.terminology.stub import StubConcept, StubTerminologyClient
+from aptc_transform.specimen_map import SPECIMEN_MAP
 
 
 @pytest.fixture(autouse=True)
@@ -94,7 +94,7 @@ def serve(
         server = _ServedStub(
             concepts=[*procedures, *specimen_map_concepts], resolved_version={"au": AU_VERSION}
         )
-        monkeypatch.setattr("nptc_transform.cli.OntoserverClient", lambda _config: server)
+        monkeypatch.setattr("aptc_transform.cli.OntoserverClient", lambda _config: server)
 
     return _serve
 

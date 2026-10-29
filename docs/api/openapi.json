@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "NPTC Catalogue Maintenance Platform",
+    "title": "APTC Catalogue Maintenance Platform",
     "version": "0.0.0"
   },
   "paths": {
@@ -379,7 +379,7 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "pattern": "^NPTC-([0-9]{6,})$"
+                  "pattern": "^APTC-([0-9]{6,})$"
                 },
                 {
                   "type": "null"
@@ -439,7 +439,7 @@
             }
           },
           "422": {
-            "description": "A query or path parameter was unprocessable - a business key that is not `NPTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored.",
+            "description": "A query or path parameter was unprocessable - a business key that is not `APTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored.",
             "content": {
               "application/json": {
                 "schema": {
@@ -560,7 +560,7 @@
             }
           },
           "422": {
-            "description": "A query or path parameter was unprocessable - a business key that is not `NPTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored.",
+            "description": "A query or path parameter was unprocessable - a business key that is not `APTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored.",
             "content": {
               "application/json": {
                 "schema": {
@@ -605,14 +605,14 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^NPTC-([0-9]{6,})$",
-              "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03).",
+              "pattern": "^APTC-([0-9]{6,})$",
+              "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03).",
               "examples": [
-                "NPTC-000247"
+                "APTC-000247"
               ],
               "title": "Business Key"
             },
-            "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03)."
+            "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03)."
           }
         ],
         "responses": {
@@ -647,7 +647,7 @@
             }
           },
           "422": {
-            "description": "A query or path parameter was unprocessable - a business key that is not `NPTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored.",
+            "description": "A query or path parameter was unprocessable - a business key that is not `APTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored.",
             "content": {
               "application/json": {
                 "schema": {
@@ -690,14 +690,14 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^NPTC-([0-9]{6,})$",
-              "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03).",
+              "pattern": "^APTC-([0-9]{6,})$",
+              "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03).",
               "examples": [
-                "NPTC-000247"
+                "APTC-000247"
               ],
               "title": "Business Key"
             },
-            "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03)."
+            "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03)."
           }
         ],
         "requestBody": {
@@ -819,7 +819,7 @@
           "catalogue"
         ],
         "summary": "One published catalogue entry, resolved by an exact code (FR-17)",
-        "description": "Resolves the same entry `GET /catalogue/entries/{business_key}` and\n`GET /catalogue/lookup?system=...&code=...` would for the same code -\nall three serve byte-identical bodies for one entry (FR-17's\nunambiguous-lookup acceptance criterion).\n\n`system_token` is a short alias registered in\n`nptc.catalogue.code_systems` - `sct` for `http://snomed.info/sct`\ntoday. `code` is never validated against a code shape here: an\nunrecognised code and a malformed one both resolve to nothing and get\nthe identical 404 (see `PUBLIC_CODE_LOOKUP_ERROR_RESPONSES`).",
+        "description": "Resolves the same entry `GET /catalogue/entries/{business_key}` and\n`GET /catalogue/lookup?system=...&code=...` would for the same code -\nall three serve byte-identical bodies for one entry (FR-17's\nunambiguous-lookup acceptance criterion).\n\n`system_token` is a short alias registered in\n`aptc.catalogue.code_systems` - `sct` for `http://snomed.info/sct`\ntoday. `code` is never validated against a code shape here: an\nunrecognised code and a malformed one both resolve to nothing and get\nthe identical 404 (see `PUBLIC_CODE_LOOKUP_ERROR_RESPONSES`).",
         "operationId": "read_entry_by_code_api_v1_catalogue_code__system_token___code__get",
         "parameters": [
           {
@@ -884,7 +884,7 @@
             }
           },
           "422": {
-            "description": "A query or path parameter was unprocessable - a business key that is not `NPTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored.",
+            "description": "A query or path parameter was unprocessable - a business key that is not `APTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored.",
             "content": {
               "application/json": {
                 "schema": {
@@ -921,7 +921,7 @@
           "catalogue"
         ],
         "summary": "One published catalogue entry, resolved by system URI and exact code (FR-17)",
-        "description": "The full-URI sibling of `GET /catalogue/code/{system_token}/{code}` -\nsee that route's docstring for the shared-body and shared-404\nguarantees. `system` must be one of `nptc.catalogue.code_systems.\nSYSTEM_TOKENS`' registered URIs; an unregistered one is a 404 on the\nidentical sentence an unregistered `system_token` gets.",
+        "description": "The full-URI sibling of `GET /catalogue/code/{system_token}/{code}` -\nsee that route's docstring for the shared-body and shared-404\nguarantees. `system` must be one of `aptc.catalogue.code_systems.\nSYSTEM_TOKENS`' registered URIs; an unregistered one is a 404 on the\nidentical sentence an unregistered `system_token` gets.",
         "operationId": "read_entry_by_system_and_code_api_v1_catalogue_lookup_get",
         "parameters": [
           {
@@ -981,7 +981,7 @@
             }
           },
           "422": {
-            "description": "A query or path parameter was unprocessable - a business key that is not `NPTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored.",
+            "description": "A query or path parameter was unprocessable - a business key that is not `APTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1026,14 +1026,14 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^NPTC-([0-9]{6,})$",
-              "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03).",
+              "pattern": "^APTC-([0-9]{6,})$",
+              "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03).",
               "examples": [
-                "NPTC-000247"
+                "APTC-000247"
               ],
               "title": "Business Key"
             },
-            "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03)."
+            "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03)."
           }
         ],
         "responses": {
@@ -1068,7 +1068,7 @@
             }
           },
           "422": {
-            "description": "A query or path parameter was unprocessable - a business key that is not `NPTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored.",
+            "description": "A query or path parameter was unprocessable - a business key that is not `APTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1111,14 +1111,14 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^NPTC-([0-9]{6,})$",
-              "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03).",
+              "pattern": "^APTC-([0-9]{6,})$",
+              "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03).",
               "examples": [
-                "NPTC-000247"
+                "APTC-000247"
               ],
               "title": "Business Key"
             },
-            "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03)."
+            "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03)."
           }
         ],
         "requestBody": {
@@ -1254,14 +1254,14 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^NPTC-([0-9]{6,})$",
-              "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03).",
+              "pattern": "^APTC-([0-9]{6,})$",
+              "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03).",
               "examples": [
-                "NPTC-000247"
+                "APTC-000247"
               ],
               "title": "Business Key"
             },
-            "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03)."
+            "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03)."
           }
         ],
         "responses": {
@@ -1296,7 +1296,7 @@
             }
           },
           "422": {
-            "description": "A query or path parameter was unprocessable - a business key that is not `NPTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored.",
+            "description": "A query or path parameter was unprocessable - a business key that is not `APTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1339,14 +1339,14 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^NPTC-([0-9]{6,})$",
-              "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03).",
+              "pattern": "^APTC-([0-9]{6,})$",
+              "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03).",
               "examples": [
-                "NPTC-000247"
+                "APTC-000247"
               ],
               "title": "Business Key"
             },
-            "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03)."
+            "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03)."
           }
         ],
         "requestBody": {
@@ -1489,14 +1489,14 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^NPTC-([0-9]{6,})$",
-              "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03).",
+              "pattern": "^APTC-([0-9]{6,})$",
+              "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03).",
               "examples": [
-                "NPTC-000247"
+                "APTC-000247"
               ],
               "title": "Business Key"
             },
-            "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03)."
+            "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03)."
           }
         ],
         "responses": {
@@ -1531,7 +1531,7 @@
             }
           },
           "422": {
-            "description": "A query or path parameter was unprocessable - a business key that is not `NPTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored.",
+            "description": "A query or path parameter was unprocessable - a business key that is not `APTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1577,14 +1577,14 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^NPTC-([0-9]{6,})$",
-              "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03).",
+              "pattern": "^APTC-([0-9]{6,})$",
+              "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03).",
               "examples": [
-                "NPTC-000247"
+                "APTC-000247"
               ],
               "title": "Business Key"
             },
-            "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03)."
+            "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03)."
           },
           {
             "name": "limit",
@@ -1653,7 +1653,7 @@
             }
           },
           "422": {
-            "description": "A query or path parameter was unprocessable - a business key that is not `NPTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored.",
+            "description": "A query or path parameter was unprocessable - a business key that is not `APTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1698,14 +1698,14 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^NPTC-([0-9]{6,})$",
-              "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03).",
+              "pattern": "^APTC-([0-9]{6,})$",
+              "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03).",
               "examples": [
-                "NPTC-000247"
+                "APTC-000247"
               ],
               "title": "Business Key"
             },
-            "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03)."
+            "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03)."
           },
           {
             "name": "code",
@@ -1850,14 +1850,14 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^NPTC-([0-9]{6,})$",
-              "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03).",
+              "pattern": "^APTC-([0-9]{6,})$",
+              "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03).",
               "examples": [
-                "NPTC-000247"
+                "APTC-000247"
               ],
               "title": "Business Key"
             },
-            "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03)."
+            "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03)."
           },
           {
             "name": "code",
@@ -2002,14 +2002,14 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^NPTC-([0-9]{6,})$",
-              "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03).",
+              "pattern": "^APTC-([0-9]{6,})$",
+              "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03).",
               "examples": [
-                "NPTC-000247"
+                "APTC-000247"
               ],
               "title": "Business Key"
             },
-            "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03)."
+            "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03)."
           }
         ],
         "requestBody": {
@@ -2144,14 +2144,14 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^NPTC-([0-9]{6,})$",
-              "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03).",
+              "pattern": "^APTC-([0-9]{6,})$",
+              "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03).",
               "examples": [
-                "NPTC-000247"
+                "APTC-000247"
               ],
               "title": "Business Key"
             },
-            "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03)."
+            "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03)."
           }
         ],
         "requestBody": {
@@ -2284,14 +2284,14 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^NPTC-([0-9]{6,})$",
-              "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03).",
+              "pattern": "^APTC-([0-9]{6,})$",
+              "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03).",
               "examples": [
-                "NPTC-000247"
+                "APTC-000247"
               ],
               "title": "Business Key"
             },
-            "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03)."
+            "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03)."
           }
         ],
         "requestBody": {
@@ -2426,14 +2426,14 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^NPTC-([0-9]{6,})$",
-              "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03).",
+              "pattern": "^APTC-([0-9]{6,})$",
+              "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03).",
               "examples": [
-                "NPTC-000247"
+                "APTC-000247"
               ],
               "title": "Business Key"
             },
-            "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03)."
+            "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03)."
           }
         ],
         "requestBody": {
@@ -2557,14 +2557,14 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^NPTC-([0-9]{6,})$",
-              "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03).",
+              "pattern": "^APTC-([0-9]{6,})$",
+              "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03).",
               "examples": [
-                "NPTC-000247"
+                "APTC-000247"
               ],
               "title": "Business Key"
             },
-            "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03)."
+            "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03)."
           },
           {
             "name": "key",
@@ -2977,7 +2977,7 @@
           "catalogue-admin"
         ],
         "summary": "Search catalogue entries by term, any status",
-        "description": "The `catalogue.edit_published`-gated counterpart to `catalogue.py`'s\npublic `search`: identical ranking, threshold and keyset paging\n(`nptc.catalogue.search`, called with `statuses=maintenance.\nMAINTENANCE_STATUSES` instead of the default `PUBLIC_STATUSES`), so a\ndraft, deprecated or withdrawn entry is findable by an administrator the\nsame way an active one is findable by anyone.\n\n`facets` is derived the same way `GET /catalogue/search`'s own is, over\nthe same `?filter.*` parameters - including `status`, whose bucket list\nis non-degenerate here (every status an administrator might filter by),\nunlike the public surface's single-bucket `active` facet.\n\nHits carry `row_version` - `nptc.catalogue.search.SearchHit` reads it\nstraight off `scored`'s own join to `catalogue_entry`, see that\nmodule's docstring - so `AdminSearchHit`, not the public `SearchHit`,\ncarries it onto the wire here.",
+        "description": "The `catalogue.edit_published`-gated counterpart to `catalogue.py`'s\npublic `search`: identical ranking, threshold and keyset paging\n(`aptc.catalogue.search`, called with `statuses=maintenance.\nMAINTENANCE_STATUSES` instead of the default `PUBLIC_STATUSES`), so a\ndraft, deprecated or withdrawn entry is findable by an administrator the\nsame way an active one is findable by anyone.\n\n`facets` is derived the same way `GET /catalogue/search`'s own is, over\nthe same `?filter.*` parameters - including `status`, whose bucket list\nis non-degenerate here (every status an administrator might filter by),\nunlike the public surface's single-bucket `active` facet.\n\nHits carry `row_version` - `aptc.catalogue.search.SearchHit` reads it\nstraight off `scored`'s own join to `catalogue_entry`, see that\nmodule's docstring - so `AdminSearchHit`, not the public `SearchHit`,\ncarries it onto the wire here.",
         "operationId": "search_any_status_api_v1_catalogue_admin_search_get",
         "parameters": [
           {
@@ -3117,14 +3117,14 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^NPTC-([0-9]{6,})$",
-              "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03).",
+              "pattern": "^APTC-([0-9]{6,})$",
+              "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03).",
               "examples": [
-                "NPTC-000247"
+                "APTC-000247"
               ],
               "title": "Business Key"
             },
-            "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03)."
+            "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03)."
           }
         ],
         "responses": {
@@ -3169,7 +3169,7 @@
             }
           },
           "422": {
-            "description": "The business key is not `NPTC-nnnnnn`.",
+            "description": "The business key is not `APTC-nnnnnn`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3215,14 +3215,14 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^NPTC-([0-9]{6,})$",
-              "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03).",
+              "pattern": "^APTC-([0-9]{6,})$",
+              "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03).",
               "examples": [
-                "NPTC-000247"
+                "APTC-000247"
               ],
               "title": "Business Key"
             },
-            "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03)."
+            "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03)."
           },
           {
             "name": "limit",
@@ -3301,7 +3301,7 @@
             }
           },
           "422": {
-            "description": "The business key is not `NPTC-nnnnnn`, `limit` is outside its range, or `before` is not a cursor this API issued.",
+            "description": "The business key is not `APTC-nnnnnn`, `limit` is outside its range, or `before` is not a cursor this API issued.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3338,7 +3338,7 @@
           "catalogue-admin"
         ],
         "summary": "The distribution of preferred-term lengths across the catalogue",
-        "description": "FR-87. Reachable by an administrator with no query to write by hand.\n\nGated on `Permission.CATALOGUE_EDIT_PUBLISHED`, the same permission every\nother route in this module uses, rather than a new read-only permission -\nsee the module docstring for why: `ROLE_PERMISSIONS` is asserted\ncell-by-cell against the PRD's own table, so minting one would need a PRD\nchange.\n\nOne statement (`nptc.catalogue.length_report.compute_length_distribution`)\nregardless of the catalogue's size - FR-87's own acceptance criterion that\nthis runs against the 20,000-entry design ceiling without timing out.",
+        "description": "FR-87. Reachable by an administrator with no query to write by hand.\n\nGated on `Permission.CATALOGUE_EDIT_PUBLISHED`, the same permission every\nother route in this module uses, rather than a new read-only permission -\nsee the module docstring for why: `ROLE_PERMISSIONS` is asserted\ncell-by-cell against the PRD's own table, so minting one would need a PRD\nchange.\n\nOne statement (`aptc.catalogue.length_report.compute_length_distribution`)\nregardless of the catalogue's size - FR-87's own acceptance criterion that\nthis runs against the 20,000-entry design ceiling without timing out.",
         "operationId": "preferred_term_length_distribution_api_v1_catalogue_admin_preferred_term_length_distribution_get",
         "responses": {
           "200": {
@@ -4137,7 +4137,7 @@
           "registry"
         ],
         "summary": "List a coded property's offerable values",
-        "description": "FR-10's concept-picker data source, plus a resolve-by-code lookup\nfor a value beyond the picker page's own `DEFAULT_PAGE_SIZE` ceiling.\nResolves `key`'s own binding and answers from Ontoserver or the\n`LocalCode` table - see\n`nptc.catalogue.property_value_sources.list_property_values`/\n`resolve_property_values` for the only places that branch on\n`binding_target`; this route and `PropertyValuePage` never see it.\n\n`code` is a second, mutually exclusive selection mode, never combined\nwith `filter`/`offset`/`count` - `offset`/`count` default to values a\ncaller resolving by `code` would not need to change, so a genuine\nattempt to combine them is what this refuses, not every request that\nhappens to also carry those defaults.",
+        "description": "FR-10's concept-picker data source, plus a resolve-by-code lookup\nfor a value beyond the picker page's own `DEFAULT_PAGE_SIZE` ceiling.\nResolves `key`'s own binding and answers from Ontoserver or the\n`LocalCode` table - see\n`aptc.catalogue.property_value_sources.list_property_values`/\n`resolve_property_values` for the only places that branch on\n`binding_target`; this route and `PropertyValuePage` never see it.\n\n`code` is a second, mutually exclusive selection mode, never combined\nwith `filter`/`offset`/`count` - `offset`/`count` default to values a\ncaller resolving by `code` would not need to change, so a genuine\nattempt to combine them is what this refuses, not every request that\nhappens to also carry those defaults.",
         "operationId": "list_property_value_options_api_v1_registry_properties__key__values_get",
         "parameters": [
           {
@@ -4436,7 +4436,7 @@
             }
           },
           "500": {
-            "description": "The service is misconfigured, not a caller mistake - a malformed `NPTC_TX_*` value. Retrying will not clear it.",
+            "description": "The service is misconfigured, not a caller mistake - a malformed `APTC_TX_*` value. Retrying will not clear it.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4782,7 +4782,7 @@
             }
           },
           "500": {
-            "description": "The service is misconfigured, not a caller mistake - a malformed `NPTC_TX_*` value. Retrying will not clear it.",
+            "description": "The service is misconfigured, not a caller mistake - a malformed `APTC_TX_*` value. Retrying will not clear it.",
             "content": {
               "application/json": {
                 "schema": {
@@ -6783,14 +6783,14 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^NPTC-([0-9]{6,})$",
-              "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03).",
+              "pattern": "^APTC-([0-9]{6,})$",
+              "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03).",
               "examples": [
-                "NPTC-000247"
+                "APTC-000247"
               ],
               "title": "Business Key"
             },
-            "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03)."
+            "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03)."
           }
         ],
         "responses": {
@@ -6883,14 +6883,14 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^NPTC-([0-9]{6,})$",
-              "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03).",
+              "pattern": "^APTC-([0-9]{6,})$",
+              "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03).",
               "examples": [
-                "NPTC-000247"
+                "APTC-000247"
               ],
               "title": "Business Key"
             },
-            "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03)."
+            "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03)."
           }
         ],
         "requestBody": {
@@ -6998,14 +6998,14 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^NPTC-([0-9]{6,})$",
-              "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03).",
+              "pattern": "^APTC-([0-9]{6,})$",
+              "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03).",
               "examples": [
-                "NPTC-000247"
+                "APTC-000247"
               ],
               "title": "Business Key"
             },
-            "description": "The entry's public identifier, e.g. `NPTC-000247` (FR-03)."
+            "description": "The entry's public identifier, e.g. `APTC-000247` (FR-03)."
           },
           {
             "name": "comment_id",
@@ -7188,7 +7188,7 @@
             }
           },
           "500": {
-            "description": "The service is misconfigured, not a caller mistake - a malformed `NPTC_TX_*` value. Not produced by anything a well-formed request can trigger on its own; retrying will not clear it.",
+            "description": "The service is misconfigured, not a caller mistake - a malformed `APTC_TX_*` value. Not produced by anything a well-formed request can trigger on its own; retrying will not clear it.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7317,7 +7317,7 @@
             }
           },
           "500": {
-            "description": "The service is misconfigured, not a caller mistake - a malformed `NPTC_TX_*` value. Not produced by anything a well-formed request can trigger on its own; retrying will not clear it.",
+            "description": "The service is misconfigured, not a caller mistake - a malformed `APTC_TX_*` value. Not produced by anything a well-formed request can trigger on its own; retrying will not clear it.",
             "content": {
               "application/json": {
                 "schema": {
@@ -7595,7 +7595,7 @@
           "audit"
         ],
         "summary": "Export the filtered audit log as NDJSON (NFR-12)",
-        "description": "One JSON object per line, oldest first, including `prev_hash`/\n`entry_hash` for cross-referencing a line against its stored row - see\n`nptc.audit.queries.AuditEventRow`'s own docstring for why that is a\nnarrower guarantee than standalone recomputation, and `stream_audit_\nevents`'s own docstring for why the order differs from the read route\nabove. The whole filtered set, not one page: an export has no\n`limit`/cursor.",
+        "description": "One JSON object per line, oldest first, including `prev_hash`/\n`entry_hash` for cross-referencing a line against its stored row - see\n`aptc.audit.queries.AuditEventRow`'s own docstring for why that is a\nnarrower guarantee than standalone recomputation, and `stream_audit_\nevents`'s own docstring for why the order differs from the read route\nabove. The whole filtered set, not one page: an export has no\n`limit`/cursor.",
         "operationId": "export_audit_events_api_v1_audit_events_export_get",
         "parameters": [
           {
@@ -7796,7 +7796,7 @@
           "reason"
         ],
         "title": "AcknowledgeCollisionRequest",
-        "description": "The body of `POST .../designations/acknowledgement`. `term` is the\nsurface form the caller is acknowledging a warning for - resolved to a\ncomparison key here (`nptc.catalogue.designations.clean_term` then\n`nptc_shared.similarity.collision_key`), matching what\n`warning_collisions` itself keys on, so acknowledging any surface form\nthat folds to the same key silences the same warning."
+        "description": "The body of `POST .../designations/acknowledgement`. `term` is the\nsurface form the caller is acknowledging a warning for - resolved to a\ncomparison key here (`aptc.catalogue.designations.clean_term` then\n`aptc_shared.similarity.collision_key`), matching what\n`warning_collisions` itself keys on, so acknowledging any surface form\nthat folds to the same key silences the same warning."
       },
       "AddDesignationsRequest": {
         "properties": {
@@ -8134,7 +8134,7 @@
           "expected_row_version"
         ],
         "title": "AmendDesignationRequest",
-        "description": "The body of `POST .../designations/amendment`. `term` addresses the\ndesignation to edit; `new_term` is what it becomes. Editing in place\n(rather than retire-and-re-add) is `nptc.catalogue.designations.\namend_designation`'s own choice - see that function's docstring.\n\n`term` also addresses the entry's *own* preferred term, which is\nnot a designation row at all (ADR-0022) - see the module docstring for\nthe dispatch and `expected_row_version` for the lock it requires.\n\nA body naming `use`, the field `target` replaced, is refused. Ignoring it would\nchange which row is written: an old `use=\"preferred\"` would rename a shadowing\nsynonym, and an old `use=\"synonym\"` with no matching synonym would rename the\nentry's preferred term where the old route answered 404. A tab still running the\nprevious bundle during a deploy sends exactly that. Other unnamed fields stay\nignored, because a client may post a `Designation` back with its `length` (FR-24)."
+        "description": "The body of `POST .../designations/amendment`. `term` addresses the\ndesignation to edit; `new_term` is what it becomes. Editing in place\n(rather than retire-and-re-add) is `aptc.catalogue.designations.\namend_designation`'s own choice - see that function's docstring.\n\n`term` also addresses the entry's *own* preferred term, which is\nnot a designation row at all (ADR-0022) - see the module docstring for\nthe dispatch and `expected_row_version` for the lock it requires.\n\nA body naming `use`, the field `target` replaced, is refused. Ignoring it would\nchange which row is written: an old `use=\"preferred\"` would rename a shadowing\nsynonym, and an old `use=\"synonym\"` with no matching synonym would rename the\nentry's preferred term where the old route answered 404. A tab still running the\nprevious bundle during a deploy sends exactly that. Other unnamed fields stay\nignored, because a client may post a `Designation` back with its `length` (FR-24)."
       },
       "AmendDesignationResult": {
         "properties": {
@@ -8174,7 +8174,7 @@
           "row_version"
         ],
         "title": "AmendDesignationResult",
-        "description": "The amended term, plus the entry's version after the write.\n\n`designation` is the same shape on both branches, including the one\nthat did not touch a `designation` row at all: the catalogue's own\npreferred term comes back rendered as an active designation, and\n`label_provenance.designation` (`au_preferred_term` or `synonym`) says\nwhich home it came from. ADR-0022's split between two storage homes is\nnot something a client should have to model (see the module docstring).\n\n`row_version` is the entry's, on both branches, and is what a client\nsends back as `expected_row_version` on its next write - so a save\nnever has to be followed by a re-fetch just to learn the new token. It\nadvances on both branches (FR-38): a `designation` row has no version\nof its own, but amending one bumps the entry's counter via\n`nptc.catalogue.entries.entry_child_write`, the same way the\npreferred-term branch's `save_entry` always has.\n\n`warnings` carries a `LengthWarning` (FR-86) only on the preferred-term\nbranch, and only when a maximum is configured and exceeded. A synonym\namend can carry only collision warnings."
+        "description": "The amended term, plus the entry's version after the write.\n\n`designation` is the same shape on both branches, including the one\nthat did not touch a `designation` row at all: the catalogue's own\npreferred term comes back rendered as an active designation, and\n`label_provenance.designation` (`au_preferred_term` or `synonym`) says\nwhich home it came from. ADR-0022's split between two storage homes is\nnot something a client should have to model (see the module docstring).\n\n`row_version` is the entry's, on both branches, and is what a client\nsends back as `expected_row_version` on its next write - so a save\nnever has to be followed by a re-fetch just to learn the new token. It\nadvances on both branches (FR-38): a `designation` row has no version\nof its own, but amending one bumps the entry's counter via\n`aptc.catalogue.entries.entry_child_write`, the same way the\npreferred-term branch's `save_entry` always has.\n\n`warnings` carries a `LengthWarning` (FR-86) only on the preferred-term\nbranch, and only when a maximum is configured and exceeded. A synonym\namend can carry only collision warnings."
       },
       "AmendPropertyDefinitionRequest": {
         "properties": {
@@ -8261,7 +8261,7 @@
           "reason"
         ],
         "title": "AmendPropertyDefinitionRequest",
-        "description": "The body of `PATCH /registry/properties/{key}`. Deliberately carries\nno `key` field (FR-12) and forbids any extra field a client might try to\nsmuggle one in as - `extra=\"forbid\"` turns a `key` in the body into a\npydantic 422 before this ever reaches `nptc.db.definitions.\namend_definition`.\n\n**An explicit `null` on a known field is refused, not a silent no-op.**\nNone of these fields is a nullable domain value, so a client sending\n`{\"label\": null, ...}` almost certainly meant to omit the field, not\nclear it - `_reject_explicit_null` below distinguishes \"omitted\" from\n\"provided as null\" via `model_fields_set`, which `changes()` cannot do\nonce every field has collapsed to `None`."
+        "description": "The body of `PATCH /registry/properties/{key}`. Deliberately carries\nno `key` field (FR-12) and forbids any extra field a client might try to\nsmuggle one in as - `extra=\"forbid\"` turns a `key` in the body into a\npydantic 422 before this ever reaches `aptc.db.definitions.\namend_definition`.\n\n**An explicit `null` on a known field is refused, not a silent no-op.**\nNone of these fields is a nullable domain value, so a client sending\n`{\"label\": null, ...}` almost certainly meant to omit the field, not\nclear it - `_reject_explicit_null` below distinguishes \"omitted\" from\n\"provided as null\" via `model_fields_set`, which `changes()` cannot do\nonce every field has collapsed to `None`."
       },
       "AmendTarget": {
         "type": "string",
@@ -8457,7 +8457,7 @@
           "is_closed"
         ],
         "title": "AuditActor",
-        "description": "The acting user, resolved by internal id (NFR-13, NFR-17) - see\n`nptc.audit.queries`'s own module docstring for why a bare display\nname is not enough on this Administrator-only surface.\n\n`display_name` is `null` for a closed (tombstoned) account -\n`is_closed` is what tells that apart from an account that simply never\nset one."
+        "description": "The acting user, resolved by internal id (NFR-13, NFR-17) - see\n`aptc.audit.queries`'s own module docstring for why a bare display\nname is not enough on this Administrator-only surface.\n\n`display_name` is `null` for a closed (tombstoned) account -\n`is_closed` is what tells that apart from an account that simply never\nset one."
       },
       "AuditEventItem": {
         "properties": {
@@ -8541,7 +8541,7 @@
           "reason"
         ],
         "title": "AuditEventItem",
-        "description": "One `audit_event` row, served close to verbatim (NFR-12) - see\n`nptc.audit.queries`'s own module docstring for why `before`/`after`\nare raw here rather than the field-names-only projection FR-19's\npublic history surface uses. `actor` is `null` for a system-initiated\nevent, never a name-only fallback."
+        "description": "One `audit_event` row, served close to verbatim (NFR-12) - see\n`aptc.audit.queries`'s own module docstring for why `before`/`after`\nare raw here rather than the field-names-only projection FR-19's\npublic history surface uses. `actor` is `null` for a system-initiated\nevent, never a name-only fallback."
       },
       "AuditEventPage": {
         "properties": {
@@ -8617,7 +8617,7 @@
           "expected_row_version"
         ],
         "title": "BindCodeRequest",
-        "description": "The body of `POST /catalogue/entries/{business_key}/bindings`.\n\n`code` is a string end-to-end (FR-06) - `nptc.catalogue.bindings.\ncreate_binding` validates it via `nptc_shared.sctid.SCTID` before any\nrow is touched. `fsn`/`au_preferred_term` are carried through exactly\nas submitted (FR-82); this screen is the one place they are meant to be\ntyped in, and neither is cleaned or re-derived here or anywhere else."
+        "description": "The body of `POST /catalogue/entries/{business_key}/bindings`.\n\n`code` is a string end-to-end (FR-06) - `aptc.catalogue.bindings.\ncreate_binding` validates it via `aptc_shared.sctid.SCTID` before any\nrow is touched. `fsn`/`au_preferred_term` are carried through exactly\nas submitted (FR-82); this screen is the one place they are meant to be\ntyped in, and neither is cleaned or re-derived here or anywhere else."
       },
       "Binding": {
         "properties": {
@@ -8695,7 +8695,7 @@
           "label_provenance"
         ],
         "title": "Binding",
-        "description": "A SNOMED CT code binding, active or retired.\n\n`code` is a string, always (FR-06). `fsn` is served exactly as stored -\nFR-82's as-served guarantee - with no strip applied anywhere on this\nread path; `label_provenance[\"fsn\"]` is FR-98's declaration of that\nfact (`semantic_tag` is config-driven, see `nptc.api.labels.\nfsn_provenance`), not a second, silently-stripped copy of the label.\n\nA retired binding carries `retirement_reason` and, where PRD FR-08's\nreplacement case applies, `replaced_by_code` - the successor's *code*,\nwhich is what a client holding the retired one needs in order to move."
+        "description": "A SNOMED CT code binding, active or retired.\n\n`code` is a string, always (FR-06). `fsn` is served exactly as stored -\nFR-82's as-served guarantee - with no strip applied anywhere on this\nread path; `label_provenance[\"fsn\"]` is FR-98's declaration of that\nfact (`semantic_tag` is config-driven, see `aptc.api.labels.\nfsn_provenance`), not a second, silently-stripped copy of the label.\n\nA retired binding carries `retirement_reason` and, where PRD FR-08's\nreplacement case applies, `replaced_by_code` - the successor's *code*,\nwhich is what a client holding the retired one needs in order to move."
       },
       "BindingList": {
         "properties": {
@@ -8774,7 +8774,7 @@
         "properties": {
           "business_key": {
             "type": "string",
-            "pattern": "^NPTC-([0-9]{6,})$",
+            "pattern": "^APTC-([0-9]{6,})$",
             "title": "Business Key"
           },
           "expected_row_version": {
@@ -8788,7 +8788,7 @@
           "expected_row_version"
         ],
         "title": "BulkPropertyEntryTarget",
-        "description": "One `(business_key, expected_row_version)` selection for the bulk\nwrite - the version this entry held when the caller selected it, not\nresolved server-side (see `nptc.catalogue.property_values.\nEntryPropertyTarget`'s own docstring for why a filter expression could\nnever do this instead, ADR-0035).\n\n`business_key`'s shape is validated here, in the request body, the same\npattern `BusinessKeyPath` enforces on the singular route's path segment -\nderivable from the request alone, so it belongs on the whole-request\nside of the split (see `BulkSavePropertyValuesRequest`'s own docstring):\na malformed key is a 422 for the whole batch, not a `not-found` outcome\nindistinguishable from a well-formed key that simply does not exist."
+        "description": "One `(business_key, expected_row_version)` selection for the bulk\nwrite - the version this entry held when the caller selected it, not\nresolved server-side (see `aptc.catalogue.property_values.\nEntryPropertyTarget`'s own docstring for why a filter expression could\nnever do this instead, ADR-0035).\n\n`business_key`'s shape is validated here, in the request body, the same\npattern `BusinessKeyPath` enforces on the singular route's path segment -\nderivable from the request alone, so it belongs on the whole-request\nside of the split (see `BulkSavePropertyValuesRequest`'s own docstring):\na malformed key is a 422 for the whole batch, not a `not-found` outcome\nindistinguishable from a well-formed key that simply does not exist."
       },
       "BulkPropertyOutcomeItem": {
         "properties": {
@@ -8835,7 +8835,7 @@
           "row_version"
         ],
         "title": "BulkPropertyOutcomeItem",
-        "description": "One target's result, in request order - see `nptc.catalogue.\nproperty_values.BulkPropertyOutcome`'s own docstring for what each\n`status` means and when `row_version`/`conflict` are populated. No\n`values` echo: the batch wrote one set every caller already has."
+        "description": "One target's result, in request order - see `aptc.catalogue.\nproperty_values.BulkPropertyOutcome`'s own docstring for what each\n`status` means and when `row_version`/`conflict` are populated. No\n`values` echo: the batch wrote one set every caller already has."
       },
       "BulkSavePropertyValuesRequest": {
         "properties": {
@@ -8974,7 +8974,7 @@
           "label_provenance"
         ],
         "title": "CollisionItem",
-        "description": "One FR-05 collision: the live entry a submitted term collides with,\nnamed by its public identifier and preferred term - never its internal\nid (NFR-04/NFR-26).\n\n`label_provenance[\"preferred_term\"]` is always `AU_PREFERRED_TERM_\nPROVENANCE` (FR-98): `preferred_term` here is the\n*colliding* entry's own catalogue preferred term, the identical field\nand designation type as `EntrySummary.preferred_term` - matching\n`CollisionWarning`'s own reasoning for its own `preferred_term` field\n(`nptc.api.routers.catalogue_designations`), the 200-path twin of this\n409 body."
+        "description": "One FR-05 collision: the live entry a submitted term collides with,\nnamed by its public identifier and preferred term - never its internal\nid (NFR-04/NFR-26).\n\n`label_provenance[\"preferred_term\"]` is always `AU_PREFERRED_TERM_\nPROVENANCE` (FR-98): `preferred_term` here is the\n*colliding* entry's own catalogue preferred term, the identical field\nand designation type as `EntrySummary.preferred_term` - matching\n`CollisionWarning`'s own reasoning for its own `preferred_term` field\n(`aptc.api.routers.catalogue_designations`), the 200-path twin of this\n409 body."
       },
       "CollisionWarning": {
         "properties": {
@@ -9194,7 +9194,7 @@
           "label_provenance"
         ],
         "title": "ConceptLookup",
-        "description": "One `$lookup`'s answer, on the wire.\n\n`code` is a string end-to-end (FR-06), echoed back rather than assumed -\n`$lookup` itself does not echo it, and a caller matching a late\nresponse to the field that asked needs it. `fsn` keeps its semantic\ntag intact and is nullable: the server may return no FSN designation\nat all, and `LookupResult.fully_specified_name` never falls back to\n`display`, which is a different thing. `active` is tri-state\n(`bool | None`) - `None` means the server did not report the\n`inactive` property, which is not the same as active (hazard H-05).\n`edition` is always `\"au\"` today - the honest source for a client's\nown `edition_hint`, so `\"unknown\"` stops being a value a form has to\nproduce. `resolved_version` is FR-48: which release actually answered.\n\nDeliberately carries no `display_term` - see\n`nptc.terminology.concepts`'s own module docstring for why computing\none here would risk a permanent 500 on a later read of whatever this\nvalue feeds.\n\n`label_provenance` (FR-98) covers both label fields even\nthough `fsn` is nullable: a `None` value still has a designation and a\nsemantic-tag state it *would* carry if the server returned one, so the\ndescriptor is unconditional, never itself nullable."
+        "description": "One `$lookup`'s answer, on the wire.\n\n`code` is a string end-to-end (FR-06), echoed back rather than assumed -\n`$lookup` itself does not echo it, and a caller matching a late\nresponse to the field that asked needs it. `fsn` keeps its semantic\ntag intact and is nullable: the server may return no FSN designation\nat all, and `LookupResult.fully_specified_name` never falls back to\n`display`, which is a different thing. `active` is tri-state\n(`bool | None`) - `None` means the server did not report the\n`inactive` property, which is not the same as active (hazard H-05).\n`edition` is always `\"au\"` today - the honest source for a client's\nown `edition_hint`, so `\"unknown\"` stops being a value a form has to\nproduce. `resolved_version` is FR-48: which release actually answered.\n\nDeliberately carries no `display_term` - see\n`aptc.terminology.concepts`'s own module docstring for why computing\none here would risk a permanent 500 on a later read of whatever this\nvalue feeds.\n\n`label_provenance` (FR-98) covers both label fields even\nthough `fsn` is nullable: a `None` value still has a designation and a\nsemantic-tag state it *would* carry if the server returned one, so the\ndescriptor is unconditional, never itself nullable."
       },
       "ControlKind": {
         "type": "string",
@@ -9517,7 +9517,7 @@
           "entry_business_key": {
             "type": "string",
             "maxLength": 40,
-            "pattern": "^NPTC-([0-9]{6,})$",
+            "pattern": "^APTC-([0-9]{6,})$",
             "title": "Entry Business Key"
           },
           "synonyms": {
@@ -11461,7 +11461,7 @@
           "semantic_tag"
         ],
         "title": "LabelProvenance",
-        "description": "One field's provenance declaration: which designation it is, and -\nfor an FSN - whether the semantic tag is intact or stripped.\n\nFrozen, matching every other response model in this package\n(`nptc.api.routers.catalogue_shared`): provenance describes a field\nthat has already been assembled, never something a caller mutates."
+        "description": "One field's provenance declaration: which designation it is, and -\nfor an FSN - whether the semantic tag is intact or stripped.\n\nFrozen, matching every other response model in this package\n(`aptc.api.routers.catalogue_shared`): provenance describes a field\nthat has already been assembled, never something a caller mutates."
       },
       "LengthDistributionBucket": {
         "properties": {
@@ -11485,7 +11485,7 @@
           "entries_exceeding"
         ],
         "title": "LengthDistributionBucket",
-        "description": "Every entry whose preferred term is exactly `length` characters long,\nplus how many entries a maximum set to `length` would warn on (FR-86\nwarns when a term's length *exceeds* the configured maximum, so this\ncounts strictly greater - `nptc.catalogue.length_report.\nLengthBucket.entries_exceeding`'s own comparison).\n\nOne shape carrying both figures, rather than two parallel lists a caller\nwould have to zip back together by `length` themselves - FR-87 asks for\nexactly this pairing: \"the count of entries affected at each candidate\nthreshold\", and every observed `length` is a candidate threshold."
+        "description": "Every entry whose preferred term is exactly `length` characters long,\nplus how many entries a maximum set to `length` would warn on (FR-86\nwarns when a term's length *exceeds* the configured maximum, so this\ncounts strictly greater - `aptc.catalogue.length_report.\nLengthBucket.entries_exceeding`'s own comparison).\n\nOne shape carrying both figures, rather than two parallel lists a caller\nwould have to zip back together by `length` themselves - FR-87 asks for\nexactly this pairing: \"the count of entries affected at each candidate\nthreshold\", and every observed `length` is a candidate threshold."
       },
       "LengthDistributionReport": {
         "properties": {
@@ -11540,7 +11540,7 @@
           "max_length"
         ],
         "title": "LengthWarning",
-        "description": "FR-86: the catalogue's own preferred term exceeds the configured\nmaximum length. Non-blocking, the same \"warn, never raise\" shape as\n`CollisionWarning` - a hard block would make an existing over-length\nentry uneditable, the specific failure FR-86 exists to prevent.\n\nA separate union member from `CollisionWarning`, not a widened\n`CollisionWarning`: its shape (a colliding entry's business key, term,\nprovenance) has no field this could honestly populate, and this one has\nno colliding entry to name. Both ride the one `warnings` list so a\nfurther warning class adds a member, not a response field.\n\nOnly ever produced on `amend_designation_route`'s preferred-term\nbranch: FR-85's `length` is defined against the catalogue's own\npreferred term (`nptc.catalogue.term_hygiene.preferred_term_length`),\nwhich lives on `catalogue_entry.preferred_term`, never on a\n`designation` row (ADR-0022) - there is no other branch this could ever\napply to."
+        "description": "FR-86: the catalogue's own preferred term exceeds the configured\nmaximum length. Non-blocking, the same \"warn, never raise\" shape as\n`CollisionWarning` - a hard block would make an existing over-length\nentry uneditable, the specific failure FR-86 exists to prevent.\n\nA separate union member from `CollisionWarning`, not a widened\n`CollisionWarning`: its shape (a colliding entry's business key, term,\nprovenance) has no field this could honestly populate, and this one has\nno colliding entry to name. Both ride the one `warnings` list so a\nfurther warning class adds a member, not a response field.\n\nOnly ever produced on `amend_designation_route`'s preferred-term\nbranch: FR-85's `length` is defined against the catalogue's own\npreferred term (`aptc.catalogue.term_hygiene.preferred_term_length`),\nwhich lives on `catalogue_entry.preferred_term`, never on a\n`designation` row (ADR-0022) - there is no other branch this could ever\napply to."
       },
       "MatchSource": {
         "type": "string",
@@ -11893,7 +11893,7 @@
           "ordinal"
         ],
         "title": "PropertyIssueItem",
-        "description": "One field-level problem with an attempted property-value write - the\nwire shape of `nptc.catalogue.property_values.PropertyWriteIssue`.\n`ordinal` is `None` for a cardinality issue that applies to the\nproperty as a whole rather than one value in it."
+        "description": "One field-level problem with an attempted property-value write - the\nwire shape of `aptc.catalogue.property_values.PropertyWriteIssue`.\n`ordinal` is `None` for a cardinality issue that applies to the\nproperty as a whole rather than one value in it."
       },
       "PropertyList": {
         "properties": {
@@ -12050,7 +12050,7 @@
           "value"
         ],
         "title": "PropertyValueItemRequest",
-        "description": "One value to save, paired with its own `justification` - FR-10's\nextensible-strength case needs both together (see\n`nptc.catalogue.property_values.PropertyValueInput`'s own docstring)."
+        "description": "One value to save, paired with its own `justification` - FR-10's\nextensible-strength case needs both together (see\n`aptc.catalogue.property_values.PropertyValueInput`'s own docstring)."
       },
       "PropertyValuePage": {
         "properties": {
@@ -12148,7 +12148,7 @@
           "expected_row_version"
         ],
         "title": "ReinstateDesignationRequest",
-        "description": "The body of `POST .../designations/reinstatement`.\n`term` addresses the designation to reinstate - resolved against the\nmost-recently-retired row matching `(entry, term)`\n(`nptc.catalogue.designations.load_retired_designation`), never a\nspecific row's internal id, matching every other route in this module."
+        "description": "The body of `POST .../designations/reinstatement`.\n`term` addresses the designation to reinstate - resolved against the\nmost-recently-retired row matching `(entry, term)`\n(`aptc.catalogue.designations.load_retired_designation`), never a\nspecific row's internal id, matching every other route in this module."
       },
       "ReinstateDesignationResult": {
         "properties": {
@@ -12760,7 +12760,7 @@
           "mfa_satisfied"
         ],
         "title": "SessionResponse",
-        "description": "What the browser is allowed to know about its own session.\n\n`user` is `nptc.auth.identity.UserRef`, reused rather than redefined:\nit is this codebase's existing NFR-04 serialisation boundary and\nstructurally excludes `app_user.id`. Defining a second response model\nwith the same fields is exactly how that internal id eventually leaks.\n\n`permissions` is present because the shell needs to decide what to\n*render*, and rendering is presentation, not access control (NFR-20) -\nevery one of these permissions is re-checked server-side at the\nendpoint that uses it. `roles` is included for the account screen\n(FR-40), which shows a user their own roles."
+        "description": "What the browser is allowed to know about its own session.\n\n`user` is `aptc.auth.identity.UserRef`, reused rather than redefined:\nit is this codebase's existing NFR-04 serialisation boundary and\nstructurally excludes `app_user.id`. Defining a second response model\nwith the same fields is exactly how that internal id eventually leaks.\n\n`permissions` is present because the shell needs to decide what to\n*render*, and rendering is presentation, not access control (NFR-20) -\nevery one of these permissions is re-checked server-side at the\nendpoint that uses it. `roles` is included for the account screen\n(FR-40), which shows a user their own roles."
       },
       "SnomedSynonyms": {
         "properties": {
@@ -12790,7 +12790,7 @@
           "label_provenance"
         ],
         "title": "SnomedSynonyms",
-        "description": "The active binding's SNOMED CT synonyms, as the terminology server serves them today.\n\nNever stored, so never part of `row_version` or the audit trail. `terms` excludes the FSN\nand the binding's AU preferred term, and is not limited to en-AU: no FHIR operation\nseparates the AU-acceptable synonyms, so US spellings can appear (see\n`nptc.terminology.synonyms`). `status` is `unavailable` when the server could not answer;\n`terms` is then empty, which is not the same as `available` with no terms. A code missing\nfrom the current AU edition is `available` with no terms."
+        "description": "The active binding's SNOMED CT synonyms, as the terminology server serves them today.\n\nNever stored, so never part of `row_version` or the audit trail. `terms` excludes the FSN\nand the binding's AU preferred term, and is not limited to en-AU: no FHIR operation\nseparates the AU-acceptable synonyms, so US spellings can appear (see\n`aptc.terminology.synonyms`). `status` is `unavailable` when the server could not answer;\n`terms` is then empty, which is not the same as `available` with no terms. A code missing\nfrom the current AU edition is `available` with no terms."
       },
       "SubmissionDetail": {
         "properties": {

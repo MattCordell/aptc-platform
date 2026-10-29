@@ -13,8 +13,8 @@ import uuid
 
 import pytest
 
-from nptc.auth.identity import UserRef
-from nptc.db.models.user import User
+from aptc.auth.identity import UserRef
+from aptc.db.models.user import User
 
 
 def _leaks_uuid(payload: dict[str, object], leaked: uuid.UUID) -> bool:

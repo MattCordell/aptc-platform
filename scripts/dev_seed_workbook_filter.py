@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Writes a copy of a SPIA workbook without the rows that collide under FR-05, so the 50-row
-sample can reach `nptc-transform run --emit-dataset` on a development stack (FR-05, FR-70).
+sample can reach `aptc-transform run --emit-dataset` on a development stack (FR-05, FR-70).
 
 The transform blocks `--emit-dataset` on a `DESIGNATION_COLLISION` finding, and the sample
 excerpt carries one. The sample is a real excerpt that nobody edits, and a production workbook is
@@ -28,9 +28,9 @@ from pathlib import Path
 import openpyxl
 from openpyxl.utils.exceptions import InvalidFileException
 
-from nptc_transform.collision_check import check_collisions
-from nptc_transform.findings import Finding
-from nptc_transform.workbook import Sheet, WorkbookReadError, read_workbook
+from aptc_transform.collision_check import check_collisions
+from aptc_transform.findings import Finding
+from aptc_transform.workbook import Sheet, WorkbookReadError, read_workbook
 
 #: 0 = a copy was written; 2 = usage error; 3 = the input is unreadable.
 EXIT_OK = 0

@@ -7,7 +7,7 @@ replacing it, retiring it, and what to do when the terminology server cannot ans
 You need the Administrator role to change a code.
 
 Open an entry for editing at **Administration → Catalogue**, or go straight to
-`/admin/catalogue/NPTC-000247/edit`. The **SNOMED CT code** section is part of the one
+`/admin/catalogue/APTC-000247/edit`. The **SNOMED CT code** section is part of the one
 [edit form](editing-an-entry.md), so it saves with **Save** and shares the form's changelog
 note.
 

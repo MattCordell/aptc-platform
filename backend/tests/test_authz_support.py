@@ -12,8 +12,8 @@ from pathlib import Path
 
 import pytest
 
-from nptc.auth.permissions import Permission, Role, permissions_for_roles
-from nptc.auth.principal import Principal
+from aptc.auth.permissions import Permission, Role, permissions_for_roles
+from aptc.auth.principal import Principal
 
 
 def _load(name: str):

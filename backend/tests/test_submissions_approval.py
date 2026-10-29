@@ -1,4 +1,4 @@
-"""`nptc.submissions.approval.approve_submission` service-layer tests (FR-28, FR-29, FR-35, FR-44,
+"""`aptc.submissions.approval.approve_submission` service-layer tests (FR-28, FR-29, FR-35, FR-44,
 FR-81, NFR-08).
 
 Each refusal asserts that nothing was written: no entry, no transition row, no audit event of the
@@ -17,33 +17,33 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from nptc.audit.writer import AuditContext
-from nptc.auth.errors_authorisation import MfaRequiredError, PermissionDeniedError
-from nptc.auth.permissions import Role, permissions_for_roles
-from nptc.auth.principal import Principal
-from nptc.catalogue.changelog import ChangelogNoteError
-from nptc.catalogue.collisions import DesignationCollisionError
-from nptc.catalogue.entries import create_entry
-from nptc.catalogue.local_codes import DatabaseLocalCodeLookup
-from nptc.catalogue.property_values import (
+from aptc.audit.writer import AuditContext
+from aptc.auth.errors_authorisation import MfaRequiredError, PermissionDeniedError
+from aptc.auth.permissions import Role, permissions_for_roles
+from aptc.auth.principal import Principal
+from aptc.catalogue.changelog import ChangelogNoteError
+from aptc.catalogue.collisions import DesignationCollisionError
+from aptc.catalogue.entries import create_entry
+from aptc.catalogue.local_codes import DatabaseLocalCodeLookup
+from aptc.catalogue.property_values import (
     DeprecatedPropertyWriteError,
     PropertyDefinitionNotFoundError,
 )
-from nptc.db.definitions import deprecate_definition
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
-from nptc.db.models.code_binding import CodeBinding
-from nptc.db.models.designation import Designation
-from nptc.db.models.property_definition import PropertyDefinition, PropertyOrigin, PropertyScope
-from nptc.db.models.property_value import PropertyValue
-from nptc.db.models.submission import Submission, SubmissionKind, SubmissionState
-from nptc.db.models.submission_transition import SubmissionTransition
-from nptc.db.models.submission_working_copy import SubmissionWorkingCopy
-from nptc.db.models.user import User
-from nptc.registry.datatypes import build_builtin_handlers
-from nptc.registry.handlers import DatatypeRegistry, HandlerDeps
-from nptc.submissions.approval import Approval, approve_submission
-from nptc.submissions.errors import (
+from aptc.db.definitions import deprecate_definition
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
+from aptc.db.models.code_binding import CodeBinding
+from aptc.db.models.designation import Designation
+from aptc.db.models.property_definition import PropertyDefinition, PropertyOrigin, PropertyScope
+from aptc.db.models.property_value import PropertyValue
+from aptc.db.models.submission import Submission, SubmissionKind, SubmissionState
+from aptc.db.models.submission_transition import SubmissionTransition
+from aptc.db.models.submission_working_copy import SubmissionWorkingCopy
+from aptc.db.models.user import User
+from aptc.registry.datatypes import build_builtin_handlers
+from aptc.registry.handlers import DatatypeRegistry, HandlerDeps
+from aptc.submissions.approval import Approval, approve_submission
+from aptc.submissions.errors import (
     AmendmentEntryNotActiveError,
     AmendmentNoLongerApplicableCause,
     AmendmentNoLongerApplicableError,
@@ -53,9 +53,9 @@ from nptc.submissions.errors import (
     TransitionNeedsOwnRouteError,
     TransitionReasonRequiredError,
 )
-from nptc.submissions.transitions import transition_submission
-from nptc_shared.sctid import has_valid_check_digit
-from nptc_shared.terminology import StubTerminologyClient
+from aptc.submissions.transitions import transition_submission
+from aptc_shared.sctid import has_valid_check_digit
+from aptc_shared.terminology import StubTerminologyClient
 
 _NOTE = "Approved after clinical review of the evidence"
 _FSN = "Microscopy (acid fast bacilli) (procedure)"
@@ -142,7 +142,7 @@ def _entry(session: Session, user: User, *, term: str | None = None) -> Catalogu
 
 
 def _bind(session: Session, user: User, entry: CatalogueEntry, code: str) -> CodeBinding:
-    from nptc.catalogue.bindings import create_binding
+    from aptc.catalogue.bindings import create_binding
 
     return create_binding(
         session,
@@ -495,7 +495,7 @@ def test_an_amendment_whose_synonym_the_entry_gained_since_is_refused_whole(
 ) -> None:
     admin, submitter = _user(app_session), _user(app_session)
     entry = _entry(app_session, admin)
-    from nptc.catalogue.designations import add_synonyms
+    from aptc.catalogue.designations import add_synonyms
 
     gained = _term("Gained synonym")
     new_synonym, new_code = _term("Fresh synonym"), _code()

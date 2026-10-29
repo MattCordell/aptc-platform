@@ -23,7 +23,7 @@
  * the mismatch check and the lookup are the same operation.
  */
 
-const KEY_PREFIX = "nptc.auth.transaction.";
+const KEY_PREFIX = "aptc.auth.transaction.";
 
 /**
  * A login round trip should take seconds. Anything older than this is

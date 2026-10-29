@@ -19,13 +19,13 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.engine import Connection
 
-from nptc.api.terms_gate import TERMS_ACCEPTANCE_REQUIRED_CODE
-from nptc.auth.permissions import Role
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.submission import Submission, SubmissionKind
-from nptc.db.models.submission_transition import SubmissionTransition
-from nptc.db.models.user import User
-from nptc.db.models.user_identity import UserIdentity
+from aptc.api.terms_gate import TERMS_ACCEPTANCE_REQUIRED_CODE
+from aptc.auth.permissions import Role
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.submission import Submission, SubmissionKind
+from aptc.db.models.submission_transition import SubmissionTransition
+from aptc.db.models.user import User
+from aptc.db.models.user_identity import UserIdentity
 
 
 def _load(name: str) -> Any:

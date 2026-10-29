@@ -1,7 +1,7 @@
-"""`nptc.catalogue.property_value_sources` service-layer tests (issue #247,
+"""`aptc.catalogue.property_value_sources` service-layer tests (issue #247,
 FR-10, FR-52, FR-90).
 
-`nptc.db.bootstrap.seed_system_properties` seeds the real `specimen`
+`aptc.db.bootstrap.seed_system_properties` seeds the real `specimen`
 (value-set-bound) and `discipline`/`subgroup` (local-code-system-bound)
 definitions through their own real write path - the same precedent
 `test_catalogue_property_values.py` follows - so this file exercises the
@@ -18,16 +18,16 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from nptc.audit.writer import AuditContext
-from nptc.auth.permissions import Role, permissions_for_roles
-from nptc.auth.principal import Principal
-from nptc.catalogue.local_codes import (
+from aptc.audit.writer import AuditContext
+from aptc.auth.permissions import Role, permissions_for_roles
+from aptc.auth.principal import Principal
+from aptc.catalogue.local_codes import (
     DatabaseLocalCodeLookup,
     create_local_code,
     deprecate_local_code,
     deprecate_local_code_system,
 )
-from nptc.catalogue.property_value_sources import (
+from aptc.catalogue.property_value_sources import (
     PropertyNotCodeTypeError,
     PropertyValueSourceMisconfiguredError,
     ValueItem,
@@ -35,10 +35,10 @@ from nptc.catalogue.property_value_sources import (
     list_property_values,
     resolve_property_values,
 )
-from nptc.catalogue.property_values import PropertyDefinitionNotFoundError
-from nptc.db.bootstrap import seed_system_properties
-from nptc.db.models.local_code_system import LocalCodeSystem
-from nptc.db.models.property_definition import (
+from aptc.catalogue.property_values import PropertyDefinitionNotFoundError
+from aptc.db.bootstrap import seed_system_properties
+from aptc.db.models.local_code_system import LocalCodeSystem
+from aptc.db.models.property_definition import (
     BindingStrength,
     BindingTarget,
     PropertyCardinality,
@@ -46,8 +46,8 @@ from nptc.db.models.property_definition import (
     PropertyOrigin,
     PropertyScope,
 )
-from nptc.terminology.errors import TerminologyUnavailableError, TerminologyUpstreamError
-from nptc_shared.terminology import (
+from aptc.terminology.errors import TerminologyUnavailableError, TerminologyUpstreamError
+from aptc_shared.terminology import (
     AU_LANGUAGE_TAG,
     SNOMED_CT_AU,
     ExpandedConcept,
@@ -59,7 +59,7 @@ from nptc_shared.terminology import (
     TerminologyTransportError,
 )
 
-#: PRD S6.6's own worked example (matches `nptc.db.bootstrap`'s seeded
+#: PRD S6.6's own worked example (matches `aptc.db.bootstrap`'s seeded
 #: `specimen` binding) - `_SPECIMEN_VALUE_SET_URI` there is itself a
 #: literal, not derived, so this test file follows the same precedent
 #: rather than importing that private module constant.
@@ -186,7 +186,7 @@ def test_list_property_values_passes_the_editions_display_language_to_expand(
     app_session: Session,
 ) -> None:
     """`specimen`'s stored `value_set_uri` is the PRD S6.6 bare-system
-    shape (`nptc.db.bootstrap`'s real seeded literal), which carries no
+    shape (`aptc.db.bootstrap`'s real seeded literal), which carries no
     edition of its own - `binding.edition` ("au") is what resolves it to
     `SNOMED_CT_AU`, and that edition's `display_language` must actually
     reach `expand` (FR-82), not just be recovered and discarded (issue

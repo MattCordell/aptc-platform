@@ -6,7 +6,7 @@ discussion; this document is the implementation reference.
 
 ## The matrix, as code
 
-`nptc.auth.permissions` holds PRD §4.7's authoritative permission matrix as data:
+`aptc.auth.permissions` holds PRD §4.7's authoritative permission matrix as data:
 
 - `Role(StrEnum)`: `ANON, OBSERVER, PROVISIONAL, MEMBER, REVIEWER, ADMINISTRATOR`.
   `GRANTABLE_ROLES` excludes `ANON` — an ungranted user simply *is* anonymous.
@@ -25,15 +25,15 @@ release goes through `git blame` and PR review, not an unreviewed `INSERT` — e
 with no admin UI in this issue's scope. `mypy --strict` typechecks every `Permission`
 reference; a database string cannot be.
 
-**`Permission.REGISTRY_READ` (ADR-0028) in practice.** `nptc.api.routers.registry`'s `/registry/properties`/`/registry/properties/{key}`
-(issue #55, its originating case) and `nptc.api.routers.terminology`'s
+**`Permission.REGISTRY_READ` (ADR-0028) in practice.** `aptc.api.routers.registry`'s `/registry/properties`/`/registry/properties/{key}`
+(issue #55, its originating case) and `aptc.api.routers.terminology`'s
 `/terminology/concepts/{code}` (issue #240, FR-26) and `/terminology/procedures` (issue #526,
 the code picker's scoped term search) hold it — exactly the reuse ADR-0028's own
 Consequences predicted: "any later route serving the same … audience … can reuse it
 rather than reaching for `CATALOGUE_BROWSE` or `REGISTRY_MANAGE`."
 
 **Kept honest against the PRD itself.** `test_permission_matrix.py` parses the markdown
-table at PRD §4.7 directly out of `docs/prd/NPTC-Catalogue-Platform-PRD.md` and asserts
+table at PRD §4.7 directly out of `docs/prd/APTC-Catalogue-Platform-PRD.md` and asserts
 `ROLE_PERMISSIONS` reproduces it cell by cell, with exhaustiveness checked in both
 directions. This is the strongest test in the issue: a PRD edit that adds a row, or a
 `Permission` no row ever grants, both fail loudly.
@@ -42,9 +42,9 @@ directions. This is the strongest test in the issue: a PRD edit that adds a row,
 
 | PRD notation | Mechanism | Where |
 |---|---|---|
-| `Y (own)` / `Y (any)` | Two permissions (`SUBMISSION_WITHDRAW_OWN`/`_ANY`), resolved against the resource's `owner_user_id` | `nptc.auth.authorisation.may_act_on` |
-| `Y (max 5)` / `Y (20/hr)` | Not a permission — a numeric budget on the same `SUBMISSION_CREATE` permission | `nptc.auth.permissions.SubmissionQuota`/`QUOTAS`/`effective_quota` (enforced by `nptc.submissions.quota.enforce_submission_quota`: both submission create routes count the caller's earlier submissions, new tests and amendments together, and refuse an over-limit request with a 429, which is audited) |
-| "Promote Provisional to Member and no more" | `Permission.ROLE_GRANT_MEMBER` vs `ROLE_GRANT_ANY` | `nptc.auth.grants.grant_role` |
+| `Y (own)` / `Y (any)` | Two permissions (`SUBMISSION_WITHDRAW_OWN`/`_ANY`), resolved against the resource's `owner_user_id` | `aptc.auth.authorisation.may_act_on` |
+| `Y (max 5)` / `Y (20/hr)` | Not a permission — a numeric budget on the same `SUBMISSION_CREATE` permission | `aptc.auth.permissions.SubmissionQuota`/`QUOTAS`/`effective_quota` (enforced by `aptc.submissions.quota.enforce_submission_quota`: both submission create routes count the caller's earlier submissions, new tests and amendments together, and refuse an over-limit request with a 429, which is audited) |
+| "Promote Provisional to Member and no more" | `Permission.ROLE_GRANT_MEMBER` vs `ROLE_GRANT_ANY` | `aptc.auth.grants.grant_role` |
 
 A single permission plus an ownership `if` at the call site, or a predicate attached to a
 permission set, would both be the hard-coded authorisation check FR-44 forbids — see
@@ -52,7 +52,7 @@ ADR-0019's rejected alternatives.
 
 ## `Principal`
 
-`nptc.auth.principal.Principal` is the one object a check site ever inspects:
+`aptc.auth.principal.Principal` is the one object a check site ever inspects:
 
 ```python
 @dataclass(frozen=True)
@@ -70,7 +70,7 @@ It does not carry the mapped `User` instance — an ORM object ties the `Princip
 lifetime to a `Session`, and a `Principal` is exactly the kind of object worth keeping
 and logging after that session has moved on.
 
-`nptc.auth.principal.principal_for(session, resolution, *, claims, mfa_acr_values)`
+`aptc.auth.principal.principal_for(session, resolution, *, claims, mfa_acr_values)`
 derives one from issue #43's `Resolution`:
 
 | Resolution / status | Result |
@@ -84,7 +84,7 @@ derives one from issue #43's `Resolution`:
 
 ## The check API
 
-`nptc.auth.authorisation`:
+`aptc.auth.authorisation`:
 
 - `has_permission(principal, permission) -> bool`
 - `require_permission(permission) -> Callable[[Principal], Principal]` — raises
@@ -103,10 +103,10 @@ derives one from issue #43's `Resolution`:
 - `may_act_on(principal, *, own, any_, owner_user_id) -> bool` and
   `require_ownership_or_permission(...)` — the own/any resolution.
 - `resolve_quota(principal, *, override=None)` — `effective_quota`, the resolution rule only.
-  `nptc.submissions.quota` counts and refuses; see "Submission quota" below.
+  `aptc.submissions.quota` counts and refuses; see "Submission quota" below.
 
-Errors live in `nptc.auth.errors_authorisation`, deliberately apart from
-`nptc.auth.errors.TokenError` (whose docstring states every member is 401-shaped — a
+Errors live in `aptc.auth.errors_authorisation`, deliberately apart from
+`aptc.auth.errors.TokenError` (whose docstring states every member is 401-shaped — a
 future router relies on `except TokenError → 401`):
 
 | Error | HTTP | Meaning |
@@ -122,7 +122,7 @@ exception handler cannot mis-map the two 409s as 403.
 
 ## Granting and revoking roles
 
-`nptc.auth.grants` is the one module in this set that takes a `Session`:
+`aptc.auth.grants` is the one module in this set that takes a `Session`:
 
 - `grant_role(session, *, granter, target_user_id, role, audit)` — requires
   `ROLE_GRANT_ANY`, unless `role is MEMBER` and the target currently holds `PROVISIONAL`
@@ -159,7 +159,7 @@ container while building this (see ADR-0019's "A real privilege surprise"). `use
 therefore grants column-level `UPDATE (granted_at)` only; `user_id`/`role`/
 `granted_by_user_id` remain immutable at the privilege level.
 
-**Closure is a removal path too.** `nptc.auth.identity.close_account` runs the guard
+**Closure is a removal path too.** `aptc.auth.identity.close_account` runs the guard
 before tombstoning the user, then revokes every grant — without this, closing your own
 account would bypass FR-01. Suspending the last administrator is refused for the same
 reason (only `status = 'active'` holders count toward the floor).
@@ -182,7 +182,7 @@ The realm declares no roles (ADR-0014), so Keycloak cannot itself know who is an
 administrator — enforcement is necessarily server-side.
 Keycloak's job is only to make step-up authentication achievable and provable.
 
-**Realm** (`deploy/keycloak/realm/nptc-realm.json`): `browserFlow: "nptc browser"`, a
+**Realm** (`deploy/keycloak/realm/aptc-realm.json`): `browserFlow: "aptc browser"`, a
 copy of the built-in browser flow whose `forms` subflow gates OTP behind a
 `conditional-level-of-authentication` executor (`loa-condition-level: "2"`), not
 `conditional-user-configured` — OTP is required whenever the client requests a
@@ -190,7 +190,7 @@ satisfying `acr_values`, not merely when the user happens to already have TOTP
 configured. Verified against a real, disposable Keycloak 26.7.1 container: the realm
 imports cleanly, and a full browser authorization-code request with `acr_values=2`
 against a user with no TOTP redirects to `CONFIGURE_TOTP` exactly as designed.
-`nptc-frontend` lists the built-in `acr` client scope in `defaultClientScopes`, because
+`aptc-frontend` lists the built-in `acr` client scope in `defaultClientScopes`, because
 its mapper is what writes the `acr` claim into the token.
 
 **Claims**: `OidcIdentityClaims.acr`/`auth_time` (both optional, added without breaking
@@ -215,7 +215,7 @@ same discipline that forbids any other module re-parsing the token
 only Administrator holds), never hand-listed — a new admin-only permission inherits the
 requirement automatically.
 
-**Configuration**: `AuthSettings.mfa_acr_values` (`NPTC_MFA_ACR_VALUES`, default `{"2"}`)
+**Configuration**: `AuthSettings.mfa_acr_values` (`APTC_MFA_ACR_VALUES`, default `{"2"}`)
 must match the realm's `loa-condition-level`.
 
 The SPA reacts to the challenge end to end (issue #184, ADR-0036): a silent
@@ -229,7 +229,7 @@ resolves correctly on import.
 ## Submission quota (FR-43, NFR-24)
 
 `POST /api/v1/submissions` and `POST /api/v1/submissions/amendments` call
-`nptc.submissions.quota.enforce_submission_quota` before they do anything else that costs
+`aptc.submissions.quota.enforce_submission_quota` before they do anything else that costs
 something. It reads the caller's quota from `resolve_quota(principal)`, counts, and either lets
 the request through or returns a refusal.
 
@@ -368,7 +368,7 @@ The event is `submission.approved`, and the audit log is Administrator-only.
 
 ## FR-80 and FR-81: provable without a single endpoint
 
-Both are worded per-endpoint. Since issue #41 `backend/src/nptc/api/` serves one real
+Both are worded per-endpoint. Since issue #41 `backend/src/aptc/api/` serves one real
 route (`GET /api/v1/auth/me`), and `test_api_error_mapping.py` exercises the
 `permission_dep` adapter over HTTP. Both are also, independently, statements about data,
 which is the stronger form:
@@ -402,7 +402,7 @@ Three layers, in `backend/tests/`:
 
 A signed-in user who has not accepted the current terms version is refused on every
 state-changing route that is not on one exempt list (ADR-0043). The check is a named
-condition, not a role or a permission (FR-44): `nptc.api.terms_gate.require_current_terms`,
+condition, not a role or a permission (FR-44): `aptc.api.terms_gate.require_current_terms`,
 registered for the whole app in `create_app`.
 
 - **The default is refusal.** The gate is an app-level dependency, so a mutating route added

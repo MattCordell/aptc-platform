@@ -6,7 +6,7 @@ import { requestStepUp } from "../auth/step-up.tsx";
 /**
  * The one literal `acr_values` on the frontend (issue #184, NFR-06) -
  * everywhere else, the value comes from the server's own RFC 9470 challenge
- * (`nptc/api/step-up.ts`'s `parseStepUpChallenge`), never a constant here.
+ * (`aptc/api/step-up.ts`'s `parseStepUpChallenge`), never a constant here.
  * This banner is the one exception: it offers step-up *before* any refusal
  * has happened, so there is no challenge yet to read a value from. Changing
  * the realm's LoA mapping (`AuthSettings.mfa_acr_values`) needs this
@@ -22,7 +22,7 @@ const PRE_EMPTIVE_STEP_UP_ACR_VALUES = "2";
  * than only after one (issue #184's last acceptance criterion).
  *
  * Gated on `mfa_satisfied` alone, per `SessionResponse`'s own contract
- * (`nptc.api.routers.auth`) - not on holding the Administrator role, which
+ * (`aptc.api.routers.auth`) - not on holding the Administrator role, which
  * `GET /auth/me` cannot answer for a suppressed administrator anyway:
  * `principal_for` structurally drops a role suppressed for want of MFA from
  * `roles` before it is ever serialised (NFR-06), so a signed-in

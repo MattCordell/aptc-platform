@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from nptc.catalogue.term_hygiene import preferred_term_length
+from aptc.catalogue.term_hygiene import preferred_term_length
 
 FIXTURE = Path(__file__).resolve().parents[2] / "shared/tests/fixtures/term-length-cases.json"
 CASES = json.loads(FIXTURE.read_text(encoding="utf-8"))

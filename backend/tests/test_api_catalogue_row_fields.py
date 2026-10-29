@@ -22,10 +22,10 @@ from typing import Any
 import pytest
 from sqlalchemy.engine import Connection
 
-from nptc.db.bootstrap import seed_system_properties
-from nptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
-from nptc.db.models.code_binding import CodeBinding, CodeBindingStatus
-from nptc.db.models.property_value import PropertyValue
+from aptc.db.bootstrap import seed_system_properties
+from aptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
+from aptc.db.models.code_binding import CodeBinding, CodeBindingStatus
+from aptc.db.models.property_value import PropertyValue
 
 
 def _load(name: str) -> Any:
@@ -47,7 +47,7 @@ _ACTIVE_CODE = "391483001"
 _RETIRED_CODE = "71388002"
 _OTHER_RETIRED_CODE = "394596001"
 
-_DISCIPLINE_SYSTEM = "https://example.org/nptc/discipline"
+_DISCIPLINE_SYSTEM = "https://example.org/aptc/discipline"
 _SNOMED = "http://snomed.info/sct"
 
 
@@ -96,10 +96,10 @@ def seeded(api: ApiTestApp) -> _Seeded:
     token = f"rowfields{base}"
     seeded = _Seeded(
         token=token,
-        before_all=f"NPTC-{base - 1}",
-        bound=f"NPTC-{base}",
-        retired_only=f"NPTC-{base + 1}",
-        unbound=f"NPTC-{base + 2}",
+        before_all=f"APTC-{base - 1}",
+        bound=f"APTC-{base}",
+        retired_only=f"APTC-{base + 1}",
+        unbound=f"APTC-{base + 2}",
     )
     entries = {
         key: CatalogueEntry(
@@ -291,7 +291,7 @@ def test_admin_rows_list_an_entry_whose_stored_fsn_cannot_be_stripped(
     defect is logged by business key and error class without the stored text."""
     session = api.session
     base = random.randrange(100_000_000, 999_000_000)
-    key = f"NPTC-{base}"
+    key = f"APTC-{base}"
     entry = CatalogueEntry(
         business_key=key,
         preferred_term=f"Untagged {base}",
@@ -312,7 +312,7 @@ def test_admin_rows_list_an_entry_whose_stored_fsn_cannot_be_stripped(
     session.flush()
     token = api.admin_token(subject="sub-row-fields-untagged")
 
-    with caplog.at_level(logging.WARNING, logger="nptc.api.routers.catalogue_shared"):
+    with caplog.at_level(logging.WARNING, logger="aptc.api.routers.catalogue_shared"):
         searched = api.get("/catalogue/admin/search", token=token, params={"q": f"Untagged {base}"})
         listing = _admin_listing_rows(api, token)
 
@@ -387,7 +387,7 @@ def test_a_stored_fsn_with_no_tag_fails_the_list_rather_than_showing_it(
     stripped, so the list refuses it with a server error instead of showing it."""
     session = api.session
     base = random.randrange(100_000_000, 999_000_000)
-    key = f"NPTC-{base}"
+    key = f"APTC-{base}"
     entry = CatalogueEntry(
         business_key=key,
         preferred_term=f"Untagged {base}",
@@ -407,7 +407,7 @@ def test_a_stored_fsn_with_no_tag_fails_the_list_rather_than_showing_it(
     )
     session.flush()
 
-    listed = api.get("/catalogue/entries", params={"after": f"NPTC-{base - 1}", "limit": 1})
+    listed = api.get("/catalogue/entries", params={"after": f"APTC-{base - 1}", "limit": 1})
     searched = api.get("/catalogue/search", params={"q": f"Untagged {base}"})
 
     for response in (listed, searched):

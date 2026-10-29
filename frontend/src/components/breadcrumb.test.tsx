@@ -9,7 +9,7 @@ function renderTrail() {
   return render(
     <Breadcrumb
       ancestors={[<a href="/">Home</a>, <a href="/catalogue">Catalogue</a>]}
-      current="NPTC-000247"
+      current="APTC-000247"
     />,
   );
 }
@@ -23,14 +23,14 @@ describe("Breadcrumb", () => {
     expect(items.map((item) => item.textContent)).toEqual([
       "Home/",
       "Catalogue/",
-      "NPTC-000247",
+      "APTC-000247",
     ]);
   });
 
   it("marks the current page and leaves it as plain text", () => {
     renderTrail();
 
-    const current = screen.getByText("NPTC-000247");
+    const current = screen.getByText("APTC-000247");
     expect(current).toHaveAttribute("aria-current", "page");
     expect(within(current).queryByRole("link")).toBeNull();
     expect(screen.getAllByRole("link").map((link) => link.textContent)).toEqual([
@@ -52,7 +52,7 @@ describe("Breadcrumb", () => {
     for (const wrapper of container.querySelectorAll("li > span:not([aria-hidden])")) {
       expect(wrapper.className).toContain("[&_a]:min-h-6");
     }
-    expect(screen.getByText("NPTC-000247").className).toContain("min-h-6");
+    expect(screen.getByText("APTC-000247").className).toContain("min-h-6");
   });
 
   it("uses design tokens only", () => {

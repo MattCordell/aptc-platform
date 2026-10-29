@@ -5,7 +5,7 @@ Revises: 0021
 Create Date: 2026-10-06
 
 NFR-45, ADR-0043: the append-only record of which terms version each user accepted. See
-`nptc.db.models.terms_acceptance` for the reasoning.
+`aptc.db.models.terms_acceptance` for the reasoning.
 
 The grant is `SELECT, INSERT` only, so "never edited or removed" holds at the privilege level.
 The downgrade drops the table, which discards the acceptance record.
@@ -18,7 +18,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-from nptc.db import roles
+from aptc.db import roles
 
 # revision identifiers, used by Alembic.
 revision: str = "0022"

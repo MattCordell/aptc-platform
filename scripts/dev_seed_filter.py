@@ -34,7 +34,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from nptc_shared.similarity import collision_key
+from aptc_shared.similarity import collision_key
 
 #: 0 = filtered dataset written; 2 = usage error; 3 = the input is unreadable or not shaped like
 #: an import dataset; 4 = no entry survived the filter, nothing written.

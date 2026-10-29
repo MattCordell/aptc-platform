@@ -295,21 +295,21 @@ describe("amendmentBody (FR-35)", () => {
       ],
     };
 
-    expect(amendmentBody("NPTC-000006", values, NONE)).toEqual({
-      entry_business_key: "NPTC-000006",
+    expect(amendmentBody("APTC-000006", values, NONE)).toEqual({
+      entry_business_key: "APTC-000006",
       synonyms: ["Ferritin"],
     });
   });
 
   it("sends the code as the string the server named, with its leading zero", () => {
-    const body = amendmentBody("NPTC-000006", initialValues(), READY);
+    const body = amendmentBody("APTC-000006", initialValues(), READY);
 
     expect(body).not.toHaveProperty("synonyms");
     expect(JSON.stringify(body)).toContain('"snomed_code":"0391483001"');
   });
 
   it("leaves out a code that is not ready", () => {
-    const body = amendmentBody("NPTC-000006", initialValues(), {
+    const body = amendmentBody("APTC-000006", initialValues(), {
       status: "checking",
       code: "1",
     });
@@ -326,8 +326,8 @@ describe("amendmentBody (FR-35)", () => {
       organisation: "Example Lab",
     };
 
-    expect(amendmentBody("NPTC-000006", values, NONE)).toEqual({
-      entry_business_key: "NPTC-000006",
+    expect(amendmentBody("APTC-000006", values, NONE)).toEqual({
+      entry_business_key: "APTC-000006",
       synonyms: ["x"],
       reference_url: "https://example.org/x",
       notes: "Seen in the RCPA manual.",

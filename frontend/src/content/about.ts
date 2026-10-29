@@ -18,7 +18,7 @@ export interface AboutSection {
 export const ABOUT_TITLE = "About the catalogue";
 
 export const ABOUT_INTRO =
-  "The National Pathology Test Catalogue lists the pathology tests that a clinician can request in Australia.";
+  "The Australian Pathology Test Catalogue lists the pathology tests that a clinician can request in Australia.";
 
 export const ABOUT_SECTIONS: readonly AboutSection[] = [
   {

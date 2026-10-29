@@ -32,7 +32,7 @@ export function SiteHeader() {
           activeOptions={{ exact: true }}
           className="font-display text-lg font-semibold text-[var(--color-text)]"
         >
-          NPTC Catalogue
+          APTC Catalogue
         </Link>
         <nav aria-label="Primary">
           <ul className="m-0 flex list-none flex-wrap gap-x-3 gap-y-1 p-0">

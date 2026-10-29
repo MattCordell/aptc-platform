@@ -52,7 +52,7 @@ would have run without a probe at all. This is what keeps a server whose `$valid
 display matching is imperfect (language-scoped, say) from turning a benign label into a
 false abort: the probe is a rescue, never an additional way to fail.
 
-**2. `strip_semantic_tag` lives in `nptc_shared.terminology.snomed`, beside
+**2. `strip_semantic_tag` lives in `aptc_shared.terminology.snomed`, beside
 `semantic_tag`, as a second, narrowly scoped call site on FR-83's rule, not a
 violation of it.**
 
@@ -98,7 +98,7 @@ non-AU `display` value is not the preferred term FR-82 means.
 |---|---|
 | One `$validate-code` per row, as PRD Appendix A.10's method note describes | Exactly FR-52's forbidden shape at scale: 20,000 sequential requests at the PRD's planning ceiling, discourteous to a shared server, and indistinguishable from a design that "quietly works at 50 codes." |
 | Trust `$expand`'s designation list alone, with no server probe at all | Cheapest, but a server that returns an incomplete designation set in one expansion (a paging quirk, a non-conformant `includeDesignations`) would abort a seeding run over data the server itself would confirm as valid on direct question - inverting FR-54's hazard from "hide an outage" to "manufacture a defect." |
-| A private regex-based tag-stripper local to `designation_check.py`, instead of a second call to `nptc_shared.terminology.snomed.strip_semantic_tag` | Recreates the exact defect class FR-83 exists to prevent - two independently maintained ideas of "the tag" that can silently drift apart, this time between the export renderer and the seeding transform instead of between two seeding-transform call sites. |
+| A private regex-based tag-stripper local to `designation_check.py`, instead of a second call to `aptc_shared.terminology.snomed.strip_semantic_tag` | Recreates the exact defect class FR-83 exists to prevent - two independently maintained ideas of "the tag" that can silently drift apart, this time between the export renderer and the seeding transform instead of between two seeding-transform call sites. |
 | `$expand` with `filter=<label>` per unmatched label, to find the concept(s) actually carrying it | One request per delta row (no better than per-row `$validate-code`), and `filter` is server-defined substring matching, not equality - a confidently *wrong* answer is worse than the honest workbook-scoped narrowing this ADR chose, which degrades to "matches nothing" rather than naming the wrong concept. |
 | Intersection across editions for the benign outcomes (a label must match in every edition that resolved the code) | Any AU/International designation difference - which is FR-45's `fsn_drift` at steady state, not a P0 seeding concern - would abort a seeding run over a discrepancy the platform is explicitly designed to tolerate until first sync. |
 | AU-only, with no edition fallback for the FSN/probe/message | An International-only-resolved code (rare for this catalogue, but not excluded by the schema) would have nothing to quote or probe against, rather than gracefully falling back to whatever edition did resolve it. |

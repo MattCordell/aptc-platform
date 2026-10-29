@@ -19,27 +19,27 @@ from sqlalchemy import func, select, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
-from nptc.audit.writer import AuditContext
-from nptc.auth.errors_authorisation import PermissionDeniedError
-from nptc.auth.permissions import Role, permissions_for_roles
-from nptc.auth.principal import Principal
-from nptc.catalogue.changelog import ChangelogNoteError
-from nptc.catalogue.collisions import (
+from aptc.audit.writer import AuditContext
+from aptc.auth.errors_authorisation import PermissionDeniedError
+from aptc.auth.permissions import Role, permissions_for_roles
+from aptc.auth.principal import Principal
+from aptc.catalogue.changelog import ChangelogNoteError
+from aptc.catalogue.collisions import (
     CollisionSeverity,
     DesignationCollisionAcknowledgementConflictError,
     DesignationCollisionError,
     acknowledge_collision,
     warning_collisions,
 )
-from nptc.catalogue.designations import add_designation, add_synonyms
-from nptc.catalogue.entries import EntryChanges, create_entry, save_entry
-from nptc.catalogue.term_hygiene import TermCleaningError
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
-from nptc.db.models.designation_collision_acknowledgement import (
+from aptc.catalogue.designations import add_designation, add_synonyms
+from aptc.catalogue.entries import EntryChanges, create_entry, save_entry
+from aptc.catalogue.term_hygiene import TermCleaningError
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
+from aptc.db.models.designation_collision_acknowledgement import (
     DesignationCollisionAcknowledgement,
 )
-from nptc_shared.similarity import collision_key
+from aptc_shared.similarity import collision_key
 
 _NBSP = chr(0x00A0)
 _NNBSP = chr(0x202F)
@@ -499,7 +499,7 @@ def test_concurrent_creation_of_two_entries_with_the_same_preferred_term_is_seri
     a single session exercising the code path twice.
 
     The racing term is a fresh `uuid4()` every run, and the winning row is
-    deleted (via `owner_engine`, since `nptc_app` has no `DELETE` grant on
+    deleted (via `owner_engine`, since `aptc_app` has no `DELETE` grant on
     `catalogue_entry`) once the outcome is captured - this is the one test
     in this module that `commit()`s into the shared session-scoped
     container rather than relying on `app_session`'s rolled-back
@@ -600,7 +600,7 @@ def test_add_synonyms_batches_do_not_deadlock_on_opposite_lock_order(
 
     # Both entries are created and committed *before* the threads start,
     # not inside them: `create_entry`'s own audit-event append takes
-    # `nptc.audit.writer.AUDIT_APPEND_LOCK_KEY` - one fixed key shared by
+    # `aptc.audit.writer.AUDIT_APPEND_LOCK_KEY` - one fixed key shared by
     # every append in the whole database - and holds it until that
     # transaction commits. Creating the entries inside the racing threads
     # would serialise on *that* lock before either thread ever reaches the

@@ -5,7 +5,7 @@
 **Do not open a public issue for a security problem.**
 
 Report privately through GitHub's [private vulnerability
-reporting](https://github.com/aehrc/nptc-platform/security/advisories/new), or by email
+reporting](https://github.com/MattCordell/aptc-platform/security/advisories/new), or by email
 to **matt.cordell@csiro.au** with `[SECURITY]` in the subject line. See
 [CODEOWNERS](.github/CODEOWNERS) if that contact ever goes stale.
 
@@ -41,8 +41,8 @@ with. A stub module existing is not the same as a control being active.
 | Dependency updates | `.github/dependabot.yml` | NFR-25 | Active |
 | No secrets in the repository or in image layers; configuration by environment variable with a values-free `.env.example` | `deploy/.env.example` | NFR-26 | Active |
 | Container image scanning before publication | — | NFR-25 | Planned (P4/P5, lands with the container images) |
-| Server-side authorisation on every request, tested for the negative case | `backend/src/nptc/auth/` | NFR-20, FR-80, FR-81 | Planned (P1/P2 — currently a docstring stub, enforces nothing) |
-| Append-only audit log enforced at database privilege level, with a hash chain | `backend/src/nptc/audit/` | NFR-09, NFR-10 | Implemented (issue #36, ADR-0017): `nptc.audit.writer.append_audit_event` is the sole write path, and `nptc.audit.verification.verify_chain` detects an out-of-band `UPDATE`/`DELETE`/re-order. One real emit site (`close_account`); the operator CLI wrapping `verify_chain` (`scripts/verify_audit_chain.py`) landed with issue #38 |
+| Server-side authorisation on every request, tested for the negative case | `backend/src/aptc/auth/` | NFR-20, FR-80, FR-81 | Planned (P1/P2 — currently a docstring stub, enforces nothing) |
+| Append-only audit log enforced at database privilege level, with a hash chain | `backend/src/aptc/audit/` | NFR-09, NFR-10 | Implemented (issue #36, ADR-0017): `aptc.audit.writer.append_audit_event` is the sole write path, and `aptc.audit.verification.verify_chain` detects an out-of-band `UPDATE`/`DELETE`/re-order. One real emit site (`close_account`); the operator CLI wrapping `verify_chain` (`scripts/verify_audit_chain.py`) landed with issue #38 |
 
 An independent security review is required before any production deployment (NFR-27) and
 is scheduled in phase P5.

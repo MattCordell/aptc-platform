@@ -87,7 +87,7 @@ function SubmissionView({
   submission: AnySubmissionDetail;
   refreshFailed: boolean;
 }) {
-  useDocumentTitle(`${submission.preferred_term} — NPTC Catalogue`);
+  useDocumentTitle(`${submission.preferred_term} — APTC Catalogue`);
   const { message, politeness, announce } = useAnnounce();
   // The content the form opened on, which the form compares its fields against.
   const [opened, setOpened] = useState<WorkingContent | null>(null);

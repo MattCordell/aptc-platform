@@ -24,7 +24,7 @@ import { useAuth } from "./session.ts";
  * and the router's current location) is instantiated by the router itself
  * with no channel for a caller-supplied prop. Test isolation instead comes
  * from `StepUpController`'s own mount/unmount effect below, the same
- * "cleared on the way out" precedent `nptc.api.dependencies.
+ * "cleared on the way out" precedent `aptc.api.dependencies.
  * get_terminology_client`'s `lru_cache` uses on the backend (`api_app_
  * support.py`'s `get_terminology_client.cache_clear()`): each test's render
  * unmounts before the next mounts, so the slot is never live across tests.

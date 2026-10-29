@@ -2,14 +2,14 @@
 
 ## What this is
 
-`nptc_shared.terminology` is the one interface both the backend and the P0 seeding
+`aptc_shared.terminology` is the one interface both the backend and the P0 seeding
 transform use to talk to a FHIR R4 terminology server (FR-53, FR-74). It exists so the
 test suite never needs a live server (NFR-37) and so the endpoint — `tx.ontoserver.csiro.au`
 for the PoC, an accepted risk recorded in PRD Section 15.2 — can be repointed at NCTS
 production or a self-hosted instance as configuration, not code.
 
 Two implementations satisfy the `TerminologyClient` Protocol
-(`nptc_shared/terminology/client.py`):
+(`aptc_shared/terminology/client.py`):
 
 - `StubTerminologyClient` (`stub.py`) — in-memory, seeded by a test, never opens a socket.
 - `OntoserverClient` (`ontoserver.py`) — synchronous, `httpx`-backed, against any
@@ -61,9 +61,9 @@ FR-52 forbids one `$validate-code` (or `$lookup`) call per catalogue code — at
 (`sweep.py`) is the implementation, shared by the transform and the backend because FR-74
 forbids the migration path having its own:
 
-1. **Bulk status resolution**: chunk the catalogue (`NPTC_TX_CHUNK_SIZE`, default 300) and
+1. **Bulk status resolution**: chunk the catalogue (`APTC_TX_CHUNK_SIZE`, default 300) and
    resolve status with one `expand` call per chunk with `activeOnly=true`, using
-   `nptc_shared.terminology.snomed.ecl_set_of(codes)` to build the disjunction. Codes are
+   `aptc_shared.terminology.snomed.ecl_set_of(codes)` to build the disjunction. Codes are
    de-duplicated and sorted first, so the request sequence depends on the *set* of codes,
    not on row order.
 2. **Targeted `lookup`** only for the delta — the codes the expansion did not return. That
@@ -74,7 +74,7 @@ forbids the migration path having its own:
    `REPLACED_BY`) rather than relying on a server volunteering them unprompted — FHIR R4
    makes no such guarantee, and `LookupResult.inactive` coming back `None` (not reported,
    distinct from reported-false) would otherwise misclassify an active code as inactive.
-3. **Bounded concurrency** on that second pass (`NPTC_TX_MAX_CONCURRENCY`, default 4),
+3. **Bounded concurrency** on that second pass (`APTC_TX_MAX_CONCURRENCY`, default 4),
    submitted in batches rather than all at once — a failure in one batch means the next is
    never submitted, rather than every remaining code being queued before the failure
    surfaces. The chunk expansions themselves are sequential — see
@@ -120,7 +120,7 @@ returned — projected from the concepts `_unexpected_tags` already reads, at ze
 requests. Only the labels that projection cannot settle locally cost anything:
 `TerminologySweep.confirm_labels` issues one `CodeSystem/$validate-code` per unique
 `(code, display)` pair still unmatched, batched and bounded the same way the delta
-`lookup` pass is (`nptc_transform.designation_check` is the caller — see the
+`lookup` pass is (`aptc_transform.designation_check` is the caller — see the
 [transform runbook](../operations/runbooks/transform.md#interpreting-a-designation-finding-fr-97)
 for the four outcomes it classifies). Unlike the delta pass, a probe failure is never
 folded into "no match" — every code probed already resolved as active in this same sweep,
@@ -168,7 +168,7 @@ HTTP-date forms), falling back to exponential backoff (`0.5 * 2^attempt`, capped
 `shared/` has no settings framework (`pydantic-settings` is backend-only, ADR-0001), so
 `TerminologyConfig` (`config.py`) is an explicit frozen dataclass with a `from_env()`
 classmethod. See [configuration.md](../operations/configuration.md) for the four
-`NPTC_TX_*` variables it reads.
+`APTC_TX_*` variables it reads.
 
 ## Testing
 
@@ -192,8 +192,8 @@ CI can never run this (NFR-37 forbids network access in the test suite), so it i
 manual, one-off check that the fixtures still match a live server's shape:
 
 ```python
-from nptc_shared.terminology import OntoserverClient, SNOMED_CT_AU, PROCEDURE_ROOT_CODE
-from nptc_shared.terminology.snomed import ecl_set_of
+from aptc_shared.terminology import OntoserverClient, SNOMED_CT_AU, PROCEDURE_ROOT_CODE
+from aptc_shared.terminology.snomed import ecl_set_of
 
 with OntoserverClient() as client:
     result = client.lookup("122192001", edition=SNOMED_CT_AU)
@@ -208,8 +208,8 @@ with OntoserverClient() as client:
 
 ## FR-26: the interactive lookup route (issue #240)
 
-`GET /api/v1/terminology/concepts/{code}` (`nptc.api.routers.terminology`,
-`nptc.terminology.concepts.resolve_concept`) is the one interactive caller of this
+`GET /api/v1/terminology/concepts/{code}` (`aptc.api.routers.terminology`,
+`aptc.terminology.concepts.resolve_concept`) is the one interactive caller of this
 package's `lookup` operation - the form-completion half of FR-26, distinct from
 `TerminologySweep`'s batch callers above. It resolves one code's served FSN (semantic
 tag intact, FR-82), AU preferred term, and tri-state active status, so #150's code
@@ -243,15 +243,15 @@ helper for exactly this second caller, FR-74) rather than re-deriving it:
 | `is_concept_absence` | 404 |
 | `TerminologyRateLimitError`, or a timeout/transport failure, or another retryable `TerminologyStatusError` | 503 (`Retry-After` when the server supplied one) |
 | Anything else - an unparseable body, a 2xx `OperationOutcome`, an unclassified 4xx, or the stub's own `StubNotSeededError` | 502 |
-| `TerminologyConfigError` - a malformed `NPTC_TX_*` value | 500 |
+| `TerminologyConfigError` - a malformed `APTC_TX_*` value | 500 |
 
 The fourth row is deliberately the catch-all, never 404: reading an unrecognised failure
 as "not found" would let an unseeded `StubTerminologyClient` answer a test with a
 clean-looking absence instead of the authoring defect it actually is - see `stub.py`'s
 own module docstring. The last row is `resolve_concept` re-raising `TerminologyConfigError`
 unchanged rather than letting it reach that same catch-all - it is itself a
-`TerminologyError` subclass, so without that carve-out a malformed `NPTC_TX_*` value
-would misreport as 502 instead of the 500 `nptc.api.errors` already gives it; in normal
+`TerminologyError` subclass, so without that carve-out a malformed `APTC_TX_*` value
+would misreport as 502 instead of the 500 `aptc.api.errors` already gives it; in normal
 operation this is a start-up failure (`create_app` builds the client eagerly), so 500
 here only covers a path that bypasses that warm-up. No server-side cache and no bespoke
 rate limiter: FR-82 forbids a stale served label, and `Permission.REGISTRY_READ` already
@@ -260,8 +260,8 @@ control an anonymous limiter cannot provide.
 
 ## FR-26: the code picker's scoped term search (issue #526)
 
-`GET /api/v1/terminology/procedures?q=&count=` (`nptc.api.routers.terminology.
-search_procedure_concepts`, `nptc.terminology.concepts.search_procedures`) is the term-search
+`GET /api/v1/terminology/procedures?q=&count=` (`aptc.api.routers.terminology.
+search_procedure_concepts`, `aptc.terminology.concepts.search_procedures`) is the term-search
 half of the SNOMED CT code picker on the admin edit form. It sits beside the `$lookup` route
 above, under the same `Permission.REGISTRY_READ` gate, in the same AU edition, with the same
 error table (a 404 from the server is a 502 here, because no single code is being looked up).
@@ -293,15 +293,15 @@ Ontoserver's ranking.
 ## FR-10: the coded-property values route (issue #247)
 
 `GET /api/v1/registry/properties/{key}/values`
-(`nptc.api.routers.registry.list_property_value_options`,
-`nptc.catalogue.property_value_sources.list_property_values`) is a coded property's
+(`aptc.api.routers.registry.list_property_value_options`,
+`aptc.catalogue.property_value_sources.list_property_values`) is a coded property's
 concept-picker data source - three of the four seeded registry properties are
 `datatype = "code"`, and nothing before this issue served the values their pickers need.
 
 **Addressed by property key, never by binding target.** The service resolves `key`'s own
 `PropertyDefinitionSpec.binding` and answers from Ontoserver (a `value_set` binding, via
 this package's `expand`) or the `LocalCode` table (a `local_code_system` binding, via
-`nptc.catalogue.local_codes.list_local_codes`) - the response shape is identical either
+`aptc.catalogue.local_codes.list_local_codes`) - the response shape is identical either
 way, so a client never learns which. `list_property_values` is the one function in the
 backend that reads `binding_target` at all; a router or frontend branch on it would be
 `datatype == "code"` in disguise, the exact proxy-switch ADR-0013 SS5 names as its
@@ -314,7 +314,7 @@ supplies an ECL, a value set URI, or an edition of its own. Two `value_set_uri` 
 real in this codebase: a module-qualified URI (`implicit_value_set_url`'s own output) is
 self-describing, so the module id and any pinned version are read straight back out of
 it, and a pinned version is never silently dropped in favour of an unpinned edition. A
-*bare-system* URI (PRD S6.6's own worked example, and what `nptc.db.bootstrap`'s real
+*bare-system* URI (PRD S6.6's own worked example, and what `aptc.db.bootstrap`'s real
 seeded `specimen` binding actually stores) carries no module at all, so the stored
 `PropertyDefinition.edition` label is matched against the two known editions instead,
 raising rather than fabricating an `Edition` for a label that matches neither. Either way,
@@ -330,7 +330,7 @@ Ontoserver's implementation is a word-prefix match against each candidate's disp
 a general substring match - so a picker's search-as-you-type narrows results without
 pulling the whole expansion client-side first. `list_local_codes`'s own `filter` is a
 plain, case-insensitive `ILIKE` substring match against `display` only (never `code`) -
-proportionate to a governed vocabulary's handful of codes, not `nptc.catalogue.search`'s
+proportionate to a governed vocabulary's handful of codes, not `aptc.catalogue.search`'s
 trigram/full-text ranking built for the whole catalogue. The two branches' matching
 semantics are therefore not identical even though the response shape is - see
 [ADR-0031](../adr/0031-coded-property-values-addressed-by-property-key.md) for why that
@@ -356,7 +356,7 @@ not public catalogue browsing.
 
 | Condition | HTTP |
 |---|---|
-| Unknown `key` | 404 (`PropertyDefinitionNotFoundError`, reused from `nptc.catalogue.property_values`) |
+| Unknown `key` | 404 (`PropertyDefinitionNotFoundError`, reused from `aptc.catalogue.property_values`) |
 | `key` names a real property that is not `datatype == "code"` | 422 (`PropertyNotCodeTypeError`) |
 | `offset`/`count` query parameter fails validation | 422 (FastAPI's own `HTTPValidationError`) |
 | The property's stored `value_set_uri` is not a well-formed implicit ECL value set URI, or names a SNOMED module id this codebase does not recognise | 500 (`PropertyValueSourceMisconfiguredError`) |
@@ -366,7 +366,7 @@ not public catalogue browsing.
 ## Entry detail: live SNOMED CT synonyms (issue #517)
 
 Every entry detail route fills `EntryDetail.snomed_synonyms` from
-`nptc.terminology.synonyms.SnomedSynonymSource`. This covers the public routes and
+`aptc.terminology.synonyms.SnomedSynonymSource`. This covers the public routes and
 `GET /catalogue/admin/entries/{business_key}`. It is the only terminology call on a public
 read path. The synonyms are display-only and never stored.
 
@@ -411,7 +411,7 @@ say so. A true en-AU filter needs a server that exposes acceptability.
 | Outage window | 60 s | After a retryable failure, every code is `unavailable` with no request, so an outage costs one timeout a minute. |
 | Other failure lifetime | 60 s, per code | A malformed answer for one code is retried a minute later. |
 | Maximum codes held | 10,000 | The catalogue holds about 2,000 active bindings, with a ceiling near 5,000. |
-| Timeout | 3 s, or `NPTC_TX_TIMEOUT_SECONDS` if shorter | Live lookups took 0.3 to 0.9 s on 2026-10-09. |
+| Timeout | 3 s, or `APTC_TX_TIMEOUT_SECONDS` if shorter | Live lookups took 0.3 to 0.9 s on 2026-10-09. |
 | Retries | None | The page waits on this call. |
 
 The cache is in process, so each API process holds its own. The timeout and retries come
@@ -432,12 +432,12 @@ An absent code shows no synonyms rather than "try again later", because waiting 
 fix it. Reporting the code itself is the validation sweep's job (FR-45). The hour, not a
 day, is because Ontoserver returns the same 404 with a `not-found` issue when the server
 lacks the AU edition entirely ("A usable code system ... could not be resolved", checked
-2026-10-09). A misconfigured `NPTC_TX_BASE_URL` then hides synonyms for at most an hour
+2026-10-09). A misconfigured `APTC_TX_BASE_URL` then hides synonyms for at most an hour
 after it is fixed. A
-`TerminologyConfigError` propagates to the 500 that `nptc.api.errors` gives it.
+`TerminologyConfigError` propagates to the 500 that `aptc.api.errors` gives it.
 
 **The lookup runs with no database connection held.** The detail builders read every stored
-row, then call `nptc.db.session.end_read_transaction` before the lookup. Otherwise each
+row, then call `aptc.db.session.end_read_transaction` before the lookup. Otherwise each
 request would hold a pooled connection, idle in a transaction, for up to 3 s. During an
 outage a handful of first views could then exhaust the pool and stall every other route.
 
@@ -458,7 +458,7 @@ FSN is a stale label, which FR-82 forbids. Neither applies to the synonyms:
 
 - FR-47's *forecast* finding — a concept inactivated in International while still active in
   AU. `TerminologySweep` reports status per edition and the transform combines them
-  (`nptc_transform.terminology_check`), but the forecast, with its expected AU release date,
+  (`aptc_transform.terminology_check`), but the forecast, with its expected AU release date,
   belongs to the scheduled validation sweep.
 - FR-54's degradation *policy* — incomplete runs, cached prior results staying visible and
   dated. The sweep's obligation stops at raising; the transform CLI's response is to exit 3

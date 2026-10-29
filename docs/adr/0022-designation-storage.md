@@ -54,7 +54,7 @@ about forbidding preferred designations generally.
 
 `backend/tests/test_catalogue_designations.py` asserts the boundary directly:
 `designation` has no `au_preferred_term`/`fsn` column, and
-`nptc.catalogue.designations` has no dependency on the (not-yet-built) code-binding
+`aptc.catalogue.designations` has no dependency on the (not-yet-built) code-binding
 module - so a future change that starts copying a served label into a designation row
 fails a test rather than passing review unnoticed.
 
@@ -63,7 +63,7 @@ fails a test rather than passing review unnoticed.
 `Length` is "the character count of the RCPA preferred term" - and since that string
 never lives on `designation` (the row above), the computed-length property has to sit
 on `CatalogueEntry`, not `Designation`, or it silently computes the wrong entity's
-length. `CatalogueEntry.length` (`nptc.catalogue.term_hygiene.preferred_term_length`
+length. `CatalogueEntry.length` (`aptc.catalogue.term_hygiene.preferred_term_length`
 applied to `preferred_term`) is the field FR-85 actually publishes;
 `Designation.length` applies the same computation to a designation's own `term` for
 the same reason, but is a distinct, non-authoritative figure.
@@ -95,12 +95,12 @@ code binding is created) with no preferred term at all.
 
 ### Term hygiene: clean the normalisable, reject the ambiguous
 
-`nptc.catalogue.term_hygiene.clean_term` (called from both `CatalogueEntry`'s and
+`aptc.catalogue.term_hygiene.clean_term` (called from both `CatalogueEntry`'s and
 `Designation`'s own `@validates("preferred_term"/"term")` hooks - a single function
 applied to both fields, since FR-85's published length depends on the same cleaning
 having already happened to `CatalogueEntry.preferred_term`) collapses every
 normalisable space - a non-breaking space, a narrow no-break space (PRD Appendix A.1) -
-to an ordinary space and strips the edges, via `nptc_shared.text.
+to an ordinary space and strips the edges, via `aptc_shared.text.
 normalise_for_comparison` (the same function the P0 transform and FR-05 collision
 detection already share, ADR-0001). This mirrors FR-71's own doctrine: a normalisable
 space has exactly one deterministic repair, so correcting it silently is correct, not a
@@ -112,7 +112,7 @@ control character - has no single correct repair, so it is rejected
 "prohibition at entry" half: the platform does not merely clean up defects on ingestion
 from the legacy spreadsheet, it refuses to accept new ones typed directly into the
 system, on either field. The error message quotes the offending character escaped
-(`nptc_shared.text.escape_invisible`), never raw, per NFR-38 test 2.
+(`aptc_shared.text.escape_invisible`), never raw, per NFR-38 test 2.
 
 ### Rejected: reject every invisible character outright
 
@@ -131,7 +131,7 @@ Strip or collapse every invisible character, with no rejection path at all.
 
 Rejected because a zero-width space, bidi override, or control character has no single
 correct repair - silently deciding one on the caller's behalf risks changing what the
-term actually says, contradicting `nptc_shared.text`'s own established doctrine for
+term actually says, contradicting `aptc_shared.text`'s own established doctrine for
 `is_normalisable_space`.
 
 ## Consequences

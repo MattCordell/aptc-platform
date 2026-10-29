@@ -76,7 +76,7 @@ function EntryView({
   entry: EntryDetail;
   refreshFailed: boolean;
 }) {
-  useDocumentTitle(`${entry.preferred_term} — NPTC Catalogue`);
+  useDocumentTitle(`${entry.preferred_term} — APTC Catalogue`);
   const { message, politeness, announce } = useAnnounce();
   const canPropose = useAuthStatus() === "signed-in" && entry.status === "active";
 

@@ -15,17 +15,17 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 from sqlalchemy.orm import Session
 
-from nptc.audit.hashing import GENESIS_HASH
-from nptc.audit.writer import AuditContext
-from nptc.auth.errors_authorisation import LastAdministratorError
-from nptc.auth.grants import grant_role_unchecked, roles_for_user
-from nptc.auth.identity import close_account
-from nptc.auth.permissions import Role
-from nptc.db.models.submission import Submission, SubmissionKind, SubmissionState
-from nptc.db.models.submission_interest import SubmissionInterest
-from nptc.db.models.user import User, UserStatus
-from nptc.db.models.user_identity import UserIdentity
-from nptc.submissions.interest import interest_summaries, register_interest
+from aptc.audit.hashing import GENESIS_HASH
+from aptc.audit.writer import AuditContext
+from aptc.auth.errors_authorisation import LastAdministratorError
+from aptc.auth.grants import grant_role_unchecked, roles_for_user
+from aptc.auth.identity import close_account
+from aptc.auth.permissions import Role
+from aptc.db.models.submission import Submission, SubmissionKind, SubmissionState
+from aptc.db.models.submission_interest import SubmissionInterest
+from aptc.db.models.user import User, UserStatus
+from aptc.db.models.user_identity import UserIdentity
+from aptc.submissions.interest import interest_summaries, register_interest
 
 # A fixed, valid-shape (64 lowercase hex) placeholder pair for prev_hash/
 # entry_hash - this test is about the byte-for-byte-unchanged assertion

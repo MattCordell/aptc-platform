@@ -4,13 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-The NPTC Catalogue Maintenance Platform: a web platform replacing a hand-edited Excel
-workbook for maintaining the National Pathology Test Catalogue (the SPIA Requesting
+The APTC Catalogue Maintenance Platform: a web platform replacing a hand-edited Excel
+workbook for maintaining the pathology test catalogue (the SPIA Requesting
 terminology, curated by RCPA-QAP, published by NCTS as a SNOMED CT reference set and
 FHIR ValueSet).
 
 **Status: P1 (core catalogue) in progress.** The P0 seeding transform
-(`transform/src/nptc_transform/`) is complete, and the backend implements a large part of
+(`transform/src/aptc_transform/`) is complete, and the backend implements a large part of
 P1. Most packages for later phases are still stubs: an `__init__.py` whose docstring
 names the PRD phase that lands it. `docs/requirements/requirements.yaml` records each
 requirement's status (`implemented`, `in-progress`, `planned` or `deferred`). The whole
@@ -18,7 +18,7 @@ stack runs from one command (`docker compose -f deploy/compose.yml up -d --build
 NFR-41), documented in `docs/operations/deployment.md`. Don't assume an entity, endpoint, or table described in the PRD already
 exists — check the actual module before writing code that depends on it.
 
-The authority for all behaviour is `docs/prd/NPTC-Catalogue-Platform-PRD.md`. Every
+The authority for all behaviour is `docs/prd/APTC-Catalogue-Platform-PRD.md`. Every
 requirement is cited as `FR-nn` (functional) or `NFR-nn` (non-functional) and those IDs
 are stable — use them in commits, tests, and code comments instead of restating the
 requirement. `docs/adr/` records technology decisions and the alternatives rejected;
@@ -29,10 +29,10 @@ read one before relitigating a stack choice.
 This is a polyglot monorepo: a `uv` workspace for Python, a `pnpm` workspace for the
 frontend, one shared root git repo.
 
-The `shared/` package (`nptc_shared`) is imported by BOTH `backend/` and `transform/`
+The `shared/` package (`aptc_shared`) is imported by BOTH `backend/` and `transform/`
 (SCTID/Verhoeff validation, terminology client contract) so there is never a second,
 divergent implementation (ADR-0001, FR-74). `scripts/` is repo governance tooling, not
-part of the app runtime. Each `backend/src/nptc/*` package's `__init__.py` docstring
+part of the app runtime. Each `backend/src/aptc/*` package's `__init__.py` docstring
 states what that package is responsible for, including the stub packages not built yet.
 
 ## Technology stack (ADR-0001)

@@ -544,14 +544,14 @@ describe("TriageSubmission approval (FR-28, FR-35)", () => {
 
   it("names the entry an amendment changes", async () => {
     stubApi([
-      detailRoute({ ...READY, kind: "amendment", entry_business_key: "NPTC-000247" }),
+      detailRoute({ ...READY, kind: "amendment", entry_business_key: "APTC-000247" }),
     ]);
     const { container } = renderPanel();
     const dialog = await openDialog("Approve");
 
     expect(
       within(dialog).getByText(
-        "Approve Ferritin level. Approving changes the catalogue entry NPTC-000247.",
+        "Approve Ferritin level. Approving changes the catalogue entry APTC-000247.",
       ),
     ).toBeVisible();
     expect(within(dialog).queryByText(/new active entry/)).toBeNull();

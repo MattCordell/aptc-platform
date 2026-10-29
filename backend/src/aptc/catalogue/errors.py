@@ -1,0 +1,102 @@
+"""The conflict error surfaced by a stale `row_version` save (FR-38, NFR-38
+test 8).
+
+`EntryVersionConflictError` is deliberately **not** a subclass of
+`aptc.auth.errors_authorisation.AuthorisationError`: that hierarchy is scoped
+to credential and permission refusals ("we know who you are; you may not do
+this"), and a version conflict is neither. It carries the same
+`http_status: ClassVar[int]` convention as the rest of this package, which
+`aptc.api.errors` reads.
+
+FR-38 rejects silent last-write-wins "because it produces an audit trail that
+records a change that was immediately and invisibly discarded". So the
+error's `conflicts` payload lets the caller reconcile, not just retry blind.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import ClassVar
+
+
+@dataclass(frozen=True)
+class FieldConflict:
+    """One field the caller tried to change, whose value has moved since
+    they loaded the entry."""
+
+    field: str
+    submitted: object
+    current: object
+
+
+@dataclass(frozen=True)
+class ConflictReport:
+    """Everything a caller needs to reconcile a rejected save - the acceptance
+    criterion's "the caller is shown the conflicting changes", not a bare 409.
+
+    `conflicts` is populated only where the *submitted* value differs from the
+    *current* one for a field the caller tried to change. A concurrent edit
+    to a different field still rejects (the version is the contract) but
+    reports an empty `conflicts` tuple. `current_row_version`, `changed_by`
+    and `changed_at` are always populated, but a UI relying solely on
+    `conflicts` has nothing actionable to show for a non-overlapping-field
+    conflict. Filling that gap from the audit log's own diff is left to the
+    edit screens."""
+
+    business_key: str
+    expected_row_version: int
+    current_row_version: int
+    conflicts: tuple[FieldConflict, ...] = field(default_factory=tuple)
+    #: Display name only, never the internal UUID (NFR-04/NFR-26) - resolved
+    #: from `app_user.display_name` by `aptc.catalogue.entries.
+    #: _latest_change_attribution`, `None` for a system-initiated change or
+    #: one whose actor account has since been pseudonymised (NFR-17).
+    changed_by: str | None = None
+    changed_at: datetime | None = None
+
+
+class EntryVersionConflictError(RuntimeError):
+    """Raised by `aptc.catalogue.entries.save_entry`/`save_entries` when
+    the caller's `expected_row_version` no longer matches the stored row -
+    either because another save already landed (the common case, caught
+    before any mutation is attempted) or because a concurrent save won the
+    genuine race between load and flush (caught via SQLAlchemy's own
+    `StaleDataError`, which `version_id_col` raises as the backstop for
+    exactly that race). Both paths raise this one type so a caller need
+    not distinguish them."""
+
+    http_status: ClassVar[int] = 409
+
+    def __init__(self, report: ConflictReport) -> None:
+        super().__init__(
+            f"stale row_version for {report.business_key}: expected "
+            f"{report.expected_row_version}, current {report.current_row_version}"
+        )
+        self.report = report
+
+
+class EntryNotFoundError(LookupError):
+    """Raised when no `catalogue_entry` matches the given `business_key` -
+    a distinct, HTTP-shaped type (rather than a bare stdlib `LookupError`)
+    mapped to 404 by `aptc.api.errors.register_exception_handlers` via the
+    same "read the ClassVar" convention `EntryVersionConflictError` uses,
+    rather than falling through to an unhandled 500."""
+
+    http_status: ClassVar[int] = 404
+
+
+class CodeLookupNotFoundError(LookupError):
+    """Raised by `aptc.catalogue.code_systems` and
+    `aptc.catalogue.queries.get_entry_by_code` when an FR-17 exact-code lookup
+    route (`GET /catalogue/code/{system_token}/{code}` or
+    `GET /catalogue/lookup`) has nothing to resolve.
+
+    Deliberately the **one** exception for two causes - an unregistered
+    `system_token` or URI, and a registered one with no matching published
+    entry - so the response body cannot tell them apart (see
+    `aptc.catalogue.code_systems`, ADR-0033). Mapped to 404 by
+    `aptc.api.errors.register_exception_handlers`, with a fixed detail
+    sentence naming the registered tokens."""
+
+    http_status: ClassVar[int] = 404

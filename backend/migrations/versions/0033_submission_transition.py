@@ -5,7 +5,7 @@ Revises: 0032
 Create Date: 2026-10-14
 
 FR-28, NFR-08: the `Triage` state, and `submission_transition`, one row per change of a submission's
-state. See `nptc.db.models.submission_transition` for the reasoning.
+state. See `aptc.db.models.submission_transition` for the reasoning.
 
 The grants live in this migration with the table. `UPDATE`, `DELETE` and `TRUNCATE` are revoked, so
 the history of a submission's moves is never edited or removed, at the privilege level.
@@ -22,7 +22,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-from nptc.db import roles
+from aptc.db import roles
 
 # revision identifiers, used by Alembic.
 revision: str = "0033"

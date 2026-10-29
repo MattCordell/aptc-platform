@@ -193,7 +193,7 @@ export interface paths {
          *     unambiguous-lookup acceptance criterion).
          *
          *     `system_token` is a short alias registered in
-         *     `nptc.catalogue.code_systems` - `sct` for `http://snomed.info/sct`
+         *     `aptc.catalogue.code_systems` - `sct` for `http://snomed.info/sct`
          *     today. `code` is never validated against a code shape here: an
          *     unrecognised code and a malformed one both resolve to nothing and get
          *     the identical 404 (see `PUBLIC_CODE_LOOKUP_ERROR_RESPONSES`).
@@ -218,7 +218,7 @@ export interface paths {
          * One published catalogue entry, resolved by system URI and exact code (FR-17)
          * @description The full-URI sibling of `GET /catalogue/code/{system_token}/{code}` -
          *     see that route's docstring for the shared-body and shared-404
-         *     guarantees. `system` must be one of `nptc.catalogue.code_systems.
+         *     guarantees. `system` must be one of `aptc.catalogue.code_systems.
          *     SYSTEM_TOKENS`' registered URIs; an unregistered one is a 404 on the
          *     identical sentence an unregistered `system_token` gets.
          */
@@ -544,7 +544,7 @@ export interface paths {
          * Search catalogue entries by term, any status
          * @description The `catalogue.edit_published`-gated counterpart to `catalogue.py`'s
          *     public `search`: identical ranking, threshold and keyset paging
-         *     (`nptc.catalogue.search`, called with `statuses=maintenance.
+         *     (`aptc.catalogue.search`, called with `statuses=maintenance.
          *     MAINTENANCE_STATUSES` instead of the default `PUBLIC_STATUSES`), so a
          *     draft, deprecated or withdrawn entry is findable by an administrator the
          *     same way an active one is findable by anyone.
@@ -554,7 +554,7 @@ export interface paths {
          *     is non-degenerate here (every status an administrator might filter by),
          *     unlike the public surface's single-bucket `active` facet.
          *
-         *     Hits carry `row_version` - `nptc.catalogue.search.SearchHit` reads it
+         *     Hits carry `row_version` - `aptc.catalogue.search.SearchHit` reads it
          *     straight off `scored`'s own join to `catalogue_entry`, see that
          *     module's docstring - so `AdminSearchHit`, not the public `SearchHit`,
          *     carries it onto the wire here.
@@ -636,7 +636,7 @@ export interface paths {
          *     cell-by-cell against the PRD's own table, so minting one would need a PRD
          *     change.
          *
-         *     One statement (`nptc.catalogue.length_report.compute_length_distribution`)
+         *     One statement (`aptc.catalogue.length_report.compute_length_distribution`)
          *     regardless of the catalogue's size - FR-87's own acceptance criterion that
          *     this runs against the 20,000-entry design ceiling without timing out.
          */
@@ -752,7 +752,7 @@ export interface paths {
          *     for a value beyond the picker page's own `DEFAULT_PAGE_SIZE` ceiling.
          *     Resolves `key`'s own binding and answers from Ontoserver or the
          *     `LocalCode` table - see
-         *     `nptc.catalogue.property_value_sources.list_property_values`/
+         *     `aptc.catalogue.property_value_sources.list_property_values`/
          *     `resolve_property_values` for the only places that branch on
          *     `binding_target`; this route and `PropertyValuePage` never see it.
          *
@@ -1194,7 +1194,7 @@ export interface paths {
          * Export the filtered audit log as NDJSON (NFR-12)
          * @description One JSON object per line, oldest first, including `prev_hash`/
          *     `entry_hash` for cross-referencing a line against its stored row - see
-         *     `nptc.audit.queries.AuditEventRow`'s own docstring for why that is a
+         *     `aptc.audit.queries.AuditEventRow`'s own docstring for why that is a
          *     narrower guarantee than standalone recomputation, and `stream_audit_
          *     events`'s own docstring for why the order differs from the read route
          *     above. The whole filtered set, not one page: an export has no
@@ -1217,8 +1217,8 @@ export interface components {
          * AcknowledgeCollisionRequest
          * @description The body of `POST .../designations/acknowledgement`. `term` is the
          *     surface form the caller is acknowledging a warning for - resolved to a
-         *     comparison key here (`nptc.catalogue.designations.clean_term` then
-         *     `nptc_shared.similarity.collision_key`), matching what
+         *     comparison key here (`aptc.catalogue.designations.clean_term` then
+         *     `aptc_shared.similarity.collision_key`), matching what
          *     `warning_collisions` itself keys on, so acknowledging any surface form
          *     that folds to the same key silences the same warning.
          */
@@ -1395,7 +1395,7 @@ export interface components {
          * AmendDesignationRequest
          * @description The body of `POST .../designations/amendment`. `term` addresses the
          *     designation to edit; `new_term` is what it becomes. Editing in place
-         *     (rather than retire-and-re-add) is `nptc.catalogue.designations.
+         *     (rather than retire-and-re-add) is `aptc.catalogue.designations.
          *     amend_designation`'s own choice - see that function's docstring.
          *
          *     `term` also addresses the entry's *own* preferred term, which is
@@ -1436,7 +1436,7 @@ export interface components {
          *     never has to be followed by a re-fetch just to learn the new token. It
          *     advances on both branches (FR-38): a `designation` row has no version
          *     of its own, but amending one bumps the entry's counter via
-         *     `nptc.catalogue.entries.entry_child_write`, the same way the
+         *     `aptc.catalogue.entries.entry_child_write`, the same way the
          *     preferred-term branch's `save_entry` always has.
          *
          *     `warnings` carries a `LengthWarning` (FR-86) only on the preferred-term
@@ -1455,7 +1455,7 @@ export interface components {
          * @description The body of `PATCH /registry/properties/{key}`. Deliberately carries
          *     no `key` field (FR-12) and forbids any extra field a client might try to
          *     smuggle one in as - `extra="forbid"` turns a `key` in the body into a
-         *     pydantic 422 before this ever reaches `nptc.db.definitions.
+         *     pydantic 422 before this ever reaches `aptc.db.definitions.
          *     amend_definition`.
          *
          *     **An explicit `null` on a known field is refused, not a silent no-op.**
@@ -1580,7 +1580,7 @@ export interface components {
         /**
          * AuditActor
          * @description The acting user, resolved by internal id (NFR-13, NFR-17) - see
-         *     `nptc.audit.queries`'s own module docstring for why a bare display
+         *     `aptc.audit.queries`'s own module docstring for why a bare display
          *     name is not enough on this Administrator-only surface.
          *
          *     `display_name` is `null` for a closed (tombstoned) account -
@@ -1601,7 +1601,7 @@ export interface components {
         /**
          * AuditEventItem
          * @description One `audit_event` row, served close to verbatim (NFR-12) - see
-         *     `nptc.audit.queries`'s own module docstring for why `before`/`after`
+         *     `aptc.audit.queries`'s own module docstring for why `before`/`after`
          *     are raw here rather than the field-names-only projection FR-19's
          *     public history surface uses. `actor` is `null` for a system-initiated
          *     event, never a name-only fallback.
@@ -1648,8 +1648,8 @@ export interface components {
          * BindCodeRequest
          * @description The body of `POST /catalogue/entries/{business_key}/bindings`.
          *
-         *     `code` is a string end-to-end (FR-06) - `nptc.catalogue.bindings.
-         *     create_binding` validates it via `nptc_shared.sctid.SCTID` before any
+         *     `code` is a string end-to-end (FR-06) - `aptc.catalogue.bindings.
+         *     create_binding` validates it via `aptc_shared.sctid.SCTID` before any
          *     row is touched. `fsn`/`au_preferred_term` are carried through exactly
          *     as submitted (FR-82); this screen is the one place they are meant to be
          *     typed in, and neither is cleaned or re-derived here or anywhere else.
@@ -1675,7 +1675,7 @@ export interface components {
          *     `code` is a string, always (FR-06). `fsn` is served exactly as stored -
          *     FR-82's as-served guarantee - with no strip applied anywhere on this
          *     read path; `label_provenance["fsn"]` is FR-98's declaration of that
-         *     fact (`semantic_tag` is config-driven, see `nptc.api.labels.
+         *     fact (`semantic_tag` is config-driven, see `aptc.api.labels.
          *     fsn_provenance`), not a second, silently-stripped copy of the label.
          *
          *     A retired binding carries `retirement_reason` and, where PRD FR-08's
@@ -1752,7 +1752,7 @@ export interface components {
          * BulkPropertyEntryTarget
          * @description One `(business_key, expected_row_version)` selection for the bulk
          *     write - the version this entry held when the caller selected it, not
-         *     resolved server-side (see `nptc.catalogue.property_values.
+         *     resolved server-side (see `aptc.catalogue.property_values.
          *     EntryPropertyTarget`'s own docstring for why a filter expression could
          *     never do this instead, ADR-0035).
          *
@@ -1771,7 +1771,7 @@ export interface components {
         };
         /**
          * BulkPropertyOutcomeItem
-         * @description One target's result, in request order - see `nptc.catalogue.
+         * @description One target's result, in request order - see `aptc.catalogue.
          *     property_values.BulkPropertyOutcome`'s own docstring for what each
          *     `status` means and when `row_version`/`conflict` are populated. No
          *     `values` echo: the batch wrote one set every caller already has.
@@ -1864,7 +1864,7 @@ export interface components {
          *     *colliding* entry's own catalogue preferred term, the identical field
          *     and designation type as `EntrySummary.preferred_term` - matching
          *     `CollisionWarning`'s own reasoning for its own `preferred_term` field
-         *     (`nptc.api.routers.catalogue_designations`), the 200-path twin of this
+         *     (`aptc.api.routers.catalogue_designations`), the 200-path twin of this
          *     409 body.
          */
         CollisionItem: {
@@ -1973,7 +1973,7 @@ export interface components {
          *     produce. `resolved_version` is FR-48: which release actually answered.
          *
          *     Deliberately carries no `display_term` - see
-         *     `nptc.terminology.concepts`'s own module docstring for why computing
+         *     `aptc.terminology.concepts`'s own module docstring for why computing
          *     one here would risk a permanent 500 on a later read of whatever this
          *     value feeds.
          *
@@ -2976,7 +2976,7 @@ export interface components {
          *     for an FSN - whether the semantic tag is intact or stripped.
          *
          *     Frozen, matching every other response model in this package
-         *     (`nptc.api.routers.catalogue_shared`): provenance describes a field
+         *     (`aptc.api.routers.catalogue_shared`): provenance describes a field
          *     that has already been assembled, never something a caller mutates.
          */
         LabelProvenance: {
@@ -2988,7 +2988,7 @@ export interface components {
          * @description Every entry whose preferred term is exactly `length` characters long,
          *     plus how many entries a maximum set to `length` would warn on (FR-86
          *     warns when a term's length *exceeds* the configured maximum, so this
-         *     counts strictly greater - `nptc.catalogue.length_report.
+         *     counts strictly greater - `aptc.catalogue.length_report.
          *     LengthBucket.entries_exceeding`'s own comparison).
          *
          *     One shape carrying both figures, rather than two parallel lists a caller
@@ -3034,7 +3034,7 @@ export interface components {
          *
          *     Only ever produced on `amend_designation_route`'s preferred-term
          *     branch: FR-85's `length` is defined against the catalogue's own
-         *     preferred term (`nptc.catalogue.term_hygiene.preferred_term_length`),
+         *     preferred term (`aptc.catalogue.term_hygiene.preferred_term_length`),
          *     which lives on `catalogue_entry.preferred_term`, never on a
          *     `designation` row (ADR-0022) - there is no other branch this could ever
          *     apply to.
@@ -3180,7 +3180,7 @@ export interface components {
         /**
          * PropertyIssueItem
          * @description One field-level problem with an attempted property-value write - the
-         *     wire shape of `nptc.catalogue.property_values.PropertyWriteIssue`.
+         *     wire shape of `aptc.catalogue.property_values.PropertyWriteIssue`.
          *     `ordinal` is `None` for a cardinality issue that applies to the
          *     property as a whole rather than one value in it.
          */
@@ -3273,7 +3273,7 @@ export interface components {
          * PropertyValueItemRequest
          * @description One value to save, paired with its own `justification` - FR-10's
          *     extensible-strength case needs both together (see
-         *     `nptc.catalogue.property_values.PropertyValueInput`'s own docstring).
+         *     `aptc.catalogue.property_values.PropertyValueInput`'s own docstring).
          */
         PropertyValueItemRequest: {
             /** Value */
@@ -3325,7 +3325,7 @@ export interface components {
          * @description The body of `POST .../designations/reinstatement`.
          *     `term` addresses the designation to reinstate - resolved against the
          *     most-recently-retired row matching `(entry, term)`
-         *     (`nptc.catalogue.designations.load_retired_designation`), never a
+         *     (`aptc.catalogue.designations.load_retired_designation`), never a
          *     specific row's internal id, matching every other route in this module.
          */
         ReinstateDesignationRequest: {
@@ -3574,7 +3574,7 @@ export interface components {
          * SessionResponse
          * @description What the browser is allowed to know about its own session.
          *
-         *     `user` is `nptc.auth.identity.UserRef`, reused rather than redefined:
+         *     `user` is `aptc.auth.identity.UserRef`, reused rather than redefined:
          *     it is this codebase's existing NFR-04 serialisation boundary and
          *     structurally excludes `app_user.id`. Defining a second response model
          *     with the same fields is exactly how that internal id eventually leaks.
@@ -3603,7 +3603,7 @@ export interface components {
          *     Never stored, so never part of `row_version` or the audit trail. `terms` excludes the FSN
          *     and the binding's AU preferred term, and is not limited to en-AU: no FHIR operation
          *     separates the AU-acceptable synonyms, so US spellings can appear (see
-         *     `nptc.terminology.synonyms`). `status` is `unavailable` when the server could not answer;
+         *     `aptc.terminology.synonyms`). `status` is `unavailable` when the server could not answer;
          *     `terms` is then empty, which is not the same as `available` with no terms. A code missing
          *     from the current AU edition is `available` with no terms.
          */
@@ -4588,7 +4588,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description A query or path parameter was unprocessable - a business key that is not `NPTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored. */
+            /** @description A query or path parameter was unprocessable - a business key that is not `APTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -4646,7 +4646,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description A query or path parameter was unprocessable - a business key that is not `NPTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored. */
+            /** @description A query or path parameter was unprocessable - a business key that is not `APTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -4673,7 +4673,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The entry's public identifier, e.g. `NPTC-000247` (FR-03). */
+                /** @description The entry's public identifier, e.g. `APTC-000247` (FR-03). */
                 business_key: string;
             };
             cookie?: never;
@@ -4707,7 +4707,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description A query or path parameter was unprocessable - a business key that is not `NPTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored. */
+            /** @description A query or path parameter was unprocessable - a business key that is not `APTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -4734,7 +4734,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The entry's public identifier, e.g. `NPTC-000247` (FR-03). */
+                /** @description The entry's public identifier, e.g. `APTC-000247` (FR-03). */
                 business_key: string;
             };
             cookie?: never;
@@ -4853,7 +4853,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description A query or path parameter was unprocessable - a business key that is not `NPTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored. */
+            /** @description A query or path parameter was unprocessable - a business key that is not `APTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -4916,7 +4916,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description A query or path parameter was unprocessable - a business key that is not `NPTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored. */
+            /** @description A query or path parameter was unprocessable - a business key that is not `APTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -4943,7 +4943,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The entry's public identifier, e.g. `NPTC-000247` (FR-03). */
+                /** @description The entry's public identifier, e.g. `APTC-000247` (FR-03). */
                 business_key: string;
             };
             cookie?: never;
@@ -4977,7 +4977,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description A query or path parameter was unprocessable - a business key that is not `NPTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored. */
+            /** @description A query or path parameter was unprocessable - a business key that is not `APTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -5004,7 +5004,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The entry's public identifier, e.g. `NPTC-000247` (FR-03). */
+                /** @description The entry's public identifier, e.g. `APTC-000247` (FR-03). */
                 business_key: string;
             };
             cookie?: never;
@@ -5087,7 +5087,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The entry's public identifier, e.g. `NPTC-000247` (FR-03). */
+                /** @description The entry's public identifier, e.g. `APTC-000247` (FR-03). */
                 business_key: string;
             };
             cookie?: never;
@@ -5121,7 +5121,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description A query or path parameter was unprocessable - a business key that is not `NPTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored. */
+            /** @description A query or path parameter was unprocessable - a business key that is not `APTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -5148,7 +5148,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The entry's public identifier, e.g. `NPTC-000247` (FR-03). */
+                /** @description The entry's public identifier, e.g. `APTC-000247` (FR-03). */
                 business_key: string;
             };
             cookie?: never;
@@ -5242,7 +5242,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The entry's public identifier, e.g. `NPTC-000247` (FR-03). */
+                /** @description The entry's public identifier, e.g. `APTC-000247` (FR-03). */
                 business_key: string;
             };
             cookie?: never;
@@ -5276,7 +5276,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description A query or path parameter was unprocessable - a business key that is not `NPTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored. */
+            /** @description A query or path parameter was unprocessable - a business key that is not `APTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -5308,7 +5308,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                /** @description The entry's public identifier, e.g. `NPTC-000247` (FR-03). */
+                /** @description The entry's public identifier, e.g. `APTC-000247` (FR-03). */
                 business_key: string;
             };
             cookie?: never;
@@ -5342,7 +5342,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description A query or path parameter was unprocessable - a business key that is not `NPTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored. */
+            /** @description A query or path parameter was unprocessable - a business key that is not `APTC-nnnnnn`, a blank search query, a cursor this API did not issue (including one issued for a different `q` or a different filter set), a `limit` outside its range, or a `filter.*` parameter naming a facet this endpoint does not offer, an operator the facet does not support, or a value the property cannot hold. A filter is never silently ignored. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -5369,7 +5369,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The entry's public identifier, e.g. `NPTC-000247` (FR-03). */
+                /** @description The entry's public identifier, e.g. `APTC-000247` (FR-03). */
                 business_key: string;
                 code: string;
             };
@@ -5462,7 +5462,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The entry's public identifier, e.g. `NPTC-000247` (FR-03). */
+                /** @description The entry's public identifier, e.g. `APTC-000247` (FR-03). */
                 business_key: string;
                 code: string;
             };
@@ -5555,7 +5555,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The entry's public identifier, e.g. `NPTC-000247` (FR-03). */
+                /** @description The entry's public identifier, e.g. `APTC-000247` (FR-03). */
                 business_key: string;
             };
             cookie?: never;
@@ -5638,7 +5638,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The entry's public identifier, e.g. `NPTC-000247` (FR-03). */
+                /** @description The entry's public identifier, e.g. `APTC-000247` (FR-03). */
                 business_key: string;
             };
             cookie?: never;
@@ -5721,7 +5721,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The entry's public identifier, e.g. `NPTC-000247` (FR-03). */
+                /** @description The entry's public identifier, e.g. `APTC-000247` (FR-03). */
                 business_key: string;
             };
             cookie?: never;
@@ -5804,7 +5804,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The entry's public identifier, e.g. `NPTC-000247` (FR-03). */
+                /** @description The entry's public identifier, e.g. `APTC-000247` (FR-03). */
                 business_key: string;
             };
             cookie?: never;
@@ -5887,7 +5887,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The entry's public identifier, e.g. `NPTC-000247` (FR-03). */
+                /** @description The entry's public identifier, e.g. `APTC-000247` (FR-03). */
                 business_key: string;
                 key: string;
             };
@@ -6196,7 +6196,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The entry's public identifier, e.g. `NPTC-000247` (FR-03). */
+                /** @description The entry's public identifier, e.g. `APTC-000247` (FR-03). */
                 business_key: string;
             };
             cookie?: never;
@@ -6239,7 +6239,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description The business key is not `NPTC-nnnnnn`. */
+            /** @description The business key is not `APTC-nnnnnn`. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -6271,7 +6271,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                /** @description The entry's public identifier, e.g. `NPTC-000247` (FR-03). */
+                /** @description The entry's public identifier, e.g. `APTC-000247` (FR-03). */
                 business_key: string;
             };
             cookie?: never;
@@ -6314,7 +6314,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description The business key is not `NPTC-nnnnnn`, `limit` is outside its range, or `before` is not a cursor this API issued. */
+            /** @description The business key is not `APTC-nnnnnn`, `limit` is outside its range, or `before` is not a cursor this API issued. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -7143,7 +7143,7 @@ export interface operations {
                     "application/json": components["schemas"]["SubmissionQuotaResponse"] | components["schemas"]["RateLimitedResponse"];
                 };
             };
-            /** @description The service is misconfigured, not a caller mistake - a malformed `NPTC_TX_*` value. Retrying will not clear it. */
+            /** @description The service is misconfigured, not a caller mistake - a malformed `APTC_TX_*` value. Retrying will not clear it. */
             500: {
                 headers: {
                     [name: string]: unknown;
@@ -7250,7 +7250,7 @@ export interface operations {
                     "application/json": components["schemas"]["SubmissionQuotaResponse"] | components["schemas"]["RateLimitedResponse"];
                 };
             };
-            /** @description The service is misconfigured, not a caller mistake - a malformed `NPTC_TX_*` value. Retrying will not clear it. */
+            /** @description The service is misconfigured, not a caller mistake - a malformed `APTC_TX_*` value. Retrying will not clear it. */
             500: {
                 headers: {
                     [name: string]: unknown;
@@ -8544,7 +8544,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The entry's public identifier, e.g. `NPTC-000247` (FR-03). */
+                /** @description The entry's public identifier, e.g. `APTC-000247` (FR-03). */
                 business_key: string;
             };
             cookie?: never;
@@ -8614,7 +8614,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The entry's public identifier, e.g. `NPTC-000247` (FR-03). */
+                /** @description The entry's public identifier, e.g. `APTC-000247` (FR-03). */
                 business_key: string;
             };
             cookie?: never;
@@ -8688,7 +8688,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description The entry's public identifier, e.g. `NPTC-000247` (FR-03). */
+                /** @description The entry's public identifier, e.g. `APTC-000247` (FR-03). */
                 business_key: string;
                 comment_id: string;
             };
@@ -8834,7 +8834,7 @@ export interface operations {
                     "application/json": components["schemas"]["RateLimitedResponse"];
                 };
             };
-            /** @description The service is misconfigured, not a caller mistake - a malformed `NPTC_TX_*` value. Not produced by anything a well-formed request can trigger on its own; retrying will not clear it. */
+            /** @description The service is misconfigured, not a caller mistake - a malformed `APTC_TX_*` value. Not produced by anything a well-formed request can trigger on its own; retrying will not clear it. */
             500: {
                 headers: {
                     [name: string]: unknown;
@@ -8923,7 +8923,7 @@ export interface operations {
                     "application/json": components["schemas"]["RateLimitedResponse"];
                 };
             };
-            /** @description The service is misconfigured, not a caller mistake - a malformed `NPTC_TX_*` value. Not produced by anything a well-formed request can trigger on its own; retrying will not clear it. */
+            /** @description The service is misconfigured, not a caller mistake - a malformed `APTC_TX_*` value. Not produced by anything a well-formed request can trigger on its own; retrying will not clear it. */
             500: {
                 headers: {
                     [name: string]: unknown;

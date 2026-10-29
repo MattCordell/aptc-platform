@@ -3,7 +3,7 @@
 A separate module, and parametrised over every endpoint *and* every hidden
 status, because this is the requirement most easily broken by accident: the
 status filter is a `where` clause that has to be repeated, and an endpoint
-added later without it looks exactly like one with it. `nptc.catalogue.
+added later without it looks exactly like one with it. `aptc.catalogue.
 queries.PUBLIC_STATUSES` is imported rather than the string `"active"` being
 retyped here, so widening the public set is a one-line change that this test
 follows rather than contradicts.
@@ -32,8 +32,8 @@ from typing import Any
 import pytest
 from sqlalchemy.engine import Connection
 
-from nptc.catalogue.queries import PUBLIC_STATUSES
-from nptc.db.models.catalogue_entry import CatalogueEntryStatus
+from aptc.catalogue.queries import PUBLIC_STATUSES
+from aptc.db.models.catalogue_entry import CatalogueEntryStatus
 
 
 def _load(name: str) -> Any:

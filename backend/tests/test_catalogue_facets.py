@@ -1,4 +1,4 @@
-"""`nptc.catalogue.facets` - the facet/filter service (issue #139, FR-16).
+"""`aptc.catalogue.facets` - the facet/filter service (issue #139, FR-16).
 
 Two halves, deliberately in one module.
 
@@ -25,7 +25,7 @@ from sqlalchemy import Select
 from sqlalchemy import select as sa_select
 from sqlalchemy.dialects import postgresql
 
-from nptc.catalogue.facets import (
+from aptc.catalogue.facets import (
     FACET_BUCKET_CAP,
     FILTER_VALUE_CAP,
     ConflictingFilterOperatorError,
@@ -42,21 +42,21 @@ from nptc.catalogue.facets import (
     parse_filters,
 )
 
-from nptc.catalogue.search import _request_digest  # isort: skip
-from nptc.db.models.catalogue_entry import CatalogueEntry
-from nptc.registry.datatypes.code import CodeHandler
-from nptc.registry.datatypes.decimal import DecimalHandler
-from nptc.registry.datatypes.positive_int import PositiveIntHandler
-from nptc.registry.datatypes.string import StringHandler
-from nptc.registry.handlers import BindingSpec, FilterOp, PropertyDefinitionSpec
-from nptc_shared.terminology import StubTerminologyClient
+from aptc.catalogue.search import _request_digest  # isort: skip
+from aptc.db.models.catalogue_entry import CatalogueEntry
+from aptc.registry.datatypes.code import CodeHandler
+from aptc.registry.datatypes.decimal import DecimalHandler
+from aptc.registry.datatypes.positive_int import PositiveIntHandler
+from aptc.registry.datatypes.string import StringHandler
+from aptc.registry.handlers import BindingSpec, FilterOp, PropertyDefinitionSpec
+from aptc_shared.terminology import StubTerminologyClient
 
 # `facets.py` keeps its two source implementations private on purpose - the
 # only supported way to build one is `load_facet_context`, which reads the
 # registry. These tests need a context without a database, so they reach for
 # the private constructor rather than inventing a parallel one that could
 # drift from what production actually builds.
-from nptc.catalogue import facets as facets_module  # isort: skip
+from aptc.catalogue import facets as facets_module  # isort: skip
 
 
 def _spec(key: str, datatype: str, **overrides: object) -> PropertyDefinitionSpec:
@@ -488,7 +488,7 @@ def test_non_filter_query_parameters_are_ignored(context: FacetContext) -> None:
     """`q`, `limit` and `after` share the query string with the filters, and
     the dotted prefix is exactly what keeps them from colliding."""
     assert (
-        parse_filters([("q", "glucose"), ("limit", "50"), ("after", "NPTC-000001")], context) == ()
+        parse_filters([("q", "glucose"), ("limit", "50"), ("after", "APTC-000001")], context) == ()
     )
 
 

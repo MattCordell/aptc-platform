@@ -54,7 +54,7 @@ A test **needs a database** when either condition holds:
    SQL function, extension (`pg_trgm`, `unaccent`), index plan, lock or isolation
    behaviour, sequence or migration.
 2. It reads back rows written through the real write path. Every write path takes
-   `pg_advisory_xact_lock` through `nptc.audit.writer` as its first step. A service write
+   `pg_advisory_xact_lock` through `aptc.audit.writer` as its first step. A service write
    test is therefore not movable unless its assertion fires before that call.
 
 A test is **database-independent in substance** when the outcome is decided before any
@@ -252,7 +252,7 @@ These claims decide whether a test is movable. Each was checked against the code
 - The two Tier A CLI tests carry a hand-written `@pytest.mark.integration` and request no
   container fixture. They pass a bogus DSN to `verify.main`.
 - `current_principal` returns `ANONYMOUS` without a query when no bearer token is present
-  (`backend/src/nptc/api/dependencies.py`), so the anonymous 401 tests are decided before
+  (`backend/src/aptc/api/dependencies.py`), so the anonymous 401 tests are decided before
   the session is used.
 - `api_app_support.py` overrides `get_session` onto the fixture's connection, so a no-database
   variant needs a new builder.

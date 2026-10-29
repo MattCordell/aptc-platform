@@ -26,7 +26,7 @@ from urllib.parse import quote
 import pytest
 from sqlalchemy.engine import Connection
 
-from nptc.db.models.code_binding import SNOMED_CT_SYSTEM
+from aptc.db.models.code_binding import SNOMED_CT_SYSTEM
 
 
 def _load(name: str) -> Any:

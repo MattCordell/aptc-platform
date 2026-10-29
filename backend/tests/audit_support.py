@@ -14,7 +14,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from nptc.db.models.audit import AuditEvent
+from aptc.db.models.audit import AuditEvent
 
 
 def latest_audit_event(

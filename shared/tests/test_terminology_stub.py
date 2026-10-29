@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import pytest
 
-from nptc_shared.terminology.models import (
+from aptc_shared.terminology.models import (
     PROCEDURE_ROOT_CODE,
     SNOMED_CT_AU,
     SNOMED_CT_INTERNATIONAL,
@@ -20,8 +20,8 @@ from nptc_shared.terminology.models import (
     Operation,
     SubsumptionOutcome,
 )
-from nptc_shared.terminology.snomed import ecl_set_of
-from nptc_shared.terminology.stub import (
+from aptc_shared.terminology.snomed import ecl_set_of
+from aptc_shared.terminology.stub import (
     StubConcept,
     StubEclNotSupportedError,
     StubNotSeededError,
@@ -319,7 +319,7 @@ def test_expand_honours_display_language() -> None:
 
 
 def test_seeded_expansion_takes_precedence_over_the_concept_table() -> None:
-    from nptc_shared.terminology.models import Expansion
+    from aptc_shared.terminology.models import Expansion
 
     client = _client(StubConcept(code="122192001", fsn="Acanthamoeba culture (procedure)"))
     seeded = Expansion(concepts=(), total=0)
@@ -376,7 +376,7 @@ def test_lookup_raises_when_the_concept_is_not_in_the_requested_edition() -> Non
 
 
 def test_seeded_lookup_takes_precedence_over_the_concept_table() -> None:
-    from nptc_shared.terminology.models import LookupResult
+    from aptc_shared.terminology.models import LookupResult
 
     client = _client(StubConcept(code="122192001", fsn="Acanthamoeba culture (procedure)"))
     seeded = LookupResult(
@@ -479,7 +479,7 @@ def test_validate_code_with_a_value_set_url_raises_unless_seeded() -> None:
 
 
 def test_validate_code_with_a_value_set_url_returns_the_seeded_result() -> None:
-    from nptc_shared.terminology.models import ValidationResult
+    from aptc_shared.terminology.models import ValidationResult
 
     client = _client()
     seeded = ValidationResult(code="122192001", result=True, display="Acanthamoeba culture")
@@ -500,7 +500,7 @@ def test_validate_code_with_a_value_set_url_returns_the_seeded_result() -> None:
 def test_a_value_set_url_seed_does_not_satisfy_a_plain_code_system_check() -> None:
     """A value-set-scoped seed and a code-system-scoped seed are genuinely
     different checks - one must never silently answer the other."""
-    from nptc_shared.terminology.models import ValidationResult
+    from aptc_shared.terminology.models import ValidationResult
 
     client = _client()
     client.seed_validate_code(
@@ -517,7 +517,7 @@ def test_seed_error_for_value_set_validate_code_is_reachable() -> None:
     """Before the fix, validate_code always logged/raised against
     CODE_SYSTEM_VALIDATE_CODE, so a seeded VALUE_SET_VALIDATE_CODE error
     could never trigger."""
-    from nptc_shared.terminology.errors import TerminologyStatusError
+    from aptc_shared.terminology.errors import TerminologyStatusError
 
     client = _client()
     configured = TerminologyStatusError(
@@ -536,7 +536,7 @@ def test_seed_error_for_value_set_validate_code_is_reachable() -> None:
 
 
 def test_seed_error_raises_the_configured_error_on_the_next_matching_call() -> None:
-    from nptc_shared.terminology.errors import TerminologyTransportError
+    from aptc_shared.terminology.errors import TerminologyTransportError
 
     client = _client()
     configured = TerminologyTransportError("simulated outage", operation=Operation.LOOKUP)

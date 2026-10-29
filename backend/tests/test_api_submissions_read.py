@@ -22,19 +22,19 @@ from sqlalchemy import select
 from sqlalchemy.engine import Connection
 from sqlalchemy.orm import Session
 
-from nptc.audit.writer import AuditContext
-from nptc.auth.identity import close_account
-from nptc.auth.permissions import Role
-from nptc.db.models.catalogue_entry import CatalogueEntry
-from nptc.db.models.submission import (
+from aptc.audit.writer import AuditContext
+from aptc.auth.identity import close_account
+from aptc.auth.permissions import Role
+from aptc.db.models.catalogue_entry import CatalogueEntry
+from aptc.db.models.submission import (
     CLOSED_SUBMISSION_STATES,
     Submission,
     SubmissionKind,
     SubmissionState,
 )
-from nptc.db.models.user import User, UserStatus
-from nptc.db.models.user_identity import UserIdentity
-from nptc.submissions.queries import list_submissions
+from aptc.db.models.user import User, UserStatus
+from aptc.db.models.user_identity import UserIdentity
+from aptc.submissions.queries import list_submissions
 
 
 def _load(name: str) -> Any:
@@ -100,7 +100,7 @@ def _add(
     when = created_at or datetime.now(UTC)
     if kind is SubmissionKind.AMENDMENT and entry is None:
         entry = CatalogueEntry(
-            business_key=f"NPTC-{random.randrange(100_000_000, 999_999_999)}",
+            business_key=f"APTC-{random.randrange(100_000_000, 999_999_999)}",
             preferred_term=f"Read entry {uuid.uuid4()}",
             status="active",
         )

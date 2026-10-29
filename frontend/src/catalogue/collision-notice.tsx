@@ -159,7 +159,7 @@ function VersionConflictNotice({ body }: { body: VersionConflictBody }) {
  * What a failed write shows in `Form`'s `formError` slot.
  *
  * The two rich 409s get their own layout; everything else falls back to the
- * server's own sentence, which `nptc.api.errors` writes to be client-facing
+ * server's own sentence, which `aptc.api.errors` writes to be client-facing
  * (never `str(exc)`, never naming a role or an internal id). A refusal with no
  * usable sentence - an empty body, or FastAPI's `ValidationError` array - gets
  * generic wording rather than `[object Object]`.

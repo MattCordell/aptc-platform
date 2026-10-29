@@ -13,7 +13,7 @@ import { stubApi } from "../test/stub-api.ts";
 const TERMS = {
   version: "2026-10-06",
   effective_date: "2026-10-06",
-  text: "# NPTC terms of use\n\n**Temporary text.** Not legal wording.\n\n## 1. Using the platform\n\nYou may read the catalogue without an account.",
+  text: "# APTC terms of use\n\n**Temporary text.** Not legal wording.\n\n## 1. Using the platform\n\nYou may read the catalogue without an account.",
   accepted: false,
 };
 
@@ -27,7 +27,7 @@ describe("terms page", () => {
     const { container } = await renderRoute("/terms");
 
     expect(
-      await screen.findByRole("heading", { level: 2, name: "NPTC terms of use" }),
+      await screen.findByRole("heading", { level: 2, name: "APTC terms of use" }),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Terms of use");
@@ -68,7 +68,7 @@ describe("terms page", () => {
     ]);
     await renderRoute("/terms");
 
-    await screen.findByRole("heading", { level: 2, name: "NPTC terms of use" });
+    await screen.findByRole("heading", { level: 2, name: "APTC terms of use" });
     expect(main().queryByText(/You have accepted/)).not.toBeInTheDocument();
   });
 
@@ -92,7 +92,7 @@ describe("terms page", () => {
     stubApi([{ method: "GET", path: "/auth/terms", status: 200, body: TERMS }]);
     await renderRoute("/terms", { auth: { status: "signed-in" } });
 
-    await screen.findByRole("heading", { level: 2, name: "NPTC terms of use" });
+    await screen.findByRole("heading", { level: 2, name: "APTC terms of use" });
     expect(main().queryByText(/You have accepted/)).not.toBeInTheDocument();
   });
 

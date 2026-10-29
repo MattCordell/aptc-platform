@@ -1,11 +1,11 @@
-"""Integration tests for nptc.audit.verification.verify_chain's tamper
+"""Integration tests for aptc.audit.verification.verify_chain's tamper
 detection (issue #36, NFR-10): every mutation a table owner could make -
 edit a column, delete a row, reorder two rows' content - must be caught
 at the earliest affected row.
 
 Every test here uses the `db` fixture (the table owner role) for *both*
 the legitimate appends and the tamper itself, not `app_db` for the
-appends: `nptc_app_login` cannot `UPDATE`/`DELETE` audit_event at all
+appends: `aptc_app_login` cannot `UPDATE`/`DELETE` audit_event at all
 (NFR-09, proven in test_db_audit_privileges.py), so there is no
 privilege-respecting way to tamper via `app_db` in the first place, and
 two separate connections each in their own uncommitted transaction would
@@ -30,11 +30,11 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 from sqlalchemy.orm import Session
 
-from nptc.audit.hashing import digest_field_names
-from nptc.audit.verification import verify_chain
-from nptc.audit.writer import AuditContext, append_audit_event
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.user import User
+from aptc.audit.hashing import digest_field_names
+from aptc.audit.verification import verify_chain
+from aptc.audit.writer import AuditContext, append_audit_event
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.user import User
 
 _DIGEST_COLUMNS = sorted(digest_field_names(AuditEvent.__table__))
 

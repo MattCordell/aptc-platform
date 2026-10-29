@@ -5,15 +5,15 @@ Revises: 0024
 Create Date: 2026-10-08
 
 FR-13, ADR-0012: moves ownership of `property_value` to a NOLOGIN role,
-`nptc_property_index_owner`, so the index reconciler's login can `CREATE INDEX` and `DROP INDEX`
+`aptc_property_index_owner`, so the index reconciler's login can `CREATE INDEX` and `DROP INDEX`
 on that one table. Postgres has no narrower privilege than ownership for this. The role also
 gets `SELECT` on `property_definition`, which the reconciler reads, and `CREATE` on schema
 `public`, which Postgres checks for every new index.
 
 **Who runs later migrations.** The migration role no longer owns `property_value`, so a later
-migration that alters it must run as a role that can `SET ROLE nptc_property_index_owner`. A
+migration that alters it must run as a role that can `SET ROLE aptc_property_index_owner`. A
 superuser can, as in the compose stack. A non-superuser migration role needs
-`GRANT nptc_property_index_owner TO <that role>`, once; the same grant is needed to run this
+`GRANT aptc_property_index_owner TO <that role>`, once; the same grant is needed to run this
 migration's `ALTER TABLE ... OWNER TO`. See `docs/operations/upgrade.md`.
 
 **Run the downgrade as the role that created the tables.** It gives `property_value` to
@@ -23,7 +23,7 @@ owner instead. It does not drop the role, for the reason given in migration 0001
 cluster-wide, not schema.
 
 **A login that owns `property_value` can plant code that runs as the migration role.** A
-migration that writes the table calls `nptc.db.migration_guards.refuse_foreign_code_on_property_value`
+migration that writes the table calls `aptc.db.migration_guards.refuse_foreign_code_on_property_value`
 first. See `docs/operations/upgrade.md`.
 """
 
@@ -33,7 +33,7 @@ from collections.abc import Sequence
 
 from alembic import op
 
-from nptc.db import roles
+from aptc.db import roles
 
 # revision identifiers, used by Alembic.
 revision: str = "0025"

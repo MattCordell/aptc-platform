@@ -1,4 +1,4 @@
-"""`nptc.db.bootstrap.seed_system_properties` tests (issue #51).
+"""`aptc.db.bootstrap.seed_system_properties` tests (issue #51).
 
 Uses the shared `app_session` fixture from `conftest.py`, an ORM `Session`
 bound to `app_db`.
@@ -12,10 +12,10 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-import nptc.db.bootstrap as bootstrap
-from nptc.db.bootstrap import seed_system_properties
-from nptc.db.models.property_definition import PropertyDefinition, PropertyOrigin
-from nptc.registry import BUILTIN_DATATYPES
+import aptc.db.bootstrap as bootstrap
+from aptc.db.bootstrap import seed_system_properties
+from aptc.db.models.property_definition import PropertyDefinition, PropertyOrigin
+from aptc.registry import BUILTIN_DATATYPES
 
 
 @pytest.mark.req("FR-09")
@@ -185,7 +185,7 @@ def test_seeded_datatypes_are_registered_handlers() -> None:
     the running application would itself reject" claim is checkable now
     that #137 (ADR-0013) has landed the registry - this makes it true
     rather than aspirational. No database needed: `BUILTIN_DATATYPES` is
-    the deps-free enumeration `nptc.registry.datatypes` exports precisely
+    the deps-free enumeration `aptc.registry.datatypes` exports precisely
     so a check like this one doesn't need a constructed `DatatypeRegistry`
     (with its `HandlerDeps`/`TerminologyClient`) just to read the valid
     set."""

@@ -1,4 +1,4 @@
-"""`nptc.submissions.quota.enforce_submission_quota` service-layer tests (FR-43, NFR-24, NFR-08).
+"""`aptc.submissions.quota.enforce_submission_quota` service-layer tests (FR-43, NFR-24, NFR-08).
 
 Every count is taken for a user this test created, and audit events are read for that user's id,
 because `backend/tests` shares one Postgres container (see `CLAUDE.md`). Rows are backdated with an
@@ -18,12 +18,12 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from nptc.audit.writer import AuditContext
-from nptc.auth.permissions import QUOTAS, Role, SubmissionQuota, effective_quota
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.submission import Submission, SubmissionKind
-from nptc.db.models.user import User
-from nptc.submissions.quota import QuotaLimit, QuotaRefusal, enforce_submission_quota
+from aptc.audit.writer import AuditContext
+from aptc.auth.permissions import QUOTAS, Role, SubmissionQuota, effective_quota
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.submission import Submission, SubmissionKind
+from aptc.db.models.user import User
+from aptc.submissions.quota import QuotaLimit, QuotaRefusal, enforce_submission_quota
 
 
 def _load(name: str) -> Any:

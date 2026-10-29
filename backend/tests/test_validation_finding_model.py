@@ -6,7 +6,7 @@ Each constraint/privilege violation gets its own test function - see
 statement aborts the surrounding transaction, 25P02).
 
 Seeded exclusively via `db` (the owner connection), never `app_db` -
-`nptc.db.roles.GRANT_VALIDATION_FINDING_SQL` grants `nptc_app` SELECT
+`aptc.db.roles.GRANT_VALIDATION_FINDING_SQL` grants `aptc_app` SELECT
 only, matching `test_audit_tamper_detection.py`'s own precedent for
 privileged direct writes the app role could not itself perform.
 """
@@ -34,7 +34,7 @@ _INSERT_FINDING = text(
 def _insert_entry(
     connection: Connection,
     *,
-    business_key: str = "NPTC-410001",
+    business_key: str = "APTC-410001",
     preferred_term: str = "Free thyroxine",
 ) -> object:
     return connection.execute(
@@ -99,7 +99,7 @@ def test_status_must_be_one_of_fr_55s_four_lifecycle_states(db: Connection) -> N
 @pytest.mark.req("FR-55")
 @pytest.mark.integration
 def test_status_defaults_to_open(db: Connection) -> None:
-    entry_id = _insert_entry(db, business_key="NPTC-410002")
+    entry_id = _insert_entry(db, business_key="APTC-410002")
 
     finding_id = db.execute(
         text(
@@ -120,7 +120,7 @@ def test_status_defaults_to_open(db: Connection) -> None:
 def test_binding_id_is_nullable(db: Connection) -> None:
     """FR-18 speaks of the binding's finding, but the indicator itself is
     entry-scoped - a finding need not carry a binding_id."""
-    entry_id = _insert_entry(db, business_key="NPTC-410003")
+    entry_id = _insert_entry(db, business_key="APTC-410003")
 
     finding_id = _insert_finding(db, entry_id=entry_id, binding_id=None)
 
@@ -143,7 +143,7 @@ def test_app_role_can_select(app_db: Connection) -> None:
 
 @pytest.mark.integration
 def test_app_role_is_refused_insert(app_db: Connection) -> None:
-    entry_id = _insert_entry(app_db, business_key="NPTC-410005")
+    entry_id = _insert_entry(app_db, business_key="APTC-410005")
 
     with pytest.raises(ProgrammingError) as exc_info:
         _insert_finding(app_db, entry_id=entry_id)
@@ -153,7 +153,7 @@ def test_app_role_is_refused_insert(app_db: Connection) -> None:
 
 @pytest.mark.integration
 def test_app_role_is_refused_update(db: Connection, app_db: Connection) -> None:
-    entry_id = _insert_entry(db, business_key="NPTC-410006")
+    entry_id = _insert_entry(db, business_key="APTC-410006")
     finding_id = _insert_finding(db, entry_id=entry_id)
 
     with pytest.raises(ProgrammingError) as exc_info:
@@ -167,7 +167,7 @@ def test_app_role_is_refused_update(db: Connection, app_db: Connection) -> None:
 
 @pytest.mark.integration
 def test_app_role_is_refused_delete(db: Connection, app_db: Connection) -> None:
-    entry_id = _insert_entry(db, business_key="NPTC-410007")
+    entry_id = _insert_entry(db, business_key="APTC-410007")
     finding_id = _insert_finding(db, entry_id=entry_id)
 
     with pytest.raises(ProgrammingError) as exc_info:
@@ -178,7 +178,7 @@ def test_app_role_is_refused_delete(db: Connection, app_db: Connection) -> None:
 
 @pytest.mark.integration
 def test_app_role_is_refused_truncate(db: Connection, app_db: Connection) -> None:
-    entry_id = _insert_entry(db, business_key="NPTC-410008")
+    entry_id = _insert_entry(db, business_key="APTC-410008")
     _insert_finding(db, entry_id=entry_id)
 
     with pytest.raises(ProgrammingError) as exc_info:

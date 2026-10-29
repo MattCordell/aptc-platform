@@ -6,7 +6,7 @@ committed, and cleaned up by the `finding_entry` fixture's own teardown -
 never through `seed_public_catalogue`'s shared, uncommitted `app_db`
 transaction. A `validation_finding` row must be visible to the public
 API's own connection (`app_db`, whose role has SELECT only on this table
-in any case - see `nptc.db.roles.GRANT_VALIDATION_FINDING_SQL`), and two
+in any case - see `aptc.db.roles.GRANT_VALIDATION_FINDING_SQL`), and two
 connections each holding their own open, uncommitted transaction cannot
 see each other's writes (`test_audit_tamper_detection.py`'s own docstring
 explains why) - only a genuinely committed row, visible under READ
@@ -16,14 +16,14 @@ own "plain SQL via owner_engine" precedent for the identical reason.
 
 **One fixture's teardown, not a `finally` per test (PR #278 review).** A
 hand-written `finally` in every test cleans up correctly on a normal
-failure, but leaves `NPTC-42xxxx` rows for a hard crash or an interrupted
+failure, but leaves `APTC-42xxxx` rows for a hard crash or an interrupted
 run to skip past - and five copies of the same cleanup is its own
 maintenance cost. `finding_entry` tracks every business key it creates and
 deletes all of them in one teardown, matching pytest's own fixture-finaliser
 guarantee (the same one a `finally` relies on) without repeating the SQL
 five times.
 
-Business keys here occupy the `NPTC-42xxxx` block, disjoint from every
+Business keys here occupy the `APTC-42xxxx` block, disjoint from every
 other test module's own reserved block and from the real minting
 sequence (which never reaches six figures within one test run).
 """
@@ -127,7 +127,7 @@ def finding_entry(owner_engine: Engine) -> Iterator[Callable[..., uuid.UUID]]:
 def test_entry_with_open_finding_shows_the_indicator(
     api: ApiTestApp, owner_engine: Engine, finding_entry: Callable[..., uuid.UUID]
 ) -> None:
-    business_key = "NPTC-420001"
+    business_key = "APTC-420001"
     entry_id = finding_entry(business_key)
     _insert_finding(owner_engine, entry_id=entry_id, status="open")
 
@@ -139,9 +139,9 @@ def test_entry_with_open_finding_shows_the_indicator(
 #: One dedicated business key per non-open status, distinct from every
 #: other business key in this module.
 _NOT_OPEN_BUSINESS_KEYS = {
-    "acknowledged": "NPTC-421001",
-    "resolved": "NPTC-421002",
-    "superseded": "NPTC-421003",
+    "acknowledged": "APTC-421001",
+    "resolved": "APTC-421002",
+    "superseded": "APTC-421003",
 }
 
 
@@ -165,7 +165,7 @@ def test_entry_with_no_open_finding_does_not_show_the_indicator(
 def test_entry_with_no_finding_at_all_does_not_show_the_indicator(
     api: ApiTestApp, finding_entry: Callable[..., uuid.UUID]
 ) -> None:
-    business_key = "NPTC-420002"
+    business_key = "APTC-420002"
     finding_entry(business_key)
 
     body = api.get(f"/catalogue/entries/{business_key}").json()
@@ -181,7 +181,7 @@ def test_anonymous_request_reports_the_indicator_but_nothing_else_about_the_find
     """The raw response *text*, not a parsed model - matching
     `test_api_public_response_hygiene.py`'s own whole-body convention, the
     only way to catch a field nobody thought to write an assertion for."""
-    business_key = "NPTC-420003"
+    business_key = "APTC-420003"
     entry_id = finding_entry(business_key)
     _insert_finding(owner_engine, entry_id=entry_id, status="open")
 
@@ -201,11 +201,11 @@ def test_anonymous_request_reports_the_indicator_but_nothing_else_about_the_find
 def test_the_indicator_appears_on_list_results(
     api: ApiTestApp, owner_engine: Engine, finding_entry: Callable[..., uuid.UUID]
 ) -> None:
-    business_key = "NPTC-420004"
+    business_key = "APTC-420004"
     entry_id = finding_entry(business_key)
     _insert_finding(owner_engine, entry_id=entry_id, status="open")
 
-    body = api.get("/catalogue/entries?after=NPTC-420003").json()
+    body = api.get("/catalogue/entries?after=APTC-420003").json()
 
     matching = [item for item in body["items"] if item["business_key"] == business_key]
     assert len(matching) == 1
@@ -217,7 +217,7 @@ def test_the_indicator_appears_on_list_results(
 def test_the_indicator_appears_on_search_results(
     api: ApiTestApp, owner_engine: Engine, finding_entry: Callable[..., uuid.UUID]
 ) -> None:
-    business_key = "NPTC-420005"
+    business_key = "APTC-420005"
     entry_id = finding_entry(business_key, preferred_term="Zzyzx finding fixture")
     _insert_finding(owner_engine, entry_id=entry_id, status="open")
 

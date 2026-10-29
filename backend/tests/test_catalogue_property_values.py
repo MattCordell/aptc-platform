@@ -1,8 +1,8 @@
-"""`nptc.catalogue.property_values` service-layer tests (issue #52, FR-09,
+"""`aptc.catalogue.property_values` service-layer tests (issue #52, FR-09,
 FR-10, FR-88, FR-89).
 
 Uses an ORM `Session` bound to `app_db`, matching `test_catalogue_bindings.
-py`'s own precedent. `nptc.db.bootstrap.seed_system_properties` seeds the
+py`'s own precedent. `aptc.db.bootstrap.seed_system_properties` seeds the
 real Discipline/Subgroup/Specimen/Usage guidance definitions through their
 own real write path, so FR-88/FR-89 are exercised against the actual
 seeded shape rather than a hand-rolled stand-in.
@@ -17,12 +17,12 @@ from sqlalchemy import func, select
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.orm import Session
 
-from nptc.audit.writer import AuditContext
-from nptc.catalogue.changelog import ChangelogNoteError
-from nptc.catalogue.entries import allocate_business_key, create_entry, format_business_key
-from nptc.catalogue.errors import EntryVersionConflictError
-from nptc.catalogue.local_codes import DatabaseLocalCodeLookup
-from nptc.catalogue.property_values import (
+from aptc.audit.writer import AuditContext
+from aptc.catalogue.changelog import ChangelogNoteError
+from aptc.catalogue.entries import allocate_business_key, create_entry, format_business_key
+from aptc.catalogue.errors import EntryVersionConflictError
+from aptc.catalogue.local_codes import DatabaseLocalCodeLookup
+from aptc.catalogue.property_values import (
     BulkPropertyOutcome,
     EntryPropertyTarget,
     PropertyDefinitionNotFoundError,
@@ -32,23 +32,23 @@ from nptc.catalogue.property_values import (
     save_property_values,
     save_property_values_for_entries,
 )
-from nptc.db.bootstrap import seed_system_properties
-from nptc.db.definitions import deprecate_definition
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.catalogue_entry import CatalogueEntry
-from nptc.db.models.property_definition import (
+from aptc.db.bootstrap import seed_system_properties
+from aptc.db.definitions import deprecate_definition
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.catalogue_entry import CatalogueEntry
+from aptc.db.models.property_definition import (
     PropertyCardinality,
     PropertyDefinition,
     PropertyOrigin,
     PropertyScope,
 )
-from nptc.db.models.property_value import PropertyValue
-from nptc.registry.datatypes import build_builtin_handlers
-from nptc.registry.definitions import DeprecatedPropertyWriteError
-from nptc.registry.handlers import DatatypeRegistry, HandlerDeps
-from nptc.registry.schema import MalformedConstraintsError
-from nptc_shared.terminology.models import SNOMED_CT_AU, ValidationResult
-from nptc_shared.terminology.stub import StubTerminologyClient
+from aptc.db.models.property_value import PropertyValue
+from aptc.registry.datatypes import build_builtin_handlers
+from aptc.registry.definitions import DeprecatedPropertyWriteError
+from aptc.registry.handlers import DatatypeRegistry, HandlerDeps
+from aptc.registry.schema import MalformedConstraintsError
+from aptc_shared.terminology.models import SNOMED_CT_AU, ValidationResult
+from aptc_shared.terminology.stub import StubTerminologyClient
 
 _SPECIMEN_VALUE_SET_URI = "http://snomed.info/sct?fhir_vs=ecl/%3C%3C123038009"
 _SPECIMEN_EDITION = SNOMED_CT_AU
@@ -1279,7 +1279,7 @@ def test_bulk_no_batch_header_when_nothing_applied(app_session: Session) -> None
     outcomes = save_property_values_for_entries(
         app_session,
         ctx,
-        targets=[EntryPropertyTarget(business_key="NPTC-999997", expected_row_version=1)],
+        targets=[EntryPropertyTarget(business_key="APTC-999997", expected_row_version=1)],
         property_key=prop.key,
         values=_inputs("bulk-no-header-value"),
         reason="Bulk write that touches nothing",

@@ -15,10 +15,10 @@ mutating *route* have a negative case) is `route_inventory_support.py`.
 
 from __future__ import annotations
 
-from nptc.auth.authorisation import require_permission
-from nptc.auth.errors_authorisation import PermissionDeniedError
-from nptc.auth.permissions import ROLE_PERMISSIONS, Permission, Role
-from nptc.auth.principal import Principal
+from aptc.auth.authorisation import require_permission
+from aptc.auth.errors_authorisation import PermissionDeniedError
+from aptc.auth.permissions import ROLE_PERMISSIONS, Permission, Role
+from aptc.auth.principal import Principal
 
 
 def assert_permission_refused(

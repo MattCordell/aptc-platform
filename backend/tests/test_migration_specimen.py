@@ -22,10 +22,10 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine, make_url
 from testcontainers.community.postgres import PostgresContainer
 
-from nptc.db.migration_guards import ForeignCodeOnPropertyValueError
+from aptc.db.migration_guards import ForeignCodeOnPropertyValueError
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-_DB = "nptc_specimen_binding"
+_DB = "aptc_specimen_binding"
 _OLD_URI = "http://snomed.info/sct?fhir_vs=ecl/%3C123038009"
 _NEW_URI = "http://snomed.info/sct?fhir_vs=ecl/%3C%3C123038009"
 
@@ -269,12 +269,12 @@ def _column_exists(engine: Engine) -> bool:
 @pytest.mark.req("FR-89")
 @pytest.mark.integration
 def test_a_flagged_entry_becomes_the_specimen_root_and_the_column_goes(engine: Engine) -> None:
-    _at_0023_with(engine, {"NPTC-900001": True})
+    _at_0023_with(engine, {"APTC-900001": True})
 
     _migrate(engine, "upgrade", "0024")
 
     assert _specimen_rows(engine) == {
-        "NPTC-900001": [(0, {"system": "http://snomed.info/sct", "code": _ROOT, "display": "Any"})]
+        "APTC-900001": [(0, {"system": "http://snomed.info/sct", "code": _ROOT, "display": "Any"})]
     }
     assert not _column_exists(engine)
 
@@ -282,7 +282,7 @@ def test_a_flagged_entry_becomes_the_specimen_root_and_the_column_goes(engine: E
 @pytest.mark.req("FR-89")
 @pytest.mark.integration
 def test_an_unflagged_entry_gets_no_specimen_value(engine: Engine) -> None:
-    _at_0023_with(engine, {"NPTC-900001": False})
+    _at_0023_with(engine, {"APTC-900001": False})
 
     _migrate(engine, "upgrade", "0024")
 
@@ -294,11 +294,11 @@ def test_an_unflagged_entry_gets_no_specimen_value(engine: Engine) -> None:
 def test_a_flagged_entry_that_already_holds_a_specimen_keeps_only_its_named_values(
     engine: Engine,
 ) -> None:
-    _at_0023_with(engine, {"NPTC-900001": True}, {"NPTC-900001": ["119364003"]})
+    _at_0023_with(engine, {"APTC-900001": True}, {"APTC-900001": ["119364003"]})
 
     _migrate(engine, "upgrade", "0024")
 
-    assert [row[1]["code"] for row in _specimen_rows(engine)["NPTC-900001"]] == ["119364003"]
+    assert [row[1]["code"] for row in _specimen_rows(engine)["APTC-900001"]] == ["119364003"]
 
 
 @pytest.mark.req("FR-89")
@@ -308,8 +308,8 @@ def test_the_upgrade_names_each_flagged_entry_whose_flag_it_drops_unconverted(
 ) -> None:
     _at_0023_with(
         engine,
-        {"NPTC-900001": True, "NPTC-900002": True, "NPTC-900003": False},
-        {"NPTC-900001": ["119364003"], "NPTC-900003": ["119364003"]},
+        {"APTC-900001": True, "APTC-900002": True, "APTC-900003": False},
+        {"APTC-900001": ["119364003"], "APTC-900003": ["119364003"]},
     )
 
     with caplog.at_level(logging.WARNING, logger="alembic.runtime.migration"):
@@ -317,9 +317,9 @@ def test_the_upgrade_names_each_flagged_entry_whose_flag_it_drops_unconverted(
 
     (record,) = [r for r in caplog.records if r.levelno == logging.WARNING]
     assert "1 " in record.getMessage()
-    assert "NPTC-900001" in record.getMessage()
-    assert "NPTC-900002" not in record.getMessage()
-    assert "NPTC-900003" not in record.getMessage()
+    assert "APTC-900001" in record.getMessage()
+    assert "APTC-900002" not in record.getMessage()
+    assert "APTC-900003" not in record.getMessage()
 
 
 @pytest.mark.req("FR-89")
@@ -327,7 +327,7 @@ def test_the_upgrade_names_each_flagged_entry_whose_flag_it_drops_unconverted(
 def test_the_upgrade_is_silent_when_every_flag_converts_cleanly(
     engine: Engine, caplog: pytest.LogCaptureFixture
 ) -> None:
-    _at_0023_with(engine, {"NPTC-900001": True, "NPTC-900002": False})
+    _at_0023_with(engine, {"APTC-900001": True, "APTC-900002": False})
 
     with caplog.at_level(logging.WARNING, logger="alembic.runtime.migration"):
         _migrate(engine, "upgrade", "0024")
@@ -338,7 +338,7 @@ def test_the_upgrade_is_silent_when_every_flag_converts_cleanly(
 @pytest.mark.req("FR-89")
 @pytest.mark.integration
 def test_the_conversion_leaves_row_version_alone(engine: Engine) -> None:
-    _at_0023_with(engine, {"NPTC-900001": True})
+    _at_0023_with(engine, {"APTC-900001": True})
     with engine.connect() as connection:
         before = connection.execute(text("SELECT row_version FROM catalogue_entry")).scalar_one()
 
@@ -356,7 +356,7 @@ def test_the_conversion_leaves_row_version_alone(engine: Engine) -> None:
 def test_the_upgrade_refuses_when_flagged_entries_have_no_specimen_definition(
     engine: Engine,
 ) -> None:
-    _at_0023_with(engine, {"NPTC-900001": True}, definition=False)
+    _at_0023_with(engine, {"APTC-900001": True}, definition=False)
 
     with pytest.raises(RuntimeError, match="'specimen' property definition does not exist"):
         _migrate(engine, "upgrade", "0024")
@@ -367,7 +367,7 @@ def test_the_upgrade_refuses_when_flagged_entries_have_no_specimen_definition(
 @pytest.mark.req("FR-89")
 @pytest.mark.integration
 def test_a_catalogue_with_no_flagged_entry_upgrades_with_no_definition(engine: Engine) -> None:
-    _at_0023_with(engine, {"NPTC-900001": False}, definition=False)
+    _at_0023_with(engine, {"APTC-900001": False}, definition=False)
 
     _migrate(engine, "upgrade", "0024")
 
@@ -379,11 +379,11 @@ def test_a_catalogue_with_no_flagged_entry_upgrades_with_no_definition(engine: E
 def test_the_downgrade_flags_an_entry_whose_only_specimen_is_the_root(engine: Engine) -> None:
     _at_0023_with(
         engine,
-        {"NPTC-900001": False, "NPTC-900002": False, "NPTC-900003": False},
+        {"APTC-900001": False, "APTC-900002": False, "APTC-900003": False},
         {
-            "NPTC-900001": [_ROOT],
-            "NPTC-900002": ["119364003"],
-            "NPTC-900003": [_ROOT, "119364003"],
+            "APTC-900001": [_ROOT],
+            "APTC-900002": ["119364003"],
+            "APTC-900003": [_ROOT, "119364003"],
         },
     )
     _migrate(engine, "upgrade", "0024")
@@ -396,17 +396,17 @@ def test_the_downgrade_flags_an_entry_whose_only_specimen_is_the_root(engine: En
                 text("SELECT business_key, specimen_unconstrained FROM catalogue_entry")
             ).all()
         )
-    assert flags == {"NPTC-900001": True, "NPTC-900002": False, "NPTC-900003": False}
+    assert flags == {"APTC-900001": True, "APTC-900002": False, "APTC-900003": False}
     remaining = _specimen_rows(engine)
-    assert "NPTC-900001" not in remaining  # the old rule: the flag or specimens, never both
-    assert [row[1]["code"] for row in remaining["NPTC-900002"]] == ["119364003"]
-    assert [row[1]["code"] for row in remaining["NPTC-900003"]] == [_ROOT, "119364003"]
+    assert "APTC-900001" not in remaining  # the old rule: the flag or specimens, never both
+    assert [row[1]["code"] for row in remaining["APTC-900002"]] == ["119364003"]
+    assert [row[1]["code"] for row in remaining["APTC-900003"]] == [_ROOT, "119364003"]
 
 
 @pytest.mark.req("FR-89")
 @pytest.mark.integration
 def test_the_downgrade_gives_the_app_role_its_column_grant_back(engine: Engine) -> None:
-    _at_0023_with(engine, {"NPTC-900001": False})
+    _at_0023_with(engine, {"APTC-900001": False})
     _migrate(engine, "upgrade", "0024")
 
     _migrate(engine, "downgrade", "0023")
@@ -414,7 +414,7 @@ def test_the_downgrade_gives_the_app_role_its_column_grant_back(engine: Engine) 
     with engine.connect() as connection:
         granted = connection.execute(
             text(
-                "SELECT has_column_privilege('nptc_app', 'catalogue_entry', "
+                "SELECT has_column_privilege('aptc_app', 'catalogue_entry', "
                 "'specimen_unconstrained', 'UPDATE')"
             )
         ).scalar_one()
@@ -455,7 +455,7 @@ def test_the_upgrade_refuses_to_write_property_value_while_a_trigger_is_on_it(
 ) -> None:
     """Migration 0025 lets another login create triggers on `property_value`, and the conversion
     would fire one as the migration role."""
-    _at_0023_with(engine, {"NPTC-900001": True})
+    _at_0023_with(engine, {"APTC-900001": True})
     _plant_trigger(engine)
     try:
         with pytest.raises(ForeignCodeOnPropertyValueError):
@@ -472,7 +472,7 @@ def test_the_upgrade_refuses_to_write_property_value_while_a_trigger_is_on_it(
 def test_the_downgrade_refuses_to_write_property_value_while_a_trigger_is_on_it(
     engine: Engine,
 ) -> None:
-    _at_0023_with(engine, {"NPTC-900001": False}, {"NPTC-900001": [_ROOT]})
+    _at_0023_with(engine, {"APTC-900001": False}, {"APTC-900001": [_ROOT]})
     _migrate(engine, "upgrade", "0024")
     _plant_trigger(engine)
     try:

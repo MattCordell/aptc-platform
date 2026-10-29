@@ -1,8 +1,8 @@
 {
-  "name": "nptc-frontend",
+  "name": "aptc-frontend",
   "private": true,
   "version": "0.0.0",
-  "description": "NPTC Catalogue Maintenance Platform - web client",
+  "description": "APTC Catalogue Maintenance Platform - web client",
   "type": "module",
   "engines": {
     "node": ">=26.10.0"

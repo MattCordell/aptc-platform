@@ -40,14 +40,14 @@ consequences of the one that was already ruled in.
 
 ### Search is trigram similarity over a normalised expression
 
-`pg_trgm`'s `%` operator over `nptc_search_text(<column>)`, where
-`nptc_search_text(text)` (in `nptc.db.functions`, created by migration `0012`) is
+`pg_trgm`'s `%` operator over `aptc_search_text(<column>)`, where
+`aptc_search_text(text)` (in `aptc.db.functions`, created by migration `0012`) is
 `lower(public.unaccent('public.unaccent'::regdictionary, value))` - `IMMUTABLE STRICT
 PARALLEL SAFE`. Two GIN trigram indexes are built over it: one on
 `catalogue_entry.preferred_term`, one on `designation.term`, the latter partial on
 `status = 'active'`.
 
-`nptc.catalogue.search._SEARCH_SQL` unions two `%` scans - the entry's own preferred
+`aptc.catalogue.search._SEARCH_SQL` unions two `%` scans - the entry's own preferred
 term and its active designations - and aggregates per entry with
 `MAX(similarity(...))`, so an entry matched through several of its synonyms is one
 result scored by its best match, not five results.
@@ -72,7 +72,7 @@ index scans themselves so that no `HAVING` can recover a row that was never scan
 transaction scoping is what keeps the second case from arising; the `HAVING` is what stops
 a future code path setting the GUC lower from silently broadening this query.
 
-**`nptc_search_text` is not the stored business logic PRD §14.1 bans**, and it is not
+**`aptc_search_text` is not the stored business logic PRD §14.1 bans**, and it is not
 even the narrow exception ADR-0023 argued for. It encodes no catalogue rule: it
 lowercases and strips diacritics. It has no side effects, decides nothing, and nothing
 reads it but the two index expressions and the matching predicate. ADR-0023's three
@@ -192,7 +192,7 @@ Rejected: it buys nothing here and costs a key to manage plus a rotation story. 
 cursor's contents are a `business_key` and a similarity score - both values the client
 was just served in the same response, neither an internal identifier, neither
 privileged. Opacity would be worth paying for if the cursor encoded server state or a
-row offset; it encodes neither. `nptc.catalogue.search.MalformedSearchCursorError`
+row offset; it encodes neither. `aptc.catalogue.search.MalformedSearchCursorError`
 still refuses a cursor the API did not mint, so a hand-built cursor gets a 422 rather
 than an unpredictable page.
 
@@ -203,15 +203,15 @@ Return every non-draft entry and let clients filter on `status`.
 Rejected: the FR-20 surface is what a vendor builds a request form from, and a
 deprecated entry is precisely one they must stop offering. "Present in the API with a
 field they may or may not read" is a weaker guarantee than "absent", and the difference
-shows up as a test that is still orderable in somebody's LIS. `nptc.catalogue.queries.
+shows up as a test that is still orderable in somebody's LIS. `aptc.catalogue.queries.
 PUBLIC_STATUSES` is `("active",)`, and deprecation history is the release/history
 surface's job (#141), where it is the subject rather than a footnote.
 
 ## Consequences
 
-- **`nptc_search_text` is the second database function in the repository**, and the
+- **`aptc_search_text` is the second database function in the repository**, and the
   first one that is not a validity predicate. The bar ADR-0023 set still applies: a
-  pure, side-effect-free function in `nptc.db.functions`, created by a migration, with
+  pure, side-effect-free function in `aptc.db.functions`, created by a migration, with
   its own test. A future function that decides *behaviour* rather than normalising a
   value is a different question and needs its own ADR.
 - **If the `unaccent` dictionary's rule file is ever changed** - a PostgreSQL upgrade
@@ -255,8 +255,8 @@ surface's job (#141), where it is the subject rather than a footnote.
   it to `q` at all: a score is meaningful only against the request that produced it. And
   the `COUNT(*)` this ADR's keyset discipline does without is still absent from every
   page query; facet counts are the one bounded, asked-for exception, argued in ADR-0032
-  and recorded in `nptc.catalogue.queries`' own docstring.
-- 2026-09-08: issue #266 adds a second caller of `nptc.catalogue.search.search_entries` -
+  and recorded in `aptc.catalogue.queries`' own docstring.
+- 2026-09-08: issue #266 adds a second caller of `aptc.catalogue.search.search_entries` -
   the maintenance search, scored over `MAINTENANCE_STATUSES` rather than
   `PUBLIC_STATUSES` - and the relevance cursor's digest now covers that status scope too,
   for the identical reason the previous amendment gives for the filter set: a score is
@@ -272,7 +272,7 @@ surface's job (#141), where it is the subject rather than a footnote.
   because it is the only one that is `UNIQUE`; every other candidate (`preferred_term`,
   `updated_at`, `status`) needs a composite `(sort_value, business_key)` keyset - the
   identical `(score, business_key)` shape this ADR's own relevance cursor already uses,
-  applied to an intrinsic row value instead of a computed one. `nptc.catalogue.
+  applied to an intrinsic row value instead of a computed one. `aptc.catalogue.
   maintenance` retires the old bare-`business_key` cursor entirely (this repository is
   pre-alpha, with no compatibility obligation to a client that might have depended on
   that shape) and unifies on one `"<sort value>:<digest>:<business key>"` grammar for

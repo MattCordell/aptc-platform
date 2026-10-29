@@ -18,7 +18,7 @@ from sqlalchemy.exc import IntegrityError
 from testcontainers.community.postgres import PostgresContainer
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-_DB = "nptc_created_entry"
+_DB = "aptc_created_entry"
 _CHECK_VIOLATION = "23514"
 _UNIQUE_VIOLATION = "23505"
 
@@ -118,13 +118,13 @@ def test_the_app_role_may_update_the_column_and_still_no_content_column(engine: 
     with engine.connect() as connection:
         granted = connection.execute(
             text(
-                "SELECT has_column_privilege('nptc_app', 'submission', 'created_entry_id', "
+                "SELECT has_column_privilege('aptc_app', 'submission', 'created_entry_id', "
                 "'UPDATE')"
             )
         ).scalar_one()
         content_granted = connection.execute(
             text(
-                "SELECT has_column_privilege('nptc_app', 'submission', 'preferred_term', 'UPDATE')"
+                "SELECT has_column_privilege('aptc_app', 'submission', 'preferred_term', 'UPDATE')"
             )
         ).scalar_one()
     assert granted is True
@@ -135,7 +135,7 @@ def test_the_app_role_may_update_the_column_and_still_no_content_column(engine: 
 @pytest.mark.integration
 def test_a_new_test_may_record_the_entry_it_created(engine: Engine) -> None:
     _migrate(engine, "upgrade", "0038")
-    entry_id = _entry(engine, "NPTC-380001")
+    entry_id = _entry(engine, "APTC-380001")
 
     _insert(engine, "new_test", None, entry_id)
 
@@ -144,8 +144,8 @@ def test_a_new_test_may_record_the_entry_it_created(engine: Engine) -> None:
 @pytest.mark.integration
 def test_an_amendment_cannot_record_a_created_entry(engine: Engine) -> None:
     _migrate(engine, "upgrade", "0038")
-    entry_id = _entry(engine, "NPTC-380002")
-    created_id = _entry(engine, "NPTC-380003")
+    entry_id = _entry(engine, "APTC-380002")
+    created_id = _entry(engine, "APTC-380003")
 
     with pytest.raises(IntegrityError) as refused:
         _insert(engine, "amendment", entry_id, created_id)
@@ -156,7 +156,7 @@ def test_an_amendment_cannot_record_a_created_entry(engine: Engine) -> None:
 @pytest.mark.integration
 def test_one_entry_cannot_be_the_product_of_two_submissions(engine: Engine) -> None:
     _migrate(engine, "upgrade", "0038")
-    entry_id = _entry(engine, "NPTC-380004")
+    entry_id = _entry(engine, "APTC-380004")
     _insert(engine, "new_test", None, entry_id)
 
     with pytest.raises(IntegrityError) as refused:

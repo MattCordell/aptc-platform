@@ -1,4 +1,4 @@
-"""Integration tests for nptc.audit.recording against a real Postgres
+"""Integration tests for aptc.audit.recording against a real Postgres
 database (issue #37, NFR-08). `Session(bind=app_db)` joins the existing
 testcontainers fixture connection - see test_auth_identity_resolution.py's
 module docstring for why.
@@ -11,12 +11,12 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 from sqlalchemy.orm import Session
 
-from nptc.audit.diffing import ChangeKind
-from nptc.audit.policy import AuditFieldPolicy
-from nptc.audit.recording import AuditNoOpError, record_change, record_snapshot_change
-from nptc.audit.writer import AuditContext
-from nptc.db.models.user import User, UserStatus
-from nptc_shared.sctid import SCTID
+from aptc.audit.diffing import ChangeKind
+from aptc.audit.policy import AuditFieldPolicy
+from aptc.audit.recording import AuditNoOpError, record_change, record_snapshot_change
+from aptc.audit.writer import AuditContext
+from aptc.db.models.user import User, UserStatus
+from aptc_shared.sctid import SCTID
 
 
 def _create_active_user(session: Session, username: str) -> User:
@@ -254,7 +254,7 @@ def test_a_withheld_field_change_is_recorded_by_name_only(app_db: Connection) ->
 
     `user.renamed` is not a fictitious action invented for this test - it is
     also the real production emit site in
-    `nptc.auth.identity.resolve_user_for_claims`'s EXISTING-login branch
+    `aptc.auth.identity.resolve_user_for_claims`'s EXISTING-login branch
     (issue #167)."""
     session = Session(bind=app_db)
     user = _create_active_user(session, "june")

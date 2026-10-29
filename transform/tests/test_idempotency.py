@@ -10,7 +10,7 @@ import pytest
 from openpyxl.worksheet.worksheet import Worksheet
 from typer.testing import CliRunner
 
-from nptc_transform.cli import app
+from aptc_transform.cli import app
 
 runner = CliRunner()
 

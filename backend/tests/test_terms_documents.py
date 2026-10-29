@@ -14,10 +14,10 @@ from pathlib import Path
 
 import pytest
 
-from nptc.api.app import create_app
-from nptc.terms import documents
-from nptc.terms.documents import DEFAULT_TERMS_VERSION, TermsDocument, load_terms_document
-from nptc.terms.errors import TermsFileMalformedError, TermsVersionNotFoundError
+from aptc.api.app import create_app
+from aptc.terms import documents
+from aptc.terms.documents import DEFAULT_TERMS_VERSION, TermsDocument, load_terms_document
+from aptc.terms.errors import TermsFileMalformedError, TermsVersionNotFoundError
 
 _spec = importlib.util.spec_from_file_location(
     "hermetic_settings_support", Path(__file__).parent / "hermetic_settings_support.py"
@@ -60,7 +60,7 @@ def test_the_text_is_served_without_the_front_matter() -> None:
 def test_every_packaged_file_loads_and_is_named_for_its_own_version() -> None:
     files = [
         entry
-        for entry in resources.files("nptc.terms").joinpath("versions").iterdir()
+        for entry in resources.files("aptc.terms").joinpath("versions").iterdir()
         if entry.name.endswith(".md")
     ]
 

@@ -19,7 +19,7 @@ import { useDocumentTitle } from "./use-document-title.ts";
  */
 export function RouteErrorPage({ error, reset }: ErrorComponentProps) {
   const router = useRouter();
-  useDocumentTitle("Something went wrong — NPTC Catalogue");
+  useDocumentTitle("Something went wrong — APTC Catalogue");
 
   useEffect(() => {
     console.error("Route render error", error);

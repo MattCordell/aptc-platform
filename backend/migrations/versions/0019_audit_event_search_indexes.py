@@ -4,12 +4,12 @@ Revision ID: 0019
 Revises: 0018
 Create Date: 2026-09-10
 
-Issue #286 (NFR-12): supporting indexes for `nptc.audit.queries.
+Issue #286 (NFR-12): supporting indexes for `aptc.audit.queries.
 search_audit_events`'s three other filters - actor, action, and
 `occurred_at` range - each paired with `sequence` for the same keyset-
 pagination reason `ix_audit_event_entity_type_entity_id_sequence`
 (migration 0018) already established. See
-`nptc.db.models.audit.AuditEvent.__table_args__`'s own comment.
+`aptc.db.models.audit.AuditEvent.__table_args__`'s own comment.
 """
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-"""`nptc.auth.authorisation` (issue #44, FR-44, NFR-20): `require_permission`,
+"""`aptc.auth.authorisation` (issue #44, FR-44, NFR-20): `require_permission`,
 `may_act_on`/`require_ownership_or_permission`, and quota resolution. Pure
 unit tests - `Principal` is a frozen dataclass with no I/O, so none of this
 needs a database.
@@ -10,7 +10,7 @@ import uuid
 
 import pytest
 
-from nptc.auth.authorisation import (
+from aptc.auth.authorisation import (
     has_permission,
     may_act_on,
     require_any_permission,
@@ -18,9 +18,9 @@ from nptc.auth.authorisation import (
     require_permission,
     resolve_quota,
 )
-from nptc.auth.errors_authorisation import MfaRequiredError, PermissionDeniedError
-from nptc.auth.permissions import ROLE_PERMISSIONS, Permission, Role, permissions_for_roles
-from nptc.auth.principal import ANONYMOUS, Principal
+from aptc.auth.errors_authorisation import MfaRequiredError, PermissionDeniedError
+from aptc.auth.permissions import ROLE_PERMISSIONS, Permission, Role, permissions_for_roles
+from aptc.auth.principal import ANONYMOUS, Principal
 
 _USER_A = uuid.uuid4()
 _USER_B = uuid.uuid4()
@@ -214,7 +214,7 @@ def test_resolve_quota_uses_the_principals_roles() -> None:
 
 
 def test_resolve_quota_honours_an_explicit_override() -> None:
-    from nptc.auth.permissions import SubmissionQuota
+    from aptc.auth.permissions import SubmissionQuota
 
     provisional = _principal(user_id=_USER_A, roles=frozenset({Role.PROVISIONAL}))
     override = SubmissionQuota(lifetime_max=42, per_hour_max=None)

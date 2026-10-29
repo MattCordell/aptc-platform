@@ -1,4 +1,4 @@
-"""Shared HTTP-test helpers for `nptc.api.routers.audit` (issue #286).
+"""Shared HTTP-test helpers for `aptc.api.routers.audit` (issue #286).
 
 Not a `test_*.py` module - loaded by file path via each caller's own
 `_load` helper, the same convention `audit_support.py` and the other
@@ -18,9 +18,9 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from nptc.audit.writer import AuditContext, append_audit_event
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.user import User
+from aptc.audit.writer import AuditContext, append_audit_event
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.user import User
 
 
 def create_active_user(api: Any, username: str) -> User:

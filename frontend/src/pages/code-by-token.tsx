@@ -20,7 +20,7 @@ const HEADING_ID = "code-by-token-heading";
 export function CodeByTokenPage() {
   const { systemToken, code } = useParams({ from: "/catalogue/code/$systemToken/$code" });
   const query = useEntryByCode(systemToken, code);
-  useDocumentTitle("Code lookup — NPTC Catalogue");
+  useDocumentTitle("Code lookup — APTC Catalogue");
   const system = codeSystemForToken(systemToken);
 
   return (

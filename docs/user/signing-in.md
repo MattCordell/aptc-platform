@@ -6,7 +6,7 @@ commenting, or reviewing.
 
 ## Creating an account
 
-Choose **Register** at the top right of any page. You are taken to the NPTC sign-in
+Choose **Register** at the top right of any page. You are taken to the APTC sign-in
 service, where you create an account. The form asks for:
 
 - your first name and last name;

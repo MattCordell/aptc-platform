@@ -14,7 +14,7 @@ import { stubEditorApi as stubApi } from "../test/session-route.ts";
  * Driven through the real admin edit route, like the panels it replaced.
  */
 
-const BUSINESS_KEY = "NPTC-000901";
+const BUSINESS_KEY = "APTC-000901";
 const EDIT_URL = `/admin/catalogue/${BUSINESS_KEY}/edit`;
 const ENTRY_PATH = `/catalogue/admin/entries/${BUSINESS_KEY}`;
 const AMEND_PATH = `/catalogue/entries/${BUSINESS_KEY}/designations/amendment`;
@@ -99,7 +99,7 @@ const DEFINITIONS = {
   ],
 };
 
-const DISCIPLINE_SYSTEM = "https://nptc.example/code-system/discipline";
+const DISCIPLINE_SYSTEM = "https://aptc.example/code-system/discipline";
 const SNOMED = "http://snomed.info/sct";
 const HAEM = { system: DISCIPLINE_SYSTEM, code: "HAEM", display: "Haematology" };
 const BIOC = { system: DISCIPLINE_SYSTEM, code: "BIOC", display: "Biochemistry" };
@@ -1054,7 +1054,7 @@ describe("a refused field", () => {
           collisions: [
             {
               severity: "error",
-              business_key: "NPTC-000900",
+              business_key: "APTC-000900",
               preferred_term: "Iron studies",
               label_provenance: {},
             },
@@ -1074,7 +1074,7 @@ describe("a refused field", () => {
     await save(user);
 
     await screen.findByRole("heading", { name: "Some changes were not saved" });
-    expect(summary().getByText(/NPTC-000900/)).toBeInTheDocument();
+    expect(summary().getByText(/APTC-000900/)).toBeInTheDocument();
     expect(form().getByLabelText("RCPA Preferred")).toHaveValue("Iron studies");
     // A refusal changed nothing, so the property is sent with the version the page loaded.
     expect(bodyOf(calls, USAGE_PATH)).toMatchObject({ expected_row_version: 4 });
@@ -1311,7 +1311,7 @@ describe("a field someone else changed", () => {
           collisions: [
             {
               severity: "error",
-              business_key: "NPTC-000900",
+              business_key: "APTC-000900",
               preferred_term: "Iron studies",
               label_provenance: {},
             },

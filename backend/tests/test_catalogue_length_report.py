@@ -1,4 +1,4 @@
-"""`nptc.catalogue.length_report` - the FR-87 length distribution report
+"""`aptc.catalogue.length_report` - the FR-87 length distribution report
 (issue #152).
 
 Uses an ORM `Session` bound to `app_db`, matching `test_catalogue_
@@ -22,18 +22,18 @@ from sqlalchemy import Table, func, insert, literal, select
 from sqlalchemy.engine import Connection
 from sqlalchemy.orm import Session
 
-import nptc.catalogue.length_report as length_report
-from nptc.audit.writer import AuditContext
-from nptc.catalogue.entries import allocate_business_key, create_entry
-from nptc.catalogue.length_report import (
+import aptc.catalogue.length_report as length_report
+from aptc.audit.writer import AuditContext
+from aptc.catalogue.entries import allocate_business_key, create_entry
+from aptc.catalogue.length_report import (
     LengthBucket,
     LengthDistribution,
     build_length_histogram_statement,
     compute_length_distribution,
     distribution_from_buckets,
 )
-from nptc.catalogue.term_hygiene import exceeds_maximum_length, preferred_term_length
-from nptc.db.models.catalogue_entry import CatalogueEntry
+from aptc.catalogue.term_hygiene import exceeds_maximum_length, preferred_term_length
+from aptc.db.models.catalogue_entry import CatalogueEntry
 
 
 def _new_entry(session: Session, preferred_term: str) -> CatalogueEntry:

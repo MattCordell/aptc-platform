@@ -1,4 +1,4 @@
-"""`nptc.submissions.amendment.create_amendment_submission` service-layer tests (FR-35, FR-26, FR-27,
+"""`aptc.submissions.amendment.create_amendment_submission` service-layer tests (FR-35, FR-26, FR-27,
 NFR-08).
 
 Each refusal asserts that no `submission` row and no audit event was added, because a refused
@@ -20,17 +20,17 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from nptc.audit.writer import AuditContext
-from nptc.catalogue.errors import EntryNotFoundError
-from nptc.catalogue.term_hygiene import TermCleaningError
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
-from nptc.db.models.code_binding import CodeBinding, CodeBindingStatus
-from nptc.db.models.designation import Designation as DesignationRow
-from nptc.db.models.submission import Submission, SubmissionKind, SubmissionState
-from nptc.db.models.user import User
-from nptc.submissions.amendment import AmendmentInput, create_amendment_submission
-from nptc.submissions.errors import (
+from aptc.audit.writer import AuditContext
+from aptc.catalogue.errors import EntryNotFoundError
+from aptc.catalogue.term_hygiene import TermCleaningError
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
+from aptc.db.models.code_binding import CodeBinding, CodeBindingStatus
+from aptc.db.models.designation import Designation as DesignationRow
+from aptc.db.models.submission import Submission, SubmissionKind, SubmissionState
+from aptc.db.models.user import User
+from aptc.submissions.amendment import AmendmentInput, create_amendment_submission
+from aptc.submissions.errors import (
     AmendmentEntryNotActiveError,
     AmendmentRefusal,
     AmendmentRefusedError,
@@ -38,13 +38,13 @@ from nptc.submissions.errors import (
     FreeTextRefusedError,
     SubmissionCodeRefusedError,
 )
-from nptc.submissions.reference_check import (
+from aptc.submissions.reference_check import (
     HttpReferenceChecker,
     ReferenceCheckFailedError,
     ReferenceCheckResult,
     ReferenceFailure,
 )
-from nptc_shared.terminology import (
+from aptc_shared.terminology import (
     AU_LANGUAGE_TAG,
     Operation,
     StubConcept,
@@ -108,7 +108,7 @@ def _entry(
     synonyms: tuple[str, ...] = (),
 ) -> CatalogueEntry:
     entry = CatalogueEntry(
-        business_key=f"NPTC-{random.randrange(100_000_000, 999_999_999)}",
+        business_key=f"APTC-{random.randrange(100_000_000, 999_999_999)}",
         preferred_term=term,
         status=status.value,
     )
@@ -301,7 +301,7 @@ def test_an_unknown_business_key_is_refused_and_saves_nothing(app_session: Sessi
         _create(
             app_session,
             ctx,
-            AmendmentInput(entry_business_key="NPTC-000000000", synonyms=["Na (serum)"]),
+            AmendmentInput(entry_business_key="APTC-000000000", synonyms=["Na (serum)"]),
         )
 
     _assert_nothing_saved(app_session, user, before)

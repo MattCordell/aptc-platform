@@ -109,7 +109,7 @@ function LookupForm({
 
 export function CodeLookupPage() {
   const search = useSearch({ from: "/catalogue/lookup" });
-  useDocumentTitle("Code lookup — NPTC Catalogue");
+  useDocumentTitle("Code lookup — APTC Catalogue");
 
   const addressedSystem = search.system.trim();
   const addressedCode = search.code.trim();

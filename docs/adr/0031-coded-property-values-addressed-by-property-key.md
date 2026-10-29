@@ -29,25 +29,25 @@ or the `LocalCode` table itself. The response shape (`{items: [{code, display}],
 is identical either way; a client cannot tell which value source answered, and nothing in
 `frontend/src` (or the backend router/response model) branches on `binding_target` at all.
 
-`nptc.catalogue.property_value_sources.list_property_values` is the one function in the
+`aptc.catalogue.property_value_sources.list_property_values` is the one function in the
 whole backend that reads `binding_target` - a router or frontend branch on it would be
 `datatype == "code"` in disguise, the exact proxy-switch [ADR-0013](0013-datatype-handler-registry.md)
 SS5 names as its hardest-to-catch violation class, since the syntactic `datatype`-compare
 AST guard (`test_datatype_dispatch.py`) cannot see a `binding_target` string comparison as
 the same defect.
 
-### One service function owns the branch, living in `nptc.catalogue`, not `nptc.registry`
+### One service function owns the branch, living in `aptc.catalogue`, not `aptc.registry`
 
-`nptc.registry` is a leaf package (ADR-0013 SS2): its own imports prove it never reaches
-`nptc.db` or a `Session`. The new service needs both - a `Session` to load the
+`aptc.registry` is a leaf package (ADR-0013 SS2): its own imports prove it never reaches
+`aptc.db` or a `Session`. The new service needs both - a `Session` to load the
 `PropertyDefinition` and query `LocalCode`, and a live `TerminologyClient` call - so it
-lives in `nptc.catalogue`, alongside `local_codes.py`/`property_values.py`, which already
-combine `nptc.db` access with `nptc.registry.handlers` types for the identical leaf-rule
+lives in `aptc.catalogue`, alongside `local_codes.py`/`property_values.py`, which already
+combine `aptc.db` access with `aptc.registry.handlers` types for the identical leaf-rule
 reason.
 
 ### Paging is offset/count, not the catalogue's own opaque keyset cursor
 
-Every other paginated route in this API (`nptc.catalogue.entries`/`search`,
+Every other paginated route in this API (`aptc.catalogue.entries`/`search`,
 [ADR-0024](0024-catalogue-search-and-pagination.md)) uses a keyset cursor - an offset
 re-reads and re-skips every earlier row on every page, and drops or repeats rows outright
 when a concurrent insert shifts the window mid-scan. This route uses `offset`/`count`
@@ -76,10 +76,10 @@ The *edition* `expand` needs is a separate, harder problem, because this codebas
 `value_set_uri` values are not all one shape. `implicit_value_set_url`'s own output is
 module-qualified (`<system>/<module>[/version/<v>]?fhir_vs=ecl/...`) and self-describing -
 the module id, and any pinned version, is read straight back out of it. But PRD S6.6's own
-worked example (line 417), and `nptc.db.bootstrap`'s real seeded `specimen` binding,
+worked example (line 417), and `aptc.db.bootstrap`'s real seeded `specimen` binding,
 instead store the *bare*-system form `<system>?fhir_vs=ecl/...`, which carries no module
 at all - there is nothing in that URI to recover an edition from. `edition_from_implicit_
-value_set_url` (`shared/src/nptc_shared/terminology/snomed.py`) handles both: a
+value_set_url` (`shared/src/aptc_shared/terminology/snomed.py`) handles both: a
 module-qualified URI resolves from itself alone; a bare-system URI falls back to matching
 the stored `binding.edition` label against the two well-known editions
 (`SNOMED_CT_AU`/`SNOMED_CT_INTERNATIONAL`), raising rather than fabricating an `Edition`
@@ -104,7 +104,7 @@ substring match. Added as a fifth parameter to `TerminologyClient.expand` (both
 picker's search-as-you-type narrows results without pulling the whole expansion
 client-side first. `list_local_codes`'s own `filter` is a plain, case-insensitive `ILIKE`
 substring match against `display` only (never `code`) - proportionate to a governed
-vocabulary's handful of codes, not `nptc.catalogue.search`'s trigram/full-text ranking
+vocabulary's handful of codes, not `aptc.catalogue.search`'s trigram/full-text ranking
 machinery built for ranked search across the whole catalogue.
 
 **The two branches' `filter` semantics are not identical**, even though the response
@@ -132,7 +132,7 @@ codes, neither of which this route needs.
 - Any future coded property (a new value-set or local-code-system binding) is served by
   this same route with no new endpoint and no frontend branch - the picker only ever
   needs a property `key`.
-- `nptc.catalogue.property_value_sources` is the one place to extend if a third binding
+- `aptc.catalogue.property_value_sources` is the one place to extend if a third binding
   target is ever added; the router, response models, and frontend stay untouched.
 - `TerminologyClient.expand`'s `filter` parameter is now part of the FR-53 contract
   surface for both implementations, not just this route - a future caller can rely on it

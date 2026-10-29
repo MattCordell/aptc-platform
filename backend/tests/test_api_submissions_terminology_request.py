@@ -22,17 +22,17 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.engine import Connection
 
-from nptc.api.terms_gate import TERMS_ACCEPTANCE_REQUIRED_CODE
-from nptc.auth.permissions import Role
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.submission import Submission, SubmissionKind
-from nptc.db.models.submission_terminology_request import SubmissionTerminologyRequest
-from nptc.db.models.submission_transition import SubmissionTransition
-from nptc.db.models.submission_working_copy import SubmissionWorkingCopy
-from nptc.db.models.user import User
-from nptc.db.models.user_identity import UserIdentity
-from nptc.submissions.queries import get_terminology_request
-from nptc_shared.terminology import (
+from aptc.api.terms_gate import TERMS_ACCEPTANCE_REQUIRED_CODE
+from aptc.auth.permissions import Role
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.submission import Submission, SubmissionKind
+from aptc.db.models.submission_terminology_request import SubmissionTerminologyRequest
+from aptc.db.models.submission_transition import SubmissionTransition
+from aptc.db.models.submission_working_copy import SubmissionWorkingCopy
+from aptc.db.models.user import User
+from aptc.db.models.user_identity import UserIdentity
+from aptc.submissions.queries import get_terminology_request
+from aptc_shared.terminology import (
     AU_LANGUAGE_TAG,
     Operation,
     StubConcept,

@@ -13,7 +13,7 @@ of CI yet.
 | Test | What it checks |
 |---|---|
 | Landing page (`/`) | The `h1` shows and axe reports no violation |
-| Sign-in (`/sign-in`) | The browser lands on the Keycloak authorisation endpoint with `client_id=nptc-frontend`, a `code_challenge` and the right `redirect_uri`, and Keycloak shows its username field. The test does not sign in. |
+| Sign-in (`/sign-in`) | The browser lands on the Keycloak authorisation endpoint with `client_id=aptc-frontend`, a `code_challenge` and the right `redirect_uri`, and Keycloak shows its username field. The test does not sign in. |
 | Stub page (`/about`) | The `h1` shows and axe reports no violation |
 | Not found (`/no-such-page`) | The `h1` shows and axe reports no violation |
 | Code lookup form (`/catalogue/lookup`) | The `h1` shows, an empty submit lists its problem, and axe reports no violation on both |
@@ -45,18 +45,18 @@ From `frontend/`:
 pnpm test:e2e
 ```
 
-From the repo root, `pnpm --filter nptc-frontend test:e2e` does the same.
+From the repo root, `pnpm --filter aptc-frontend test:e2e` does the same.
 
-The suite targets `http://localhost:8081`. To use another origin, set `NPTC_E2E_BASE_URL`:
+The suite targets `http://localhost:8081`. To use another origin, set `APTC_E2E_BASE_URL`:
 
 ```powershell
-$env:NPTC_E2E_BASE_URL = "http://localhost:9090"
+$env:APTC_E2E_BASE_URL = "http://localhost:9090"
 pnpm test:e2e
 ```
 
-Keycloak must be reachable from your browser at the address in `NPTC_OIDC_ISSUER`
+Keycloak must be reachable from your browser at the address in `APTC_OIDC_ISSUER`
 (`http://localhost:8080` by default). The origin you test must equal the stack's
-`NPTC_FRONTEND_BASE_URL`, because Keycloak refuses any other `redirect_uri`. The sign-in
+`APTC_FRONTEND_BASE_URL`, because Keycloak refuses any other `redirect_uri`. The sign-in
 test fails when they differ, because Keycloak then shows an error page instead of its login form.
 
 ## Read a failure
@@ -76,8 +76,8 @@ and not-found tests should fail with `color-contrast`. Revert the token afterwar
 | Symptom | Likely cause and fix |
 |---|---|
 | `browserType.launch: Executable doesn't exist` | Run `pnpm exec playwright install chromium`. |
-| `net::ERR_CONNECTION_REFUSED` | The stack is not running, or `NPTC_E2E_BASE_URL` points at the wrong port. |
-| The sign-in test cannot find the username field | Keycloak showed an error page. Usually `NPTC_E2E_BASE_URL` differs from `NPTC_FRONTEND_BASE_URL`, so Keycloak refused the `redirect_uri`. See [`deployment.md`](deployment.md#troubleshooting). |
+| `net::ERR_CONNECTION_REFUSED` | The stack is not running, or `APTC_E2E_BASE_URL` points at the wrong port. |
+| The sign-in test cannot find the username field | Keycloak showed an error page. Usually `APTC_E2E_BASE_URL` differs from `APTC_FRONTEND_BASE_URL`, so Keycloak refused the `redirect_uri`. See [`deployment.md`](deployment.md#troubleshooting). |
 | The sign-in test times out | An anonymous cold load waits for the session probe before it redirects. Check that `keycloak` is healthy. |
 
 Vitest ignores `frontend/e2e/`, so `pnpm test` never starts a browser.

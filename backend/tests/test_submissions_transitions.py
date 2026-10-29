@@ -1,4 +1,4 @@
-"""`nptc.submissions.transitions` service-layer tests (FR-28, FR-44, FR-63, NFR-08).
+"""`aptc.submissions.transitions` service-layer tests (FR-28, FR-44, FR-63, NFR-08).
 
 Each refusal asserts that no transition row and no audit event was added. `backend/tests` shares one
 Postgres container (see `CLAUDE.md`), so every query is scoped to the rows this test created, and an
@@ -19,16 +19,16 @@ from sqlalchemy import func, select, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
-import nptc.submissions.transitions as transitions_module
-from nptc.audit.writer import AuditContext
-from nptc.auth.errors_authorisation import MfaRequiredError, PermissionDeniedError
-from nptc.auth.permissions import ADMINISTRATOR_ONLY, Permission, Role, permissions_for_roles
-from nptc.auth.principal import Principal
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.submission import Submission, SubmissionKind, SubmissionState
-from nptc.db.models.submission_transition import SubmissionTransition
-from nptc.db.models.user import User
-from nptc.submissions.errors import (
+import aptc.submissions.transitions as transitions_module
+from aptc.audit.writer import AuditContext
+from aptc.auth.errors_authorisation import MfaRequiredError, PermissionDeniedError
+from aptc.auth.permissions import ADMINISTRATOR_ONLY, Permission, Role, permissions_for_roles
+from aptc.auth.principal import Principal
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.submission import Submission, SubmissionKind, SubmissionState
+from aptc.db.models.submission_transition import SubmissionTransition
+from aptc.db.models.user import User
+from aptc.submissions.errors import (
     FreeTextRefusedError,
     IllegalSubmissionTransitionError,
     SubmissionNotFoundError,
@@ -36,7 +36,7 @@ from nptc.submissions.errors import (
     TransitionNeedsOwnRouteError,
     TransitionReasonRequiredError,
 )
-from nptc.submissions.transitions import (
+from aptc.submissions.transitions import (
     PERMITTED_TRANSITIONS,
     TRANSITION_PERMISSIONS,
     available_transitions,

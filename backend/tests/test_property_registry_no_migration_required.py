@@ -20,7 +20,7 @@ in this suite, which runs inside a `db`/`app_db` transaction rolled back
 at teardown) - that is the point: a rolled-back write would not prove
 anything usable by a genuinely separate later connection. A `finally`
 block cleans both rows up via `owner_engine` (the owner role, since
-`nptc_app` has no `DELETE` grant on `property_definition` at all - FR-11),
+`aptc_app` has no `DELETE` grant on `property_definition` at all - FR-11),
 so this test leaves the shared container exactly as it found it for every
 other test in the run, matching issue #190's no-cross-test-pollution rule.
 """
@@ -56,7 +56,7 @@ def test_a_new_property_is_usable_with_no_migration_and_no_restart(
             entry_id = reading_connection.execute(
                 text(
                     "INSERT INTO catalogue_entry (business_key, preferred_term) "
-                    "VALUES ('NPTC-600001', 'Sample entry') RETURNING id"
+                    "VALUES ('APTC-600001', 'Sample entry') RETURNING id"
                 )
             ).scalar_one()
             reading_connection.execute(
@@ -82,7 +82,7 @@ def test_a_new_property_is_usable_with_no_migration_and_no_restart(
                 text("DELETE FROM property_value WHERE property_key = 'novel_property'")
             )
             cleanup_connection.execute(
-                text("DELETE FROM catalogue_entry WHERE business_key = 'NPTC-600001'")
+                text("DELETE FROM catalogue_entry WHERE business_key = 'APTC-600001'")
             )
             cleanup_connection.execute(
                 text("DELETE FROM property_definition WHERE key = 'novel_property'")

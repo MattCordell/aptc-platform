@@ -8,11 +8,11 @@ import openpyxl
 import pytest
 from typer.testing import CliRunner
 
-from nptc_transform.bands import Band
-from nptc_transform.cell_defects import scan_workbook, split_synonyms
-from nptc_transform.cli import app
-from nptc_transform.findings import Finding
-from nptc_transform.workbook import Sheet, read_workbook
+from aptc_transform.bands import Band
+from aptc_transform.cell_defects import scan_workbook, split_synonyms
+from aptc_transform.cli import app
+from aptc_transform.findings import Finding
+from aptc_transform.workbook import Sheet, read_workbook
 
 runner = CliRunner()
 

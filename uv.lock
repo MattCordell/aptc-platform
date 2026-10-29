@@ -8,10 +8,10 @@ resolution-markers = [
 
 [manifest]
 members = [
-    "nptc-backend",
-    "nptc-platform",
-    "nptc-shared",
-    "nptc-transform",
+    "aptc-backend",
+    "aptc-platform",
+    "aptc-shared",
+    "aptc-transform",
 ]
 
 [[package]]
@@ -56,6 +56,108 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/61/cc/a381afa6efea9f496eff839d4a6a1aed3bfafc7b3ab4b0d1b243a12573dd/anyio-4.14.2.tar.gz", hash = "sha256:cfa139f3ed1a23ee8f88a145ddb5ac7605b8bbfd8592baacd7ce3d8bb4313c7f", size = 260176, upload-time = "2026-07-12T20:29:07.082Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/da/35/f2287558c17e29fafc8ef3daf819bb9834061cfa43bff8014f7df7f63bdc/anyio-4.14.2-py3-none-any.whl", hash = "sha256:9f505dda5ac9f0c8309b5e8bd445a8c2bf7246f3ce950121e45ea15bc41d1494", size = 125813, upload-time = "2026-07-12T20:29:05.763Z" },
+]
+
+[[package]]
+name = "aptc-backend"
+version = "0.0.0"
+source = { editable = "backend" }
+dependencies = [
+    { name = "alembic" },
+    { name = "aptc-shared" },
+    { name = "fastapi" },
+    { name = "httpx" },
+    { name = "jsonschema" },
+    { name = "psycopg", extra = ["binary"] },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "pyjwt", extra = ["crypto"] },
+    { name = "sqlalchemy" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "alembic", specifier = ">=1.19.1" },
+    { name = "aptc-shared", editable = "shared" },
+    { name = "fastapi", specifier = ">=0.115" },
+    { name = "httpx", specifier = ">=0.28" },
+    { name = "jsonschema", specifier = ">=4.23" },
+    { name = "psycopg", extras = ["binary"], specifier = ">=3.3.4" },
+    { name = "pydantic", specifier = ">=2.9" },
+    { name = "pydantic-settings", specifier = ">=2.6" },
+    { name = "pyjwt", extras = ["crypto"], specifier = ">=2.14" },
+    { name = "sqlalchemy", specifier = ">=2.1" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.52.3" },
+]
+
+[[package]]
+name = "aptc-platform"
+version = "0.0.0"
+source = { virtual = "." }
+
+[package.dev-dependencies]
+dev = [
+    { name = "mypy" },
+    { name = "openapi-spec-validator" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-xdist" },
+    { name = "pyyaml" },
+    { name = "ruff" },
+    { name = "testcontainers" },
+    { name = "types-jsonschema" },
+    { name = "types-openpyxl" },
+    { name = "types-pyyaml" },
+]
+
+[package.metadata]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "mypy", specifier = ">=1.13" },
+    { name = "openapi-spec-validator", specifier = ">=0.7.1" },
+    { name = "pre-commit", specifier = ">=4.0" },
+    { name = "pytest", specifier = ">=8.3" },
+    { name = "pytest-cov", specifier = ">=6.0" },
+    { name = "pytest-xdist", specifier = ">=3.8.0" },
+    { name = "pyyaml", specifier = ">=6.0" },
+    { name = "ruff", specifier = ">=0.16.2" },
+    { name = "testcontainers", extras = ["postgres"], specifier = ">=4.15.0" },
+    { name = "types-jsonschema", specifier = ">=4.23" },
+    { name = "types-openpyxl", specifier = ">=3.1.5.20260807" },
+    { name = "types-pyyaml", specifier = ">=6.0.12.20260815" },
+]
+
+[[package]]
+name = "aptc-shared"
+version = "0.0.0"
+source = { editable = "shared" }
+dependencies = [
+    { name = "httpx" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "httpx", specifier = ">=0.28" }]
+
+[[package]]
+name = "aptc-transform"
+version = "0.0.0"
+source = { editable = "transform" }
+dependencies = [
+    { name = "aptc-shared" },
+    { name = "httpx" },
+    { name = "openpyxl" },
+    { name = "typer" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "aptc-shared", editable = "shared" },
+    { name = "httpx", specifier = ">=0.28" },
+    { name = "openpyxl", specifier = ">=3.1" },
+    { name = "typer", specifier = ">=0.13" },
 ]
 
 [[package]]
@@ -812,108 +914,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/24/bf/d1bda4f6168e0b2e9e5958945e01910052158313224ada5ce1fb2e1113b8/nodeenv-1.10.0.tar.gz", hash = "sha256:996c191ad80897d076bdfba80a41994c2b47c68e224c542b48feba42ba00f8bb", size = 55611, upload-time = "2025-12-20T14:08:54.006Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/88/b2/d0896bdcdc8d28a7fc5717c305f1a861c26e18c05047949fb371034d98bd/nodeenv-1.10.0-py2.py3-none-any.whl", hash = "sha256:5bb13e3eed2923615535339b3c620e76779af4cb4c6a90deccc9e36b274d3827", size = 23438, upload-time = "2025-12-20T14:08:52.782Z" },
-]
-
-[[package]]
-name = "nptc-backend"
-version = "0.0.0"
-source = { editable = "backend" }
-dependencies = [
-    { name = "alembic" },
-    { name = "fastapi" },
-    { name = "httpx" },
-    { name = "jsonschema" },
-    { name = "nptc-shared" },
-    { name = "psycopg", extra = ["binary"] },
-    { name = "pydantic" },
-    { name = "pydantic-settings" },
-    { name = "pyjwt", extra = ["crypto"] },
-    { name = "sqlalchemy" },
-    { name = "uvicorn", extra = ["standard"] },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "alembic", specifier = ">=1.19.1" },
-    { name = "fastapi", specifier = ">=0.115" },
-    { name = "httpx", specifier = ">=0.28" },
-    { name = "jsonschema", specifier = ">=4.23" },
-    { name = "nptc-shared", editable = "shared" },
-    { name = "psycopg", extras = ["binary"], specifier = ">=3.3.4" },
-    { name = "pydantic", specifier = ">=2.9" },
-    { name = "pydantic-settings", specifier = ">=2.6" },
-    { name = "pyjwt", extras = ["crypto"], specifier = ">=2.14" },
-    { name = "sqlalchemy", specifier = ">=2.1" },
-    { name = "uvicorn", extras = ["standard"], specifier = ">=0.52.3" },
-]
-
-[[package]]
-name = "nptc-platform"
-version = "0.0.0"
-source = { virtual = "." }
-
-[package.dev-dependencies]
-dev = [
-    { name = "mypy" },
-    { name = "openapi-spec-validator" },
-    { name = "pre-commit" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "pytest-xdist" },
-    { name = "pyyaml" },
-    { name = "ruff" },
-    { name = "testcontainers" },
-    { name = "types-jsonschema" },
-    { name = "types-openpyxl" },
-    { name = "types-pyyaml" },
-]
-
-[package.metadata]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "mypy", specifier = ">=1.13" },
-    { name = "openapi-spec-validator", specifier = ">=0.7.1" },
-    { name = "pre-commit", specifier = ">=4.0" },
-    { name = "pytest", specifier = ">=8.3" },
-    { name = "pytest-cov", specifier = ">=6.0" },
-    { name = "pytest-xdist", specifier = ">=3.8.0" },
-    { name = "pyyaml", specifier = ">=6.0" },
-    { name = "ruff", specifier = ">=0.16.2" },
-    { name = "testcontainers", extras = ["postgres"], specifier = ">=4.15.0" },
-    { name = "types-jsonschema", specifier = ">=4.23" },
-    { name = "types-openpyxl", specifier = ">=3.1.5.20260807" },
-    { name = "types-pyyaml", specifier = ">=6.0.12.20260815" },
-]
-
-[[package]]
-name = "nptc-shared"
-version = "0.0.0"
-source = { editable = "shared" }
-dependencies = [
-    { name = "httpx" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "httpx", specifier = ">=0.28" }]
-
-[[package]]
-name = "nptc-transform"
-version = "0.0.0"
-source = { editable = "transform" }
-dependencies = [
-    { name = "httpx" },
-    { name = "nptc-shared" },
-    { name = "openpyxl" },
-    { name = "typer" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "httpx", specifier = ">=0.28" },
-    { name = "nptc-shared", editable = "shared" },
-    { name = "openpyxl", specifier = ">=3.1" },
-    { name = "typer", specifier = ">=0.13" },
 ]
 
 [[package]]

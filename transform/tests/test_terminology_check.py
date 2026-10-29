@@ -14,21 +14,21 @@ import openpyxl
 import pytest
 from openpyxl.worksheet.worksheet import Worksheet
 
-from nptc_shared.terminology.errors import OperationOutcomeIssue, TerminologyStatusError
-from nptc_shared.terminology.models import (
+from aptc_shared.terminology.errors import OperationOutcomeIssue, TerminologyStatusError
+from aptc_shared.terminology.models import (
     PROCEDURE_ROOT_CODE,
     SNOMED_CT_AU,
     SNOMED_CT_INTERNATIONAL,
     Operation,
 )
-from nptc_shared.terminology.stub import StubConcept, StubTerminologyClient
-from nptc_shared.terminology.sweep import TerminologySweep
-from nptc_transform.bands import Band, FindingCode, blocks_import
-from nptc_transform.cell_defects import scan_workbook
-from nptc_transform.findings import Finding
-from nptc_transform.pipeline import Mode, run_transform
-from nptc_transform.terminology_check import check_terminology, resolve_binding_fsns
-from nptc_transform.workbook import read_workbook
+from aptc_shared.terminology.stub import StubConcept, StubTerminologyClient
+from aptc_shared.terminology.sweep import TerminologySweep
+from aptc_transform.bands import Band, FindingCode, blocks_import
+from aptc_transform.cell_defects import scan_workbook
+from aptc_transform.findings import Finding
+from aptc_transform.pipeline import Mode, run_transform
+from aptc_transform.terminology_check import check_terminology, resolve_binding_fsns
+from aptc_transform.workbook import read_workbook
 
 # Real SNOMED CT identifiers, all Verhoeff-valid, chosen so each row exercises
 # one outcome. The concept data behind them is fixture data, not a claim about

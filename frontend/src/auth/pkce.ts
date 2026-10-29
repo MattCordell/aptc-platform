@@ -66,7 +66,7 @@ export function createNonce(): string {
 
 /**
  * S256 only - never `plain`. The realm advertises S256 and
- * `nptc-frontend`'s `pkce.code.challenge.method` pins it (ADR-0014), so a
+ * `aptc-frontend`'s `pkce.code.challenge.method` pins it (ADR-0014), so a
  * `plain` challenge would be refused anyway; not implementing it at all
  * means there is no downgrade path to reach for.
  */

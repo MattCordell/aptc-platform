@@ -1,7 +1,7 @@
 """app_user / user_identity privilege tests (issue #42): the app role can
 read/write what NFR-17 needs and is refused everything that would let it
 delete a user or mutate the immutable UUID (NFR-04), authenticated as a
-genuinely separate login (nptc_app_login), never a superuser connection
+genuinely separate login (aptc_app_login), never a superuser connection
 with SET ROLE.
 
 Each refusal gets its own test function - see test_db_audit_privileges.py

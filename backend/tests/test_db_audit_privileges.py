@@ -1,6 +1,6 @@
 """audit_event privilege tests (issue #33): the app role can INSERT/SELECT
 and is refused UPDATE/DELETE/TRUNCATE, authenticated as a genuinely separate
-login (nptc_app_login), never a superuser connection with SET ROLE.
+login (aptc_app_login), never a superuser connection with SET ROLE.
 
 Each refusal gets its own test function: a privilege error aborts the
 surrounding transaction, so a second statement in the same transaction
@@ -23,7 +23,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 from sqlalchemy.orm import Session
 
-from nptc.audit.queries import AuditEventFilter, search_audit_events
+from aptc.audit.queries import AuditEventFilter, search_audit_events
 
 _support_spec = importlib.util.spec_from_file_location(
     "_test_db_audit_privileges_support", Path(__file__).parent / "audit_privilege_support.py"
@@ -39,7 +39,7 @@ assert_refused = _support.assert_refused
 def test_app_role_can_insert_and_select(app_db: Connection) -> None:
     """Also proves the identity-sequence and schema-USAGE grants are
     sufficient on their own: nothing beyond INSERT on the table itself was
-    granted, and this succeeds regardless (see nptc.db.models.audit's note
+    granted, and this succeeds regardless (see aptc.db.models.audit's note
     on why identity, not `serial`, is what makes that true)."""
     insert_one_row(app_db)
 
@@ -78,8 +78,8 @@ def test_app_role_is_refused_truncate(app_db: Connection) -> None:
 def test_app_role_can_search_audit_events_but_remains_refused_update(
     app_db: Connection,
 ) -> None:
-    """Issue #286: `nptc.audit.queries.search_audit_events` reaches
-    `audit_event` through the same `nptc_app_login` role every other query
+    """Issue #286: `aptc.audit.queries.search_audit_events` reaches
+    `audit_event` through the same `aptc_app_login` role every other query
     in this file exercises - the NFR-12 read surface adds no new grant,
     and this role is still refused a write afterwards. `assert_refused`
     must be the last statement on this connection (see its own

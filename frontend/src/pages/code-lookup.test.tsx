@@ -12,7 +12,7 @@ import { stubApi } from "../test/stub-api.ts";
  * the real router and signed out.
  */
 
-const KEY = "NPTC-000247";
+const KEY = "APTC-000247";
 const LEADING_ZEROS = "000123";
 const SYSTEM_URI = "http://snomed.info/sct";
 const NOT_FOUND_DETAIL =
@@ -81,7 +81,7 @@ describe("the form", () => {
     expect(screen.getByRole("textbox", { name: "Code" })).toHaveValue("");
     expect(screen.getByRole("form", { name: "Look up a code" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Look up" })).toBeInTheDocument();
-    await waitFor(() => expect(document.title).toBe("Code lookup — NPTC Catalogue"));
+    await waitFor(() => expect(document.title).toBe("Code lookup — APTC Catalogue"));
   });
 
   it("offers SNOMED CT as the only system", async () => {

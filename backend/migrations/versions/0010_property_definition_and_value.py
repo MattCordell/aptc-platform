@@ -26,7 +26,7 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-from nptc.db import roles
+from aptc.db import roles
 
 # revision identifiers, used by Alembic.
 revision: str = "0010"

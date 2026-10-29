@@ -24,17 +24,17 @@ import jwt
 import pytest
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
-from nptc.auth.errors import (
+from aptc.auth.errors import (
     TokenAudienceError,
     TokenClaimsError,
     TokenExpiredError,
     TokenInvalidError,
     TokenIssuerError,
 )
-from nptc.auth.jwks import SigningKeys
-from nptc.auth.tokens import TokenVerifier
-from nptc.submissions.errors import FreeTextField, FreeTextRefusedError
-from nptc.submissions.shared import clean_free_text
+from aptc.auth.jwks import SigningKeys
+from aptc.auth.tokens import TokenVerifier
+from aptc.submissions.errors import FreeTextField, FreeTextRefusedError
+from aptc.submissions.shared import clean_free_text
 
 _support_spec = importlib.util.spec_from_file_location(
     "_test_auth_token_verification_support", Path(__file__).parent / "auth_jwt_support.py"
@@ -69,7 +69,7 @@ def verifier(stub, signing_key):
     stub.add_key("key-1", signing_key)
     return TokenVerifier(
         issuer=stub.issuer_url,
-        audience="nptc-api",
+        audience="aptc-api",
         keys=SigningKeys(stub.jwks_url),
     )
 
@@ -123,7 +123,7 @@ def test_alg_none_is_rejected(stub, verifier) -> None:
         {
             "iss": stub.issuer_url,
             "sub": "auth0|test-subject",
-            "aud": "nptc-api",
+            "aud": "aptc-api",
             "iat": 0,
             "exp": 9_999_999_999,
         },
@@ -168,7 +168,7 @@ def test_audience_as_a_list_containing_the_expected_value_is_accepted(
         signing_key,
         kid="key-1",
         issuer=stub.issuer_url,
-        audience=["some-other-api", "nptc-api"],
+        audience=["some-other-api", "aptc-api"],
     )
 
     claims = verifier.verify(token)
@@ -198,7 +198,7 @@ def test_missing_sub_is_rejected(stub, signing_key, verifier) -> None:
     now = int(time.time())
     claims = {
         "iss": stub.issuer_url,
-        "aud": "nptc-api",
+        "aud": "aptc-api",
         "iat": now,
         "exp": now + 300,
         "typ": "Bearer",
@@ -240,7 +240,7 @@ def test_hs256_signed_with_the_rsa_public_key_as_the_hmac_secret_is_rejected(
     claims = {
         "iss": stub.issuer_url,
         "sub": "auth0|test-subject",
-        "aud": "nptc-api",
+        "aud": "aptc-api",
         "iat": now,
         "exp": now + 300,
     }

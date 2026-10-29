@@ -12,14 +12,14 @@ import pytest
 from sqlalchemy.engine import Connection
 from sqlalchemy.orm import Session
 
-from nptc.audit.writer import AuditContext
-from nptc.auth.authorisation import require_permission
-from nptc.auth.claims import OidcIdentityClaims
-from nptc.auth.errors_authorisation import MfaRequiredError, PermissionDeniedError
-from nptc.auth.grants import grant_role_unchecked
-from nptc.auth.identity import LinkOutcome, Resolution, resolve_user_for_claims
-from nptc.auth.permissions import Permission, Role
-from nptc.auth.principal import principal_for
+from aptc.audit.writer import AuditContext
+from aptc.auth.authorisation import require_permission
+from aptc.auth.claims import OidcIdentityClaims
+from aptc.auth.errors_authorisation import MfaRequiredError, PermissionDeniedError
+from aptc.auth.grants import grant_role_unchecked
+from aptc.auth.identity import LinkOutcome, Resolution, resolve_user_for_claims
+from aptc.auth.permissions import Permission, Role
+from aptc.auth.principal import principal_for
 
 _MFA_ACR_VALUES = frozenset({"2"})
 

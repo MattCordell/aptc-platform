@@ -19,8 +19,8 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import IntegrityError, ProgrammingError
 
-from nptc.db.models.catalogue_entry import ImmutableFieldError
-from nptc.db.models.property_definition import PropertyDefinition
+from aptc.db.models.catalogue_entry import ImmutableFieldError
+from aptc.db.models.property_definition import PropertyDefinition
 
 _CHECK_VIOLATION = "23514"
 _INSUFFICIENT_PRIVILEGE = "42501"
@@ -241,7 +241,7 @@ def test_app_role_is_refused_truncate(app_db: Connection) -> None:
 def test_app_role_can_update_row_version(app_db: Connection) -> None:
     """`row_version` must sit inside the column-level UPDATE grant, or
     every SQLAlchemy `version_id_col` write 500s with a permission error
-    rather than a version check (see `nptc.db.roles.
+    rather than a version check (see `aptc.db.roles.
     GRANT_PROPERTY_DEFINITION_UPDATE_SQL`'s own comment)."""
     _insert_definition(app_db, key="versioned_prop", label="Versioned prop")
 

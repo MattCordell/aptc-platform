@@ -34,7 +34,7 @@ alone is not unique across entity types. `occurred_from`/`occurred_to` are a hal
 envelope (`{items, next_cursor}`), ordered `sequence` descending. `sequence` is a globally
 monotonic identity column, never `occurred_at` - two events in the same transaction can share
 a `clock_timestamp()`-derived `occurred_at` closely enough that ordering by it alone leaves a
-tie-break undefined, the same reason `nptc.catalogue.history.load_history` gives for its own
+tie-break undefined, the same reason `aptc.catalogue.history.load_history` gives for its own
 identical choice. This is also what keeps ordering stable across pages under a concurrent
 append (issue #190): a new row gets a higher `sequence` and cannot land inside a page already
 served.
@@ -48,19 +48,19 @@ is a 422 (`MalformedAuditCursorError`), not silently reinterpreted.
 `GET /audit/events/export` streams NDJSON - one JSON object per line, each carrying
 `entry_hash`/`prev_hash` alongside the event fields, so an exported line can be
 cross-referenced against the stored row (NFR-10). This is narrower than standalone
-recomputation: `nptc.audit.hashing.digest_field_names` also covers `id`, `correlation_id`,
+recomputation: `aptc.audit.hashing.digest_field_names` also covers `id`, `correlation_id`,
 `actor_ip` and `user_agent`, none of which this payload carries (a deliberate NFR-26/NFR-35
 choice, not an oversight - see ADR-0039), so confirming a line needs a database round trip
 against the source row, the same check `scripts/verify_audit_chain.py` performs. A filtered
 export's rows are also not contiguous in the real chain, so `prev_hash` linkage cannot be
 walked across the extract itself either. Ordered oldest first - the opposite of the read
 route - matching
-`nptc.audit.verification.verify_chain`'s own walk direction, and unpaged: an export is the
+`aptc.audit.verification.verify_chain`'s own walk direction, and unpaged: an export is the
 whole filtered set, not a page of it, which is practical at this platform's real catalogue
 size (see ADR-0039's own note on that trade).
 
 The response streams via SQLAlchemy's `yield_per` execution option
-(`nptc.audit.queries.stream_audit_events`), matching `verify_chain`'s own precedent, so a
+(`aptc.audit.queries.stream_audit_events`), matching `verify_chain`'s own precedent, so a
 large filtered set is not loaded into memory wholesale before the first byte is sent.
 Filter validation happens *before* the response starts streaming, not lazily inside the
 generator - a `StreamingResponse` commits its `200` and headers as soon as its body is first
@@ -70,8 +70,8 @@ read, so a validation error raised any later could no longer become a clean `422
 ## What is served, and why it is safe here
 
 `before`/`after` are served exactly as `audit_event` stores them - the raw JSONB, not the
-field-names-only projection `nptc.catalogue.history` serves on its own public FR-19 surface.
-That is a deliberate difference in posture, not an oversight: `nptc.audit.diffing` already
+field-names-only projection `aptc.catalogue.history` serves on its own public FR-19 surface.
+That is a deliberate difference in posture, not an oversight: `aptc.audit.diffing` already
 redacted the payload at write time, under `REDACTED_KEY` (`_redacted`) - a withheld field
 still appears here, but only by name in a list, never by value - and this route's audience
 (Administrator, MFA-verified) is exactly who that redaction was always meant to eventually
@@ -122,16 +122,16 @@ NULL` - no human actor to resolve at all).
 
 ## What this surface cannot do
 
-Read-only, end to end. `nptc.audit.queries` issues no `INSERT`/`UPDATE`/`DELETE` against
+Read-only, end to end. `aptc.audit.queries` issues no `INSERT`/`UPDATE`/`DELETE` against
 `audit_event` - proven structurally by `test_audit_write_path_guard.py`'s repo-wide AST
-sweep (nothing outside `nptc.audit.writer` may construct an `AuditEvent` row or emit a raw
+sweep (nothing outside `aptc.audit.writer` may construct an `AuditEvent` row or emit a raw
 `INSERT` against the table) and behaviourally by `test_db_audit_privileges.py` (the
-`nptc_app_login` role remains refused `UPDATE`/`DELETE`/`TRUNCATE` after exercising this
+`aptc_app_login` role remains refused `UPDATE`/`DELETE`/`TRUNCATE` after exercising this
 surface). Reading or exporting the log emits no audit event of its own - NFR-08 scopes audit
 events to state-changing operations, and this whole surface is `SELECT`-only (see
 ADR-0039's "No `audit.exported` event").
 
 Keycloak's own authentication event store (login, failure, lockout, MFA enrolment - NFR-11)
 is not reachable through this surface. It is tracked separately as
-[#310](https://github.com/MattCordell/nptc-platform/issues/310) - see ADR-0039 for why the
+[#310](https://github.com/MattCordell/aptc-platform/issues/310) - see ADR-0039 for why the
 two stores are not conflated into one query surface.

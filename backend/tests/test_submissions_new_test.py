@@ -1,4 +1,4 @@
-"""`nptc.submissions.new_test.create_new_test_submission` service-layer tests (FR-23, FR-24, FR-26,
+"""`aptc.submissions.new_test.create_new_test_submission` service-layer tests (FR-23, FR-24, FR-26,
 FR-27, NFR-08).
 
 Each refusal asserts that no `submission` row and no audit event was added, because a refused
@@ -21,36 +21,36 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from nptc.audit.diffing import REDACTED_KEY
-from nptc.audit.writer import AuditContext
-from nptc.catalogue.local_codes import DatabaseLocalCodeLookup
-from nptc.catalogue.property_values import PropertyValidationError, PropertyValueInput
-from nptc.catalogue.term_hygiene import TermCleaningError
-from nptc.db.bootstrap import seed_system_properties
-from nptc.db.definitions import deprecate_definition
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
-from nptc.db.models.property_definition import PropertyDefinition, PropertyOrigin, PropertyScope
-from nptc.db.models.submission import Submission, SubmissionKind, SubmissionState
-from nptc.db.models.user import User
-from nptc.registry.datatypes import build_builtin_handlers
-from nptc.registry.handlers import DatatypeRegistry, HandlerDeps
-from nptc.submissions.errors import (
+from aptc.audit.diffing import REDACTED_KEY
+from aptc.audit.writer import AuditContext
+from aptc.catalogue.local_codes import DatabaseLocalCodeLookup
+from aptc.catalogue.property_values import PropertyValidationError, PropertyValueInput
+from aptc.catalogue.term_hygiene import TermCleaningError
+from aptc.db.bootstrap import seed_system_properties
+from aptc.db.definitions import deprecate_definition
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
+from aptc.db.models.property_definition import PropertyDefinition, PropertyOrigin, PropertyScope
+from aptc.db.models.submission import Submission, SubmissionKind, SubmissionState
+from aptc.db.models.user import User
+from aptc.registry.datatypes import build_builtin_handlers
+from aptc.registry.handlers import DatatypeRegistry, HandlerDeps
+from aptc.submissions.errors import (
     CodeRefusal,
     FreeTextRefusedError,
     SubmissionCodeRefusedError,
     SubmissionDuplicatesFoundError,
 )
-from nptc.submissions.new_test import NewTestSubmissionInput, create_new_test_submission
-from nptc.submissions.reference_check import (
+from aptc.submissions.new_test import NewTestSubmissionInput, create_new_test_submission
+from aptc.submissions.reference_check import (
     ReferenceCheckFailedError,
     ReferenceCheckResult,
     ReferenceCheckUnavailableError,
     ReferenceFailure,
 )
-from nptc.terminology.errors import TerminologyUnavailableError
-from nptc_shared.sctid import InvalidSCTIDError
-from nptc_shared.terminology import (
+from aptc.terminology.errors import TerminologyUnavailableError
+from aptc_shared.sctid import InvalidSCTIDError
+from aptc_shared.terminology import (
     AU_LANGUAGE_TAG,
     SNOMED_SYSTEM,
     ConceptProperty,
@@ -62,7 +62,7 @@ from nptc_shared.terminology import (
     TerminologyStatusError,
     TerminologyTimeoutError,
 )
-from nptc_shared.terminology.models import SNOMED_CT_AU, ValidationResult
+from aptc_shared.terminology.models import SNOMED_CT_AU, ValidationResult
 
 
 def _load(name: str) -> Any:
@@ -1211,7 +1211,7 @@ def _word() -> str:
 
 def _active_entry(session: Session, term: str) -> CatalogueEntry:
     entry = CatalogueEntry(
-        business_key=f"NPTC-{random.randrange(100_000_000, 999_999_999)}",
+        business_key=f"APTC-{random.randrange(100_000_000, 999_999_999)}",
         preferred_term=term,
         status=CatalogueEntryStatus.ACTIVE.value,
     )

@@ -1,7 +1,7 @@
-"""Offline unit tests for nptc.audit.policy (issue #37, NFR-26).
+"""Offline unit tests for aptc.audit.policy (issue #37, NFR-26).
 
 No container, no network - pure policy construction/resolution plus a walk
-over every mapped model actually registered on `nptc.db.base.Base`. See
+over every mapped model actually registered on `aptc.db.base.Base`. See
 `test_audit_write_path_guard.py` for the complementary call-path guard and
 `test_audit_diffing.py` for `diff_snapshots`'s own runtime re-check of
 these same rules against a hand-built snapshot.
@@ -19,19 +19,19 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 # Base.metadata/Base.registry (see that module's own docstring) so the
 # model-coverage walk below is structural, not dependent on which model
 # submodules this test file happens to import individually.
-import nptc.db.models  # noqa: F401
-from nptc.audit.diffing import ChangeKind, diff_snapshots
-from nptc.audit.policy import (
+import aptc.db.models  # noqa: F401
+from aptc.audit.diffing import ChangeKind, diff_snapshots
+from aptc.audit.policy import (
     AuditFieldPolicy,
     AuditPolicyError,
     DeniedAuditFieldError,
     MissingAuditPolicyError,
     policy_for,
 )
-from nptc.db.base import Base
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.user import User
-from nptc.db.models.user_identity import UserIdentity
+from aptc.db.base import Base
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.user import User
+from aptc.db.models.user_identity import UserIdentity
 
 
 @pytest.mark.req("NFR-26")

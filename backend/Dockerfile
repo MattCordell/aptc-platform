@@ -2,7 +2,7 @@
 # Build context is the repository root: the uv workspace, the lockfile and the
 # Alembic config in the root pyproject.toml all live there.
 #
-#   docker build -f backend/Dockerfile -t nptc-backend .
+#   docker build -f backend/Dockerfile -t aptc-backend .
 
 FROM ghcr.io/astral-sh/uv:0.13.4 AS uv
 
@@ -20,17 +20,17 @@ COPY pyproject.toml uv.lock ./
 COPY backend/pyproject.toml backend/pyproject.toml
 COPY shared/pyproject.toml shared/pyproject.toml
 COPY transform/pyproject.toml transform/pyproject.toml
-RUN uv sync --locked --no-dev --no-install-workspace --package nptc-backend
+RUN uv sync --locked --no-dev --no-install-workspace --package aptc-backend
 
 COPY backend/src backend/src
 COPY shared/src shared/src
 # --no-editable installs the packages into the venv, so the runtime stage
 # needs the venv alone and no source tree.
-RUN uv sync --locked --no-dev --no-editable --package nptc-backend
+RUN uv sync --locked --no-dev --no-editable --package aptc-backend
 
 FROM python:3.14.8-slim AS runtime
-RUN groupadd --system --gid 10001 nptc \
-    && useradd --system --uid 10001 --gid nptc --no-create-home nptc
+RUN groupadd --system --gid 10001 aptc \
+    && useradd --system --uid 10001 --gid aptc --no-create-home aptc
 WORKDIR /app
 COPY --from=build /app/.venv /app/.venv
 # Alembic reads its configuration from the root pyproject.toml and resolves
@@ -43,6 +43,6 @@ COPY scripts/seed_baseline.py scripts/seed_baseline.py
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
-USER nptc
+USER aptc
 EXPOSE 8000
-CMD ["uvicorn", "nptc.api.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "aptc.api.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]

@@ -20,7 +20,7 @@ function terms(overrides: Record<string, unknown> = {}) {
   return {
     version: "2026-10-06",
     effective_date: "2026-10-06",
-    text: "# NPTC terms of use\n\n## 1. Using the platform\n\nYou may read the catalogue without an account.",
+    text: "# APTC terms of use\n\n## 1. Using the platform\n\nYou may read the catalogue without an account.",
     accepted: false,
     ...overrides,
   };
@@ -88,7 +88,7 @@ describe("the gate is shown or hidden by the accepted flag", () => {
       screen.queryByRole("heading", { name: /^submissions$/i }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { level: 2, name: "NPTC terms of use" }),
+      screen.getByRole("heading", { level: 2, name: "APTC terms of use" }),
     ).toBeVisible();
     expect(screen.getByText(/Version 2026-10-06, effective/)).toBeVisible();
     expect(screen.getByText("6 October 2026")).toBeVisible();

@@ -3,7 +3,7 @@ registers a wholly synthetic new datatype and exercises it end to end
 through save, validate, filter and export - using only a new handler.
 
 This file's own diff is the claim: adding `duration` below touches nothing
-in `backend/src/nptc/` - no storage, no export renderer, no search layer -
+in `backend/src/aptc/` - no storage, no export renderer, no search layer -
 because none of those layers exist yet (#51/#52/#54 are still open). "End to
 end" is therefore read at the contract level (agreed with the maintainer,
 see the plan comment on #53): `validate()` for save+validate,
@@ -27,7 +27,7 @@ import pytest
 from sqlalchemy import Column, Integer, MetaData, Table
 from sqlalchemy.dialects import postgresql
 
-from nptc.registry import (
+from aptc.registry import (
     ControlKind,
     DatatypeRegistry,
     FilterOp,
@@ -41,7 +41,7 @@ from nptc.registry import (
     ValueExpression,
     build_builtin_handlers,
 )
-from nptc_shared.terminology.stub import StubTerminologyClient
+from aptc_shared.terminology.stub import StubTerminologyClient
 
 _DURATION_RE = re.compile(r"^P(?:\d+Y)?(?:\d+M)?(?:\d+D)?$")
 

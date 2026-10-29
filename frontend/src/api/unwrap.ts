@@ -3,7 +3,7 @@
  * response headers.
  *
  * `headers` is what issue #184's step-up detection reads
- * `WWW-Authenticate` from (see `nptc/api/step-up.ts`) - without it here,
+ * `WWW-Authenticate` from (see `aptc/api/step-up.ts`) - without it here,
  * the challenge is discarded at this single throw site and every call site
  * would need its own access to the raw `Response` to react to it.
  */

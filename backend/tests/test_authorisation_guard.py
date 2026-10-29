@@ -1,6 +1,6 @@
 """FR-44's greppable acceptance criterion: no authorisation check in
 `backend/src` compares against a role-name literal, or even against
-`nptc.auth.permissions.Role` itself (issue #44).
+`aptc.auth.permissions.Role` itself (issue #44).
 
 Pure `ast` over `backend/src`, modelled directly on
 `test_token_verification_guard.py` - including its own positive control
@@ -45,10 +45,10 @@ SCAN_DIRS = [REPO_ROOT / "backend" / "src"]
 #: comparison against a role name or `Role` member is exactly the
 #: hard-coded check FR-44 forbids.
 _ALLOWED_PATHS = {
-    "backend/src/nptc/auth/permissions.py",
-    "backend/src/nptc/auth/principal.py",
-    "backend/src/nptc/auth/grants.py",
-    "backend/src/nptc/db/models/user_role.py",
+    "backend/src/aptc/auth/permissions.py",
+    "backend/src/aptc/auth/principal.py",
+    "backend/src/aptc/auth/grants.py",
+    "backend/src/aptc/db/models/user_role.py",
 }
 
 _ROLE_NAME_LITERALS = {
@@ -231,8 +231,8 @@ def test_no_authorisation_check_compares_against_a_role_name_or_role_enum() -> N
 
 def test_guard_flags_known_violations() -> None:
     bad_source = """
-from nptc.auth.permissions import Role
-from nptc.auth.authorisation import require_permission, has_permission, may_act_on
+from aptc.auth.permissions import Role
+from aptc.auth.authorisation import require_permission, has_permission, may_act_on
 
 
 def role_name_literal_eq(role):
@@ -262,7 +262,7 @@ def string_permission_argument(principal):
 def string_has_permission(principal):
     return has_permission(principal, "release.publish")
 """
-    violations = _check_source(bad_source, "nptc/somewhere_else.py")
+    violations = _check_source(bad_source, "aptc/somewhere_else.py")
     rule_counts = Counter(v.rule for v in violations)
 
     assert rule_counts == Counter(
@@ -282,10 +282,10 @@ def test_allowlisted_modules_are_exempt_from_this_guard() -> None:
     because those files happen to have no violations today."""
     source = 'x = (Role.ADMINISTRATOR == role)\ny = ("administrator" == role)\n'
     for path in [
-        "backend/src/nptc/auth/permissions.py",
-        "backend/src/nptc/auth/principal.py",
-        "backend/src/nptc/auth/grants.py",
-        "backend/src/nptc/db/models/user_role.py",
+        "backend/src/aptc/auth/permissions.py",
+        "backend/src/aptc/auth/principal.py",
+        "backend/src/aptc/auth/grants.py",
+        "backend/src/aptc/db/models/user_role.py",
     ]:
         assert _check_source(source, path) == []
 
@@ -295,7 +295,7 @@ def test_no_permission_value_string_smuggles_a_role_name_as_a_permission() -> No
     """Blocks `permission == "is_admin"`-shaped smuggling: a `Permission`
     value that itself reads as a role name would let a role-name
     comparison hide behind what looks like a permission check."""
-    from nptc.auth.permissions import Permission
+    from aptc.auth.permissions import Permission
 
     for permission in Permission:
         assert permission.value not in _ROLE_NAME_LITERALS

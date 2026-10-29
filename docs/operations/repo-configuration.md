@@ -59,8 +59,8 @@ wontfix                   This will not be worked on                 (GitHub def
 what triggers them. Created by hand:
 
 ```powershell
-gh label create "breaking-change" --repo MattCordell/nptc-platform --color "b60205" --description "Changes docs/api/openapi.json in a way a consumer could break on"
-gh label create "breaking-change-approved" --repo MattCordell/nptc-platform --color "0e8a16" --description "The breaking API change on this PR is intended and reviewed"
+gh label create "breaking-change" --repo MattCordell/aptc-platform --color "b60205" --description "Changes docs/api/openapi.json in a way a consumer could break on"
+gh label create "breaking-change-approved" --repo MattCordell/aptc-platform --color "0e8a16" --description "The breaking API change on this PR is intended and reviewed"
 ```
 
 **Two GitHub default labels are kept on the repo but deliberately unused**, so their
@@ -76,9 +76,9 @@ Priority field (issue #71) and applied to zero open issues. Deleted by hand, 202
 via the Foundation Phase Retro (issue #89):
 
 ```powershell
-gh label delete priority/must   --repo MattCordell/nptc-platform --yes
-gh label delete priority/should --repo MattCordell/nptc-platform --yes
-gh label delete priority/may    --repo MattCordell/nptc-platform --yes
+gh label delete priority/must   --repo MattCordell/aptc-platform --yes
+gh label delete priority/should --repo MattCordell/aptc-platform --yes
+gh label delete priority/may    --repo MattCordell/aptc-platform --yes
 ```
 
 `phase/*`, `area/*` and `type/*` label definitions (retired by issue #69, native GitHub
@@ -94,13 +94,13 @@ has a reproducible command to fall back on rather than only this record existing
 PR's history.
 
 ```powershell
-gh api -X PATCH repos/MattCordell/nptc-platform -f 'security_and_analysis[secret_scanning][status]=enabled' -f 'security_and_analysis[secret_scanning_push_protection][status]=enabled'
+gh api -X PATCH repos/MattCordell/aptc-platform -f 'security_and_analysis[secret_scanning][status]=enabled' -f 'security_and_analysis[secret_scanning_push_protection][status]=enabled'
 ```
 
 ### Verifying secret scanning took effect
 
 ```powershell
-gh api repos/MattCordell/nptc-platform --jq '.security_and_analysis'
+gh api repos/MattCordell/aptc-platform --jq '.security_and_analysis'
 ```
 
 Settings alone don't prove push protection actually blocks anything — it was verified
@@ -146,7 +146,7 @@ and `<<'EOF'` is POSIX-shell syntax and a parse error in PowerShell 5.1
 Run this from the repo root, so the relative `--input` path resolves:
 
 ```powershell
-gh api --method POST repos/aehrc/nptc-platform/rulesets --input docs/operations/main-ruleset.json
+gh api --method POST repos/MattCordell/aptc-platform/rulesets --input docs/operations/main-ruleset.json
 ```
 
 This requires a pull request into `main` (no direct pushes), blocks force
@@ -181,7 +181,7 @@ developer joins.
 ### Verifying it took effect
 
 ```powershell
-gh api repos/aehrc/nptc-platform/rulesets
+gh api repos/MattCordell/aptc-platform/rulesets
 git push origin main   # rejected: direct pushes are blocked
 ```
 

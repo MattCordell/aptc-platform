@@ -10,7 +10,7 @@ insert into `audit_event`. It takes `before`/`after` JSONB payloads that **calle
 PRD NFR-08 requires those be "field-level, not whole-record blobs", and PRD Section 16 requires
 an edit to "appear correctly in the audit log with before and after values".
 
-Today there is exactly one caller - `close_account` in `nptc.auth.identity` - which hand-rolls
+Today there is exactly one caller - `close_account` in `aptc.auth.identity` - which hand-rolls
 both its payload *and* its own privacy policy. ADR-0017 records why: `audit_event` is
 INSERT/SELECT-only, so anything written to `before` is permanent, and writing the real
 pre-closure `username`/`display_name`/`organisation` would defeat NFR-17's pseudonymisation at
@@ -20,7 +20,7 @@ than a general rule anything else could reuse or be checked against.
 
 `P1-SEQUENCING.md` puts the whole audit block before any write path exists, on purpose (PRD
 Section 17.3: "Do not defer the audit log ... retrofitting means touching every write path, and
-the result is always incomplete"). `backend/src/nptc/api/` is a lone `__init__.py`; there is no
+the result is always incomplete"). `backend/src/aptc/api/` is a lone `__init__.py`; there is no
 FastAPI app or `APIRouter` anywhere in `backend/src`; the only ORM models are `AuditEvent`,
 `User`, `UserIdentity`. The entities that will actually generate diffs arrive with #46+. So this
 issue's job is to land the mechanism and its enforcement now, while there is one call site to
@@ -37,8 +37,8 @@ the tests defend the adjacent claim without moving NFR-26 off `planned`.
 ## Decision
 
 **Strict serialisation, split from the hash chain's total normalisation.**
-`nptc.audit.serialisation.normalise_json_value` is the strict counterpart to
-`nptc.audit.hashing._normalise`: both convert the same set of Python types into JSON-safe form
+`aptc.audit.serialisation.normalise_json_value` is the strict counterpart to
+`aptc.audit.hashing._normalise`: both convert the same set of Python types into JSON-safe form
 (handled in explicit order - `bool` before `int`, since `bool` is an `int` subclass; `str` and
 `str` subclasses including `StrEnum` before a non-`str` `Enum`; `Decimal` to `str`, never
 `float`; `SCTID` to its `str` value, FR-06 made explicit; `UUID`/`ipaddress` to `str`;
@@ -77,7 +77,7 @@ refactor changed behaviour). The one exception, currently unreachable through an
 codebase writes: a NaN/±Inf `float`, tolerated as-is before this issue, now falls back to `str()`
 at the leaf instead.
 
-**Both an allowlist and a deny-list, layered, in `nptc.audit.policy`.** A deny-list alone fails
+**Both an allowlist and a deny-list, layered, in `aptc.audit.policy`.** A deny-list alone fails
 open: the first credential-shaped column nobody pattern-matched leaks the moment a diff is
 taken. An allowlist alone fails to copy-paste: nothing stops `password_hash` from being pasted
 into a model's declared fields by someone who didn't think to check. Both, with the deny check
@@ -141,7 +141,7 @@ always supplies both the old and new value for a touched attribute - but a hand-
 pair has no such guarantee. Silently substituting `None` for the missing side would record a
 spurious null-to-value (or value-to-null) change for a field the caller never actually reported
 on that side, which is exactly the kind of fabricated diff content this issue exists to prevent.
-`diff_snapshots` raises `nptc.audit.policy.AmbiguousSnapshotFieldError` (an `AuditPolicyError`
+`diff_snapshots` raises `aptc.audit.policy.AmbiguousSnapshotFieldError` (an `AuditPolicyError`
 subclass, so a caller catching that base class around a snapshot diff still catches this)
 instead, requiring the caller to include a field in both mappings (even unchanged) or omit it
 from both.
@@ -190,9 +190,9 @@ real caller needs one, is a small and reviewable act - a lenient default from da
 explicit `__audit_exempt_reason__` - this is the guard that actually bites: #46's
 `catalogue_entry` cannot land without classifying every column, and cannot classify a
 credential-shaped one as auditable. A third `ast` rule, `audit-diff-bypass`, extends
-`test_audit_write_path_guard.py`: outside `nptc.audit` itself, a call to `append_audit_event`
+`test_audit_write_path_guard.py`: outside `aptc.audit` itself, a call to `append_audit_event`
 carrying a `before=`/`after=` keyword whose value is not the literal `None` is a violation.
-Deliberately narrower than "no `append_audit_event` outside `nptc.audit`" - a diff-free event is
+Deliberately narrower than "no `append_audit_event` outside `aptc.audit`" - a diff-free event is
 legitimate and must stay directly callable; what is not legitimate is hand-building a diff
 instead of going through `record_change`/`record_snapshot_change`, which is exactly the
 per-endpoint reimplementation this issue exists to close off.
@@ -214,8 +214,8 @@ unchanged - it never reaches the audit layer at all, which is precisely the patt
 | Caller-supplied `before=`/`after=` snapshots as the only diffing path (status quo) | Exactly the gap this issue exists to close - a caller can forget the "before", hand-copy a stale approximation, or omit a changed field entirely, with nothing to catch it. |
 | `diff_instance` using `.history` instead of `.load_history()` | `.history` runs passive and returns `HISTORY_BLANK` (reporting "no change") for an expired or unloaded attribute - silently hides a genuine edit on exactly the kind of instance a real request handler often has. |
 | A lenient `record_change_if_any` that swallows an empty diff | Reaching `record_change` is meant to assert a write happened; a lenient default from day one invites exactly the silent-no-audit-event bug NFR-08 exists to prevent. Adding it later, if ever needed, is a small reviewable act. |
-| A blanket ban on `append_audit_event` outside `nptc.audit` (rather than the narrower `audit-diff-bypass` rule) | Would block a legitimate diff-free event (a future `release.published`, NFR-12's `audit.exported`) that has nothing to diff and should not be forced through a diffing path that does not apply to it. |
-| Silently escaping a NUL byte (`nptc_shared.text.escape_invisible`) rather than raising | Would make the stored audit record differ from what was actually written - FR-74's entry-time prohibition is the correct place to reject this content, not a lossy repair inside the audit layer. |
+| A blanket ban on `append_audit_event` outside `aptc.audit` (rather than the narrower `audit-diff-bypass` rule) | Would block a legitimate diff-free event (a future `release.published`, NFR-12's `audit.exported`) that has nothing to diff and should not be forced through a diffing path that does not apply to it. |
+| Silently escaping a NUL byte (`aptc_shared.text.escape_invisible`) rather than raising | Would make the stored audit record differ from what was actually written - FR-74's entry-time prohibition is the correct place to reject this content, not a lossy repair inside the audit layer. |
 
 ## Consequences
 
@@ -227,7 +227,7 @@ unchanged - it never reaches the audit layer at all, which is precisely the patt
 - NFR-26 stays `planned`; notes gain the deny-list + allowlist description. Its literal scope
   (no secrets in the repo/image layers) is not fully satisfied by this issue - the redaction
   tests defend the adjacent claim, as noted in Context above.
-- `nptc.audit.diffing`'s flush-ordering limitation (history cleared by `flush()`) is a
+- `aptc.audit.diffing`'s flush-ordering limitation (history cleared by `flush()`) is a
   documented, mitigated constraint, not a closed gap: a caller that flushes before calling
   `record_change` gets a loud `AuditNoOpError` for `UPDATED`/`DELETED`, and a loud
   `AuditNoOpError` from the explicit `session.new` check for `CREATED` - never a silently
@@ -240,6 +240,6 @@ unchanged - it never reaches the audit layer at all, which is precisely the patt
   `record_change`/`record_snapshot_change`) is noted on issue #37 as landing with the API layer
   (#142/#149/#150) - a route walk today would run over the empty set, since there is no
   `APIRouter` anywhere in `backend/src` yet.
-- #46+ (the first real catalogue write paths) builds directly on `nptc.audit.policy` and
-  `nptc.audit.recording`; a future bulk-reclassify or `PropertyValue` write path builds on
+- #46+ (the first real catalogue write paths) builds directly on `aptc.audit.policy` and
+  `aptc.audit.recording`; a future bulk-reclassify or `PropertyValue` write path builds on
   `diff_snapshots` rather than needing a new diffing helper.

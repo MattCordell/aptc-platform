@@ -1,7 +1,7 @@
 # Reading an entry
 
-Each published test in the National Pathology Test Catalogue has its own page at
-`/catalogue/{businessKey}`, for example `/catalogue/NPTC-000247`. You do not need an
+Each published test in the Australian Pathology Test Catalogue has its own page at
+`/catalogue/{businessKey}`, for example `/catalogue/APTC-000247`. You do not need an
 account. To reach a page, choose a test's name in [the catalogue search
 results](searching-the-catalogue.md).
 
@@ -60,7 +60,7 @@ see what replaced it.
 
 Beside the main column, or below it on a narrow screen. **Details** lists, in this order:
 
-- **Identifier** is the test's NPTC identifier.
+- **Identifier** is the test's APTC identifier.
 - **Status** repeats the status.
 - **Disciplines** lists each discipline recorded for the test. **None recorded** means none
   is.
@@ -101,7 +101,7 @@ The page says **We couldn't find that page** when:
 
 - no test has that identifier, or
 - the test is not published, or
-- the identifier is not written in the form `NPTC-000247`.
+- the identifier is not written in the form `APTC-000247`.
 
 The page cannot tell these apart, and does not say which applies. Choose **Search the
 catalogue** to find the test by name or code.

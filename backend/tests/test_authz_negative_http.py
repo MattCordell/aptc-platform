@@ -1,7 +1,7 @@
 """HTTP-level negative-authorisation tests (issue #44, FR-80, FR-81,
 NFR-20) against the throwaway `authz_app_support.build_authz_test_app`
 harness - real HTTP over `require_permission`, exercisable today even
-though `nptc/api/` has no real routes yet.
+though `aptc/api/` has no real routes yet.
 """
 
 from __future__ import annotations
@@ -13,8 +13,8 @@ from pathlib import Path
 
 import pytest
 
-from nptc.auth.permissions import Permission, Role, permissions_for_roles
-from nptc.auth.principal import ANONYMOUS, Principal
+from aptc.auth.permissions import Permission, Role, permissions_for_roles
+from aptc.auth.principal import ANONYMOUS, Principal
 
 
 def _load(name: str):

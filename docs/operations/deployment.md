@@ -13,13 +13,13 @@ P5). Do not expose it to the internet.
 | Service | What it does | Host port |
 |---|---|---|
 | `postgres` | The database (PostgreSQL 18, pinned to UTF-8) | `POSTGRES_PORT`, default 5432 |
-| `keycloak` | Sign-in (OIDC); imports the committed realm on every start and shows it in the `nptc` login theme | `KEYCLOAK_PORT`, default 8080 |
-| `migrate` | Runs once: applies every migration, then creates the `nptc_app_login` database login. It exits when done | none |
+| `keycloak` | Sign-in (OIDC); imports the committed realm on every start and shows it in the `aptc` login theme | `KEYCLOAK_PORT`, default 8080 |
+| `migrate` | Runs once: applies every migration, then creates the `aptc_app_login` database login. It exits when done | none |
 | `backend` | The API. Starts only after `migrate` succeeds | none |
-| `web` | Caddy: serves the web app and forwards `/api/*` to `backend`, so the browser sees one origin | `NPTC_WEB_PORT`, default 8081 |
+| `web` | Caddy: serves the web app and forwards `/api/*` to `backend`, so the browser sees one origin | `APTC_WEB_PORT`, default 8081 |
 
 Only `migrate` holds the database owner's credential. The `backend` service connects as the
-least-privilege `nptc_app_login` role and never receives `NPTC_MIGRATION_DATABASE_URL`.
+least-privilege `aptc_app_login` role and never receives `APTC_MIGRATION_DATABASE_URL`.
 
 ## Start the stack
 
@@ -30,9 +30,9 @@ least-privilege `nptc_app_login` role and never receives `NPTC_MIGRATION_DATABAS
    ```
 
 2. Replace each `change-me` in `deploy/.env` with a local-only password. Keep
-   `POSTGRES_PASSWORD`, `NPTC_APP_DB_PASSWORD` and `NPTC_INDEXER_DB_PASSWORD` free of
+   `POSTGRES_PASSWORD`, `APTC_APP_DB_PASSWORD` and `APTC_INDEXER_DB_PASSWORD` free of
    `@ : / ? # %`, because compose places them inside database URLs. `migrate` refuses an
-   `NPTC_APP_DB_PASSWORD` or `NPTC_INDEXER_DB_PASSWORD` with one of these characters and
+   `APTC_APP_DB_PASSWORD` or `APTC_INDEXER_DB_PASSWORD` with one of these characters and
    names the variable. It cannot check `POSTGRES_PASSWORD`, so a bad value there shows up
    as a `migrate` authentication failure.
 
@@ -59,7 +59,7 @@ least-privilege `nptc_app_login` role and never receives `NPTC_MIGRATION_DATABAS
 
 ## Create the first user and administrator
 
-The `nptc` realm has no users. The first person to sign in has no permissions until you
+The `aptc` realm has no users. The first person to sign in has no permissions until you
 grant a role.
 
 On a development stack, [one command](#start-a-ready-to-use-development-environment) does all of
@@ -67,7 +67,7 @@ this. To do it by hand:
 
 1. Open the Keycloak admin console at <http://localhost:8080/admin> and sign in with
    `KEYCLOAK_ADMIN_USER` and `KEYCLOAK_ADMIN_PASSWORD` (realm `master`).
-2. Switch to the `nptc` realm. Open **Users**, choose **Add user**, then set a password on the
+2. Switch to the `aptc` realm. Open **Users**, choose **Add user**, then set a password on the
    **Credentials** tab with **Temporary** switched off. You can also use **Register** on the
    sign-in page.
 3. Sign in to <http://localhost:8081> as that user once. This creates the user's `app_user`
@@ -202,19 +202,19 @@ docker compose -f deploy/compose.yml down -v
   `migrate` runs again and applies any new migrations before `backend` restarts.
 - **After changing `VITE_OIDC_ISSUER` or `VITE_OIDC_CLIENT_ID`**, rebuild the `web` image.
   Vite writes these values into the built files, so a restart is not enough.
-- **After changing `NPTC_FRONTEND_BASE_URL`**, recreate `keycloak` as well
+- **After changing `APTC_FRONTEND_BASE_URL`**, recreate `keycloak` as well
   (`up -d --force-recreate keycloak`). The realm import reads it only at start. The privacy
   and terms links on the registration page use the same address, and so does the realm's
   `frame-ancestors` policy. Recreate `keycloak` after you pull a change to the realm file
   too, for the same reason. Recreating it discards registered users, because the stack
   keeps no Keycloak volume.
-- **After editing the login theme** in `deploy/keycloak/themes/nptc/`, reload the browser
+- **After editing the login theme** in `deploy/keycloak/themes/aptc/`, reload the browser
   page. `start-dev` does not cache themes, so the next page load shows the change and no
   restart is needed. A change to `loginTheme` in the realm file is different: recreate
   `keycloak` as above. See [the login theme](../architecture/authentication.md#the-login-theme).
 - **After changing a port**, change the matching address too:
-  - `NPTC_WEB_PORT` must match the port in `NPTC_FRONTEND_BASE_URL`.
-  - `KEYCLOAK_PORT` must match the port in both `NPTC_OIDC_ISSUER` and `VITE_OIDC_ISSUER`.
+  - `APTC_WEB_PORT` must match the port in `APTC_FRONTEND_BASE_URL`.
+  - `KEYCLOAK_PORT` must match the port in both `APTC_OIDC_ISSUER` and `VITE_OIDC_ISSUER`.
     The issuer is the address your browser reaches Keycloak on, and the token's `iss` claim
     repeats it.
 
@@ -232,7 +232,7 @@ Run `down -v` and start again.
 
 The `backend` service makes outbound requests to the internet in two places:
 
-- It queries the terminology server named by `NPTC_TX_BASE_URL`.
+- It queries the terminology server named by `APTC_TX_BASE_URL`.
 - It checks the supporting reference link on a new-test submission (FR-27). The check fetches
   the link's status over HTTP or HTTPS, never the page content.
 
@@ -247,11 +247,11 @@ proxy would resolve the name itself and bypass those checks. A deployment that c
 the internet through a proxy cannot run the link check.
 
 When a link does not resolve or connect, the backend tries to open a connection to the host in
-`NPTC_TX_BASE_URL`. If that fails too, it logs one warning, "reference check cannot run: this
+`APTC_TX_BASE_URL`. If that fails too, it logs one warning, "reference check cannot run: this
 deployment has no outbound internet access", and the submitter sees a 503 instead of a message
 about their link. Nothing is saved.
 
-This test proves internet access only while `NPTC_TX_BASE_URL` points at a host on the
+This test proves internet access only while `APTC_TX_BASE_URL` points at a host on the
 internet, as the default does. If you point it at a self-hosted Ontoserver, the connection
 succeeds even with no internet access. A link that cannot be reached then fails with a
 message about the link (a host that cannot be found, or a link that cannot be reached) and
@@ -265,15 +265,15 @@ A check that runs out of time tells the submitter the link took too long to answ
 
 | Symptom | Likely cause and fix |
 |---|---|
-| Submitting a new test fails with "this service cannot reach the internet", and the `backend` log has "no outbound internet access" | `backend` cannot open a connection to the terminology server's host, so it cannot tell a mistyped link from a blocked network. Allow outbound ports 80 and 443, or fix `NPTC_TX_BASE_URL`. See [Outbound internet access](#outbound-internet-access). |
-| `required variable NPTC_APP_DB_PASSWORD is missing a value` (or `NPTC_INDEXER_DB_PASSWORD`) | Your `deploy/.env` predates this variable. Add it from `deploy/.env.example`. |
+| Submitting a new test fails with "this service cannot reach the internet", and the `backend` log has "no outbound internet access" | `backend` cannot open a connection to the terminology server's host, so it cannot tell a mistyped link from a blocked network. Allow outbound ports 80 and 443, or fix `APTC_TX_BASE_URL`. See [Outbound internet access](#outbound-internet-access). |
+| `required variable APTC_APP_DB_PASSWORD is missing a value` (or `APTC_INDEXER_DB_PASSWORD`) | Your `deploy/.env` predates this variable. Add it from `deploy/.env.example`. |
 | `up -d` exits with `dependency failed to start: container ... keycloak ... is unhealthy`, and `backend` and `web` never start | Keycloak took longer than the 5.5-minute wait. Run `docker compose -f deploy/compose.yml logs keycloak`. If it is still starting, wait for it to finish, then run `up -d` again. |
 | `migrate` exits with an error | Run `docker compose -f deploy/compose.yml logs migrate`. The last line names the failure type. A wrong database password is the usual cause after you edit `POSTGRES_PASSWORD` on an existing volume. |
 | `backend` never becomes healthy | Run `docker compose -f deploy/compose.yml logs backend`. A settings error names the variable. |
-| Keycloak shows "Invalid parameter: redirect_uri" | `NPTC_FRONTEND_BASE_URL` does not match the address in your browser. Fix it, then recreate `keycloak`. |
-| Every API call fails with a 401 after sign-in | `NPTC_OIDC_ISSUER` does not match the address Keycloak signed the token with. Use the address your browser uses. |
-| Every visitor gets `429 Too Many Requests` after a few pages, or an anonymous script is refused much sooner than `NPTC_ANON_RATE_LIMIT_REQUESTS` suggests | The API is counting every visitor as one caller. Either it does not trust the proxy's `X-Forwarded-For`, so check that `NPTC_TRUSTED_PROXIES` is not set to an empty value and covers the address `web` reaches `backend` from. Or Docker's userland proxy (Docker Desktop, rootless Docker) hides the visitor's address from Caddy, so every visitor arrives as the Docker gateway address, such as `172.18.0.1`, which is already trusted; for local use, raise `NPTC_ANON_RATE_LIMIT_REQUESTS`. See [Anonymous rate limit](configuration.md#anonymous-rate-limit-fr-22-nfr-24). |
-| A caller is refused with `429` | The caller used up its budget. The `Retry-After` header says how many seconds to wait. An anonymous caller spends the anonymous budget, and a caller whose credentials the API keeps rejecting spends a separate one. Valid credentials are not counted. Raise `NPTC_ANON_RATE_LIMIT_REQUESTS` if a legitimate consumer needs more. |
+| Keycloak shows "Invalid parameter: redirect_uri" | `APTC_FRONTEND_BASE_URL` does not match the address in your browser. Fix it, then recreate `keycloak`. |
+| Every API call fails with a 401 after sign-in | `APTC_OIDC_ISSUER` does not match the address Keycloak signed the token with. Use the address your browser uses. |
+| Every visitor gets `429 Too Many Requests` after a few pages, or an anonymous script is refused much sooner than `APTC_ANON_RATE_LIMIT_REQUESTS` suggests | The API is counting every visitor as one caller. Either it does not trust the proxy's `X-Forwarded-For`, so check that `APTC_TRUSTED_PROXIES` is not set to an empty value and covers the address `web` reaches `backend` from. Or Docker's userland proxy (Docker Desktop, rootless Docker) hides the visitor's address from Caddy, so every visitor arrives as the Docker gateway address, such as `172.18.0.1`, which is already trusted; for local use, raise `APTC_ANON_RATE_LIMIT_REQUESTS`. See [Anonymous rate limit](configuration.md#anonymous-rate-limit-fr-22-nfr-24). |
+| A caller is refused with `429` | The caller used up its budget. The `Retry-After` header says how many seconds to wait. An anonymous caller spends the anonymous budget, and a caller whose credentials the API keeps rejecting spends a separate one. Valid credentials are not counted. Raise `APTC_ANON_RATE_LIMIT_REQUESTS` if a legitimate consumer needs more. |
 | Sign-in works, but pages say you lack permission | You have no role yet, or you hold the administrator role but have not completed the second-factor step. See [Create the first user and administrator](#create-the-first-user-and-administrator). |
 
 To run the API or web app on your own machine instead, see

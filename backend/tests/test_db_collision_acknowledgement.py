@@ -13,7 +13,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import IntegrityError, ProgrammingError
 
-from nptc.db.errors import unique_violation_constraint
+from aptc.db.errors import unique_violation_constraint
 
 _UNIQUE_VIOLATION = "23505"
 _CHECK_VIOLATION = "23514"
@@ -33,7 +33,7 @@ _INSERT_ACK = text(
 def _insert_entry(
     connection: Connection,
     *,
-    business_key: str = "NPTC-300001",
+    business_key: str = "APTC-300001",
     preferred_term: str = "Adenosine deaminase",
 ) -> object:
     return connection.execute(
@@ -88,7 +88,7 @@ def test_duplicate_acknowledgement_for_the_same_entry_and_term_is_refused(
         _insert_ack(db, entry_id=entry_id)
 
     assert exc_info.value.orig.sqlstate == _UNIQUE_VIOLATION  # type: ignore[union-attr]
-    # Pins the literal constraint name `nptc.catalogue.collisions.
+    # Pins the literal constraint name `aptc.catalogue.collisions.
     # acknowledge_collision` matches against (issue #224) - a rename here
     # with no matching update there would silently turn a genuine
     # concurrent-acknowledgement race back into an unmapped 500.
@@ -104,7 +104,7 @@ def test_the_same_term_key_may_be_acknowledged_separately_per_entry(db: Connecti
     group still warns once on its own save)."""
     first_entry_id = _insert_entry(db)
     second_entry_id = _insert_entry(
-        db, business_key="NPTC-300002", preferred_term="Adenosine deaminase CSF"
+        db, business_key="APTC-300002", preferred_term="Adenosine deaminase CSF"
     )
     _insert_ack(db, entry_id=first_entry_id)
 
@@ -113,7 +113,7 @@ def test_the_same_term_key_may_be_acknowledged_separately_per_entry(db: Connecti
 
 @pytest.mark.integration
 def test_app_role_can_insert_and_select(app_db: Connection) -> None:
-    entry_id = _insert_entry(app_db, business_key="NPTC-300003")
+    entry_id = _insert_entry(app_db, business_key="APTC-300003")
     _insert_ack(app_db, entry_id=entry_id)
 
     row = app_db.execute(
@@ -125,7 +125,7 @@ def test_app_role_can_insert_and_select(app_db: Connection) -> None:
 
 @pytest.mark.integration
 def test_app_role_is_refused_update(app_db: Connection) -> None:
-    entry_id = _insert_entry(app_db, business_key="NPTC-300004")
+    entry_id = _insert_entry(app_db, business_key="APTC-300004")
     _insert_ack(app_db, entry_id=entry_id)
 
     with pytest.raises(ProgrammingError) as exc_info:
@@ -142,7 +142,7 @@ def test_app_role_is_refused_update(app_db: Connection) -> None:
 
 @pytest.mark.integration
 def test_app_role_is_refused_delete(app_db: Connection) -> None:
-    entry_id = _insert_entry(app_db, business_key="NPTC-300005")
+    entry_id = _insert_entry(app_db, business_key="APTC-300005")
     _insert_ack(app_db, entry_id=entry_id)
 
     with pytest.raises(ProgrammingError) as exc_info:
@@ -156,7 +156,7 @@ def test_app_role_is_refused_delete(app_db: Connection) -> None:
 
 @pytest.mark.integration
 def test_app_role_is_refused_truncate(app_db: Connection) -> None:
-    entry_id = _insert_entry(app_db, business_key="NPTC-300006")
+    entry_id = _insert_entry(app_db, business_key="APTC-300006")
     _insert_ack(app_db, entry_id=entry_id)
 
     with pytest.raises(ProgrammingError) as exc_info:

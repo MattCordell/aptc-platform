@@ -20,15 +20,15 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.engine import Connection
 
-from nptc.api.terms_gate import TERMS_ACCEPTANCE_REQUIRED_CODE
-from nptc.audit.writer import AuditContext
-from nptc.auth.identity import close_account
-from nptc.auth.permissions import Role
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
-from nptc.db.models.submission import Submission, SubmissionKind
-from nptc.db.models.user import User
-from nptc.db.models.user_identity import UserIdentity
+from aptc.api.terms_gate import TERMS_ACCEPTANCE_REQUIRED_CODE
+from aptc.audit.writer import AuditContext
+from aptc.auth.identity import close_account
+from aptc.auth.permissions import Role
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
+from aptc.db.models.submission import Submission, SubmissionKind
+from aptc.db.models.user import User
+from aptc.db.models.user_identity import UserIdentity
 
 
 def _load(name: str) -> Any:
@@ -49,7 +49,7 @@ _REFUSED_ROLES = [Role.MEMBER, Role.OBSERVER, Role.PROVISIONAL]
 _BODY = "Check the reference range with the lab."
 _REASON = "Posted on the wrong submission"
 _ZERO_WIDTH_SPACE = chr(0x200B)
-_MISSING_KEY = "NPTC-999999999"
+_MISSING_KEY = "APTC-999999999"
 
 #: A target is named by its comments path: `/submissions/{id}/comments` or
 #: `/catalogue/entries/{key}/comments`.
@@ -100,7 +100,7 @@ def _target(api: ApiTestApp, kind: str) -> str:
         api.session.flush()
         return f"/submissions/{submission.id}/comments"
     entry = CatalogueEntry(
-        business_key=f"NPTC-9{random.SystemRandom().randrange(10**8):08d}",
+        business_key=f"APTC-9{random.SystemRandom().randrange(10**8):08d}",
         preferred_term=f"Comment entry {uuid.uuid4()}",
         status=CatalogueEntryStatus.DRAFT.value,
     )
@@ -305,7 +305,7 @@ def test_an_entry_in_any_status_can_be_commented_on(api: ApiTestApp) -> None:
     token, _ = _sign_in(api, Role.REVIEWER)
     for status in CatalogueEntryStatus:
         entry = CatalogueEntry(
-            business_key=f"NPTC-9{random.SystemRandom().randrange(10**8):08d}",
+            business_key=f"APTC-9{random.SystemRandom().randrange(10**8):08d}",
             preferred_term=f"Status entry {uuid.uuid4()}",
             status=status.value,
         )

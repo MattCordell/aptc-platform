@@ -1,10 +1,10 @@
-# NPTC Catalogue Maintenance Platform
+# APTC Catalogue Maintenance Platform
 
-[![CI](https://github.com/aehrc/nptc-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/aehrc/nptc-platform/actions/workflows/ci.yml)
-[![PR hygiene](https://github.com/aehrc/nptc-platform/actions/workflows/pr-hygiene.yml/badge.svg)](https://github.com/aehrc/nptc-platform/actions/workflows/pr-hygiene.yml)
+[![CI](https://github.com/MattCordell/aptc-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/MattCordell/aptc-platform/actions/workflows/ci.yml)
+[![PR hygiene](https://github.com/MattCordell/aptc-platform/actions/workflows/pr-hygiene.yml/badge.svg)](https://github.com/MattCordell/aptc-platform/actions/workflows/pr-hygiene.yml)
 [![Licence: Apache-2.0](https://img.shields.io/badge/licence-Apache--2.0-blue.svg)](LICENSE)
 
-A web platform for maintaining the **National Pathology Test Catalogue** — the SPIA
+A web platform for maintaining the **pathology test catalogue** — the SPIA
 Requesting terminology curated by RCPA-QAP and published downstream by the National
 Clinical Terminology Service (NCTS) as a SNOMED CT reference set and FHIR ValueSet.
 
@@ -20,8 +20,8 @@ It replaces a hand-edited Excel workbook with a machine-readable catalogue that:
 - records every editorial decision in an append-only, tamper-evident audit log.
 
 **Status: pre-alpha.** No application functionality is implemented yet. See the
-[GitHub issues](https://github.com/aehrc/nptc-platform/issues) and
-[milestones](https://github.com/aehrc/nptc-platform/milestones) for what is planned and
+[GitHub issues](https://github.com/MattCordell/aptc-platform/issues) and
+[milestones](https://github.com/MattCordell/aptc-platform/milestones) for what is planned and
 [docs/requirements/](docs/requirements/) for the requirement register and traceability
 report tracking what's implemented.
 
@@ -52,7 +52,7 @@ This builds two images and starts, on a clean volume:
 - **Keycloak** on `${KEYCLOAK_PORT:-8080}`
 - **migrate**, a one-shot job that applies the database migrations and then exits
 - **backend**, the API, after the migrations succeed
-- **web**, which serves the web app and forwards `/api` to the API, on `${NPTC_WEB_PORT:-8081}`
+- **web**, which serves the web app and forwards `/api` to the API, on `${APTC_WEB_PORT:-8081}`
 
 Open <http://localhost:8081> when `docker compose -f deploy/compose.yml ps -a` shows the
 services healthy. [docs/operations/deployment.md](docs/operations/deployment.md) covers
@@ -68,7 +68,7 @@ or web app on your own machine.
 |---|---|
 | [docs/prd/](docs/prd/) | The Product Requirements Document. The authority for every `FR-nn` and `NFR-nn` reference in this repository. |
 | [docs/requirements/](docs/requirements/) | Requirement register and the generated traceability report: which requirements exist, their status, and the tests covering them. |
-| [GitHub Issues](https://github.com/aehrc/nptc-platform/issues) | The backlog. Source of truth for what's planned and its checklists — no YAML behind it. |
+| [GitHub Issues](https://github.com/MattCordell/aptc-platform/issues) | The backlog. Source of truth for what's planned and its checklists — no YAML behind it. |
 | [docs/adr/](docs/adr/) | Architecture decision records. Why things are the way they are, including the alternatives rejected. |
 | [docs/architecture/](docs/architecture/) | Data model, component structure, and the contracts between them. |
 | [docs/operations/](docs/operations/) | Deployment, configuration, upgrade, backup and restore, and runbooks. Written for an operator who did not build the system. |
@@ -86,8 +86,8 @@ Security issues go to [SECURITY.md](SECURITY.md), never to a public issue.
 ## Governance and provenance
 
 Built by the [Australian e-Health Research Centre](https://aehrc.csiro.au/) (AEHRC),
-CSIRO, for the NPTC Technical and Standards Working Group (TSWG), which reports to the
-NPTC Steering Committee. The catalogue content itself is owned and curated by RCPA-QAP.
+CSIRO, for the Technical and Standards Working Group (TSWG), which reports to the
+Steering Committee. The catalogue content itself is owned and curated by RCPA-QAP.
 
 The question of who hosts and operates the platform if the proof of concept succeeds is
 open and tracked as governance issue OI-7 (PRD §15.1; see the corresponding GitHub

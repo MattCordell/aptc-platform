@@ -1,4 +1,4 @@
-"""`nptc.submissions.interest` service-layer tests (FR-32, FR-34, NFR-08, NFR-17).
+"""`aptc.submissions.interest` service-layer tests (FR-32, FR-34, NFR-08, NFR-17).
 
 Each refusal asserts that no interest row and no audit event was added. `backend/tests` shares one
 Postgres container (see `CLAUDE.md`), so every query is scoped to the rows this test created, and an
@@ -19,17 +19,17 @@ from sqlalchemy import func, select, text
 from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.orm import Session
 
-from nptc.audit.writer import AuditContext
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.submission import CLOSED_SUBMISSION_STATES, Submission, SubmissionKind
-from nptc.db.models.submission_interest import SubmissionInterest
-from nptc.db.models.user import User
-from nptc.submissions.errors import (
+from aptc.audit.writer import AuditContext
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.submission import CLOSED_SUBMISSION_STATES, Submission, SubmissionKind
+from aptc.db.models.submission_interest import SubmissionInterest
+from aptc.db.models.user import User
+from aptc.submissions.errors import (
     ClosedSubmissionInterestError,
     OwnSubmissionInterestError,
     SubmissionNotFoundError,
 )
-from nptc.submissions.interest import (
+from aptc.submissions.interest import (
     InterestSummary,
     interest_summaries,
     register_interest,

@@ -54,7 +54,7 @@ describe("validateAuditFilters", () => {
       validateAuditFilters({
         actor: ACTOR,
         entity_type: "catalogue_entry",
-        entity_id: "NPTC-000001",
+        entity_id: "APTC-000001",
         action: "catalogue_entry.updated",
         from: "2026-10-01",
         to: "2026-10-07",
@@ -69,7 +69,7 @@ describe("validateAuditFilters", () => {
   });
 
   it("refuses an entity id without an entity type", () => {
-    expect(validateAuditFilters({ entity_id: "NPTC-000001" })).toEqual([
+    expect(validateAuditFilters({ entity_id: "APTC-000001" })).toEqual([
       expect.objectContaining({ key: "entity_id" }),
     ]);
     expect(validateAuditFilters({ entity_id: "  ", entity_type: "" })).toEqual([]);
@@ -113,7 +113,7 @@ describe("auditFilterQuery", () => {
       auditFilterQuery({
         actor: ACTOR,
         entity_type: "catalogue_entry",
-        entity_id: "NPTC-000001",
+        entity_id: "APTC-000001",
         action: "catalogue_entry.updated",
         from: "2026-10-01",
         to: "2026-10-07",
@@ -121,7 +121,7 @@ describe("auditFilterQuery", () => {
     ).toEqual({
       actor_user_id: ACTOR,
       entity_type: "catalogue_entry",
-      entity_id: "NPTC-000001",
+      entity_id: "APTC-000001",
       action: "catalogue_entry.updated",
       occurred_from: "2026-10-01T00:00:00+10:00",
       occurred_to: "2026-10-08T00:00:00+10:00",

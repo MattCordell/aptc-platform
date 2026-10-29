@@ -7,7 +7,7 @@ principal may then do is [permissions.md](permissions.md).
 
 ## The shape
 
-The browser performs the OIDC authorisation code exchange with PKCE. `nptc-frontend` is a
+The browser performs the OIDC authorisation code exchange with PKCE. `aptc-frontend` is a
 **public client** with no secret, so there is nothing for a backend to hold on its behalf
 (NFR-01).
 
@@ -15,8 +15,8 @@ The browser performs the OIDC authorisation code exchange with PKCE. `nptc-front
 browser  --(1) authorize + code_challenge (S256) -->  Keycloak
 browser  <--(2) redirect to /auth/callback?code&state
 browser  --(3) POST code + code_verifier ------------>  Keycloak token endpoint
-browser  <--(4) access_token (aud: nptc-api) + id_token
-browser  --(5) Authorization: Bearer <access_token> -->  NPTC API
+browser  <--(4) access_token (aud: aptc-api) + id_token
+browser  --(5) Authorization: Bearer <access_token> -->  APTC API
 ```
 
 Step 5 is where [token-verification.md](token-verification.md) takes over: signature,
@@ -87,7 +87,7 @@ counts as "signed out".
   `frame-ancestors 'self'`. A browser treats the app and Keycloak as different origins
   whenever their ports differ (`:5173` or `:8081` against `:8080`), so it blocks the frame.
   The realm file sets `browserSecurityHeaders.contentSecurityPolicy` to add
-  `${NPTC_FRONTEND_BASE_URL}` to `frame-ancestors`. It repeats Keycloak's other defaults,
+  `${APTC_FRONTEND_BASE_URL}` to `frame-ancestors`. It repeats Keycloak's other defaults,
   because Keycloak replaces the whole header map when the realm file supplies one. Keycloak
   still sends `X-Frame-Options: SAMEORIGIN`; Chromium ignores it when `frame-ancestors` is
   present, and the silent renewal succeeds there.
@@ -114,7 +114,7 @@ Two consequences follow, and neither is a bug.
   would renew, find the new SSO session and switch the tab to signed in. Now the tab stays
   anonymous until it reloads or the visitor signs in from it.
 
-## Server side (`backend/src/nptc/api/`)
+## Server side (`backend/src/aptc/api/`)
 
 | Module | Responsibility |
 |---|---|
@@ -156,8 +156,8 @@ Response bodies name neither a role nor an internal identifier (FR-44, NFR-04). 
 exception messages do, deliberately, and go to the log instead.
 
 `acr_values` in the fourth row's header is built from `AuthSettings.mfa_acr_values`
-(`nptc.api.errors._step_up_challenge`), not the literal `"2"` — so changing the realm's
-LoA mapping (`NPTC_MFA_ACR_VALUES`) needs no code change on either side of the loop below.
+(`aptc.api.errors._step_up_challenge`), not the literal `"2"` — so changing the realm's
+LoA mapping (`APTC_MFA_ACR_VALUES`) needs no code change on either side of the loop below.
 The CORS middleware in `create_app` also declares `expose_headers=["WWW-Authenticate"]`;
 without it a browser hides the header from JavaScript on every cross-origin response, and
 the SPA reaction below does nothing, silently, whenever the SPA is not same-origin with
@@ -196,12 +196,12 @@ screen via `AdminLayout`) let an administrator complete this step before walking
 ### An unhandled error still carries CORS headers
 
 Starlette puts `ServerErrorMiddleware` outside every other layer, `CORSMiddleware`
-included. An exception that no handler in `nptc.api.errors` claims would pass through CORS
+included. An exception that no handler in `aptc.api.errors` claims would pass through CORS
 untouched, and that outer layer would write the 500. The response then had no
 `Access-Control-Allow-Origin`, so a cross-origin browser hid the status and the SPA saw an
 opaque network error instead of a 500 it could report.
 
-`UnhandledErrorMiddleware` (`nptc.api.unhandled`) sits just inside `CORSMiddleware`. It
+`UnhandledErrorMiddleware` (`aptc.api.unhandled`) sits just inside `CORSMiddleware`. It
 logs the exception with its traceback and returns a generic JSON 500, which CORS then
 decorates like any other response. The body never carries exception text (NFR-26,
 NFR-35), and only the configured frontend origin receives the header. If the response has
@@ -223,7 +223,7 @@ assignment runs *after* the identity's own `record_change`, not before: `append_
 flushes the session before reading the chain tail, which would otherwise commit away the
 attribute history the `user.renamed` diff needs (issue #167).
 
-The same rules cover the organisation (FR-42). `nptc.auth.tokens` reads the `organisation`
+The same rules cover the organisation (FR-42). `aptc.auth.tokens` reads the `organisation`
 claim, normalises it like any free text and drops it if it holds an invisible character
 (FR-63) or runs past `MAX_ORGANISATION_LENGTH`. A dropped or absent claim never fails a
 sign-in and never clears a stored value. `_create_user` stores a usable claim at first
@@ -237,9 +237,9 @@ diff, so the event names the field and nothing else.
 feeds a parser that raises on anything else — so a non-IP value is recorded as `None`
 rather than fabricated or allowed to 500 the request.
 
-The address recorded is the one `nptc.api.rate_limit.AnonymousRateLimitMiddleware` decided,
+The address recorded is the one `aptc.api.rate_limit.AnonymousRateLimitMiddleware` decided,
 not `request.client.host` itself: behind Caddy that would be Caddy's address, so the middleware
-reads `X-Forwarded-For` from a trusted proxy (`NPTC_TRUSTED_PROXIES`, see
+reads `X-Forwarded-For` from a trusted proxy (`APTC_TRUSTED_PROXIES`, see
 [`public-api.md`](public-api.md#rate-limiting-and-caching)) and `request_audit_context` takes
 the result from the request. Events written before this change recorded the proxy's address.
 
@@ -287,12 +287,12 @@ Isolation stays READ COMMITTED because the audit writer requires it. Advisory lo
 ADR-0021 restructured it into one conditional subflow per level of authentication:
 
 ```text
-nptc browser forms
-  nptc browser forms conditional password   CONDITIONAL
-    conditional-level-of-authentication  (nptc loa-1 condition)
+aptc browser forms
+  aptc browser forms conditional password   CONDITIONAL
+    conditional-level-of-authentication  (aptc loa-1 condition)
     auth-username-password-form          REQUIRED
-  nptc browser forms conditional otp        CONDITIONAL
-    conditional-level-of-authentication  (nptc loa-2 condition)
+  aptc browser forms conditional otp        CONDITIONAL
+    conditional-level-of-authentication  (aptc loa-2 condition)
     auth-otp-form                        REQUIRED
 ```
 
@@ -302,7 +302,7 @@ every user — which is what the committed realm did before #41, contradicting N
 ADR-0021 for the evidence.
 
 The level reached only reaches the backend if the token says so. Keycloak writes the `acr`
-claim through the mapper in its built-in `acr` client scope, so `nptc-frontend` lists `acr`
+claim through the mapper in its built-in `acr` client scope, so `aptc-frontend` lists `acr`
 in its `defaultClientScopes`. Without it, every token lacks `acr`, `mfa_satisfied` is always
 false, and no Administrator can complete step-up.
 
@@ -319,7 +319,7 @@ applies and the form asks for no organisation.
   email address cannot become the public handle (NFR-26, NFR-35).
 - **Organisation.** An attribute of the user, limited to `MAX_ORGANISATION_LENGTH` (500)
   characters to match the submission form. A client-level `oidc-usermodel-attribute-mapper`
-  on `nptc-frontend` writes it to the access token as `organisation`. The mapper is on the
+  on `aptc-frontend` writes it to the access token as `organisation`. The mapper is on the
   client, not in a top-level `clientScopes` array, for the reason ADR-0014 gives.
 - **Real name.** The built-in `profile` scope already builds the `name` claim from first and
   last name, and the backend reads that claim as `display_name`.
@@ -331,14 +331,14 @@ profile only after its Keycloak container is recreated
 ## The login theme
 
 Keycloak's own pages are the only place a password is typed (NFR-01), so they carry the
-platform's look through a login theme named `nptc` in `deploy/keycloak/themes/nptc/login/`.
+platform's look through a login theme named `aptc` in `deploy/keycloak/themes/aptc/login/`.
 
 - **Plain files, no build step.** The theme is FreeMarker templates and CSS on top of
   Keycloak's `keycloak.v2` theme (`parent=keycloak.v2`). It uses no Keycloakify and no Java
   provider, which this repository does not build or ship. Keycloak's own markup and element
   IDs, such as `kc-form-login`, stay as they are.
 - **How it loads.** `deploy/compose.yml` mounts the directory read-only at
-  `/opt/keycloak/themes/nptc`, and `nptc-realm.json` sets `"loginTheme": "nptc"`. No console
+  `/opt/keycloak/themes/aptc`, and `aptc-realm.json` sets `"loginTheme": "aptc"`. No console
   step is involved (NFR-03).
 - **What the pages show.** A deep-teal side panel with a serif headline and three factual
   lines sits beside the form, as the design guide asks for sign-in
@@ -347,7 +347,7 @@ platform's look through a login theme named `nptc` in `deploy/keycloak/themes/np
   dark palette.
 - **Registration notice.** The registration page shows the collection notice (NFR-14) and
   links to the SPA's `/privacy` and `/terms`. The links take their address from the realm
-  attribute `nptcFrontendBaseUrl`, which comes from `NPTC_FRONTEND_BASE_URL`. A client's own
+  attribute `aptcFrontendBaseUrl`, which comes from `APTC_FRONTEND_BASE_URL`. A client's own
   `baseUrl` is not used, because the `account-console` client's points at Keycloak. The page
   has no acceptance checkbox: acceptance is recorded by the platform after sign-in, not by
   Keycloak ([ADR-0043](../adr/0043-terms-acceptance-storage.md)). The notice says that
@@ -361,7 +361,7 @@ platform's look through a login theme named `nptc` in `deploy/keycloak/themes/np
   accessible name. **When the Keycloak image tag changes, compare these three files with
   the new image's `keycloak.v2` originals** and carry over any fix.
 - **Tokens are repeated, not shared.** Keycloak serves its own static files, so the SPA's
-  stylesheet and fonts are not reachable. `resources/css/nptc.css` repeats the colour,
+  stylesheet and fonts are not reachable. `resources/css/aptc.css` repeats the colour,
   radius, focus-ring and font tokens from `frontend/src/styles/app.css`, and
   `resources/fonts/` holds copies of the three font files with their OFL licences. A test
   fails if a repeated token differs from the SPA's.

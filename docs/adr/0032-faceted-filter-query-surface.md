@@ -88,7 +88,7 @@ A `string` property with thousands of distinct values would otherwise return tho
 buckets from one unauthenticated request. Twenty is an invented number — no facet panel is
 usable past a couple of dozen entries, and there is no production usage log to calibrate
 against — which is exactly why it is named here and declared once as
-`nptc.catalogue.facets.FACET_BUCKET_CAP` rather than buried at a call site. It is in the
+`aptc.catalogue.facets.FACET_BUCKET_CAP` rather than buried at a call site. It is in the
 same category as ADR-0024's threshold discipline: a figure to be revisited against
 observed behaviour, not tuned by taste.
 
@@ -102,7 +102,7 @@ these two as type-to-narrow comboboxes before the visitor has searched, and a bu
 from a combobox is a filter the visitor cannot reach and cannot find by typing. Both are
 bounded by the vocabulary the property admits (a few dozen disciplines, a few hundred
 specimens), not by how much data the catalogue holds, so the unbounded-response concern above
-does not apply to them. `nptc.catalogue.facets.UNCAPPED_FACET_KEYS` names them, and
+does not apply to them. `aptc.catalogue.facets.UNCAPPED_FACET_KEYS` names them, and
 `build_facet_count_statement` and `compute_facets` skip the `LIMIT` and the slice for those
 keys, reporting `truncated: false`. The exemption holds wherever `compute_facets` runs:
 `/catalogue/search`, the browse route, and the admin routes, because the page asks search for
@@ -206,7 +206,7 @@ NFR-22's concern, runtime data reaching a query as text, does not arise.
 
 ### The search statement becomes a Core select over a scored CTE
 
-`nptc.catalogue.search`'s nine index-supported scans and their per-entry `MAX` remain a
+`aptc.catalogue.search`'s nine index-supported scans and their per-entry `MAX` remain a
 module-level `text()` literal, unchanged, exposed as a CTE through `.columns(...)`. The
 shell around it — served columns, status filter, filter predicates, keyset predicate — is
 now SQLAlchemy Core.
@@ -230,7 +230,7 @@ by hand.
   and is reported as `facetable: false` rather than omitted. ADR-0013 §8 calls this the
   stated cost; a facet that vanished silently would be indistinguishable, to a client,
   from one whose values happen to match nothing.
-- `nptc.catalogue.queries`' ban on `COUNT(*)` over the catalogue now has one documented
+- `aptc.catalogue.queries`' ban on `COUNT(*)` over the catalogue now has one documented
   exception, amended into that module's own docstring. The ban is on a *page total*: a
   number the client did not ask for, costing a scan of everything the page did not serve.
   A facet count is the answer to the question, is bounded by the bucket cap, and reads one
@@ -267,7 +267,7 @@ by hand.
   follow-up here: it was a latency question, not a correctness one, so the fix is
   independent of the query surface this ADR settles.
 
-  `nptc.catalogue.facets.build_facet_counts_statement` unions every facetable descriptor's
+  `aptc.catalogue.facets.build_facet_counts_statement` unions every facetable descriptor's
   `build_facet_count_statement` — reused verbatim, unchanged — into one statement, wrapping
   each branch in its own subquery so its own `LIMIT FACET_BUCKET_CAP + 1` and grouping
   expression survive the union untouched. Every branch closes over the *same* scored-CTE

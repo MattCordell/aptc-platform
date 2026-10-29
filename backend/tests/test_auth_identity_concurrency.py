@@ -22,9 +22,9 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
-from nptc.audit.writer import AuditContext
-from nptc.auth.claims import OidcIdentityClaims
-from nptc.auth.identity import LinkOutcome, resolve_user_for_claims
+from aptc.audit.writer import AuditContext
+from aptc.auth.claims import OidcIdentityClaims
+from aptc.auth.identity import LinkOutcome, resolve_user_for_claims
 
 _ISSUER = "https://idp-race.example"
 _OTHER_TRUSTED_ISSUER = "https://idp-race-linked.example"

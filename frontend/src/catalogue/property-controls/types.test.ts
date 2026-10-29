@@ -37,7 +37,7 @@ describe("submittedSlotIndexes (FR-23)", () => {
 
 describe("sameSlotValue (FR-23, FR-52)", () => {
   const SNOMED = "http://snomed.info/sct";
-  const LOCAL = "https://nptc.example/code-system/subgroup";
+  const LOCAL = "https://aptc.example/code-system/subgroup";
 
   it("matches coded values on system and code, whatever term each carries", () => {
     expect(
@@ -76,7 +76,7 @@ describe("submittedSlotIndexes with coded values (FR-23)", () => {
     expect(
       submittedSlotIndexes([
         added("1", { system: SNOMED, code: "1" }),
-        draft({ system: "https://nptc.example/code-system/subgroup", code: "1" }),
+        draft({ system: "https://aptc.example/code-system/subgroup", code: "1" }),
       ]),
     ).toEqual([0, 1]);
   });

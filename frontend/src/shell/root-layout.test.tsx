@@ -99,7 +99,7 @@ describe("site header and footer (NFR-20, NFR-31)", () => {
       expect(within(footer).getByRole("link", { name })).toBeVisible();
     }
     expect(
-      within(footer).getByText(/RCPA-QAP National Pathology Test Catalogue/),
+      within(footer).getByText(/Pathology test catalogue curated by RCPA-QAP/),
     ).toBeVisible();
   });
 });

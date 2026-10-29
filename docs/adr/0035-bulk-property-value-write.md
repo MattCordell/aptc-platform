@@ -8,9 +8,9 @@
 
 Issue #265 (FR-39) is the server half of #63's bulk reclassify: one route setting a
 single registry property to a single value set across many entries, with per-entry
-optimistic locking, so one stale entry never blocks a 99-entry reclassify. `nptc.
+optimistic locking, so one stale entry never blocks a 99-entry reclassify. `aptc.
 catalogue.property_values.save_property_values` (issue #52) takes one `CatalogueEntry`;
-`nptc.catalogue.entries.save_entries` batches `EntryChanges`' own core columns, not
+`aptc.catalogue.entries.save_entries` batches `EntryChanges`' own core columns, not
 `property_value` rows, so it cannot reach discipline (a coded registry property,
 `origin=system`, cardinality `0..*` — PRD §6.5, FR-90) at all. Both an incorrect
 docstring on `save_entries` and a matching note on FR-38 in `docs/requirements/
@@ -61,7 +61,7 @@ requester and its own test, not a variant folded into this one.
 ### A diff-free `property_value.bulk_set` header, carrying its tallies structurally, emitted only when something applied
 
 The batch's own audit event has no diff by construction — it summarises N other events,
-it does not itself change one row. `nptc.audit.recording` exists to compute diffs and
+it does not itself change one row. `aptc.audit.recording` exists to compute diffs and
 refuse an empty one (`AuditNoOpError`, ADR-0018); a batch header is not a diff, so it
 does not go through `record_change`/`record_snapshot_change`, but it still needs a place
 to carry the outcome tallies (`applied`/`unchanged`/`conflict`/`not-found`) that a
@@ -70,7 +70,7 @@ its own, without cross-referencing the per-entry `property_value.set` events sha
 `correlation_id`.
 
 **Round-1** (initial accepted decision, since revised): the seam called
-`nptc.audit.writer.append_audit_event` directly, with `before`/`after` both omitted and
+`aptc.audit.writer.append_audit_event` directly, with `before`/`after` both omitted and
 the tallies appended as a formatted parenthetical onto `reason` — e.g. `"Reclassify
 discipline (40 applied, 2 unchanged, ...)"`. Round-2 review flagged two problems with
 this: the operator's own changelog note (FR-37's whole point) no longer matched what they
@@ -80,11 +80,11 @@ conflicted or was not-found — a batch that changed nothing, recording a perman
 hash-chained row anyway, which a client retrying a stale selection would repeat once per
 attempt.
 
-**Round-2 (current):** `nptc.audit.recording.record_batch_summary` — a new, narrow
-wrapper living in `nptc.audit`, not the domain module — passes the tallies as a
+**Round-2 (current):** `aptc.audit.recording.record_batch_summary` — a new, narrow
+wrapper living in `aptc.audit`, not the domain module — passes the tallies as a
 structured `after={"applied": n, "unchanged": n, "conflict": n, "not-found": n}` payload,
 leaving `reason` as the operator's own note, byte-for-byte identical to the per-entry
-events'. It lives in `nptc.audit` (not `nptc.catalogue.property_values`, the caller)
+events'. It lives in `aptc.audit` (not `aptc.catalogue.property_values`, the caller)
 purely so its `after=` keyword satisfies `test_audit_write_path_guard.py`'s rule against
 a hand-built `before=`/`after=` payload outside that package — the guard cannot tell "a
 diff bypassing `record_change`" from "a structured summary that was never a diff" apart
@@ -108,7 +108,7 @@ names the property it touched, not any one entry; per-entry attribution is what 
 per-entry `property_value.set` events already carry, linked by sharing one
 `correlation_id` (minted once per request, NFR-08) for free.
 
-`nptc.catalogue.property_values.tally_bulk_outcomes` counts `outcomes` by `status` once;
+`aptc.catalogue.property_values.tally_bulk_outcomes` counts `outcomes` by `status` once;
 both the audit header's `after` payload and the HTTP response's `applied`/`unchanged`/
 `conflict`/`not_found` counts call it against the same `outcomes` tuple, rather than each
 independently summing the list — round-2 review's finding that two independent counts of
@@ -147,7 +147,7 @@ abort — but that is exactly the "genuine failure discards the whole batch" cas
 ### Lock ordering: a deterministic early acquisition, not a complete fix (round-2 addendum)
 
 This route is the first HTTP surface that can hold a row-exclusive lock on more than one
-`catalogue_entry` row inside a single transaction. `nptc.audit.writer.
+`catalogue_entry` row inside a single transaction. `aptc.audit.writer.
 append_audit_event` already serialises every audit append across the whole application
 via `pg_advisory_xact_lock` (issue #36) — a lock every write path takes *after* its own
 row lock, which was safe as long as no transaction ever held more than one row lock at a
@@ -158,7 +158,7 @@ while that writer blocks waiting for the same advisory lock the bulk request wil
 release until it commits.
 
 **Decision: acquire the advisory lock once, deterministically, before the per-entry loop
-starts** (`nptc.audit.writer.acquire_append_lock`, called from `save_property_values_
+starts** (`aptc.audit.writer.acquire_append_lock`, called from `save_property_values_
 for_entries` directly), rather than relying on whichever entry's own audit append happens
 to acquire it first. This makes the bulk transaction's lock-holding window well-defined
 (the whole transaction, not "from wherever the first non-`unchanged` entry lands
@@ -172,7 +172,7 @@ requires every writer that can take both a `catalogue_entry` row lock and the au
 append lock — which, today, is every mutating catalogue write, not just this route — to
 acquire them in the same order. Reordering only the bulk seam's own acquisition point
 cannot enforce a *global* invariant across writers that do not coordinate with each
-other; the singular write paths (`nptc.catalogue.entries.save_entry`, the singular
+other; the singular write paths (`aptc.catalogue.entries.save_entry`, the singular
 `PUT .../properties/{key}` route) still take their one row lock before the advisory lock,
 and a sufficiently unlucky interleaving between one of them and a bulk request can still
 deadlock. **Accepted, not fixed, here**: Postgres's own deadlock detector aborts one of
@@ -184,7 +184,7 @@ ordering applied to every catalogue-entry writer — is a larger, higher-blast-r
 change than this issue's own scope and is filed as a follow-up (issue #281).
 
 **Issue #60 adds the first singular writer conforming to this ordering.** The three
-code-binding routes' new `nptc.catalogue.entries.entry_child_write` acquires the append
+code-binding routes' new `aptc.catalogue.entries.entry_child_write` acquires the append
 lock before its own version check (and so before any row lock the wrapped write takes) —
 the same order this addendum establishes, applied to a single-entry writer rather than
 the bulk seam. This narrows, but does not close, the residual case above: a binding write
@@ -193,7 +193,7 @@ singular property-value route still take their row lock first, so #281 remains o
 the rest.
 
 **Issue #300 introduces a second global advisory lock into the same cycle** (round-2
-review). `nptc.catalogue.collisions.assert_no_error_collisions` takes its own
+review). `aptc.catalogue.collisions.assert_no_error_collisions` takes its own
 `pg_advisory_xact_lock(hashtext(collision_key))` — a lock keyed per comparison-key, not
 per entry — and every existing writer that can take it (`save_entry`, `create_entry`)
 does so *before* it can ever reach `record_change`'s append lock. Issue #300's designation
@@ -216,9 +216,9 @@ its own follow-up: the complete fix is the same one this addendum already calls 
 single, consistent lock-acquisition order across every catalogue-entry writer, covering
 both lock pairs (append-vs-row and append-vs-collision) at once.
 
-**Issue #281 closes both cases above.** `nptc.catalogue.entries.create_entry`/`save_entry`,
-`nptc.catalogue.property_values.save_property_values` (the singular writer), and
-`nptc.catalogue.designations.add_designation`/`amend_designation` now call
+**Issue #281 closes both cases above.** `aptc.catalogue.entries.create_entry`/`save_entry`,
+`aptc.catalogue.property_values.save_property_values` (the singular writer), and
+`aptc.catalogue.designations.add_designation`/`amend_designation` now call
 `acquire_append_lock` before **any statement that touches the session** — not merely "early" or
 "before the collision/row lock", which a round-2 review of this fix itself found was not
 strong enough: a placement after some earlier precondition check still left one or more ORM
@@ -273,7 +273,7 @@ expected to be a measurable contention source in practice, and was not separatel
 load-tested; a future catalogue an order of magnitude larger, or a much higher write
 concurrency, would be the trigger to revisit it, not this issue's own scope.
 
-**Issue #321 widens the guard from three hand-listed modules to the whole `nptc.catalogue` package.**
+**Issue #321 widens the guard from three hand-listed modules to the whole `aptc.catalogue` package.**
 The guard now globs every module there, keys functions by `(module, name)`, collects `async def`
 and matches attribute calls such as `collisions.assert_no_error_collisions(...)`, so none of
 those shapes can drop a writer from the derived set. The wider scan found thirteen functions

@@ -29,7 +29,7 @@ describe("validateAuditSearch", () => {
       validateAuditSearch({
         actor: " 3f2a1b4c-5d6e-4f70-8192-a3b4c5d6e7f8 ",
         entity_type: "catalogue_entry",
-        entity_id: "NPTC-000001",
+        entity_id: "APTC-000001",
         action: "catalogue_entry.updated",
         from: "2026-10-01",
         to: "2026-10-07",
@@ -38,7 +38,7 @@ describe("validateAuditSearch", () => {
     ).toEqual({
       actor: "3f2a1b4c-5d6e-4f70-8192-a3b4c5d6e7f8",
       entity_type: "catalogue_entry",
-      entity_id: "NPTC-000001",
+      entity_id: "APTC-000001",
       action: "catalogue_entry.updated",
       from: "2026-10-01",
       to: "2026-10-07",
@@ -95,12 +95,12 @@ describe("validateCatalogueSearch", () => {
     expect(
       validateCatalogueSearch({
         q: "glucose",
-        after: "0.5:abc:NPTC-000123",
+        after: "0.5:abc:APTC-000123",
         "filter.discipline": ["chem", "haem"],
       }),
     ).toEqual({
       q: "glucose",
-      after: "0.5:abc:NPTC-000123",
+      after: "0.5:abc:APTC-000123",
       "filter.discipline": ["chem", "haem"],
     });
   });
@@ -129,7 +129,7 @@ describe("validateCatalogueSearch", () => {
   it("is idempotent - validating its own output reproduces it", () => {
     const once = validateCatalogueSearch({
       q: "glucose",
-      after: "NPTC-000123",
+      after: "APTC-000123",
       "filter.discipline": "chem",
     });
     const twice = validateCatalogueSearch(once as unknown as Record<string, unknown>);
@@ -204,9 +204,9 @@ describe("validateAdminCatalogueSearch", () => {
   });
 
   it("passes through q and after unchanged", () => {
-    expect(validateAdminCatalogueSearch({ q: "glucose", after: "NPTC-000123" })).toEqual({
+    expect(validateAdminCatalogueSearch({ q: "glucose", after: "APTC-000123" })).toEqual({
       q: "glucose",
-      after: "NPTC-000123",
+      after: "APTC-000123",
     });
   });
 
@@ -248,7 +248,7 @@ describe("validateAdminCatalogueSearch", () => {
   it("is idempotent - validating its own output reproduces it", () => {
     const once = validateAdminCatalogueSearch({
       q: "glucose",
-      after: "NPTC-000123",
+      after: "APTC-000123",
       "filter.status": ["draft", "active"],
     });
     const twice = validateAdminCatalogueSearch(
@@ -350,7 +350,7 @@ describe("toggleFilterValue", () => {
   // ADR-0024: a cursor is only meaningful against the request that produced
   // it, and changing the filter set changes the population being paged.
   it("drops the after cursor, since the population it was paging over has changed", () => {
-    const search: AdminCatalogueSearch = { q: "", after: "NPTC-000123" };
+    const search: AdminCatalogueSearch = { q: "", after: "APTC-000123" };
 
     const result = toggleFilterValue(search, "status", "draft");
 
@@ -398,7 +398,7 @@ describe("clearAllFilters", () => {
   it("drops every filter and the after cursor, keeping q", () => {
     const search: AdminCatalogueSearch = {
       q: "glucose",
-      after: "NPTC-000123",
+      after: "APTC-000123",
       "filter.status": ["draft"],
       "filter.discipline": ["chemistry"],
     };
@@ -415,7 +415,7 @@ describe("clearAllFilters", () => {
   it("keeps sort while dropping the after cursor", () => {
     const search: AdminCatalogueSearch = {
       q: "glucose",
-      after: "NPTC-000123",
+      after: "APTC-000123",
       sort: "updated_at",
       "filter.status": ["draft"],
     };
@@ -426,7 +426,7 @@ describe("clearAllFilters", () => {
 
 describe("changeSort", () => {
   it("sets sort and drops the after cursor", () => {
-    const search: AdminCatalogueSearch = { q: "glucose", after: "NPTC-000123" };
+    const search: AdminCatalogueSearch = { q: "glucose", after: "APTC-000123" };
 
     expect(changeSort(search, "updated_at")).toEqual({
       q: "glucose",
@@ -437,7 +437,7 @@ describe("changeSort", () => {
   it("omits sort when changed back to business_key, the default", () => {
     const search: AdminCatalogueSearch = {
       q: "glucose",
-      after: "NPTC-000123",
+      after: "APTC-000123",
       sort: "updated_at",
     };
 
@@ -487,18 +487,18 @@ describe("validateSubmissionNewSearch (FR-35)", () => {
   });
 
   it("keeps a business key as typed", () => {
-    expect(validateSubmissionNewSearch({ entry: "NPTC-000006" })).toEqual({
-      entry: "NPTC-000006",
+    expect(validateSubmissionNewSearch({ entry: "APTC-000006" })).toEqual({
+      entry: "APTC-000006",
     });
   });
 
   it("is idempotent on a key it kept", () => {
-    const once = validateSubmissionNewSearch({ entry: " NPTC-000006 " });
+    const once = validateSubmissionNewSearch({ entry: " APTC-000006 " });
 
     expect(validateSubmissionNewSearch(once as Record<string, unknown>)).toEqual(once);
   });
 
-  it.each([[""], ["   "], [42], [["NPTC-000006"]], [null]])(
+  it.each([[""], ["   "], [42], [["APTC-000006"]], [null]])(
     "drops %j rather than opening amendment mode on it",
     (entry) => {
       expect(validateSubmissionNewSearch({ entry })).toEqual({});

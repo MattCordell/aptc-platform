@@ -19,11 +19,11 @@ import { clearTransactions } from "./transaction.ts";
  * renews, what it does with a refusal, and what it clears on sign-out.
  */
 
-const ISSUER = "https://idp.test/realms/nptc";
+const ISSUER = "https://idp.test/realms/aptc";
 
 const CONFIG: AuthConfig = {
   issuer: ISSUER,
-  clientId: "nptc-frontend",
+  clientId: "aptc-frontend",
   redirectUri: "https://app.test/auth/callback",
   postLogoutRedirectUri: "https://app.test",
 };

@@ -22,11 +22,11 @@ import { clearTransactions } from "./transaction.ts";
  * the `state` check and the single-use transaction.
  */
 
-const ISSUER = "https://idp.test/realms/nptc";
+const ISSUER = "https://idp.test/realms/aptc";
 
 const CONFIG: AuthConfig = {
   issuer: ISSUER,
-  clientId: "nptc-frontend",
+  clientId: "aptc-frontend",
   redirectUri: "https://app.test/auth/callback",
   postLogoutRedirectUri: "https://app.test",
 };
@@ -99,7 +99,7 @@ describe("buildAuthorizeUrl", () => {
     expect(url.searchParams.get("response_type")).toBe("code");
     expect(url.searchParams.get("code_challenge_method")).toBe("S256");
     expect(url.searchParams.get("code_challenge")).toMatch(/^[A-Za-z0-9_-]{43}$/);
-    expect(url.searchParams.get("client_id")).toBe("nptc-frontend");
+    expect(url.searchParams.get("client_id")).toBe("aptc-frontend");
     expect(url.searchParams.get("redirect_uri")).toBe(CONFIG.redirectUri);
     // NFR-01: a public client has no secret, and none may appear anywhere.
     expect(url.toString()).not.toMatch(/secret/i);

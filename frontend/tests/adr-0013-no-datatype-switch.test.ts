@@ -25,13 +25,13 @@ import { describe, expect, it } from "vitest";
  * `fr-83-no-semantic-tag-stripping.test.ts` exactly: a `switch` on
  * `.datatype`, or an equality check against one of the datatype literals
  * the backend's own registry recognises (`BUILTIN_DATATYPES`,
- * `backend/src/nptc/registry/datatypes/__init__.py`), each targeting a
+ * `backend/src/aptc/registry/datatypes/__init__.py`), each targeting a
  * property access or identifier named `datatype`.
  */
 
 const SRC_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../src");
 
-/** Mirrors `BUILTIN_DATATYPES` in `backend/src/nptc/registry/datatypes/__init__.py`. */
+/** Mirrors `BUILTIN_DATATYPES` in `backend/src/aptc/registry/datatypes/__init__.py`. */
 const DATATYPE_LITERALS = new Set(["code", "string", "decimal", "positiveInt", "url"]);
 
 function isDatatypeAccess(node: ts.Expression): boolean {

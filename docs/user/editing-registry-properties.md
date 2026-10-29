@@ -15,7 +15,7 @@ on an entry, not the property definitions themselves.
 
 Open an entry for editing from **[Administration → Catalogue](finding-entries.md)** by
 choosing its requesting term, or go straight to
-`/admin/catalogue/NPTC-000247/edit` for the entry you want. Entries that have not been
+`/admin/catalogue/APTC-000247/edit` for the entry you want. Entries that have not been
 published yet can be edited the same way as published ones.
 
 ## What you see

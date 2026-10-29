@@ -8,10 +8,10 @@ import { loadEndpoints, resetEndpointCache } from "./discovery.ts";
  * The issuer check is the one with teeth: a document that names a different
  * issuer would send the login redirect to another authorisation server, and
  * the user would be shown a convincing login form belonging to someone
- * else. `nptc.auth.discovery` makes the same refusal server-side.
+ * else. `aptc.auth.discovery` makes the same refusal server-side.
  */
 
-const ISSUER = "https://idp.test/realms/nptc";
+const ISSUER = "https://idp.test/realms/aptc";
 
 const DOCUMENT = {
   issuer: ISSUER,
@@ -62,7 +62,7 @@ describe("loadEndpoints", () => {
   });
 
   it("refuses a document naming a different issuer", async () => {
-    stubFetch({ ...DOCUMENT, issuer: "https://evil.test/realms/nptc" });
+    stubFetch({ ...DOCUMENT, issuer: "https://evil.test/realms/aptc" });
 
     await expect(loadEndpoints(ISSUER)).rejects.toThrow(/issuer/i);
   });

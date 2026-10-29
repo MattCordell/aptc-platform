@@ -14,7 +14,7 @@ column on `app_user` - see that model's docstring. `UPDATE` is granted on
 never edited - `user_id`/`role`/`granted_by_user_id` stay immutable at the
 privilege level - but Postgres requires *some* `UPDATE` privilege on a
 table before it honours `SELECT ... FOR UPDATE`, which FR-01's
-last-administrator guard depends on (see `nptc.db.roles.
+last-administrator guard depends on (see `aptc.db.roles.
 GRANT_USER_ROLE_UPDATE_SQL`).
 
 `UniqueConstraint("user_id", "role")` is named `uq_user_role_user_id` by
@@ -31,7 +31,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-from nptc.db import roles
+from aptc.db import roles
 
 # revision identifiers, used by Alembic.
 revision: str = "0005"

@@ -5,7 +5,7 @@ const SPECIMEN_SUFFIX = /\s+specimen$/i;
  * "Serum". A bare "Specimen" is returned as it is, never empty.
  *
  * The frontend twin of `trim_specimen_suffix` in
- * `backend/src/nptc/exports/semantic_tag.py`: change one, change both.
+ * `backend/src/aptc/exports/semantic_tag.py`: change one, change both.
  */
 export function trimSpecimenSuffix(term: string): string {
   const trimmed = term.replace(SPECIMEN_SUFFIX, "");

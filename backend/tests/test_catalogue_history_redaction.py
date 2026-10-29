@@ -1,11 +1,11 @@
-"""`nptc.catalogue.history._changed_field_names` (issue #141, FR-19).
+"""`aptc.catalogue.history._changed_field_names` (issue #141, FR-19).
 
 Unit-level, no database: no write path exercised in this issue's own
 integration tests (`test_api_public_entry_history.py`) ever touches a
 model with a real `__audit_withheld_fields__` entry, so the `REDACTED_KEY`
 -unpacking branch would otherwise go untested. This module proves it
 directly against a hand-built `before`/`after` payload, matching
-`nptc.audit.diffing`'s own `REDACTED_KEY` shape (a list of names under
+`aptc.audit.diffing`'s own `REDACTED_KEY` shape (a list of names under
 that key, alongside any auditable field's real value).
 """
 
@@ -13,8 +13,8 @@ from __future__ import annotations
 
 import pytest
 
-from nptc.audit.diffing import REDACTED_KEY
-from nptc.catalogue.history import _changed_field_names
+from aptc.audit.diffing import REDACTED_KEY
+from aptc.catalogue.history import _changed_field_names
 
 
 def test_ordinary_changed_fields_are_named_directly() -> None:

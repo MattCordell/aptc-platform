@@ -1,10 +1,10 @@
-"""The `EXPLAIN` proof that `nptc.catalogue.queries.get_entry_by_code`
+"""The `EXPLAIN` proof that `aptc.catalogue.queries.get_entry_by_code`
 (issue #140, FR-17) actually reaches `ix_code_binding_system_code`, not
 merely that the index exists (issue #140 review).
 
 Every other index on `code_binding` covering `(system, code)` or `code`
 alone is partial, `WHERE status = 'active'`
-(`nptc.db.models.code_binding`'s own `__table_args__`) - `get_entry_by_code`
+(`aptc.db.models.code_binding`'s own `__table_args__`) - `get_entry_by_code`
 must see retired rows too (FR-08), so its `WHERE` clause carries no
 `status` predicate a partial index's own predicate could be proven to
 imply. `ix_code_binding_system_code` is the one non-partial index over
@@ -39,7 +39,7 @@ the only legal one.
 
 Marked `integration`: a query plan is a database fact, with no unit-level
 substitute (NFR-39). One of the more expensive tests in the integration
-suite - roughly 10k inserts, ~60k `nptc_sctid_is_valid` evaluations, and two
+suite - roughly 10k inserts, ~60k `aptc_sctid_is_valid` evaluations, and two
 `ANALYZE`s - because that volume is exactly what the proof above requires.
 """
 
@@ -51,8 +51,8 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.expression import ClauseElement, Executable
 
-from nptc.catalogue.queries import _get_entry_by_code_statement
-from nptc.db.models.code_binding import SNOMED_CT_SYSTEM
+from aptc.catalogue.queries import _get_entry_by_code_statement
+from aptc.db.models.code_binding import SNOMED_CT_SYSTEM
 
 #: Enough `active` noise entries, and enough *other* `code_binding` rows,
 #: that scanning either table in full costs more than one probe of
@@ -60,7 +60,7 @@ from nptc.db.models.code_binding import SNOMED_CT_SYSTEM
 #: `test_db_search_index.py`'s own `_ROW_COUNT`/`_BINDING_COUNT`.
 _NOISE_ENTRY_COUNT = 5_000
 _NOISE_BINDING_COUNT = 5_000
-#: Wide enough that filtering it for `nptc_sctid_is_valid` yields at least
+#: Wide enough that filtering it for `aptc_sctid_is_valid` yields at least
 #: `_NOISE_BINDING_COUNT` codes - roughly one candidate in ten passes the
 #: Verhoeff check, matching `test_db_search_index.py`'s own
 #: `_CODE_CANDIDATES` sizing.
@@ -68,7 +68,7 @@ _NOISE_CODE_CANDIDATES = 60_000
 
 _BULK_NOISE_ENTRIES_SQL = text("""
 INSERT INTO catalogue_entry (business_key, preferred_term, status)
-SELECT 'NPTC-9' || lpad(g::text, 8, '0'), 'index plan noise ' || g, 'active'
+SELECT 'APTC-9' || lpad(g::text, 8, '0'), 'index plan noise ' || g, 'active'
 FROM generate_series(1, :count) AS g
 """)
 
@@ -90,13 +90,13 @@ SELECT
 FROM (
     SELECT id, row_number() OVER (ORDER BY business_key) AS rn
     FROM catalogue_entry
-    WHERE business_key LIKE 'NPTC-9%'
+    WHERE business_key LIKE 'APTC-9%'
     LIMIT :bindings
 ) AS e
 JOIN (
     SELECT g::text AS code, row_number() OVER (ORDER BY g) AS rn
     FROM generate_series(200000000, 200000000 + :candidates) AS g
-    WHERE nptc_sctid_is_valid(g::text)
+    WHERE aptc_sctid_is_valid(g::text)
 ) AS c ON c.rn = e.rn
 """)
 
@@ -111,7 +111,7 @@ _INSERT_BINDING = text(
 
 #: A real, Verhoeff-valid SCTID (`391483001`, the same fixture
 #: `public_catalogue_support.py`/`test_db_code_binding.py` already use) -
-#: the `code` CHECK calls `nptc_sctid_is_valid`, so an invented number would
+#: the `code` CHECK calls `aptc_sctid_is_valid`, so an invented number would
 #: not insert at all. Below `200000000`, so it cannot collide with a noise
 #: code generated above.
 _CODE = "391483001"
@@ -149,7 +149,7 @@ def test_get_entry_by_code_plans_against_the_system_code_index(db: Connection) -
         {"bindings": _NOISE_BINDING_COUNT, "candidates": _NOISE_CODE_CANDIDATES},
     )
     entry_id = db.execute(
-        _INSERT_ENTRY, {"business_key": "NPTC-300001", "preferred_term": "Index plan fixture"}
+        _INSERT_ENTRY, {"business_key": "APTC-300001", "preferred_term": "Index plan fixture"}
     ).scalar_one()
     db.execute(
         _INSERT_BINDING,

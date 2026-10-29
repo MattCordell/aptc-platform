@@ -100,7 +100,7 @@ describe("design tokens meet WCAG AA contrast", () => {
   });
 });
 
-// The Keycloak login theme (deploy/keycloak/themes/nptc) repeats these tokens
+// The Keycloak login theme (deploy/keycloak/themes/aptc) repeats these tokens
 // in its own stylesheet, and its CSS has no component test, so the pairs it
 // renders are checked here against the same values.
 describe("login theme colour pairs meet WCAG AA contrast", () => {

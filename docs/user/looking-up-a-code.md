@@ -1,6 +1,6 @@
 # Looking up a code
 
-If you hold a SNOMED CT code, you can find the National Pathology Test Catalogue entry that
+If you hold a SNOMED CT code, you can find the Australian Pathology Test Catalogue entry that
 uses it. You do not need an account. Open `/catalogue/lookup`, or go straight to
 `/catalogue/code/sct/{code}`, for example `/catalogue/code/sct/000123`.
 

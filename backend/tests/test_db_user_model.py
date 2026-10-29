@@ -16,7 +16,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import IntegrityError
 
-from nptc.audit.hashing import GENESIS_HASH
+from aptc.audit.hashing import GENESIS_HASH
 
 _UNIQUE_VIOLATION = "23505"
 _CHECK_VIOLATION = "23514"

@@ -1,4 +1,4 @@
-"""Data-level properties of `nptc.auth.permissions` that don't belong in
+"""Data-level properties of `aptc.auth.permissions` that don't belong in
 `test_permission_matrix.py` (which is purely "does the code match the PRD
 table"): exhaustive classification, FR-80/FR-81 as statements about data
 rather than endpoints, and quota resolution.
@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from itertools import pairwise
 
-from nptc.auth.permissions import (
+from aptc.auth.permissions import (
     ADMINISTRATOR_ONLY,
     GRANTABLE_ROLES,
     MFA_REQUIRED_PERMISSIONS,
@@ -36,14 +36,14 @@ from nptc.auth.permissions import (
 
 
 def test_every_permission_is_classified_read_or_write() -> None:
-    """Mirrors `nptc.audit.policy`'s own "every column classified or
+    """Mirrors `aptc.audit.policy`'s own "every column classified or
     construction fails" discipline - an unclassified `Permission` would
     silently vanish from `WRITE_PERMISSIONS` and so from FR-80's check."""
     assert set(PERMISSION_KIND) == set(Permission)
 
 
 def test_write_permissions_is_derived_not_hand_duplicated() -> None:
-    from nptc.auth.permissions import PermissionKind
+    from aptc.auth.permissions import PermissionKind
 
     expected = {p for p, kind in PERMISSION_KIND.items() if kind is PermissionKind.WRITE}
     assert frozenset(expected) == WRITE_PERMISSIONS
@@ -55,7 +55,7 @@ def test_every_role_has_a_permission_set() -> None:
 
 def test_grantable_roles_excludes_anon() -> None:
     """ANON is a matrix column (the anonymous visitor), never a grantable
-    `user_role` row - see `nptc.db.models.user_role`'s CHECK constraint,
+    `user_role` row - see `aptc.db.models.user_role`'s CHECK constraint,
     which must also never list 'anon'."""
     assert Role.ANON not in GRANTABLE_ROLES
     assert frozenset(Role) - {Role.ANON} == GRANTABLE_ROLES
@@ -177,7 +177,7 @@ def test_effective_quota_resolves_per_dimension_independently() -> None:
     picking one role's quota wholesale. Worth stating plainly rather than
     leaving as a surprise: this is the resolution *rule* as designed, not
     a bug - `effective_quota` is unit-tested here, and
-    `nptc.submissions.quota` enforces whatever it returns, so a user holding
+    `aptc.submissions.quota` enforces whatever it returns, so a user holding
     both roles is never refused."""
     quota = effective_quota(frozenset({Role.PROVISIONAL, Role.MEMBER}))
     assert quota == SubmissionQuota(lifetime_max=None, per_hour_max=None)

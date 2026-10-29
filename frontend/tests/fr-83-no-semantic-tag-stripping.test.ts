@@ -17,7 +17,7 @@ import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 /**
- * FR-83's stripping rule (`nptc.exports.semantic_tag.strip_semantic_tag`) has
+ * FR-83's stripping rule (`aptc.exports.semantic_tag.strip_semantic_tag`) has
  * exactly one legitimate home, and it is server-side - the export renderer,
  * never the API read path (issue #144 removed `Binding.display_term`
  * entirely: `fsn` is served exactly as stored, and `label_provenance`
@@ -55,10 +55,10 @@ const BANNED_NAMES = new Set([
  * (issue #144) - a name collision with `BANNED_NAMES` above, not a
  * violation: this is a wire field describing whether an FSN's tag is
  * intact/stripped/not-applicable, never a call to or import of
- * `nptc_shared.terminology`'s `semantic_tag`/`strip_semantic_tag`
+ * `aptc_shared.terminology`'s `semantic_tag`/`strip_semantic_tag`
  * functions, which this generated file has no way to reach at all. The
  * backend's own AST guard hits the identical false positive on
- * `nptc.api.labels.LabelProvenance` itself, for the same reason -
+ * `aptc.api.labels.LabelProvenance` itself, for the same reason -
  * see `test_catalogue_bindings.py`'s `_ALLOWED_REFERENCES` entry for it.
  * Its own name is enough of an allowlist: nothing else under `frontend/src`
  * should ever need one.

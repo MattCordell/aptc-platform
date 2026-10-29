@@ -9,18 +9,18 @@
  *
  * Missing configuration throws, naming the variable, rather than defaulting
  * to a plausible-looking localhost URL - the same fail-loud posture
- * `nptc.settings` takes on the backend. A silently defaulted issuer would
+ * `aptc.settings` takes on the backend. A silently defaulted issuer would
  * send users to an authorisation server nobody meant to trust.
  */
 
 export interface AuthConfig {
-  /** The realm's issuer URL, e.g. `http://localhost:8080/realms/nptc`. */
+  /** The realm's issuer URL, e.g. `http://localhost:8080/realms/aptc`. */
   issuer: string;
   clientId: string;
   /**
    * Derived from the current origin rather than configured: it must match
    * the realm's `redirectUris`, which are themselves derived from the one
-   * `NPTC_FRONTEND_BASE_URL` placeholder (ADR-0014). A separately configured
+   * `APTC_FRONTEND_BASE_URL` placeholder (ADR-0014). A separately configured
    * value is a second source of truth that can only ever drift out of step
    * with the first and produce an "Invalid redirect_uri" at the worst moment.
    */

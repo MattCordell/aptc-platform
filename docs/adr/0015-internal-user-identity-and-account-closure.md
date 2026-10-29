@@ -62,7 +62,7 @@ invariant instead of an application convention: a half-done tombstone (closed bu
 carrying a name) is rejected at the database, not merely discouraged in code review.
 
 **"Never delete a user" is expressed as a missing `DELETE` grant, not solely an
-application convention.** `nptc_app` gets `SELECT`, `INSERT`, and a **column-level**
+application convention.** `aptc_app` gets `SELECT`, `INSERT`, and a **column-level**
 `UPDATE` on `app_user` excluding `id` and `created_at` - so the retained UUID is
 immutable even to the app role itself, which is exactly what audit attribution and the
 eventual NFR-10 hash chain depend on - and no `DELETE` grant at all. This mirrors the

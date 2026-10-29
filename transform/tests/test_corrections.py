@@ -3,7 +3,7 @@ issue #31, P0-9)."""
 
 from __future__ import annotations
 
-from nptc_transform.corrections import (
+from aptc_transform.corrections import (
     apply_corrections,
     correct_code_cell,
     correct_invisible_characters,

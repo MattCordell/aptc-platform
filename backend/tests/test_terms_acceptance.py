@@ -1,4 +1,4 @@
-"""`nptc.terms.acceptance` as a library, against a real PostgreSQL (NFR-45, NFR-08, ADR-0043).
+"""`aptc.terms.acceptance` as a library, against a real PostgreSQL (NFR-45, NFR-08, ADR-0043).
 
 The HTTP behaviour is in `test_api_terms.py`. This file covers what a single-transaction HTTP
 test cannot show: the order of the statements that keep two concurrent accepts from both writing.
@@ -13,11 +13,11 @@ from sqlalchemy import func, select
 from sqlalchemy.engine import Connection
 from sqlalchemy.orm import Session
 
-from nptc.audit.writer import AuditContext
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.terms_acceptance import TermsAcceptance
-from nptc.db.models.user import User
-from nptc.terms.acceptance import accept_terms
+from aptc.audit.writer import AuditContext
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.terms_acceptance import TermsAcceptance
+from aptc.db.models.user import User
+from aptc.terms.acceptance import accept_terms
 
 _VERSION = "2026-10-06"
 

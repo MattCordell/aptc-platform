@@ -1,9 +1,9 @@
-"""Tests for value-type behaviour in nptc_shared.terminology.models that
+"""Tests for value-type behaviour in aptc_shared.terminology.models that
 isn't already exercised incidentally by the contract/ontoserver/stub suites."""
 
 from __future__ import annotations
 
-from nptc_shared.terminology.models import ExpandedConcept, Expansion
+from aptc_shared.terminology.models import ExpandedConcept, Expansion
 
 
 def _concept(code: str) -> ExpandedConcept:

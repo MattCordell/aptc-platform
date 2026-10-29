@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from nptc_shared.text import (
+from aptc_shared.text import (
     clean_text,
     escape_invisible,
     find_invisible_characters,

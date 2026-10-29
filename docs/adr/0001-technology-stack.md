@@ -5,7 +5,7 @@
 
 ## Context
 
-The PRD (`docs/prd/NPTC-Catalogue-Platform-PRD.md`, §14.1) specifies a stack and argues
+The PRD (`docs/prd/APTC-Catalogue-Platform-PRD.md`, §14.1) specifies a stack and argues
 its reasoning at length, including alternatives it rejects. This ADR records the
 decision as taken for this build, so the reasoning is discoverable from `git blame`
 and code review without re-reading the whole PRD, and so it is not silently relitigated

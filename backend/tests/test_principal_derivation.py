@@ -1,4 +1,4 @@
-"""`nptc.auth.principal.principal_for` (issue #44, NFR-20, NFR-06): turning
+"""`aptc.auth.principal.principal_for` (issue #44, NFR-20, NFR-06): turning
 a `Resolution` plus verified claims into the `Principal` an authorisation
 check inspects. Real Postgres via testcontainers - `principal_for` reads
 `user_role` rows through the session, so a fake/in-memory session would
@@ -14,15 +14,15 @@ from sqlalchemy import select
 from sqlalchemy.engine import Connection
 from sqlalchemy.orm import Session
 
-from nptc.audit.writer import AuditContext
-from nptc.auth.claims import OidcIdentityClaims
-from nptc.auth.errors_authorisation import AccountClosedError, ManualLinkRequiredError
-from nptc.auth.grants import grant_role_unchecked
-from nptc.auth.identity import LinkOutcome, Resolution, resolve_user_for_claims
-from nptc.auth.permissions import ROLE_PERMISSIONS, Permission, Role
-from nptc.auth.principal import principal_for
-from nptc.db.models.user import User, UserStatus
-from nptc.db.models.user_role import UserRole
+from aptc.audit.writer import AuditContext
+from aptc.auth.claims import OidcIdentityClaims
+from aptc.auth.errors_authorisation import AccountClosedError, ManualLinkRequiredError
+from aptc.auth.grants import grant_role_unchecked
+from aptc.auth.identity import LinkOutcome, Resolution, resolve_user_for_claims
+from aptc.auth.permissions import ROLE_PERMISSIONS, Permission, Role
+from aptc.auth.principal import principal_for
+from aptc.db.models.user import User, UserStatus
+from aptc.db.models.user_role import UserRole
 
 _MFA_ACR_VALUES = frozenset({"2"})
 
@@ -75,7 +75,7 @@ def test_a_user_with_zero_grants_is_never_less_capable_than_anonymous(app_db: Co
     session = Session(bind=app_db)
     user = _create_user(session, subject="sub-zero-grants")
     # Revoke the default Provisional grant to reach the genuinely-zero-
-    # grants case directly, without going through nptc.auth.grants.
+    # grants case directly, without going through aptc.auth.grants.
     session.execute(select(UserRole).where(UserRole.user_id == user.id))
     for grant in (
         session.execute(select(UserRole).where(UserRole.user_id == user.id)).scalars().all()
@@ -126,7 +126,7 @@ def test_a_closed_user_raises_account_closed_error(app_db: Connection) -> None:
     user = _create_user(session, subject="sub-closed")
     # The tombstone CHECK (ck_app_user_tombstone/ck_app_user_closed_at)
     # requires every identifying field null and closed_at set together -
-    # see User's own docstring on why. nptc.auth.identity.close_account is
+    # see User's own docstring on why. aptc.auth.identity.close_account is
     # the real path that does this; here it is done directly so the
     # scenario reaches principal_for without going through
     # resolve_user_for_claims's own closed-user handling.

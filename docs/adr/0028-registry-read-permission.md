@@ -13,7 +13,7 @@ filling in a submission form could not call `GET /registry/properties` to learn 
 properties to offer.
 
 Round-2 review of the same PR found the fix over-corrected: `Permission.CATALOGUE_BROWSE`
-is held by `Role.ANON` (`backend/src/nptc/auth/permissions.py`'s `ROLE_PERMISSIONS`), so
+is held by `Role.ANON` (`backend/src/aptc/auth/permissions.py`'s `ROLE_PERMISSIONS`), so
 both registry `GET` routes ended up fully public and unauthenticated. That was never the
 intent — the property registry (property definitions, including their `constraints` and
 binding configuration) is submission/maintenance-form plumbing for signed-in members, not a
@@ -29,7 +29,7 @@ authenticated members and above, not for a stranger.
 ## Decision
 
 Add `Permission.REGISTRY_READ = "registry.read"` (`PermissionKind.READ`) to
-`backend/src/nptc/auth/permissions.py`, held by `Role.PROVISIONAL`, `Role.MEMBER`,
+`backend/src/aptc/auth/permissions.py`, held by `Role.PROVISIONAL`, `Role.MEMBER`,
 `Role.REVIEWER` and `Role.ADMINISTRATOR` — **not** `Role.ANON` or `Role.OBSERVER`. FR-23
 (a MUST) names Provisional, Member, Reviewer and Administrator as the roles able to submit
 a proposed new test, and the submission form is generated from the property registry —
@@ -49,7 +49,7 @@ interest" (a capability Provisional is explicitly denied). `test_permission_matr
 `_ROW_PERMISSIONS` bridge maps the new row to `Permission.REGISTRY_READ`, keeping the
 PRD table the single independent source of truth the test already parses directly.
 
-`backend/src/nptc/api/routers/registry.py`'s two `GET` routes are re-gated on
+`backend/src/aptc/api/routers/registry.py`'s two `GET` routes are re-gated on
 `Permission.REGISTRY_READ`. The four mutating routes (`POST`, `PATCH`, the deprecation
 `POST`, `DELETE`) are untouched — they stay on `Permission.REGISTRY_MANAGE`, which was
 never in question.

@@ -166,7 +166,7 @@ def test_unknown_business_key_is_a_404(api: ApiTestApp) -> None:
 
     assert response.status_code == 404, response.text
     # The body says what to do, and does not echo the key back (the
-    # convention `nptc.api.errors` sets for every detail string).
+    # convention `aptc.api.errors` sets for every detail string).
     assert "detail" in response.json()
 
 
@@ -284,7 +284,7 @@ def test_a_stored_fsn_the_export_renderer_would_refuse_is_still_served_verbatim(
     as-served guarantee means `GET` keeps working and keeps serving the
     value exactly as stored, whatever it is. `render_display_term`'s own
     refusal is exercised directly in `test_semantic_tag_render.py`, and
-    remains reachable from the export surface (`nptc.exports.semantic_tag`)
+    remains reachable from the export surface (`aptc.exports.semantic_tag`)
     and the future write path - neither of which this test touches.
     """
     _seed.corrupt_stored_fsn(api.session, seeded.canonical)
@@ -375,6 +375,6 @@ def test_a_malformed_entries_cursor_is_refused(api: ApiTestApp) -> None:
     sorts before". Silently serving a plausible page would give a client no
     way to notice it has been corrupting its own cursor, which is the same
     reasoning `/catalogue/search` refuses a cursor it did not mint."""
-    for bogus in ("not-a-key", "NPTC-12345", _seed.a_uuid()):
+    for bogus in ("not-a-key", "APTC-12345", _seed.a_uuid()):
         response = api.get("/catalogue/entries", params={"after": bogus})
         assert response.status_code == 422, f"{bogus!r}: {response.text}"

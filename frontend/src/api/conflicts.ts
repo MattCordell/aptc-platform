@@ -68,7 +68,7 @@ export function asCollisionError(error: unknown): CollisionBody | null {
  * being an array. `conflicts` is legitimately **empty** whenever the
  * concurrent edit touched a different field from this one - the entry moved,
  * so the save is still refused, but there is no field-level disagreement to
- * report (`nptc.catalogue.errors.ConflictReport`). Discriminating on it would
+ * report (`aptc.catalogue.errors.ConflictReport`). Discriminating on it would
  * mistake that ordinary case for a body of another shape.
  */
 export function asVersionConflict(error: unknown): VersionConflictBody | null {

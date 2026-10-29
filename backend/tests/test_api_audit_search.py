@@ -1,10 +1,10 @@
-"""HTTP tests for `nptc.api.routers.audit`'s read route (issue #286,
+"""HTTP tests for `aptc.api.routers.audit`'s read route (issue #286,
 NFR-12, FR-44, NFR-06).
 
 The domain-level filter logic already has its own exhaustive tests in
 `test_audit_search.py`; this module proves the HTTP adapter on top of it -
 request/response shape, status codes, the exception-handler mapping in
-`nptc.api.errors`, and authorisation - against the real `create_app()`,
+`aptc.api.errors`, and authorisation - against the real `create_app()`,
 matching `test_api_catalogue_bindings.py`'s own precedent.
 
 The negative case is the point (CLAUDE.md): no credential, no permission,
@@ -24,8 +24,8 @@ from typing import Any
 import pytest
 from sqlalchemy.engine import Connection
 
-from nptc.audit.writer import AuditContext
-from nptc.auth.identity import close_account
+from aptc.audit.writer import AuditContext
+from aptc.auth.identity import close_account
 
 
 def _load(name: str) -> Any:
@@ -180,7 +180,7 @@ def test_a_withheld_field_appears_only_under_redacted_never_by_value(api: ApiTes
     assert response.status_code == 200, response.text
     item = next(i for i in response.json()["items"] if i["sequence"] == event.sequence)
     # The withheld field's name is served (that it changed is not the
-    # secret - `nptc.audit.diffing`'s own REDACTED_KEY posture), but never
+    # secret - `aptc.audit.diffing`'s own REDACTED_KEY posture), but never
     # a value under it: the payload set at write time above carries no
     # `display_name` key holding an actual value, and this asserts it is
     # served exactly as stored - nothing added, nothing filled in.

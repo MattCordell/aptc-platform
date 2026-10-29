@@ -1,7 +1,7 @@
 /**
  * The Python text rules the browser mirrors under ADR-0030, written once.
  *
- * `nptc_shared.text.normalise_for_comparison` is the server-side original.
+ * `aptc_shared.text.normalise_for_comparison` is the server-side original.
  * `split-synonyms.ts`, `changelog-note.ts` and `term-length.ts` all depend on
  * it, so the three cannot drift apart on whitespace.
  *
@@ -28,7 +28,7 @@ const PYTHON_EDGE_WHITESPACE = new RegExp(
 );
 
 /** Every Unicode `Zs` space except the ordinary one, as
- * `nptc_shared.text.is_normalisable_space` matches them. */
+ * `aptc_shared.text.is_normalisable_space` matches them. */
 const NON_ASCII_ZS_SPACE = new RegExp(
   "[\\u00a0\\u1680\\u2000-\\u200a\\u202f\\u205f\\u3000]",
   "gu",
@@ -40,7 +40,7 @@ export function pythonStrip(text: string): string {
 }
 
 /**
- * Mirrors `nptc_shared.text.normalise_for_comparison`: NFC, every non-ASCII
+ * Mirrors `aptc_shared.text.normalise_for_comparison`: NFC, every non-ASCII
  * `Zs` space collapsed to an ordinary space wherever it occurs, then edge
  * whitespace stripped.
  */

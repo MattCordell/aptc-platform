@@ -20,8 +20,8 @@ def test_grantable_role_choices_match_the_permission_frameworks_grantable_roles(
     """The argparse `choices` list is written out by hand (see the
     module's own comment on why: --help must stay usable even if the
     workspace import fails) - this is what keeps it from silently
-    drifting away from `nptc.auth.permissions.GRANTABLE_ROLES`."""
-    from nptc.auth.permissions import GRANTABLE_ROLES
+    drifting away from `aptc.auth.permissions.GRANTABLE_ROLES`."""
+    from aptc.auth.permissions import GRANTABLE_ROLES
 
     assert set(grant_role._GRANTABLE_ROLE_CHOICES) == {role.value for role in GRANTABLE_ROLES}
 
@@ -56,20 +56,20 @@ def test_resolve_database_url_rejects_explicit_empty_string() -> None:
 
 
 def test_resolve_database_url_falls_back_to_settings(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("NPTC_DATABASE_URL", "postgresql://from-env")
+    monkeypatch.setenv("APTC_DATABASE_URL", "postgresql://from-env")
     assert grant_role._resolve_database_url(None) == "postgresql://from-env"
 
 
 def test_resolve_database_url_returns_none_when_unconfigured(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("NPTC_DATABASE_URL", raising=False)
+    monkeypatch.delenv("APTC_DATABASE_URL", raising=False)
     assert grant_role._resolve_database_url(None) is None
 
 
 def test_main_reports_usage_error_when_no_database_url_configured(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("NPTC_DATABASE_URL", raising=False)
+    monkeypatch.delenv("APTC_DATABASE_URL", raising=False)
     exit_code = grant_role.main(["--username", "jsmith", "--role", "administrator"])
     assert exit_code == grant_role.EXIT_USAGE_ERROR

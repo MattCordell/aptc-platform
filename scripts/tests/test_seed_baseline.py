@@ -12,14 +12,14 @@ from pathlib import Path
 
 import pytest
 
-from nptc.db import property_reconciler
-from nptc.db.property_reconciler import ReconciliationReport
+from aptc.db import property_reconciler
+from aptc.db.property_reconciler import ReconciliationReport
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import seed_baseline as cli
 
 _UNREACHABLE_DSN = "postgresql+psycopg://nobody:never-printed@127.0.0.1:1/none"
-_INDEXER_DSN = "postgresql+psycopg://nptc_indexer:hunter2@127.0.0.1:1/none"
+_INDEXER_DSN = "postgresql+psycopg://aptc_indexer:hunter2@127.0.0.1:1/none"
 
 
 def test_dataset_is_required() -> None:
@@ -41,25 +41,25 @@ def test_parse_args_accepts_dry_run() -> None:
 
 
 def test_cli_flag_takes_precedence_over_env_var(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("NPTC_DATABASE_URL", "postgresql://env")
+    monkeypatch.setenv("APTC_DATABASE_URL", "postgresql://env")
     assert cli._resolve_database_url("postgresql://cli") == "postgresql://cli"
 
 
 def test_falls_back_to_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("NPTC_DATABASE_URL", "postgresql://env")
+    monkeypatch.setenv("APTC_DATABASE_URL", "postgresql://env")
     assert cli._resolve_database_url(None) == "postgresql://env"
 
 
 def test_an_empty_flag_is_rejected_rather_than_falling_through(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("NPTC_DATABASE_URL", "postgresql://env")
+    monkeypatch.setenv("APTC_DATABASE_URL", "postgresql://env")
     with pytest.raises(ValueError, match="--database-url must not be empty"):
         cli._resolve_database_url("")
 
 
 def test_no_dsn_configured_is_a_usage_error(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("NPTC_DATABASE_URL", raising=False)
+    monkeypatch.delenv("APTC_DATABASE_URL", raising=False)
     assert cli.main(["--dataset", "x.json"]) == cli.EXIT_USAGE_ERROR
 
 
@@ -100,13 +100,13 @@ def test_an_unsupported_schema_version_is_refused_before_any_connection(
 
 @pytest.mark.req("FR-13")
 def test_indexer_flag_takes_precedence_over_env_var(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("NPTC_INDEXER_DATABASE_URL", "postgresql://env")
+    monkeypatch.setenv("APTC_INDEXER_DATABASE_URL", "postgresql://env")
     assert cli._resolve_indexer_database_url("postgresql://cli") == "postgresql://cli"
 
 
 @pytest.mark.req("FR-13")
 def test_indexer_url_falls_back_to_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("NPTC_INDEXER_DATABASE_URL", "postgresql://env")
+    monkeypatch.setenv("APTC_INDEXER_DATABASE_URL", "postgresql://env")
     assert cli._resolve_indexer_database_url(None) == "postgresql://env"
 
 
@@ -114,7 +114,7 @@ def test_indexer_url_falls_back_to_the_environment(monkeypatch: pytest.MonkeyPat
 def test_an_unset_indexer_url_resolves_to_none_not_an_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("NPTC_INDEXER_DATABASE_URL", raising=False)
+    monkeypatch.delenv("APTC_INDEXER_DATABASE_URL", raising=False)
     assert cli._resolve_indexer_database_url(None) is None
 
 
@@ -122,7 +122,7 @@ def test_an_unset_indexer_url_resolves_to_none_not_an_error(
 def test_an_empty_indexer_flag_is_a_usage_error_before_any_work(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    monkeypatch.setenv("NPTC_INDEXER_DATABASE_URL", "postgresql://env")
+    monkeypatch.setenv("APTC_INDEXER_DATABASE_URL", "postgresql://env")
 
     code = cli.main(
         [

@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""Operator CLI wrapping `nptc.db.property_reconciler.reconcile_property_indexes`
+"""Operator CLI wrapping `aptc.db.property_reconciler.reconcile_property_indexes`
 (issue #54, FR-13): converges the `property_value` indexes actual `pg_index`
 state carries against every `property_definition` row's own desired index -
 building the missing, dropping the orphaned, and repairing anything a failed
 `CREATE INDEX CONCURRENTLY` left `indisvalid = false`.
 
 `reconcile_property_indexes()` needs a schema-owning credential (`CREATE
-INDEX`), never the API's own least-privilege `nptc_app` role - see
-`nptc.settings.IndexerSettings`'s own docstring for why that credential is
-never the API's `NPTC_DATABASE_URL` or the migration role's
-`NPTC_MIGRATION_DATABASE_URL`. This CLI is the operator-facing "converge
-now" path for a deployment that leaves `NPTC_INDEXER_DATABASE_URL` unset in
+INDEX`), never the API's own least-privilege `aptc_app` role - see
+`aptc.settings.IndexerSettings`'s own docstring for why that credential is
+never the API's `APTC_DATABASE_URL` or the migration role's
+`APTC_MIGRATION_DATABASE_URL`. This CLI is the operator-facing "converge
+now" path for a deployment that leaves `APTC_INDEXER_DATABASE_URL` unset in
 the API process itself (see that settings class): run it by hand, or from a
 scheduled check, after a property's `filterable` flag changes.
 
@@ -54,7 +54,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         default=None,
         help=(
             "DSN to reconcile with. Must be a role that can CREATE/DROP INDEX on "
-            "property_value. Falls back to NPTC_INDEXER_DATABASE_URL if not given."
+            "property_value. Falls back to APTC_INDEXER_DATABASE_URL if not given."
         ),
     )
     parser.add_argument(
@@ -66,10 +66,10 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
 
 
 def _resolve_database_url(cli_value: str | None) -> str | None:
-    """`--database-url`, then `NPTC_INDEXER_DATABASE_URL`. Imports of
-    `nptc.settings` are deferred into this function (not at module level) so
+    """`--database-url`, then `APTC_INDEXER_DATABASE_URL`. Imports of
+    `aptc.settings` are deferred into this function (not at module level) so
     `--help` and argument-parsing failures never require the workspace's
-    `nptc` package to even be importable - the same posture
+    `aptc` package to even be importable - the same posture
     `scripts/verify_audit_chain.py::_resolve_database_url` takes.
 
     Raises `ValueError` for an explicitly-empty `--database-url` (an
@@ -80,7 +80,7 @@ def _resolve_database_url(cli_value: str | None) -> str | None:
             raise ValueError("--database-url must not be empty")
         return cli_value
 
-    from nptc.settings import IndexerSettings
+    from aptc.settings import IndexerSettings
 
     return IndexerSettings().indexer_database_url or None
 
@@ -97,14 +97,14 @@ def main(argv: list[str] | None = None) -> int:
     if not database_url:
         print(
             "error: no database URL configured - pass --database-url, or set "
-            "NPTC_INDEXER_DATABASE_URL",
+            "APTC_INDEXER_DATABASE_URL",
             file=sys.stderr,
         )
         return EXIT_USAGE_ERROR
 
     try:
         # Deferred (not module-level): keeps --help/usage-error paths free of
-        # a hard SQLAlchemy/nptc import requirement. Any failure past this
+        # a hard SQLAlchemy/aptc import requirement. Any failure past this
         # point is "could not complete", not "drift found" - only the
         # returned report's own fields are allowed to report drift. The
         # exception itself is never printed (only its type name): it can
@@ -116,7 +116,7 @@ def main(argv: list[str] | None = None) -> int:
         # #54 review) - the DSN resolved above can carry a DDL-capable
         # credential, and every subprocess this process spawns would
         # otherwise inherit it purely to smuggle it past `IndexerSettings`.
-        from nptc.db import property_reconciler
+        from aptc.db import property_reconciler
 
         report = property_reconciler.reconcile_property_indexes(
             dry_run=args.dry_run, database_url=database_url

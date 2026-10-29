@@ -15,7 +15,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import IntegrityError, ProgrammingError
 
-from nptc_shared.similarity import collision_key
+from aptc_shared.similarity import collision_key
 
 _UNIQUE_VIOLATION = "23505"
 _CHECK_VIOLATION = "23514"
@@ -34,7 +34,7 @@ _INSERT_DESIGNATION = text(
 def _insert_entry(
     connection: Connection,
     *,
-    business_key: str = "NPTC-100001",
+    business_key: str = "APTC-100001",
     preferred_term: str = "Full blood count",
 ) -> object:
     return connection.execute(
@@ -176,7 +176,7 @@ def test_active_designation_with_retired_at_is_refused(db: Connection) -> None:
 
 @pytest.mark.integration
 def test_app_role_can_insert_select_and_update(app_db: Connection) -> None:
-    entry_id = _insert_entry(app_db, business_key="NPTC-100002")
+    entry_id = _insert_entry(app_db, business_key="APTC-100002")
     _insert_designation(app_db, entry_id=entry_id, term="FBC")
 
     app_db.execute(
@@ -188,8 +188,8 @@ def test_app_role_can_insert_select_and_update(app_db: Connection) -> None:
 
 @pytest.mark.integration
 def test_app_role_is_refused_update_of_entry_id(app_db: Connection) -> None:
-    first_entry = _insert_entry(app_db, business_key="NPTC-100003")
-    second_entry = _insert_entry(app_db, business_key="NPTC-100004", preferred_term="Other")
+    first_entry = _insert_entry(app_db, business_key="APTC-100003")
+    second_entry = _insert_entry(app_db, business_key="APTC-100004", preferred_term="Other")
     _insert_designation(app_db, entry_id=first_entry, term="FBC")
 
     with pytest.raises(ProgrammingError) as exc_info:
@@ -205,7 +205,7 @@ def test_app_role_is_refused_update_of_entry_id(app_db: Connection) -> None:
 def test_app_role_is_refused_delete(app_db: Connection) -> None:
     """A retired designation is retained, not deleted - #47's own
     acceptance criterion, enforced at the privilege level."""
-    entry_id = _insert_entry(app_db, business_key="NPTC-100005")
+    entry_id = _insert_entry(app_db, business_key="APTC-100005")
     _insert_designation(app_db, entry_id=entry_id, term="FBC")
 
     with pytest.raises(ProgrammingError) as exc_info:
@@ -216,7 +216,7 @@ def test_app_role_is_refused_delete(app_db: Connection) -> None:
 
 @pytest.mark.integration
 def test_app_role_is_refused_truncate(app_db: Connection) -> None:
-    entry_id = _insert_entry(app_db, business_key="NPTC-100006")
+    entry_id = _insert_entry(app_db, business_key="APTC-100006")
     _insert_designation(app_db, entry_id=entry_id, term="FBC")
 
     with pytest.raises(ProgrammingError) as exc_info:

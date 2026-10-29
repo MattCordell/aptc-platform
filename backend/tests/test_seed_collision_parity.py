@@ -17,12 +17,12 @@ import openpyxl
 import pytest
 from sqlalchemy.orm import Session
 
-from nptc.catalogue.seed_dataset import read_import_dataset
-from nptc.catalogue.seed_import import SeedEntryError, seed_baseline
-from nptc_transform.collision_check import check_collisions
-from nptc_transform.dataset import DATASET_JSON_NAME, build_dataset, write_dataset
-from nptc_transform.pipeline import Mode, run_transform
-from nptc_transform.workbook import read_workbook
+from aptc.catalogue.seed_dataset import read_import_dataset
+from aptc.catalogue.seed_import import SeedEntryError, seed_baseline
+from aptc_transform.collision_check import check_collisions
+from aptc_transform.dataset import DATASET_JSON_NAME, build_dataset, write_dataset
+from aptc_transform.pipeline import Mode, run_transform
+from aptc_transform.workbook import read_workbook
 
 pytestmark = pytest.mark.usefixtures("pristine_catalogue")
 
@@ -67,7 +67,7 @@ def _dataset_file(workbook: Path, report_dir: Path) -> Path:
     path = report_dir / DATASET_JSON_NAME
     document: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
     for index, entry in enumerate(document["entries"]):
-        entry["business_key"] = f"NPTC-{FIRST_KEY_NUMBER + index:06d}"
+        entry["business_key"] = f"APTC-{FIRST_KEY_NUMBER + index:06d}"
     path.write_text(json.dumps(document), encoding="utf-8")
     return path
 

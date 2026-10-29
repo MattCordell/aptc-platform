@@ -14,12 +14,12 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from nptc.audit.writer import AuditContext
-from nptc.auth import identity as identity_module
-from nptc.auth.claims import OidcIdentityClaims
-from nptc.auth.identity import LinkOutcome, close_account, resolve_user_for_claims
-from nptc.db.models.user import User
-from nptc.db.models.user_identity import UserIdentity
+from aptc.audit.writer import AuditContext
+from aptc.auth import identity as identity_module
+from aptc.auth.claims import OidcIdentityClaims
+from aptc.auth.identity import LinkOutcome, close_account, resolve_user_for_claims
+from aptc.db.models.user import User
+from aptc.db.models.user_identity import UserIdentity
 
 _TRUSTED_A = "https://good.example"
 _TRUSTED_B = "https://good2.example"

@@ -22,9 +22,9 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from nptc.audit.writer import AuditContext
-from nptc.catalogue import bindings, queries
-from nptc.catalogue.bindings import (
+from aptc.audit.writer import AuditContext
+from aptc.catalogue import bindings, queries
+from aptc.catalogue.bindings import (
     CodeBindingAlreadyActiveError,
     CodeBindingAlreadyRetiredError,
     CodeBindingCodeAlreadyBoundError,
@@ -36,11 +36,11 @@ from nptc.catalogue.bindings import (
     link_replacement,
     retire_binding,
 )
-from nptc.catalogue.entries import allocate_business_key, create_entry, format_business_key
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.catalogue_entry import CatalogueEntry
-from nptc.db.models.code_binding import CodeBinding, CodeBindingStatus
-from nptc_shared.sctid import InvalidSCTIDError
+from aptc.catalogue.entries import allocate_business_key, create_entry, format_business_key
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.catalogue_entry import CatalogueEntry
+from aptc.db.models.code_binding import CodeBinding, CodeBindingStatus
+from aptc_shared.sctid import InvalidSCTIDError
 
 _VALID_CODE = "391483001"
 _VALID_FSN = "Microscopy (acid fast bacilli) (procedure)"
@@ -296,7 +296,7 @@ def test_create_binding_flushes_an_unflushed_entry_before_binding_it(
     stale `entry_id IS NULL` predicate into its query. `create_binding`
     must therefore flush a not-yet-flushed `entry` before doing either -
     `_new_entry` (used by every other test here) goes through
-    `nptc.catalogue.entries.create_entry`, which always flushes
+    `aptc.catalogue.entries.create_entry`, which always flushes
     internally as part of its own audit write, so this is the one test
     that builds `entry` directly to exercise the transient case at all."""
     entry = CatalogueEntry(
@@ -688,7 +688,7 @@ def test_code_binding_model_has_no_cleaning_hook_over_served_labels() -> None:
     walk, not a substring search - reuses `_referenced_names` so a future
     docstring that merely *mentions* one of these names in prose (as this
     module's own docstring does) can never make this test flap."""
-    import nptc.db.models.code_binding as module
+    import aptc.db.models.code_binding as module
 
     source = inspect.getsource(module)
     assert not _referenced_names(source, _CLEANING_HOOK_NAMES)
@@ -699,18 +699,18 @@ def test_code_binding_model_has_no_cleaning_hook_over_served_labels() -> None:
 _STRIP_NAMES = frozenset({"strip_semantic_tag", "semantic_tag", "render_display_term"})
 
 _POSITIVE_CONTROL_SOURCE = """
-from nptc_shared.terminology import strip_semantic_tag
+from aptc_shared.terminology import strip_semantic_tag
 
 
 def rogue_helper(fsn: str) -> str:
     return strip_semantic_tag(fsn)
 """
 
-#: Every legitimate reference outside `backend/src/nptc/exports` - the
+#: Every legitimate reference outside `backend/src/aptc/exports` - the
 #: shared package's own re-export of the functions (`__init__.py`,
 #: an `ImportFrom` this walker matches), and the two FR-97
 #: seeding-reconciliation call sites (ADR-0006) that predate this issue.
-#: `nptc_shared.terminology.snomed` itself is deliberately not listed:
+#: `aptc_shared.terminology.snomed` itself is deliberately not listed:
 #: `def semantic_tag(...)`/`def strip_semantic_tag(...)` are `FunctionDef`
 #: nodes, not `Name`/`Attribute` references, so defining a function never
 #: trips this walker in the first place - nothing to allowlist. Explicit
@@ -718,15 +718,15 @@ def rogue_helper(fsn: str) -> str:
 #: anywhere else, in any of the three source trees, still fails this test.
 _ALLOWED_REFERENCES = frozenset(
     {
-        REPO_ROOT / "shared" / "src" / "nptc_shared" / "terminology" / "__init__.py",
-        REPO_ROOT / "shared" / "src" / "nptc_shared" / "terminology" / "sweep.py",
-        REPO_ROOT / "transform" / "src" / "nptc_transform" / "designation_check.py",
+        REPO_ROOT / "shared" / "src" / "aptc_shared" / "terminology" / "__init__.py",
+        REPO_ROOT / "shared" / "src" / "aptc_shared" / "terminology" / "sweep.py",
+        REPO_ROOT / "transform" / "src" / "aptc_transform" / "designation_check.py",
         # Issue #144 (FR-98): a name collision, not a reference to the
-        # banned functions. `nptc.api.labels.LabelProvenance.semantic_tag`
+        # banned functions. `aptc.api.labels.LabelProvenance.semantic_tag`
         # is a Pydantic field - `SemanticTagState`, an "intact"/"stripped"/
         # "not_applicable" enum describing what a label declares about
         # itself - and this module never imports or calls
-        # `nptc_shared.terminology`'s `semantic_tag`/`strip_semantic_tag` at
+        # `aptc_shared.terminology`'s `semantic_tag`/`strip_semantic_tag` at
         # all. The walker cannot tell the two apart (it matches any `Name`
         # node spelled `semantic_tag`, regardless of what it actually
         # refers to), so this file trips it on its own field's annotation
@@ -734,21 +734,21 @@ _ALLOWED_REFERENCES = frozenset(
         # (issue #144) fixes `semantic_tag` as the wire key both fields
         # publish under, and a Pydantic field name is what the JSON key
         # actually is - no alias layer sits between them.
-        REPO_ROOT / "backend" / "src" / "nptc" / "api" / "labels.py",
+        REPO_ROOT / "backend" / "src" / "aptc" / "api" / "labels.py",
         # FR-83 names the list read model as the second sanctioned call site:
         # `entry_summary_fields` strips the entry's FSN for the catalogue list.
         # `Binding.fsn` is still served as stored, so no other function in this
         # module may call the renderer; `test_the_list_assembler_is_the_only_strip_in_catalogue_shared`
         # below pins that.
-        REPO_ROOT / "backend" / "src" / "nptc" / "api" / "routers" / "catalogue_shared.py",
+        REPO_ROOT / "backend" / "src" / "aptc" / "api" / "routers" / "catalogue_shared.py",
         # Asks only whether a served FSN carries a tag, so the run stops at seeding and not
         # on the public list. It strips nothing.
-        REPO_ROOT / "transform" / "src" / "nptc_transform" / "dataset.py",
+        REPO_ROOT / "transform" / "src" / "aptc_transform" / "dataset.py",
     }
 )
 
 #: The three polyglot-monorepo source trees this guard actually needs to
-#: cover - `nptc_shared`/`nptc_transform` can call `strip_semantic_tag`
+#: cover - `aptc_shared`/`aptc_transform` can call `strip_semantic_tag`
 #: exactly as easily as `backend/src` can, so scoping the walk to
 #: `backend/src` alone (as an earlier version of this guard did) would
 #: leave FR-83's guarantee unchecked outside the backend entirely.
@@ -786,7 +786,7 @@ def test_the_list_assembler_is_the_only_strip_in_catalogue_shared() -> None:
     """`catalogue_shared.py` is allowlisted for one call. `Binding.fsn` is served as stored
     (FR-82), so a second function stripping an FSN there would put a second, silently
     stripped copy of a label on the wire."""
-    path = REPO_ROOT / "backend" / "src" / "nptc" / "api" / "routers" / "catalogue_shared.py"
+    path = REPO_ROOT / "backend" / "src" / "aptc" / "api" / "routers" / "catalogue_shared.py"
     tree = ast.parse(path.read_text(encoding="utf-8"))
     parents = {child: parent for parent in ast.walk(tree) for child in ast.iter_child_nodes(parent)}
 

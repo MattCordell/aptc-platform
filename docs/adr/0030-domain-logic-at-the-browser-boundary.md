@@ -6,23 +6,23 @@
 ## Context
 
 ADR-0001 and FR-74 settle how this repository avoids a second, divergent implementation
-of a domain rule: `shared/` (`nptc_shared`) is imported by *both* `backend/` and
+of a domain rule: `shared/` (`aptc_shared`) is imported by *both* `backend/` and
 `transform/`, so SCTID validation, Verhoeff, text normalisation and similarity each exist
-exactly once. `nptc_shared.similarity`'s own module docstring and ADR-0022's term-hygiene
+exactly once. `aptc_shared.similarity`'s own module docstring and ADR-0022's term-hygiene
 section both restate
 the same doctrine.
 
 Issue #149 is the first change that needs one of those rules to run in a browser, and
 `shared/` has no seam that reaches there. The specific rule is FR-04's synonym split.
 `POST /catalogue/entries/{business_key}/designations` takes `terms` **already split**, and
-`nptc.catalogue.designations.add_synonyms` deliberately does no splitting of its own -
+`aptc.catalogue.designations.add_synonyms` deliberately does no splitting of its own -
 `backend/tests/test_catalogue_designations.py`'s FR-04 test calls
-`nptc_transform.cell_defects.split_synonyms` itself and passes the result in, treating the
+`aptc_transform.cell_defects.split_synonyms` itself and passes the result in, treating the
 split as the caller's job. On the seeding path that caller is the P0 transform. On the
 editing path it is the edit screen, in the browser, and the pasted-cell case is an explicit
 acceptance criterion of #149 (`Zovirax;;Cyclir` must become two rows and no empty row).
 
-This is not a one-off. Issue #150 needs `nptc_shared.sctid`'s format check and Verhoeff
+This is not a one-off. Issue #150 needs `aptc_shared.sctid`'s format check and Verhoeff
 check digit in the form, before a request is sent - its own acceptance criteria say so.
 Whatever is decided here is the precedent for that, so it is worth deciding once rather
 than twice. **(See the amendment below: #150's SCTID mirror was withdrawn before it was
@@ -74,7 +74,7 @@ normalize` all differ in ways that matter to terminology work.
 implementation" answer, and the first thing to consider. Rejected on two counts. It would
 make `backend/` import `transform/`, which ADR-0001's layering does not have - the
 dependency runs backend to shared and transform to shared, never backend to transform - and
-the alternative, lifting `split_synonyms` into `nptc_shared`, moves a spreadsheet-cell
+the alternative, lifting `split_synonyms` into `aptc_shared`, moves a spreadsheet-cell
 repair into the module meant to hold rules the *catalogue* has, not rules the *legacy
 workbook* has. It would also change the shape of a route shipped in #224 for every existing
 client, to serve one screen. And it does not remove the browser-side need in any case: the
@@ -118,7 +118,7 @@ relitigating a stack choice" rule exists to prevent.
 - The three conditions are a real gate, not a formality. "Re-implement the collision key in
   TypeScript so the screen can warn before saving" fails condition 1, and would fail
   condition 3 in spirit: `collision_key` folds tokens against rules that live in
-  `nptc_shared.similarity` for a reason, and a browser-side approximation that disagreed
+  `aptc_shared.similarity` for a reason, and a browser-side approximation that disagreed
   with the server would be worse than no warning at all.
 
 ## Amendment (2026-09-03): #150's SCTID mirror withdrawn
@@ -134,7 +134,7 @@ Verhoeff pass says only that a code is *well-formed*, not that it exists. Buildi
 mirror anyway would have bought one saved round trip on a malformed code, at the cost of a
 worse message than the lookup's own ("that code does not exist" beats "that identifier is
 malformed" for an editor deciding what to do next) and a second home for a rule that must
-never drift from `nptc_shared.sctid`.
+never drift from `aptc_shared.sctid`.
 
 This does not fail condition 1 or 2 above - the mirror would have been small enough, and
 fixtures were available to share. It fails condition 3: **the server stays the authority**,
@@ -146,7 +146,7 @@ mirror's own justification (catching a typo instantly, before a request) evapora
 the request has to go out anyway to learn the one thing that actually matters: whether the
 code resolves.
 
-**This does not touch `nptc_shared.sctid`, the `nptc_sctid_is_valid` Postgres function
+**This does not touch `aptc_shared.sctid`, the `aptc_sctid_is_valid` Postgres function
 (ADR-0023), or the `code_binding` CHECK constraint.** FR-06 is a MUST naming the database
 constraint by name, and the P0 transform screens SCTIDs offline, with no terminology server
 in play - the withdrawal is scoped to the browser only. See
@@ -164,14 +164,14 @@ already unavoidable.
 The Consequences above name `split-synonyms.ts` as the only mirror this ADR has produced,
 and the withdrawn SCTID check as the candidate that did not become a second. Issue #62 is
 an actual second: `frontend/src/catalogue/changelog-note.ts` mirrors
-`validate_changelog_note` (`backend/src/nptc/catalogue/changelog.py`, issue #47) - FR-37's
+`validate_changelog_note` (`backend/src/aptc/catalogue/changelog.py`, issue #47) - FR-37's
 minimum length, low-information phrase list, and "contains a letter" checks.
 
 Checked against the three conditions:
 
 1. **Small enough to read against the original in one sitting.** Four checks in a fixed
    order (empty, low-information, length, missing-letter), one small constant list, and one
-   normalisation helper (`nptc_shared.text.normalise_for_comparison`) - the same shape
+   normalisation helper (`aptc_shared.text.normalise_for_comparison`) - the same shape
    `split-synonyms.ts` already set the bar at.
 2. **The mirror's test uses the same fixtures, quoted verbatim.**
    `changelog-note.test.ts`'s header comment names `backend/tests/test_changelog_note.py`
@@ -179,7 +179,7 @@ Checked against the three conditions:
    non-breaking-space-padding regression.
 3. **The server stays the authority.** `changelog-note.ts` never persists anything and
    returns a discriminated result the caller only ever reads; the write routes
-   `nptc.catalogue.changelog.validate_changelog_note` already guards (issue #47, wired in
+   `aptc.catalogue.changelog.validate_changelog_note` already guards (issue #47, wired in
    by #219/#224/#248/#249) still run unconditionally, and NFR-20 requires they refuse an
    unchanged, invalid note that bypasses the browser entirely.
 
@@ -285,7 +285,7 @@ same claim.
 
 The catalogue edit form shows the length of the RCPA Preferred term while the editor types
 (FR-85). `frontend/src/catalogue/term-length.ts` mirrors `preferred_term_length`
-(`backend/src/nptc/catalogue/term_hygiene.py`): NFC, every non-ASCII `Zs` space to an
+(`backend/src/aptc/catalogue/term_hygiene.py`): NFC, every non-ASCII `Zs` space to an
 ordinary space, edge whitespace stripped the way Python does, then a code-point count.
 
 Checked against the three conditions:

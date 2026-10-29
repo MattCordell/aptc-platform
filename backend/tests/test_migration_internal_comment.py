@@ -17,7 +17,7 @@ from sqlalchemy.engine import Engine, make_url
 from testcontainers.community.postgres import PostgresContainer
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-_DB = "nptc_internal_comment"
+_DB = "aptc_internal_comment"
 
 
 def _config() -> Config:

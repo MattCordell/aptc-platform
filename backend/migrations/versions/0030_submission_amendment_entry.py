@@ -5,7 +5,7 @@ Revises: 0029
 Create Date: 2026-10-10
 
 FR-35: an amendment names the catalogue entry it proposes to change. See
-`nptc.db.models.submission` for the reasoning.
+`aptc.db.models.submission` for the reasoning.
 
 The column is nullable, and a check ties it to `kind`: an amendment has an entry and a new test has
 none. No amendment can exist at revision 0029, because no route created one, so every stored row

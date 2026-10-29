@@ -41,7 +41,7 @@ function auditEvent(overrides: Record<string, unknown> = {}) {
     actor: ALICE,
     action: "catalogue_entry.updated",
     entity_type: "catalogue_entry",
-    entity_id: "NPTC-000001",
+    entity_id: "APTC-000001",
     before: null,
     after: null,
     reason: "Corrected a typo",
@@ -105,7 +105,7 @@ describe("AdminAuditPage", () => {
         row.getByRole("button", { name: "Filter by actor Alice Admin" }),
       ).toBeVisible();
       expect(row.getByText("catalogue_entry.updated")).toBeInTheDocument();
-      expect(row.getByText("catalogue_entry NPTC-000001")).toBeInTheDocument();
+      expect(row.getByText("catalogue_entry APTC-000001")).toBeInTheDocument();
       expect(row.getByText("Corrected a typo")).toBeInTheDocument();
       expect(
         within(table).getByRole("columnheader", { name: "When (UTC+10)" }),
@@ -291,7 +291,7 @@ describe("AdminAuditPage", () => {
       const calls = stubApi([eventsRoute([auditEvent()])]);
 
       await renderRoute(
-        `${AUDIT_URL}?actor=${ACTOR_ID}&entity_type=catalogue_entry&entity_id=NPTC-000001&action=catalogue_entry.updated&from=2026-10-01&to=2026-10-07`,
+        `${AUDIT_URL}?actor=${ACTOR_ID}&entity_type=catalogue_entry&entity_id=APTC-000001&action=catalogue_entry.updated&from=2026-10-01&to=2026-10-07`,
         SIGNED_IN,
       );
 
@@ -299,7 +299,7 @@ describe("AdminAuditPage", () => {
       const params = eventCalls(calls)[0].searchParams;
       expect(params.get("actor_user_id")).toBe(ACTOR_ID);
       expect(params.get("entity_type")).toBe("catalogue_entry");
-      expect(params.get("entity_id")).toBe("NPTC-000001");
+      expect(params.get("entity_id")).toBe("APTC-000001");
       expect(params.get("action")).toBe("catalogue_entry.updated");
       expect(params.get("occurred_from")).toBe("2026-10-01T00:00:00+10:00");
       expect(params.get("occurred_to")).toBe("2026-10-08T00:00:00+10:00");
@@ -340,7 +340,7 @@ describe("AdminAuditPage", () => {
         screen.getByRole("textbox", { name: "Entity type" }),
         "catalogue_entry",
       );
-      await user.type(screen.getByRole("textbox", { name: "Entity id" }), "NPTC-000001");
+      await user.type(screen.getByRole("textbox", { name: "Entity id" }), "APTC-000001");
       await user.type(screen.getByRole("textbox", { name: "Action" }), "a.b");
       await user.type(screen.getByLabelText("From"), "2026-10-01");
       await user.type(screen.getByLabelText("To"), "2026-10-07");
@@ -487,7 +487,7 @@ describe("AdminAuditPage", () => {
       stubApi([eventsRoute([auditEvent()])]);
       const user = userEvent.setup();
       const { router } = await renderRoute(
-        `${AUDIT_URL}?entity_type=catalogue_entry&entity_id=NPTC-000001&action=a.b`,
+        `${AUDIT_URL}?entity_type=catalogue_entry&entity_id=APTC-000001&action=a.b`,
         SIGNED_IN,
       );
       await screen.findByRole("table", { name: "Audit events" });

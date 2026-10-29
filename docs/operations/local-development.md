@@ -18,7 +18,7 @@ Copy-Item deploy/.env.example deploy/.env
 Copy-Item deploy/.env.example frontend/.env
 ```
 
-In `deploy/.env`, change `NPTC_FRONTEND_BASE_URL` to `http://localhost:5173`. That is where
+In `deploy/.env`, change `APTC_FRONTEND_BASE_URL` to `http://localhost:5173`. That is where
 `pnpm dev` serves the web app, and the API's cross-origin allow-list and Keycloak's redirect
 addresses both read this value.
 
@@ -47,26 +47,26 @@ Get-Content deploy/.env | Where-Object { $_ -match '^\s*[A-Za-z_][A-Za-z0-9_]*='
 }
 ```
 
-Repeat this in each new terminal that runs an `nptc` command.
+Repeat this in each new terminal that runs an `aptc` command.
 
 ## 4. Migrate the database and create the login
 
 ```powershell
 uv run alembic upgrade head
-uv run python -m nptc.db.provision_login
+uv run python -m aptc.db.provision_login
 ```
 
-The second command creates the `nptc_app_login` role with the password in
-`NPTC_APP_DB_PASSWORD`, and the `nptc_indexer` role with the password in
-`NPTC_INDEXER_DB_PASSWORD`. Make sure the password in `NPTC_DATABASE_URL` matches the first.
-To build indexes for filterable properties while you work, set `NPTC_INDEXER_DATABASE_URL` to
-the `nptc_indexer` DSN with the second password. Without it, the API logs a warning and builds
+The second command creates the `aptc_app_login` role with the password in
+`APTC_APP_DB_PASSWORD`, and the `aptc_indexer` role with the password in
+`APTC_INDEXER_DB_PASSWORD`. Make sure the password in `APTC_DATABASE_URL` matches the first.
+To build indexes for filterable properties while you work, set `APTC_INDEXER_DATABASE_URL` to
+the `aptc_indexer` DSN with the second password. Without it, the API logs a warning and builds
 none. Both commands are safe to repeat.
 
 ## 5. Start the API
 
 ```powershell
-uv run uvicorn nptc.api.app:create_app --factory --reload --app-dir backend/src
+uv run uvicorn aptc.api.app:create_app --factory --reload --app-dir backend/src
 ```
 
 - Swagger UI: <http://localhost:8000/api/v1/docs>

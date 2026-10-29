@@ -7,15 +7,15 @@ from pathlib import Path
 
 import pytest
 
-from nptc_transform.actions import action_for
-from nptc_transform.cellref import CellRef
-from nptc_transform.designation_check import DesignationRun
-from nptc_transform.misspelling import THRESHOLDS, AuthoritySource, MisspellingRun
-from nptc_transform.pipeline import Finding, Mode, RunResult, SourceRef
-from nptc_transform.report_writer import SCHEMA_VERSION, write_report
-from nptc_transform.semantic_drift import DriftRun
-from nptc_transform.specimen_map_check import SpecimenMapRun
-from nptc_transform.terminology_check import EditionResolution, TerminologyRun
+from aptc_transform.actions import action_for
+from aptc_transform.cellref import CellRef
+from aptc_transform.designation_check import DesignationRun
+from aptc_transform.misspelling import THRESHOLDS, AuthoritySource, MisspellingRun
+from aptc_transform.pipeline import Finding, Mode, RunResult, SourceRef
+from aptc_transform.report_writer import SCHEMA_VERSION, write_report
+from aptc_transform.semantic_drift import DriftRun
+from aptc_transform.specimen_map_check import SpecimenMapRun
+from aptc_transform.terminology_check import EditionResolution, TerminologyRun
 
 
 def test_write_report_renders_findings_grouped_by_defect_class(tmp_path: Path) -> None:

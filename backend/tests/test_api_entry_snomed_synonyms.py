@@ -1,6 +1,6 @@
 """`EntryDetail.snomed_synonyms` over real HTTP: the live SNOMED CT synonyms on an entry's detail.
 
-`nptc.terminology.synonyms` has the filter and cache rules as unit tests
+`aptc.terminology.synonyms` has the filter and cache rules as unit tests
 (`test_terminology_synonyms.py`). This module proves what the routes do with them: the field's
 three states, that a terminology failure never fails the page (FR-54), that the cache spans
 requests and URL forms, and that no other route makes the call.
@@ -19,9 +19,9 @@ from typing import Any
 import pytest
 from sqlalchemy.engine import Connection
 
-from nptc.api.dependencies import get_snomed_synonym_source
-from nptc.terminology.synonyms import SnomedSynonymSource
-from nptc_shared.terminology import (
+from aptc.api.dependencies import get_snomed_synonym_source
+from aptc.terminology.synonyms import SnomedSynonymSource
+from aptc_shared.terminology import (
     SNOMED_SYSTEM,
     Designation,
     LookupResult,

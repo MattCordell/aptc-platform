@@ -1,32 +1,32 @@
 # Transform CLI
 
-`nptc-transform` converts the published SPIA Requesting workbook into either a
+`aptc-transform` converts the published SPIA Requesting workbook into either a
 defect report or an import dataset (PRD §12). This runbook covers the `run`
 command: the entrypoint, the report-only guarantee (FR-70) and the
 determinism/idempotency contract (FR-73), delivered with backlog issue
-[P0-1](https://github.com/MattCordell/nptc-platform/issues/23); the
+[P0-1](https://github.com/MattCordell/aptc-platform/issues/23); the
 workbook reader and PRD Appendix A.1-A.3 cell defect detection, delivered
-with backlog issue [P0-2](https://github.com/MattCordell/nptc-platform/issues/24);
+with backlog issue [P0-2](https://github.com/MattCordell/aptc-platform/issues/24);
 the three-band defect classification engine, delivered with backlog issue
-[P0-3](https://github.com/MattCordell/nptc-platform/issues/25); batch
+[P0-3](https://github.com/MattCordell/aptc-platform/issues/25); batch
 terminology validation with the hierarchy check, delivered with backlog issue
-[P0-5](https://github.com/MattCordell/nptc-platform/issues/27); designation
+[P0-5](https://github.com/MattCordell/aptc-platform/issues/27); designation
 reconciliation, delivered with backlog issue
-[P0-6](https://github.com/MattCordell/nptc-platform/issues/28); and the FR-79
+[P0-6](https://github.com/MattCordell/aptc-platform/issues/28); and the FR-79
 misspelling heuristics and the FR-75 semantic-drift review, both delivered
 with backlog issue
-[P0-7](https://github.com/MattCordell/nptc-platform/issues/29); the
+[P0-7](https://github.com/MattCordell/aptc-platform/issues/29); the
 grouped, actionable defect report, delivered with backlog issue
-[P0-8](https://github.com/MattCordell/nptc-platform/issues/30); and import
+[P0-8](https://github.com/MattCordell/aptc-platform/issues/30); and import
 dataset emission - applying the auto-correctable band's repairs and writing
 the synthetic baseline release - delivered with backlog issue
-[P0-9](https://github.com/MattCordell/nptc-platform/issues/31). See
+[P0-9](https://github.com/MattCordell/aptc-platform/issues/31). See
 "Not implemented yet" below for what is still owed.
 
 ## Usage
 
 ```powershell
-uv run nptc-transform run --workbook path/to/SPIA-Requesting.xlsx
+uv run aptc-transform run --workbook path/to/SPIA-Requesting.xlsx
 ```
 
 | Flag | Default | Meaning |
@@ -36,7 +36,7 @@ uv run nptc-transform run --workbook path/to/SPIA-Requesting.xlsx
 | `--report-only` | on | Write a report and mutate nothing. This is the default; the flag exists so a script can state the mode explicitly. Mutually exclusive with `--emit-dataset`. |
 | `--emit-dataset` | off | Opt into the mutating mode: apply the auto-correctable band's repairs and write `import-dataset.json` alongside the report (FR-70, FR-76, P0-9). Requires `--release-name` and `--check-terminology`: each specimen's display is its SNOMED CT-AU preferred term, which only the server can supply. Without `--check-terminology` the run exits `2` and writes nothing. |
 | `--release-name` | *(none)* | The synthetic baseline release's name, `YYYY-MM` (FR-57), e.g. `2026-06`. Required with `--emit-dataset`; refused without it - the name cannot be derived from the workbook or the clock without breaking FR-73's determinism guarantee, so it must be supplied explicitly. |
-| `--check-terminology` | off | Validate every code binding against SNOMED CT-AU and International (FR-52, FR-74, FR-84, FR-99), reconcile every published label against its bound concept's designation set (FR-97), give the FR-79 misspelling heuristics an authority whitelist built from the served designations (see "Interpreting a misspelling finding" below), run the FR-75 semantic-drift review of specimen/timing wording (see "Interpreting a semantic-drift finding" below), check that every code in the specimen map is an active concept under `<<123038009`, and collect each one's AU preferred term for the import dataset (see "The specimen map" below). **The only part of the run that uses the network**; reads `NPTC_TX_*` (see [configuration](../configuration.md)). |
+| `--check-terminology` | off | Validate every code binding against SNOMED CT-AU and International (FR-52, FR-74, FR-84, FR-99), reconcile every published label against its bound concept's designation set (FR-97), give the FR-79 misspelling heuristics an authority whitelist built from the served designations (see "Interpreting a misspelling finding" below), run the FR-75 semantic-drift review of specimen/timing wording (see "Interpreting a semantic-drift finding" below), check that every code in the specimen map is an active concept under `<<123038009`, and collect each one's AU preferred term for the import dataset (see "The specimen map" below). **The only part of the run that uses the network**; reads `APTC_TX_*` (see [configuration](../configuration.md)). |
 
 Running with no flags at all prints help and exits 0; `--workbook` is required
 to actually run.
@@ -47,14 +47,14 @@ to actually run.
 |---|---|
 | `0` | Ran to completion and no finding blocks the import - check `band_counts` in `report.json` for auto-correctable findings even so. |
 | `1` | The report contains at least one finding banded `requires-human-decision` or `data-defect` (FR-71); the import must not proceed. Report-only mode still writes the report before exiting `1`. |
-| `2` | Usage error: the workbook doesn't exist or isn't readable, the workbook isn't a valid `.xlsx` (corrupt zip or unparsable worksheet XML), `--report-dir` names an existing file or can't be written to, both mode flags were passed together, `--emit-dataset` was passed without a valid `--release-name` (or `--release-name` was passed without `--emit-dataset`), the filesystem refuses to write `import-dataset.json` after `report.json`/`report.md` already wrote successfully, or (with `--check-terminology`) an `NPTC_TX_*` environment variable is malformed (e.g. `NPTC_TX_CHUNK_SIZE` not a positive integer) - a deployment typo, not a server outage, so it lands here rather than exit `3`. |
+| `2` | Usage error: the workbook doesn't exist or isn't readable, the workbook isn't a valid `.xlsx` (corrupt zip or unparsable worksheet XML), `--report-dir` names an existing file or can't be written to, both mode flags were passed together, `--emit-dataset` was passed without a valid `--release-name` (or `--release-name` was passed without `--emit-dataset`), the filesystem refuses to write `import-dataset.json` after `report.json`/`report.md` already wrote successfully, or (with `--check-terminology`) an `APTC_TX_*` environment variable is malformed (e.g. `APTC_TX_CHUNK_SIZE` not a positive integer) - a deployment typo, not a server outage, so it lands here rather than exit `3`. |
 | `3` | `--check-terminology` was passed and the terminology sweep could not complete (server unreachable, rate limited past the retry budget, a malformed response). **No report is written at all** - a report with the cell defects complete and the terminology findings silently missing would look exactly like a run in which every code validated cleanly (FR-54). Re-run without `--check-terminology` for the cell-defect report alone. |
 
 A filesystem refusal on `--report-dir` reports the path and the reason on
 stderr and exits `2`. It never exits `1` - that code is reserved for
 "the report contains blocking findings" - and never prints a traceback.
 The workbook is always read - and any `WorkbookReadError` reported - before any
-`NPTC_TX_*` value is even parsed, so a corrupt workbook's message is never
+`APTC_TX_*` value is even parsed, so a corrupt workbook's message is never
 pre-empted by an unrelated configuration error.
 
 ## The report-only guarantee (FR-70)
@@ -150,13 +150,13 @@ corrected, and each defect is reported under one of two codes chosen by
 | `SPECIMEN_MAP_NO_PREFERRED_TERM` | - | A code in the specimen map passed the check above, but SNOMED CT-AU served no AU preferred term for it. The dataset stores that term as the specimen's display, so the run is blocked rather than seed a blank label. Raised only with `--check-terminology`. The location is the map's own `Target code` cell. |
 | `MISSING_PREFERRED_TERM` | - | A row resolves a code binding but carries no `RCPA Preferred term` value (P0-9/#31). Row-level, not cell-level - the defect is the absence of a cell, so nothing can be recovered or coerced; the row would otherwise be silently omitted from the seeded baseline. |
 | `MISSING_CODE_BINDING` | - | A row carries a `RCPA Preferred term` value but resolves no code binding at all (FR-100/#132). Mirror of `MISSING_PREFERRED_TERM` for the opposite column - reported against the preferred-term cell's reference. Unlike that code, the row is never seeded once flagged: a code-less row is judged more likely to be layout (a heading, a continuation line) than a genuine entry, so `build_dataset` omits it entirely rather than seeding an empty `code_bindings` list. |
-| `DESIGNATION_COLLISION` | - | A preferred term or synonym that the seed loader would refuse under FR-05: a preferred term equal to an earlier entry's preferred term or synonym, or a synonym equal to an earlier entry's preferred term, compared with `nptc_shared.similarity.collision_key`. Reported against the later entry's cell and naming the earlier entries by sheet and row. Only rows the loader would seed are compared. A synonym shared by two entries is a warning in the backend and is not reported. |
+| `DESIGNATION_COLLISION` | - | A preferred term or synonym that the seed loader would refuse under FR-05: a preferred term equal to an earlier entry's preferred term or synonym, or a synonym equal to an earlier entry's preferred term, compared with `aptc_shared.similarity.collision_key`. Reported against the later entry's cell and naming the earlier entries by sheet and row. Only rows the loader would seed are compared. A synonym shared by two entries is a warning in the backend and is not reported. |
 | `UNRECOGNISED_LAYOUT` | - | A sheet's header row doesn't resolve the code column - whether it resolves some other SPIA columns (genuine header drift) or none at all (for example, a banner row inserted above the real FR-63 headers). Reported once per sheet, naming every header actually found and how many data rows went unscanned as a result, rather than silently skipping A.2/A.3 detection on a drifted workbook. |
 | `SHEET_NOT_SPIA_DATA` | - | A sheet named in FR-63's own documented non-SPIA-data list (currently just `Rev History`) resolves no SPIA column - it isn't SPIA data to begin with. Gated on the sheet's *name*, not merely on resolving zero columns: a genuine data sheet whose header row has drifted completely produces the identical "no column resolved" signal and must still be `UNRECOGNISED_LAYOUT`, not this. |
 
 Either layout finding above means the sheet gets no further cell-level
 scanning. A finding's `location` is a structured `CellRef` (sheet name,
-column letters, row number - `nptc_transform.cellref`), not a plain string:
+column letters, row number - `aptc_transform.cellref`), not a plain string:
 rendered, it reads as `Sheet!CellRef` (for example `Requesting!H16`), but a
 consumer that needs the parts (the report renderer, a future export) reads
 them off the value directly rather than re-splitting the rendered string -
@@ -174,7 +174,7 @@ itself.
 
 Every finding is classified into exactly one band, which determines whether
 the import can proceed. A finding's band is a pure function of its code
-(`nptc_transform.bands.band_for`) - never of its content - so the table above
+(`aptc_transform.bands.band_for`) - never of its content - so the table above
 and this one together are the complete classification.
 
 | Band | Blocks import | Codes | What it means |
@@ -242,7 +242,7 @@ Schema 10 adds `SPECIMEN_MAP_NO_PREFERRED_TERM` and leaves the shape unchanged.
   never the only form, since `Sheet!Q1!B12` is ambiguous for a sheet named
   `Sales!Q1` in a way the three separate fields never are.
 - Group order is explicit: blocking bands first
-  (`nptc_transform.bands.BAND_REPORT_ORDER`), then each band's codes in
+  (`aptc_transform.bands.BAND_REPORT_ORDER`), then each band's codes in
   their declared `FindingCode` order, with an unregistered code sorting
   last rather than raising. `json.dumps(sort_keys=True)` only sorts object
   *keys*, never array elements, so this order is never left to chance.
@@ -315,7 +315,7 @@ action:
 | `TERM_TIMING_NOT_MODELLED` | informational | No action required to proceed. A terminologist should review whether the asserted timing is genuinely unmodelled (FR-75); this is a candidate for editorial review, not a confirmed defect. The import is not blocked. |
 | `SPECIMEN_VALUE_NO_EQUIVALENT` | informational | No action required. The specimen map has no SNOMED CT equivalent for this value, so none is seeded for it (FR-88). The import is not blocked. |
 
-This table is generated by hand from `nptc_transform.actions.ACTION_BY_CODE`
+This table is generated by hand from `aptc_transform.actions.ACTION_BY_CODE`
 and is kept in sync with it by a dedicated test
 (`transform/tests/test_actions.py::test_every_action_matches_the_runbooks_table`),
 so change both in the same PR.
@@ -338,7 +338,7 @@ written) without either or with a malformed release name.
   },
   "entries": [
     {
-      "business_key": "NPTC-000001",
+      "business_key": "APTC-000001",
       "source": {"sheet": "Requesting", "row": 2, "legacy_version": "4", "legacy_history": "…"},
       "preferred_term": "Acid fast bacilli culture",
       "status": "active",
@@ -367,7 +367,7 @@ written) without either or with a malformed release name.
 **Every code is a string, always** (FR-06) - built from the cell's rendered
 text, never its raw numeric value, and never passed through `int`/`float`.
 
-**`business_key` is assigned by the transform** (FR-03): `NPTC-` plus a
+**`business_key` is assigned by the transform** (FR-03): `APTC-` plus a
 zero-padded six-digit sequence, numbered over entries in `(sheet name, row)`
 order - a stable order across runs is what keeps FR-73's byte-identical
 guarantee meaningful now that the pipeline transforms real content.
@@ -431,7 +431,7 @@ issue, not part of this one.
 
 ## The specimen map (FR-88, FR-89)
 
-`transform/src/nptc_transform/data/specimen_map.tsv` maps every specimen string
+`transform/src/aptc_transform/data/specimen_map.tsv` maps every specimen string
 in the RCPA workbook to a SNOMED CT code. A terminologist reviewed it, and
 ADR-0044 records the decision. The `README.md` beside it says who prepared it,
 against which SNOMED CT-AU release, and which two rows are placeholders.
@@ -477,12 +477,12 @@ against is recorded in the report (FR-48).
 The shape is fixed by FR-52 and is the reason this pass is usable at
 catalogue scale at all:
 
-1. **Bulk status.** `ceil(N / NPTC_TX_CHUNK_SIZE)` `ValueSet/$expand` calls per
+1. **Bulk status.** `ceil(N / APTC_TX_CHUNK_SIZE)` `ValueSet/$expand` calls per
    edition over an ECL enumerating each chunk, with `activeOnly=true`. Codes
    are de-duplicated first, so a concept bound by twenty rows costs one slot.
 2. **The delta only.** One `CodeSystem/$lookup` for each code the bulk pass did
    not return - that is what separates "inactive" from "not in this edition" -
-   at most `NPTC_TX_MAX_CONCURRENCY` at a time.
+   at most `APTC_TX_MAX_CONCURRENCY` at a time.
 3. **One** `$expand` of `(codes) MINUS <<71388002` per edition for the whole
    hierarchy check (FR-84).
 4. **One `CodeSystem/$validate-code` per label the first three steps' own
@@ -503,7 +503,7 @@ catalogue scale at all:
    wording it asserts needs no classification call at all - see the worked
    examples below.
 
-6. **The specimen map check costs `ceil(M / NPTC_TX_CHUNK_SIZE)` further
+6. **The specimen map check costs `ceil(M / APTC_TX_CHUNK_SIZE)` further
    `$expand` calls**, where `M` is the number of distinct codes in the map (78
    today, so one). Each is `(codes) AND <<123038009` against SNOMED CT-AU
    (FR-88). A code missing from the answer is reported, whatever the reason. A
@@ -592,9 +592,9 @@ defects, so a single cell is never on both lists at once.
 ### Interpreting a designation collision (FR-05)
 
 The seed loader refuses an entry whose term clashes with one it has already written
-(`nptc.catalogue.collisions`). The transform runs the same comparison on every run, with or
+(`aptc.catalogue.collisions`). The transform runs the same comparison on every run, with or
 without `--check-terminology`, so you meet the clash before `--emit-dataset` writes a dataset.
-Two terms clash when `nptc_shared.similarity.collision_key` gives them the same key. The key
+Two terms clash when `aptc_shared.similarity.collision_key` gives them the same key. The key
 ignores case and punctuation but keeps token boundaries, so `17-OHP` and `17 OHP` clash and
 `AntiDNA` and `Anti-DNA` do not.
 
@@ -682,7 +682,7 @@ Annex A.9, run through this pass:
 
 **The check is a heuristic over free text, not a lookup.** A term's asserted
 specimen/timing comes from matching a small, hand-typed table of surface
-forms (`nptc_transform.specimen_table.SPECIMEN_TABLE`) against the RCPA
+forms (`aptc_transform.specimen_table.SPECIMEN_TABLE`) against the RCPA
 preferred term, word-boundary and case-folded. Each group's code and
 display come from the reviewed specimen map; only the wording is hand-typed,
 because the map holds workbook cell strings, not the phrases a curator writes

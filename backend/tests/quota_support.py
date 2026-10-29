@@ -13,8 +13,8 @@ from datetime import timedelta
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from nptc.db.models.catalogue_entry import CatalogueEntry
-from nptc.db.models.submission import Submission, SubmissionKind
+from aptc.db.models.catalogue_entry import CatalogueEntry
+from aptc.db.models.submission import Submission, SubmissionKind
 
 
 def add_submissions(
@@ -32,7 +32,7 @@ def add_submissions(
     entry_id = None
     if kind is SubmissionKind.AMENDMENT:
         entry = CatalogueEntry(
-            business_key=f"NPTC-{random.randrange(100_000_000, 999_999_999)}",
+            business_key=f"APTC-{random.randrange(100_000_000, 999_999_999)}",
             preferred_term=f"Quota entry {uuid.uuid4()}",
             status="active",
         )

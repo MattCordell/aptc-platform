@@ -1,0 +1,402 @@
+"""Backend runtime configuration.
+
+``pydantic-settings``, not the ``os.environ`` reads of
+``aptc_shared.terminology.config`` (ADR-0003): it is a backend-only
+dependency, so nothing cross-package requires matching that module.
+
+Each DSN has its own settings class. ``backend/migrations/env.py`` needs
+``MigrationSettings`` alone, so an operator running ``alembic upgrade head``
+need not set ``APTC_DATABASE_URL``. A required DSN has no default: a missing,
+empty or whitespace-only value fails naming the field, so a misconfigured
+deployment never runs against a placeholder.
+"""
+
+from __future__ import annotations
+
+from ipaddress import IPv4Network, IPv6Network
+from typing import Annotated, Literal
+from urllib.parse import urlsplit
+
+from pydantic import Field, SecretStr, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+
+from aptc.terms.documents import DEFAULT_TERMS_VERSION
+
+_URL_DELIMITERS = ("@", ":", "/", "?", "#", "%")
+
+#: NFR-24 layer 1. The SPA makes several calls per page, and a script that walks the
+#: whole catalogue (about 2,000 terms) in pages must not trip the limit.
+DEFAULT_ANON_RATE_LIMIT_REQUESTS = 600
+DEFAULT_ANON_RATE_LIMIT_WINDOW_SECONDS = 60
+
+#: Where a rate-limited anonymous caller is told to find the bulk release artefacts
+#: (FR-22). No release exists to serve until FR-21 lands, so this names the
+#: documentation on bulk retrieval; an operator replaces it with the release location.
+DEFAULT_BULK_ARTEFACTS_URL = (
+    "https://github.com/MattCordell/aptc-platform/blob/main/docs/architecture/public-api.md"
+    "#bulk-release-artefacts"
+)
+
+
+def _require_non_blank(value: str, field_name: str) -> str:
+    if not value.strip():
+        raise ValueError(f"{field_name} must not be empty")
+    return value
+
+
+def _require_url_safe_secret(value: SecretStr, field_name: str) -> SecretStr:
+    secret = _require_non_blank(value.get_secret_value(), field_name)
+    if any(char in secret for char in _URL_DELIMITERS):
+        raise ValueError(
+            f"{field_name} must not contain any of {' '.join(_URL_DELIMITERS)} "
+            "because compose places it inside a database URL"
+        )
+    return value
+
+
+class DatabaseSettings(BaseSettings):
+    """The app runtime role's DSN - ``aptc_app_login`` in tests, an
+    equivalent least-privilege role in a deployment."""
+
+    model_config = SettingsConfigDict(env_prefix="APTC_", extra="ignore")
+
+    database_url: str
+
+    @field_validator("database_url")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        return _require_non_blank(value, "database_url")
+
+
+class AuditVerifySettings(BaseSettings):
+    """The DSN `scripts/verify_audit_chain.py` falls back to when
+    ``--database-url`` is not passed. ``aptc.audit.verification.verify_chain``
+    only issues `SELECT`s, so this can name a read-only replica or a restored
+    backup.
+
+    Empty default, unlike ``DatabaseSettings``: the CLI falls back further to
+    ``APTC_DATABASE_URL`` (see the runbook), so empty is a valid
+    configuration. The CLI raises, naming all three sources, if no DSN
+    resolves.
+    """
+
+    model_config = SettingsConfigDict(env_prefix="APTC_", extra="ignore")
+
+    audit_verify_database_url: str = ""
+
+
+class AuthSettings(BaseSettings):
+    """The NFR-05 trusted-issuer allowlist for auto-linking
+    (``aptc.auth.linking.may_auto_link``) and the NFR-07 JWT verification
+    configuration (``aptc.auth.tokens.TokenVerifier.from_settings``).
+
+    Empty defaults, unlike the DSNs above: "no issuer is trusted yet" is a
+    valid fail-closed configuration (NFR-02, federation off). An empty
+    ``oidc_issuer`` cannot construct a ``TokenVerifier`` (see
+    ``aptc.auth.errors``), so an unconfigured deployment refuses every token.
+    """
+
+    model_config = SettingsConfigDict(env_prefix="APTC_", extra="ignore")
+
+    # NoDecode: pydantic-settings JSON-decodes a frozenset[str] before any
+    # validator runs, so the comma-separated format in configuration.md would
+    # raise a SettingsError and never reach `_split_comma_separated`.
+    trusted_issuers: Annotated[frozenset[str], NoDecode] = frozenset()
+
+    @field_validator("trusted_issuers", mode="before")
+    @classmethod
+    def _split_comma_separated(cls, value: object) -> object:
+        if isinstance(value, str):
+            return frozenset(item.strip() for item in value.split(",") if item.strip())
+        return value
+
+    oidc_issuer: str = ""
+
+    #: Fixed by the committed realm (`aptc-api-audience` mapper in
+    #: deploy/keycloak/realm/aptc-realm.json), not by a deployment: ADR-0014.
+    oidc_audience: str = "aptc-api"
+
+    #: Empty means "resolve via OIDC discovery" (`aptc.auth.discovery`).
+    #: Setting it skips discovery, for air-gapped deployments and so the
+    #: offline tests need only one local HTTP endpoint.
+    jwks_url: str = ""
+
+    jwks_cache_seconds: float = 300.0
+
+    #: An unknown `kid` within this many seconds of the last refresh attempt
+    #: is refused without an HTTP request (``aptc.auth.jwks.SigningKeys``).
+    jwks_refresh_cooldown_seconds: float = 30.0
+
+    #: NFR-06: the `acr` claim values that satisfy mandatory MFA for
+    #: administrators (``aptc.auth.principal.principal_for``). Matches the
+    #: committed realm's ``acr.loa.map``, which maps the LoA-2 flow to
+    #: ``"2"``. Comma-separated, so ``NoDecode`` as for ``trusted_issuers``.
+    mfa_acr_values: Annotated[frozenset[str], NoDecode] = frozenset({"2"})
+
+    @field_validator("mfa_acr_values", mode="before")
+    @classmethod
+    def _split_mfa_acr_values(cls, value: object) -> object:
+        if isinstance(value, str):
+            return frozenset(item.strip() for item in value.split(",") if item.strip())
+        return value
+
+    @field_validator("mfa_acr_values", mode="after")
+    @classmethod
+    def _mfa_acr_values_are_usable(cls, value: frozenset[str]) -> frozenset[str]:
+        """`aptc.api.errors._step_up_challenge` builds the RFC 9470 challenge
+        header from this set (ADR-0036), so a bad value is a live failure.
+
+        An empty set makes `principal_for`'s `mfa_satisfied` permanently
+        `False`, while the SPA's `parseStepUpChallenge` refuses an
+        `acr_values=""` challenge: every administrator is locked out with no
+        way to step up. A quote or line break would be interpolated straight
+        into the header value.
+        """
+        if not value:
+            raise ValueError(
+                "mfa_acr_values must not be empty - an empty set makes MFA "
+                "permanently unsatisfiable and leaves the SPA nothing to step up "
+                "to, locking every administrator out with no way back"
+            )
+        for item in value:
+            if '"' in item or "\r" in item or "\n" in item:
+                raise ValueError(
+                    f"mfa_acr_values item {item!r} contains a quote or line break, "
+                    "which would be interpolated directly into the WWW-Authenticate "
+                    "response header"
+                )
+        return value
+
+
+class ApiSettings(BaseSettings):
+    """HTTP-layer configuration for the FastAPI app.
+
+    ``frontend_base_url`` is the single browser origin allowed to call the
+    API cross-origin. ADR-0021's SPA exchanges the PKCE code in the browser
+    and calls this API with a Bearer token, so a wrong origin fails every
+    authenticated request at CORS preflight.
+
+    It reuses ``APTC_FRONTEND_BASE_URL``, which the Keycloak realm import
+    substitutes into ``aptc-frontend``'s ``redirectUris``/``webOrigins``, so
+    the origin Keycloak redirects to and the origin the API accepts cannot
+    drift apart.
+
+    The default matches the Vite dev server and is the only setting here
+    that may be a plain-http localhost value; any other deployment must set
+    the frontend's real origin.
+    """
+
+    model_config = SettingsConfigDict(env_prefix="APTC_", extra="ignore")
+
+    frontend_base_url: str = "http://localhost:5173"
+
+    #: FR-98's label-provenance declaration for every binding's `fsn`
+    #: (`aptc.api.labels.fsn_provenance`), a placeholder for FR-66's export
+    #: configuration (P4, not built). `"intact"` is the only value a binding
+    #: can honestly serve: nothing strips a binding's `fsn` between the column
+    #: and the response. It does not govern the list summary's own `fsn`, which
+    #: is always stripped and declared by `LIST_FSN_PROVENANCE`.
+    #: `_fsn_semantic_tag_is_intact` refuses `"stripped"`.
+    fsn_semantic_tag: Literal["intact", "stripped"] = "intact"
+
+    @field_validator("fsn_semantic_tag")
+    @classmethod
+    def _fsn_semantic_tag_is_intact(cls, value: str) -> str:
+        """`"stripped"` could never strip anything: no binding's `fsn` is
+        stripped on the read path, so it would only make
+        `LabelProvenance.semantic_tag` claim a strip that never happened
+        (FR-83, FR-66). Refusing it here turns a
+        typo, or an early attempt to wire FR-66's export configuration
+        through this field, into a start-up failure.
+        """
+        if value == "stripped":
+            raise ValueError(
+                "fsn_semantic_tag=stripped is refused: the API strips no binding's "
+                "fsn (the list summary's own fsn is stripped regardless of this "
+                "setting), so this setting cannot yet make that true. FR-66's "
+                "export configuration is the future home for this choice; until it "
+                "exists, fsn_semantic_tag must stay 'intact'."
+            )
+        return value
+
+    #: FR-86: unset by default. RCPA-QAP has no maximum to enforce, and PRD
+    #: open item OI-1 records that the platform owes them the FR-87 length
+    #: data before they can nominate one. An environment variable, not a
+    #: database setting: ADR-0041. `aptc.catalogue.term_hygiene.
+    #: preferred_term_length` remains the only place length is computed;
+    #: this is only the ceiling to compare it against.
+    max_preferred_term_length: int | None = Field(default=None, ge=1)
+
+    #: NFR-47: names the terms file `aptc/terms/versions/<version>.md`. `create_app` refuses to
+    #: start when it does not exist.
+    terms_current_version: str = DEFAULT_TERMS_VERSION
+
+    @field_validator("terms_current_version", mode="before")
+    @classmethod
+    def _blank_terms_current_version_is_the_default(cls, value: object) -> object:
+        """Blank means the packaged default, so a compose pass-through of an unset variable works."""
+        if isinstance(value, str) and not value.strip():
+            return DEFAULT_TERMS_VERSION
+        return value
+
+    @field_validator("max_preferred_term_length", mode="before")
+    @classmethod
+    def _blank_max_preferred_term_length_is_unset(cls, value: object) -> object:
+        """Blank means unset. Per field, not `env_ignore_empty`: a blank
+        `APTC_FRONTEND_BASE_URL` must keep failing, not fall back to localhost."""
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
+    #: A fixed window, so a rejected caller's `Retry-After` is exact.
+    anon_rate_limit_requests: int = Field(default=DEFAULT_ANON_RATE_LIMIT_REQUESTS, ge=1)
+    anon_rate_limit_window_seconds: int = Field(
+        default=DEFAULT_ANON_RATE_LIMIT_WINDOW_SECONDS, ge=1
+    )
+
+    #: Absolute http(s) URL, or a path on this origin for release artefacts served
+    #: beside the SPA.
+    bulk_artefacts_url: str = DEFAULT_BULK_ARTEFACTS_URL
+
+    #: The addresses allowed to name a caller's real address in `X-Forwarded-For`
+    #: (`aptc.api.client_ip`). Empty trusts no header, the only safe value when the API
+    #: is reachable directly. Comma-separated, so `NoDecode` as for
+    #: `AuthSettings.trusted_issuers`.
+    trusted_proxies: Annotated[tuple[IPv4Network | IPv6Network, ...], NoDecode] = ()
+
+    @field_validator("trusted_proxies", mode="before")
+    @classmethod
+    def _split_trusted_proxies(cls, value: object) -> object:
+        if isinstance(value, str):
+            return tuple(item.strip() for item in value.split(",") if item.strip())
+        return value
+
+    @field_validator("anon_rate_limit_requests", mode="before")
+    @classmethod
+    def _blank_rate_limit_requests_is_the_default(cls, value: object) -> object:
+        if isinstance(value, str) and not value.strip():
+            return DEFAULT_ANON_RATE_LIMIT_REQUESTS
+        return value
+
+    @field_validator("anon_rate_limit_window_seconds", mode="before")
+    @classmethod
+    def _blank_rate_limit_window_is_the_default(cls, value: object) -> object:
+        if isinstance(value, str) and not value.strip():
+            return DEFAULT_ANON_RATE_LIMIT_WINDOW_SECONDS
+        return value
+
+    @field_validator("bulk_artefacts_url", mode="before")
+    @classmethod
+    def _bulk_artefacts_url_is_usable(cls, value: object) -> object:
+        if not isinstance(value, str):
+            return value
+        value = value.strip()
+        if not value:
+            return DEFAULT_BULK_ARTEFACTS_URL
+        if value.startswith("/") and not value.startswith("//"):
+            return value
+        parts = urlsplit(value)
+        if parts.scheme not in {"http", "https"} or not parts.netloc:
+            raise ValueError(
+                f"bulk_artefacts_url must be an http(s) URL or a path starting with '/', "
+                f"got {value!r}"
+            )
+        return value
+
+    @field_validator("frontend_base_url")
+    @classmethod
+    def _is_a_bare_origin(cls, value: str) -> str:
+        """Scheme, host and optional port - nothing else.
+
+        A browser sends `Origin: https://app.example` with no path, so a
+        value carrying one (`https://app.example/aptc`) never matches, and
+        CORS would fail every authenticated request with nothing in the logs
+        pointing here.
+        """
+        value = _require_non_blank(value, "frontend_base_url").rstrip("/")
+        parts = urlsplit(value)
+        if parts.scheme not in {"http", "https"} or not parts.netloc:
+            raise ValueError(f"frontend_base_url must be an http(s) origin, got {value!r}")
+        if parts.path or parts.query or parts.fragment:
+            raise ValueError(
+                f"frontend_base_url must be a bare origin (scheme, host, optional "
+                f"port) with no path, query or fragment, got {value!r}"
+            )
+        return value
+
+
+class MigrationSettings(BaseSettings):
+    """The owning role's DSN Alembic runs migrations as - see
+    ``backend/migrations/env.py``."""
+
+    model_config = SettingsConfigDict(env_prefix="APTC_", extra="ignore")
+
+    migration_database_url: str
+
+    @field_validator("migration_database_url")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        return _require_non_blank(value, "migration_database_url")
+
+
+class AppLoginSettings(BaseSettings):
+    """The password `aptc.db.provision_login` sets on the app runtime login
+    role. Required, so a missing value fails naming the variable (NFR-26).
+    A `SecretStr`, so it never appears in a repr or a traceback.
+
+    Compose splices it unencoded into `APTC_DATABASE_URL`, which SQLAlchemy
+    percent-decodes: a URL delimiter would provision, then fail to log in."""
+
+    model_config = SettingsConfigDict(env_prefix="APTC_", extra="ignore")
+
+    app_db_password: SecretStr
+
+    @field_validator("app_db_password")
+    @classmethod
+    def _url_safe_and_not_blank(cls, value: SecretStr) -> SecretStr:
+        return _require_url_safe_secret(value, "app_db_password")
+
+
+class IndexerLoginSettings(BaseSettings):
+    """The password `aptc.db.provision_login` sets on the index reconciler's login role, under
+    the same rules as `AppLoginSettings.app_db_password`. The DSN that uses it is
+    `IndexerSettings.indexer_database_url`."""
+
+    model_config = SettingsConfigDict(env_prefix="APTC_", extra="ignore")
+
+    indexer_db_password: SecretStr
+
+    @field_validator("indexer_db_password")
+    @classmethod
+    def _url_safe_and_not_blank(cls, value: SecretStr) -> SecretStr:
+        return _require_url_safe_secret(value, "indexer_db_password")
+
+
+class IndexerSettings(BaseSettings):
+    """The DSN `aptc.db.property_reconciler` runs its DDL as (FR-13) - see
+    that module and `scripts/reconcile_property_indexes.py`.
+
+    Empty default, unlike `MigrationSettings`: "runtime index reconciliation
+    is not configured" is a valid fail-closed posture, because
+    `reconcile_property_indexes()` refuses to run rather than use another
+    credential.
+
+    **Deliberately its own variable, never a fallback to
+    `APTC_MIGRATION_DATABASE_URL` or `APTC_DATABASE_URL`.** The migration
+    role can `CREATE ROLE`/`DROP TABLE`, far more than one expression-index
+    DDL operation needs, and the app role cannot do DDL at all
+    (ADR-0012, `docs/operations/configuration.md`), so a fallback to it would
+    only turn a clear refusal into a permission error mid-run."""
+
+    model_config = SettingsConfigDict(env_prefix="APTC_", extra="ignore")
+
+    indexer_database_url: str = ""
+
+    @field_validator("indexer_database_url")
+    @classmethod
+    def _strip(cls, value: str) -> str:
+        """Normalises a whitespace-only value to `""`. Otherwise
+        `get_indexer_engine()`'s `if not settings.indexer_database_url` guard
+        reads it as truthy, skips `IndexerNotConfiguredError` and fails later
+        inside `create_engine`."""
+        return value.strip()

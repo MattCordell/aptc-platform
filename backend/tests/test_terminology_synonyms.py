@@ -1,4 +1,4 @@
-"""Unit tests for `nptc.terminology.synonyms`: the filter, the failure path and the cache.
+"""Unit tests for `aptc.terminology.synonyms`: the filter, the failure path and the cache.
 
 No database, no HTTP. `_ANAEMIA` copies the designations a live AU-edition `$lookup` served for
 271737000 on 2026-10-09, so the filter is checked against the server's real shape as well as
@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from nptc.terminology.synonyms import (
+from aptc.terminology.synonyms import (
     ABSENCE_TTL_SECONDS,
     FAILURE_TTL_SECONDS,
     INTERACTIVE_TIMEOUT_SECONDS,
@@ -20,7 +20,7 @@ from nptc.terminology.synonyms import (
     interactive_config,
     select_synonyms,
 )
-from nptc_shared.terminology import (
+from aptc_shared.terminology import (
     AU_LANGUAGE_TAG,
     SNOMED_CT_AU,
     SNOMED_SYSTEM,
@@ -38,8 +38,8 @@ from nptc_shared.terminology import (
     TerminologyTimeoutError,
     TerminologyTransportError,
 )
-from nptc_shared.terminology.errors import OperationOutcomeIssue
-from nptc_shared.terminology.stub import StubNotSeededError, StubRequest
+from aptc_shared.terminology.errors import OperationOutcomeIssue
+from aptc_shared.terminology.stub import StubNotSeededError, StubRequest
 
 _HL7 = "http://terminology.hl7.org/CodeSystem/hl7TermMaintInfra"
 _SYNONYM_USE = "900000000000013009"

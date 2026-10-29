@@ -16,7 +16,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import IntegrityError, ProgrammingError
 
-from nptc.db.models.local_code_snomed_map import (
+from aptc.db.models.local_code_snomed_map import (
     _MATCH_STRENGTH_CHECK_SQL,
     SnomedMapMatchStrength,
 )
@@ -46,7 +46,7 @@ _INSERT_MAP_ROW = text(
 )
 
 #: FR-06/`code_binding`'s own regression fixture, reused here since the map
-#: row's `code` shares the same `nptc_sctid_is_valid` check.
+#: row's `code` shares the same `aptc_sctid_is_valid` check.
 _VALID_SNOMED_CODE = "394596001"
 
 
@@ -54,7 +54,7 @@ def _insert_system(
     connection: Connection,
     *,
     key: str = "discipline_test",
-    uri: str = "https://nptc.example.org/CodeSystem/discipline_test",
+    uri: str = "https://aptc.example.org/CodeSystem/discipline_test",
     title: str = "Discipline (test)",
     description: str = "Test fixture",
     owner: str = "RCPA-QAP",
@@ -122,7 +122,7 @@ def _insert_map_row(
 @pytest.mark.integration
 def test_key_must_match_the_property_definition_pattern(db: Connection) -> None:
     with pytest.raises(IntegrityError) as exc_info:
-        _insert_system(db, key="Not A Valid Key", uri="https://nptc.example.org/x1")
+        _insert_system(db, key="Not A Valid Key", uri="https://aptc.example.org/x1")
 
     assert exc_info.value.orig.sqlstate == _CHECK_VIOLATION  # type: ignore[union-attr]
 
@@ -130,20 +130,20 @@ def test_key_must_match_the_property_definition_pattern(db: Connection) -> None:
 @pytest.mark.req("FR-90")
 @pytest.mark.integration
 def test_key_is_unique(db: Connection) -> None:
-    _insert_system(db, key="uniqueness_test", uri="https://nptc.example.org/u1")
+    _insert_system(db, key="uniqueness_test", uri="https://aptc.example.org/u1")
 
     with pytest.raises(IntegrityError) as exc_info:
-        _insert_system(db, key="uniqueness_test", uri="https://nptc.example.org/u2")
+        _insert_system(db, key="uniqueness_test", uri="https://aptc.example.org/u2")
 
     assert exc_info.value.orig.sqlstate == _UNIQUE_VIOLATION  # type: ignore[union-attr]
 
 
 @pytest.mark.integration
 def test_uri_is_unique(db: Connection) -> None:
-    _insert_system(db, key="uri_test_1", uri="https://nptc.example.org/shared")
+    _insert_system(db, key="uri_test_1", uri="https://aptc.example.org/shared")
 
     with pytest.raises(IntegrityError) as exc_info:
-        _insert_system(db, key="uri_test_2", uri="https://nptc.example.org/shared")
+        _insert_system(db, key="uri_test_2", uri="https://aptc.example.org/shared")
 
     assert exc_info.value.orig.sqlstate == _UNIQUE_VIOLATION  # type: ignore[union-attr]
 
@@ -151,7 +151,7 @@ def test_uri_is_unique(db: Connection) -> None:
 @pytest.mark.integration
 def test_title_cannot_be_blank(db: Connection) -> None:
     with pytest.raises(IntegrityError) as exc_info:
-        _insert_system(db, key="blank_title", uri="https://nptc.example.org/bt", title="   ")
+        _insert_system(db, key="blank_title", uri="https://aptc.example.org/bt", title="   ")
 
     assert exc_info.value.orig.sqlstate == _CHECK_VIOLATION  # type: ignore[union-attr]
 
@@ -162,14 +162,14 @@ def test_owner_cannot_be_blank(db: Connection) -> None:
     """FR-90: "owned by RCPA-QAP" is a recorded fact, not an assumption -
     the column cannot be silently empty."""
     with pytest.raises(IntegrityError) as exc_info:
-        _insert_system(db, key="blank_owner", uri="https://nptc.example.org/bo", owner="  ")
+        _insert_system(db, key="blank_owner", uri="https://aptc.example.org/bo", owner="  ")
 
     assert exc_info.value.orig.sqlstate == _CHECK_VIOLATION  # type: ignore[union-attr]
 
 
 @pytest.mark.integration
 def test_system_status_is_constrained(db: Connection) -> None:
-    system_id = _insert_system(db, key="bad_status", uri="https://nptc.example.org/bs")
+    system_id = _insert_system(db, key="bad_status", uri="https://aptc.example.org/bs")
 
     with pytest.raises(IntegrityError) as exc_info:
         db.execute(
@@ -186,7 +186,7 @@ def test_system_status_is_constrained(db: Connection) -> None:
 @pytest.mark.req("FR-90")
 @pytest.mark.integration
 def test_code_is_unique_within_a_system(db: Connection) -> None:
-    system_id = _insert_system(db, key="dup_code_system", uri="https://nptc.example.org/dc")
+    system_id = _insert_system(db, key="dup_code_system", uri="https://aptc.example.org/dc")
     _insert_code(db, system_id=system_id, code="chemical_pathology")
 
     with pytest.raises(IntegrityError) as exc_info:
@@ -197,8 +197,8 @@ def test_code_is_unique_within_a_system(db: Connection) -> None:
 
 @pytest.mark.integration
 def test_same_code_is_permitted_in_two_different_systems(db: Connection) -> None:
-    first_system_id = _insert_system(db, key="system_one", uri="https://nptc.example.org/s1")
-    second_system_id = _insert_system(db, key="system_two", uri="https://nptc.example.org/s2")
+    first_system_id = _insert_system(db, key="system_one", uri="https://aptc.example.org/s1")
+    second_system_id = _insert_system(db, key="system_two", uri="https://aptc.example.org/s2")
 
     _insert_code(db, system_id=first_system_id, code="shared_code")
     _insert_code(db, system_id=second_system_id, code="shared_code")
@@ -210,7 +210,7 @@ def test_provisional_code_may_have_no_definition(db: Connection) -> None:
     """FR-92: a Subgroup string migrated verbatim ahead of RCPA-QAP
     settling the vocabulary is marked provisional, with no definition
     yet."""
-    system_id = _insert_system(db, key="subgroup_test", uri="https://nptc.example.org/sg")
+    system_id = _insert_system(db, key="subgroup_test", uri="https://aptc.example.org/sg")
 
     code_id = _insert_code(
         db,
@@ -230,7 +230,7 @@ def test_provisional_code_may_have_no_definition(db: Connection) -> None:
 
 @pytest.mark.integration
 def test_display_cannot_be_blank(db: Connection) -> None:
-    system_id = _insert_system(db, key="blank_display", uri="https://nptc.example.org/bd")
+    system_id = _insert_system(db, key="blank_display", uri="https://aptc.example.org/bd")
 
     with pytest.raises(IntegrityError) as exc_info:
         _insert_code(db, system_id=system_id, display="   ")
@@ -241,7 +241,7 @@ def test_display_cannot_be_blank(db: Connection) -> None:
 @pytest.mark.req("FR-90")
 @pytest.mark.integration
 def test_deprecating_without_a_reason_is_refused(db: Connection) -> None:
-    system_id = _insert_system(db, key="deprecate_no_reason", uri="https://nptc.example.org/dnr")
+    system_id = _insert_system(db, key="deprecate_no_reason", uri="https://aptc.example.org/dnr")
 
     with pytest.raises(IntegrityError) as exc_info:
         _insert_code(db, system_id=system_id, status="deprecated", deprecation_reason=None)
@@ -252,7 +252,7 @@ def test_deprecating_without_a_reason_is_refused(db: Connection) -> None:
 @pytest.mark.req("FR-90")
 @pytest.mark.integration
 def test_active_code_with_a_deprecation_reason_is_refused(db: Connection) -> None:
-    system_id = _insert_system(db, key="active_with_reason", uri="https://nptc.example.org/awr")
+    system_id = _insert_system(db, key="active_with_reason", uri="https://aptc.example.org/awr")
 
     with pytest.raises(IntegrityError) as exc_info:
         _insert_code(db, system_id=system_id, status="active", deprecation_reason="superseded")
@@ -265,7 +265,7 @@ def test_active_code_with_a_deprecation_reason_is_refused(db: Connection) -> Non
 def test_deprecating_without_deprecated_at_is_refused(db: Connection) -> None:
     """`ck_local_code_deprecated_at` requires the timestamp exactly when
     `status = 'deprecated'` - a reason alone is not enough."""
-    system_id = _insert_system(db, key="deprecate_no_timestamp", uri="https://nptc.example.org/dnt")
+    system_id = _insert_system(db, key="deprecate_no_timestamp", uri="https://aptc.example.org/dnt")
 
     with pytest.raises(IntegrityError) as exc_info:
         _insert_code(
@@ -282,7 +282,7 @@ def test_deprecating_without_deprecated_at_is_refused(db: Connection) -> None:
 @pytest.mark.req("FR-90")
 @pytest.mark.integration
 def test_active_code_with_deprecated_at_is_refused(db: Connection) -> None:
-    system_id = _insert_system(db, key="active_with_timestamp", uri="https://nptc.example.org/awt")
+    system_id = _insert_system(db, key="active_with_timestamp", uri="https://aptc.example.org/awt")
 
     with pytest.raises(IntegrityError) as exc_info:
         _insert_code(
@@ -298,7 +298,7 @@ def test_active_code_with_deprecated_at_is_refused(db: Connection) -> None:
 @pytest.mark.req("FR-90")
 @pytest.mark.integration
 def test_deprecating_with_both_reason_and_timestamp_is_accepted(db: Connection) -> None:
-    system_id = _insert_system(db, key="deprecate_complete", uri="https://nptc.example.org/dc2")
+    system_id = _insert_system(db, key="deprecate_complete", uri="https://aptc.example.org/dc2")
 
     code_id = _insert_code(
         db,
@@ -320,7 +320,7 @@ def test_deprecating_with_both_reason_and_timestamp_is_accepted(db: Connection) 
 @pytest.mark.req("FR-91")
 @pytest.mark.integration
 def test_map_row_code_must_be_a_valid_sctid(db: Connection) -> None:
-    system_id = _insert_system(db, key="map_bad_code", uri="https://nptc.example.org/mbc")
+    system_id = _insert_system(db, key="map_bad_code", uri="https://aptc.example.org/mbc")
     code_id = _insert_code(db, system_id=system_id)
 
     with pytest.raises(IntegrityError) as exc_info:
@@ -332,7 +332,7 @@ def test_map_row_code_must_be_a_valid_sctid(db: Connection) -> None:
 @pytest.mark.req("FR-91")
 @pytest.mark.integration
 def test_map_row_match_strength_is_constrained(db: Connection) -> None:
-    system_id = _insert_system(db, key="map_bad_strength", uri="https://nptc.example.org/mbs")
+    system_id = _insert_system(db, key="map_bad_strength", uri="https://aptc.example.org/mbs")
     code_id = _insert_code(db, system_id=system_id)
 
     with pytest.raises(IntegrityError) as exc_info:
@@ -357,7 +357,7 @@ def test_match_strength_check_lists_exactly_the_enum_values() -> None:
 def test_the_migrated_database_accepts_every_match_strength(
     db: Connection, strength: SnomedMapMatchStrength
 ) -> None:
-    system_id = _insert_system(db, key="map_each_strength", uri="https://nptc.example.org/mes")
+    system_id = _insert_system(db, key="map_each_strength", uri="https://aptc.example.org/mes")
     code_id = _insert_code(db, system_id=system_id)
 
     try:
@@ -382,7 +382,7 @@ def test_the_migrated_database_accepts_every_match_strength(
 def test_map_row_advisory_note_cannot_be_blank(db: Connection) -> None:
     """FR-91: the map MUST be explicit that it is advisory - every row
     carries its own caveat, never an empty one."""
-    system_id = _insert_system(db, key="map_blank_note", uri="https://nptc.example.org/mbn")
+    system_id = _insert_system(db, key="map_blank_note", uri="https://aptc.example.org/mbn")
     code_id = _insert_code(db, system_id=system_id)
 
     with pytest.raises(IntegrityError) as exc_info:
@@ -397,7 +397,7 @@ def test_one_local_code_may_have_two_ambiguous_map_rows(db: Connection) -> None:
     """PRD SS6.6: `Microbiology` is genuinely ambiguous between two SNOMED
     candidates - no uniqueness constraint on `local_code_id` collapses
     this to one row."""
-    system_id = _insert_system(db, key="microbiology_map", uri="https://nptc.example.org/mm")
+    system_id = _insert_system(db, key="microbiology_map", uri="https://aptc.example.org/mm")
     code_id = _insert_code(db, system_id=system_id, code="microbiology", display="Microbiology")
 
     _insert_map_row(
@@ -427,7 +427,7 @@ def test_one_local_code_may_have_two_ambiguous_map_rows(db: Connection) -> None:
 
 @pytest.mark.integration
 def test_app_role_can_insert_select_and_update_local_code_system(app_db: Connection) -> None:
-    system_id = _insert_system(app_db, key="app_role_system", uri="https://nptc.example.org/ars")
+    system_id = _insert_system(app_db, key="app_role_system", uri="https://aptc.example.org/ars")
 
     app_db.execute(
         text("UPDATE local_code_system SET status = 'deprecated' WHERE id = :id"),
@@ -441,7 +441,7 @@ def test_app_role_can_insert_select_and_update_local_code_system(app_db: Connect
 
 @pytest.mark.integration
 def test_app_role_is_refused_update_of_local_code_system_key(app_db: Connection) -> None:
-    system_id = _insert_system(app_db, key="immutable_key", uri="https://nptc.example.org/ik")
+    system_id = _insert_system(app_db, key="immutable_key", uri="https://aptc.example.org/ik")
 
     with pytest.raises(ProgrammingError) as exc_info:
         app_db.execute(
@@ -454,7 +454,7 @@ def test_app_role_is_refused_update_of_local_code_system_key(app_db: Connection)
 
 @pytest.mark.integration
 def test_app_role_is_refused_delete_of_local_code_system(app_db: Connection) -> None:
-    system_id = _insert_system(app_db, key="no_delete_system", uri="https://nptc.example.org/nds")
+    system_id = _insert_system(app_db, key="no_delete_system", uri="https://aptc.example.org/nds")
 
     with pytest.raises(ProgrammingError) as exc_info:
         app_db.execute(text("DELETE FROM local_code_system WHERE id = :id"), {"id": system_id})
@@ -464,7 +464,7 @@ def test_app_role_is_refused_delete_of_local_code_system(app_db: Connection) -> 
 
 @pytest.mark.integration
 def test_app_role_is_refused_update_of_local_code_code(app_db: Connection) -> None:
-    system_id = _insert_system(app_db, key="app_role_code", uri="https://nptc.example.org/arc")
+    system_id = _insert_system(app_db, key="app_role_code", uri="https://aptc.example.org/arc")
     code_id = _insert_code(app_db, system_id=system_id)
 
     with pytest.raises(ProgrammingError) as exc_info:
@@ -477,7 +477,7 @@ def test_app_role_is_refused_update_of_local_code_code(app_db: Connection) -> No
 
 @pytest.mark.integration
 def test_app_role_is_refused_delete_of_local_code(app_db: Connection) -> None:
-    system_id = _insert_system(app_db, key="no_delete_code", uri="https://nptc.example.org/ndc")
+    system_id = _insert_system(app_db, key="no_delete_code", uri="https://aptc.example.org/ndc")
     code_id = _insert_code(app_db, system_id=system_id)
 
     with pytest.raises(ProgrammingError) as exc_info:
@@ -488,7 +488,7 @@ def test_app_role_is_refused_delete_of_local_code(app_db: Connection) -> None:
 
 @pytest.mark.integration
 def test_app_role_can_insert_and_select_map_row(app_db: Connection) -> None:
-    system_id = _insert_system(app_db, key="app_role_map", uri="https://nptc.example.org/arm")
+    system_id = _insert_system(app_db, key="app_role_map", uri="https://aptc.example.org/arm")
     code_id = _insert_code(app_db, system_id=system_id)
 
     map_row_id = _insert_map_row(app_db, local_code_id=code_id)
@@ -504,7 +504,7 @@ def test_app_role_can_insert_and_select_map_row(app_db: Connection) -> None:
 def test_app_role_is_refused_update_of_map_row(app_db: Connection) -> None:
     """FR-91: an advisory map row is never edited, only replaced - see
     `LocalCodeSnomedMap`'s own module docstring."""
-    system_id = _insert_system(app_db, key="no_update_map", uri="https://nptc.example.org/num")
+    system_id = _insert_system(app_db, key="no_update_map", uri="https://aptc.example.org/num")
     code_id = _insert_code(app_db, system_id=system_id)
     map_row_id = _insert_map_row(app_db, local_code_id=code_id)
 
@@ -520,7 +520,7 @@ def test_app_role_is_refused_update_of_map_row(app_db: Connection) -> None:
 @pytest.mark.req("FR-91")
 @pytest.mark.integration
 def test_app_role_is_refused_delete_of_map_row(app_db: Connection) -> None:
-    system_id = _insert_system(app_db, key="no_delete_map", uri="https://nptc.example.org/ndm")
+    system_id = _insert_system(app_db, key="no_delete_map", uri="https://aptc.example.org/ndm")
     code_id = _insert_code(app_db, system_id=system_id)
     map_row_id = _insert_map_row(app_db, local_code_id=code_id)
 
@@ -532,7 +532,7 @@ def test_app_role_is_refused_delete_of_map_row(app_db: Connection) -> None:
 
 @pytest.mark.integration
 def test_app_role_is_refused_truncate_of_map_row(app_db: Connection) -> None:
-    system_id = _insert_system(app_db, key="no_truncate_map", uri="https://nptc.example.org/ntm")
+    system_id = _insert_system(app_db, key="no_truncate_map", uri="https://aptc.example.org/ntm")
     code_id = _insert_code(app_db, system_id=system_id)
     _insert_map_row(app_db, local_code_id=code_id)
 

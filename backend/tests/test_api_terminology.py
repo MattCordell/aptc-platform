@@ -1,9 +1,9 @@
-"""HTTP tests for `nptc.api.routers.terminology` (issue #240, FR-26).
+"""HTTP tests for `aptc.api.routers.terminology` (issue #240, FR-26).
 
 Follows `test_api_registry_properties.py`'s own precedent: the domain logic
 already has its own unit tests (a follow-up to this module, over
-`nptc.terminology.concepts.resolve_concept` directly); this module proves
-the HTTP adapter - status codes, the `nptc.api.errors` mapping, and
+`aptc.terminology.concepts.resolve_concept` directly); this module proves
+the HTTP adapter - status codes, the `aptc.api.errors` mapping, and
 `Permission.REGISTRY_READ` authorisation - against the real `create_app()`,
 with `api.terminology` (a `StubTerminologyClient`, installed centrally by
 `api_app_support.build_api_test_app`) standing in for the terminology
@@ -21,8 +21,8 @@ from typing import Any
 import pytest
 from sqlalchemy.engine import Connection
 
-from nptc.auth.permissions import Role
-from nptc_shared.terminology import (
+from aptc.auth.permissions import Role
+from aptc_shared.terminology import (
     AU_LANGUAGE_TAG,
     SNOMED_SYSTEM,
     Designation,
@@ -89,7 +89,7 @@ def test_lookup_serves_the_injected_settings_not_the_environment(
     api: ApiTestApp, hostile_api_settings_env: None
 ) -> None:
     """`get_concept` used to call `get_api_settings()` itself, so an invalid
-    `NPTC_FSN_SEMANTIC_TAG` in the environment 500'd the route although the
+    `APTC_FSN_SEMANTIC_TAG` in the environment 500'd the route although the
     app was built with good settings."""
     _seed_concept(api)
     token = api.exact_role_token(subject="sub-lookup-injected", role=Role.PROVISIONAL)
@@ -131,7 +131,7 @@ def test_lookup_resolves_fsn_with_tag_and_au_preferred_term(api: ApiTestApp) -> 
 def test_lookup_18_digit_code_round_trips_exactly_as_a_string(api: ApiTestApp) -> None:
     """The failure mode FR-06 exists to eliminate: an SCTID long enough to
     lose precision or leading-zero semantics if it were ever coerced to a
-    number (`nptc_shared.sctid`'s own module docstring) - a 6-18 digit code
+    number (`aptc_shared.sctid`'s own module docstring) - a 6-18 digit code
     at the long end of that range, asserted against the raw response text,
     not just the parsed JSON `code` field `isinstance` would already accept
     silently if it were a number by the time this test saw it."""
@@ -366,7 +366,7 @@ def test_lookup_operation_outcome_body_is_502(api: ApiTestApp) -> None:
 @pytest.mark.req("FR-54")
 @pytest.mark.integration
 def test_lookup_unseeded_stub_is_502_never_404(api: ApiTestApp) -> None:
-    """The landmine `nptc.terminology.concepts`'s own module docstring
+    """The landmine `aptc.terminology.concepts`'s own module docstring
     names: `StubNotSeededError` is a bare `TerminologyError`, neither a
     status nor a transport failure, so it must fall through to the 502
     catch-all - reading it as 404 would let an unseeded stub answer every
@@ -383,7 +383,7 @@ def test_lookup_unseeded_stub_is_502_never_404(api: ApiTestApp) -> None:
 def test_lookup_terminology_config_error_is_500(api: ApiTestApp) -> None:
     """Round-2 review: `TerminologyConfigError` is a `TerminologyError`
     subclass `resolve_concept` re-raises unchanged, so it must reach
-    `nptc.api.errors`'s own config-error handler (500) rather than falling
+    `aptc.api.errors`'s own config-error handler (500) rather than falling
     into `classify_terminology_error`'s 502 catch-all."""
     api.terminology.seed_error(Operation.LOOKUP, TerminologyConfigError("bad config"), key=_CODE)
     token = api.exact_role_token(subject="sub-lookup-config-error", role=Role.PROVISIONAL)

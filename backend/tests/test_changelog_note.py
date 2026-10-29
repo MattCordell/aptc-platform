@@ -1,6 +1,6 @@
 """FR-37 changelog note validation (issue #47).
 
-Pure-function tests, no database - `nptc.catalogue.changelog` has no
+Pure-function tests, no database - `aptc.catalogue.changelog` has no
 dependency on a session or model.
 """
 
@@ -11,7 +11,7 @@ import unicodedata
 
 import pytest
 
-from nptc.catalogue.changelog import (
+from aptc.catalogue.changelog import (
     _HAS_LETTER_RE,
     MINIMUM_NOTE_LENGTH,
     SEED_IMPORT_NOTE,

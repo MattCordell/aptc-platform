@@ -18,16 +18,16 @@ here weakens that. What ADR-0029 settles is that the two mechanisms are
 complementary rather than alternative - full-text is the half that matches an
 inflected or pluralised form, which trigram scores as a near-miss, and
 trigram is the half that survives a typo, which full-text cannot see at all.
-`nptc.catalogue.search._SEARCH_SQL` scans both and keeps the better score per
+`aptc.catalogue.search._SEARCH_SQL` scans both and keeps the better score per
 entry, so the trigram indexes 0012 created are still load-bearing and are
 left exactly as they are.
 
 **Why the function pair must be created before the indexes.** Four of the
-seven index expressions call `nptc_search_document`, which in turn calls
-0012's `nptc_search_text`, so the order is create-functions then
+seven index expressions call `aptc_search_document`, which in turn calls
+0012's `aptc_search_text`, so the order is create-functions then
 create-indexes and the exact reverse on downgrade - the same dependency shape
-0012 already has, and 0008 before it for `nptc_sctid_is_valid`.
-`nptc_search_query` is created here too even though no index references it:
+0012 already has, and 0008 before it for `aptc_sctid_is_valid`.
+`aptc_search_query` is created here too even though no index references it:
 it is the query-side half of the same pair, and splitting the two across
 migrations would let a deployment exist in which documents and queries are
 lexed by configurations that were never introduced together.
@@ -53,7 +53,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-from nptc.db import functions
+from aptc.db import functions
 
 # revision identifiers, used by Alembic.
 revision: str = "0015"
@@ -72,20 +72,20 @@ _ACTIVE_ONLY = "status = 'active'"
 
 def upgrade() -> None:
     # Must precede every create_index below: four of them inline
-    # `nptc_search_document`, which itself calls 0012's `nptc_search_text`.
+    # `aptc_search_document`, which itself calls 0012's `aptc_search_text`.
     op.execute(functions.CREATE_SEARCH_DOCUMENT_FUNCTION_SQL)
     op.execute(functions.CREATE_SEARCH_QUERY_FUNCTION_SQL)
 
     op.create_index(
         "ix_catalogue_entry_preferred_term_fts",
         "catalogue_entry",
-        [sa.text("nptc_search_document(preferred_term)")],
+        [sa.text("aptc_search_document(preferred_term)")],
         postgresql_using="gin",
     )
     op.create_index(
         "ix_designation_term_fts",
         "designation",
-        [sa.text("nptc_search_document(term)")],
+        [sa.text("aptc_search_document(term)")],
         postgresql_using="gin",
         postgresql_where=sa.text(_ACTIVE_ONLY),
     )
@@ -99,30 +99,30 @@ def upgrade() -> None:
     op.create_index(
         "ix_code_binding_fsn_trgm",
         "code_binding",
-        [sa.text("nptc_search_text(fsn)")],
+        [sa.text("aptc_search_text(fsn)")],
         postgresql_using="gin",
-        postgresql_ops={"nptc_search_text(fsn)": "gin_trgm_ops"},
+        postgresql_ops={"aptc_search_text(fsn)": "gin_trgm_ops"},
         postgresql_where=sa.text(_ACTIVE_ONLY),
     )
     op.create_index(
         "ix_code_binding_fsn_fts",
         "code_binding",
-        [sa.text("nptc_search_document(fsn)")],
+        [sa.text("aptc_search_document(fsn)")],
         postgresql_using="gin",
         postgresql_where=sa.text(_ACTIVE_ONLY),
     )
     op.create_index(
         "ix_code_binding_au_preferred_term_trgm",
         "code_binding",
-        [sa.text("nptc_search_text(au_preferred_term)")],
+        [sa.text("aptc_search_text(au_preferred_term)")],
         postgresql_using="gin",
-        postgresql_ops={"nptc_search_text(au_preferred_term)": "gin_trgm_ops"},
+        postgresql_ops={"aptc_search_text(au_preferred_term)": "gin_trgm_ops"},
         postgresql_where=sa.text(_ACTIVE_ONLY),
     )
     op.create_index(
         "ix_code_binding_au_preferred_term_fts",
         "code_binding",
-        [sa.text("nptc_search_document(au_preferred_term)")],
+        [sa.text("aptc_search_document(au_preferred_term)")],
         postgresql_using="gin",
         postgresql_where=sa.text(_ACTIVE_ONLY),
     )

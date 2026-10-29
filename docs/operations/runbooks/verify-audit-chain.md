@@ -4,26 +4,26 @@
 reports the first broken link, so chain integrity can be checked on demand - or from a
 scheduled check - rather than only inferred from application behaviour (NFR-12/NFR-13's
 sibling requirements NFR-10 and NFR-38 test 5), delivered with backlog issue
-[#38](https://github.com/MattCordell/nptc-platform/issues/38). It is a thin operator
-wrapper around `nptc.audit.verification.verify_chain`, built with backlog issue
-[#36](https://github.com/MattCordell/nptc-platform/issues/36)
+[#38](https://github.com/MattCordell/aptc-platform/issues/38). It is a thin operator
+wrapper around `aptc.audit.verification.verify_chain`, built with backlog issue
+[#36](https://github.com/MattCordell/aptc-platform/issues/36)
 ([ADR-0017](../../adr/0017-audit-hash-chain.md)); no new verification logic lives here.
 
 The command issues `SELECT`s only - it never needs the application's write role
-(`nptc_app`'s INSERT/SELECT grant, NFR-09), so it can run against a read-only replica or
+(`aptc_app`'s INSERT/SELECT grant, NFR-09), so it can run against a read-only replica or
 a restored backup without ever touching a primary.
 
 ## Usage
 
 ```powershell
 uv run python scripts/verify_audit_chain.py
-uv run python scripts/verify_audit_chain.py --database-url postgresql+psycopg://nptc_app_login:change-me@localhost:5432/nptc
+uv run python scripts/verify_audit_chain.py --database-url postgresql+psycopg://aptc_app_login:change-me@localhost:5432/aptc
 uv run python scripts/verify_audit_chain.py --expected-head-hash <64-hex> --expected-record-count 42
 ```
 
 | Flag | Default | Meaning |
 |---|---|---|
-| `--database-url` | *(none)* | DSN to connect with. Falls back to `NPTC_AUDIT_VERIFY_DATABASE_URL`, then `NPTC_DATABASE_URL`, if not given. Use this for a one-off run against a replica or a restored backup. |
+| `--database-url` | *(none)* | DSN to connect with. Falls back to `APTC_AUDIT_VERIFY_DATABASE_URL`, then `APTC_DATABASE_URL`, if not given. Use this for a one-off run against a replica or a restored backup. |
 | `--expected-head-hash` | *(none)* | 64-character lowercase hex `entry_hash`. Fails (exit `4`) if the verified chain's head differs - see "Tail truncation and anchoring" below. |
 | `--expected-record-count` | *(none)* | Fails (exit `4`) if the verified row count differs. Can be used with or without `--expected-head-hash`. |
 | `--batch-size` | `500` | Rows fetched per round trip to the database, passed straight through to `verify_chain`. |
@@ -34,7 +34,7 @@ uv run python scripts/verify_audit_chain.py --expected-head-hash <64-hex> --expe
 |---|---|
 | `0` | The chain is intact. Prints the record count, the `sequence` range verified, and the head `entry_hash` to **stdout**. An empty `audit_event` table exits `0` with a count of `0` - this is an explicit acceptance criterion, not an error. |
 | `1` | A break was found. Prints (to **stderr**) the **first** broken `sequence`, the break reason (`prev_hash mismatch` or `entry_hash mismatch`), and how many rows were walked before it. Rows after the break are never re-confirmed as "also broken" - the first break is the location an operator needs. This code means only this - see "Exit 1 means only a break" below. |
-| `2` | Usage/configuration error: no DSN resolvable from `--database-url`, `NPTC_AUDIT_VERIFY_DATABASE_URL` or `NPTC_DATABASE_URL`; an explicitly-empty `--database-url ""`; a malformed `--expected-head-hash` (not 64 lowercase hex characters), `--expected-record-count` (not a non-negative integer), or `--batch-size` (not a positive integer); or a set-but-malformed `NPTC_DATABASE_URL` (e.g. whitespace-only) - reported with a message distinct from "no DSN configured anywhere". |
+| `2` | Usage/configuration error: no DSN resolvable from `--database-url`, `APTC_AUDIT_VERIFY_DATABASE_URL` or `APTC_DATABASE_URL`; an explicitly-empty `--database-url ""`; a malformed `--expected-head-hash` (not 64 lowercase hex characters), `--expected-record-count` (not a non-negative integer), or `--batch-size` (not a positive integer); or a set-but-malformed `APTC_DATABASE_URL` (e.g. whitespace-only) - reported with a message distinct from "no DSN configured anywhere". |
 | `3` | Could not complete: the database was unreachable, the DBAPI driver named by the DSN scheme isn't installed, the DSN itself was malformed, the connection dropped mid-walk, or the connection succeeded but `audit_event` doesn't exist (an unmigrated database). An outage or environment problem, not a finding about the chain itself - see "Exit 1 means only a break" below. The message names only the exception's type, never its full text, since that can carry connection details (NFR-26/NFR-35). |
 | `4` | The chain itself verified (`0` would otherwise apply, and the same `OK:` line prints to stdout), but the head `entry_hash` and/or record count didn't match what `--expected-head-hash`/`--expected-record-count` supplied - reported to **stderr**. This is the tail-truncation signal - see below. |
 
@@ -63,7 +63,7 @@ A `1` exit names the exact `sequence` where the chain first diverges from its ow
 recorded hash - that row (or, for a `prev_hash mismatch`, the row immediately after a
 deleted or reordered predecessor) is where to start investigating: pull `audit_event`
 around that `sequence`, and cross-reference with database access logs for who could have
-issued a direct `UPDATE`/`DELETE` against it (only the owner role can; `nptc_app` cannot -
+issued a direct `UPDATE`/`DELETE` against it (only the owner role can; `aptc_app` cannot -
 NFR-09). `entry_hash mismatch` means that row's own content changed since it was written.
 `prev_hash mismatch` means either that row's stored `prev_hash` was tampered with, or its
 true predecessor was deleted outright, breaking the link at the successor.

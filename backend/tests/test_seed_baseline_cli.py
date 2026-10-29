@@ -17,9 +17,9 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine
 from testcontainers.community.postgres import PostgresContainer
 
-from nptc.db import property_reconciler
-from nptc.db.property_indexes import index_name
-from nptc.db.property_reconciler import ReconciliationReport
+from aptc.db import property_reconciler
+from aptc.db.property_indexes import index_name
+from aptc.db.property_reconciler import ReconciliationReport
 
 pytestmark = [
     pytest.mark.integration,
@@ -129,7 +129,7 @@ def test_a_collision_rolls_the_whole_import_back(
 
     assert code == cli.EXIT_IMPORT_REFUSED
     err = capsys.readouterr().err
-    assert "NPTC-500002" in err
+    assert "APTC-500002" in err
     assert "rolled back" in err
     assert _committed_count(owner_engine, "catalogue_entry") == 0
     assert _committed_count(owner_engine, "seed_import") == 0
@@ -153,7 +153,7 @@ def test_an_uncoded_specimen_refuses_the_dataset_and_names_the_value(
     assert code == cli.EXIT_DATASET_REFUSED
     err = capsys.readouterr().err
     assert "Amniotic fluid" in err
-    assert "NPTC-500001" in err
+    assert "APTC-500001" in err
     assert _committed_count(owner_engine, "catalogue_entry") == 0
 
 
@@ -193,9 +193,9 @@ _UNREACHABLE_INDEXER_DSN = (
 
 @pytest.fixture(autouse=True)
 def _no_ambient_indexer_dsn(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A developer's own `NPTC_INDEXER_DATABASE_URL` must not make a test build indexes in a
+    """A developer's own `APTC_INDEXER_DATABASE_URL` must not make a test build indexes in a
     database it never named."""
-    monkeypatch.delenv("NPTC_INDEXER_DATABASE_URL", raising=False)
+    monkeypatch.delenv("APTC_INDEXER_DATABASE_URL", raising=False)
 
 
 def _system_index_names(owner_engine: Engine, keys: list[str]) -> list[str]:

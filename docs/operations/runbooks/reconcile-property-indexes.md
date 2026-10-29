@@ -3,9 +3,9 @@
 `scripts/reconcile_property_indexes.py` converges the indexes `property_value` actually
 carries against every `property_definition` row's own desired index - the automatic index
 generation FR-13 requires (backlog issue
-[#54](https://github.com/MattCordell/nptc-platform/issues/54)), so making a property
+[#54](https://github.com/MattCordell/aptc-platform/issues/54)), so making a property
 searchable never depends on someone remembering to write a migration. It is a thin
-operator wrapper around `nptc.db.property_reconciler.reconcile_property_indexes`; no new
+operator wrapper around `aptc.db.property_reconciler.reconcile_property_indexes`; no new
 reconciliation logic lives here.
 
 **You normally do not need it.** The API runs the same reconciler by itself after a registry
@@ -46,7 +46,7 @@ seconds and tries again, up to five attempts. A run that never gets the lock cou
 Both name index names and exception types only, never an exception message. To recover, fix the
 cause, then run the CLI below. A real run repairs everything the failed run left.
 
-**With `NPTC_INDEXER_DATABASE_URL` unset**, the run does not start. The API logs a warning
+**With `APTC_INDEXER_DATABASE_URL` unset**, the run does not start. The API logs a warning
 (`property index reconciliation is not configured`) and writes no audit event, because this is a
 valid setup. Run the CLI after each change that affects an index. The compose stack sets the
 variable for you.
@@ -60,13 +60,13 @@ was unset or the run failed, run this CLI to finish the job. See
 
 ```powershell
 uv run python scripts/reconcile_property_indexes.py
-uv run python scripts/reconcile_property_indexes.py --database-url postgresql+psycopg://nptc_indexer:change-me@localhost:5432/nptc
+uv run python scripts/reconcile_property_indexes.py --database-url postgresql+psycopg://aptc_indexer:change-me@localhost:5432/aptc
 uv run python scripts/reconcile_property_indexes.py --dry-run
 ```
 
 | Flag | Default | Meaning |
 |---|---|---|
-| `--database-url` | *(none)* | DSN to reconcile with. Falls back to `NPTC_INDEXER_DATABASE_URL` if not given. Must be a role that owns `property_value` - see [`upgrade.md`](../upgrade.md#provisioning-the-index-reconcilers-login-issues-54-and-274-fr-13) for provisioning one. |
+| `--database-url` | *(none)* | DSN to reconcile with. Falls back to `APTC_INDEXER_DATABASE_URL` if not given. Must be a role that owns `property_value` - see [`upgrade.md`](../upgrade.md#provisioning-the-index-reconcilers-login-issues-54-and-274-fr-13) for provisioning one. |
 | `--dry-run` | off | Reports what would change without executing any DDL. |
 
 ## When to run it
@@ -74,7 +74,7 @@ uv run python scripts/reconcile_property_indexes.py --dry-run
 - After a `property_index.reconciliation_failed` audit event or error log line, once you have
   fixed the cause.
 - After flagging a property `filterable` (or un-flagging one), if
-  `NPTC_INDEXER_DATABASE_URL` is not configured in the API process itself - this is the
+  `APTC_INDEXER_DATABASE_URL` is not configured in the API process itself - this is the
   "converge now" path for that deployment shape.
 - On a schedule, as a safety net: the reconciler repairs an index a failed
   `CREATE INDEX CONCURRENTLY` left `indisvalid = false`, which nothing else notices on its
@@ -91,7 +91,7 @@ report `SKIPPED` rather than racing or erroring.
 |---|---|
 | `0` | Converged - either there was nothing to do, or (a real, non-`--dry-run` run) drift was found and fixed. "Found and fixed" is success here, not a failure code, since fixing it is the whole point of running the command. Also returned when another reconciliation was already in progress (`SKIPPED`). |
 | `1` | `--dry-run` only: drift was found and reported, but nothing was executed. Never returned by a real run. |
-| `2` | Usage error: no DSN resolvable from `--database-url`/`NPTC_INDEXER_DATABASE_URL`, or an explicitly-empty `--database-url ""`. |
+| `2` | Usage error: no DSN resolvable from `--database-url`/`APTC_INDEXER_DATABASE_URL`, or an explicitly-empty `--database-url ""`. |
 | `3` | Could not complete: the database was unreachable, the credential lacked the privilege to `CREATE`/`DROP INDEX`, the connection dropped mid-run, any other environment problem, or (a real, non-`--dry-run` run only) one or more individual indexes failed to converge, or a filterable property's `datatype` has no registered handler at all - see the `FAILED` / `SKIPPED (unknown datatype)` lines. Not a finding about drift on the indexes that *did* converge; those are still reported and left in their new state. The message names only the exception's type, never its full text, since that can carry connection details (NFR-26/NFR-35). |
 
 These codes are stable and safe to depend on from a scheduled check.

@@ -18,31 +18,31 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import reconcile_property_indexes as cli
 
-from nptc.db.property_reconciler import ReconciliationReport
+from aptc.db.property_reconciler import ReconciliationReport
 
 # --- DSN resolution ---------------------------------------------------------
 
 
 def test_cli_flag_takes_precedence_over_env_var(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("NPTC_INDEXER_DATABASE_URL", "postgresql://env")
+    monkeypatch.setenv("APTC_INDEXER_DATABASE_URL", "postgresql://env")
     assert cli._resolve_database_url("postgresql://cli") == "postgresql://cli"
 
 
 def test_falls_back_to_indexer_env_var(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("NPTC_INDEXER_DATABASE_URL", "postgresql://env")
+    monkeypatch.setenv("APTC_INDEXER_DATABASE_URL", "postgresql://env")
     assert cli._resolve_database_url(None) == "postgresql://env"
 
 
 def test_empty_cli_flag_is_rejected_rather_than_falling_through(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("NPTC_INDEXER_DATABASE_URL", "postgresql://env")
+    monkeypatch.setenv("APTC_INDEXER_DATABASE_URL", "postgresql://env")
     with pytest.raises(ValueError, match="--database-url must not be empty"):
         cli._resolve_database_url("")
 
 
 def test_no_dsn_configured_is_a_usage_error(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("NPTC_INDEXER_DATABASE_URL", raising=False)
+    monkeypatch.delenv("APTC_INDEXER_DATABASE_URL", raising=False)
     assert cli.main([]) == cli.EXIT_USAGE_ERROR
 
 
@@ -53,7 +53,7 @@ def _patch_reconcile(monkeypatch: pytest.MonkeyPatch, report: ReconciliationRepo
     mock = MagicMock(return_value=report)
     fake_module = MagicMock()
     fake_module.reconcile_property_indexes = mock
-    monkeypatch.setattr("nptc.db.property_reconciler", fake_module)
+    monkeypatch.setattr("aptc.db.property_reconciler", fake_module)
     return mock
 
 
@@ -135,14 +135,14 @@ def test_cli_forwards_the_resolved_dsn_directly_never_via_os_environ(
     """Issue #54 review: a DDL-capable DSN must never be written into
     `os.environ` just to smuggle it past `IndexerSettings` - every
     subprocess this process spawns would otherwise inherit it."""
-    monkeypatch.delenv("NPTC_INDEXER_DATABASE_URL", raising=False)
+    monkeypatch.delenv("APTC_INDEXER_DATABASE_URL", raising=False)
     mock = _patch_reconcile(monkeypatch, ReconciliationReport())
 
     code = cli.main(["--database-url", "postgresql://explicit-dsn"])
 
     assert code == cli.EXIT_OK
     mock.assert_called_once_with(dry_run=False, database_url="postgresql://explicit-dsn")
-    assert "NPTC_INDEXER_DATABASE_URL" not in os.environ
+    assert "APTC_INDEXER_DATABASE_URL" not in os.environ
 
 
 def test_a_failed_index_during_a_real_run_is_could_not_complete(
@@ -199,7 +199,7 @@ def test_reconciliation_failure_is_could_not_complete_never_the_raw_exception(
     fake_module.reconcile_property_indexes.side_effect = RuntimeError(
         "connection to host secret-db-host.internal failed"
     )
-    monkeypatch.setattr("nptc.db.property_reconciler", fake_module)
+    monkeypatch.setattr("aptc.db.property_reconciler", fake_module)
 
     code = cli.main(["--database-url", "postgresql://x"])
 

@@ -1,7 +1,7 @@
 """Every migration that writes `property_value` calls the foreign-code guard (FR-13).
 
-`nptc_indexer` owns `property_value` and can plant code that runs as the next writer, which in a
-migration is the migration role. `nptc.db.migration_guards.refuse_foreign_code_on_property_value`
+`aptc_indexer` owns `property_value` and can plant code that runs as the next writer, which in a
+migration is the migration role. `aptc.db.migration_guards.refuse_foreign_code_on_property_value`
 is the check, and nothing but this test makes a future migration call it.
 
 Pure `ast`, no container, in the style of `test_audit_write_path_guard.py`, with positive controls
@@ -75,7 +75,7 @@ def test_every_migration_that_writes_property_value_calls_the_guard() -> None:
 
     assert unguarded == [], (
         "these migrations write property_value without calling "
-        f"nptc.db.migration_guards.{_GUARD} first: {unguarded}"
+        f"aptc.db.migration_guards.{_GUARD} first: {unguarded}"
     )
 
 

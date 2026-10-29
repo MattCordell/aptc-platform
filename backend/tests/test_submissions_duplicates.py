@@ -1,4 +1,4 @@
-"""`nptc.submissions.duplicates.find_duplicates` tests (FR-25).
+"""`aptc.submissions.duplicates.find_duplicates` tests (FR-25).
 
 Every term and key here is random, and every assertion is about rows this test created, because
 `backend/tests` shares one Postgres container (see `CLAUDE.md`). A term is a run of random letters,
@@ -18,14 +18,14 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import ClauseElement, Executable
 
-from nptc.catalogue.queries import PUBLIC_STATUSES
-from nptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
-from nptc.db.models.code_binding import CodeBinding
-from nptc.db.models.designation import Designation, DesignationStatus
-from nptc.db.models.submission import CLOSED_SUBMISSION_STATES, Submission, SubmissionState
-from nptc.db.models.user import User
-from nptc.submissions import duplicates
-from nptc.submissions.duplicates import (
+from aptc.catalogue.queries import PUBLIC_STATUSES
+from aptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
+from aptc.db.models.code_binding import CodeBinding
+from aptc.db.models.designation import Designation, DesignationStatus
+from aptc.db.models.submission import CLOSED_SUBMISSION_STATES, Submission, SubmissionState
+from aptc.db.models.user import User
+from aptc.submissions import duplicates
+from aptc.submissions.duplicates import (
     MAX_MATCHES_PER_SOURCE,
     DuplicateMatch,
     MatchedOn,
@@ -48,7 +48,7 @@ def _near(term: str) -> str:
 
 
 def _business_key() -> str:
-    return f"NPTC-{random.randrange(100_000_000, 999_999_999)}"
+    return f"APTC-{random.randrange(100_000_000, 999_999_999)}"
 
 
 def _entry(

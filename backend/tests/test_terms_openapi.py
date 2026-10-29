@@ -1,7 +1,7 @@
 """The terms refusals as the OpenAPI document declares them (NFR-45, ADR-0043).
 
 The gate is an app-level dependency, which cannot declare a response, so
-`nptc.api.terms_gate.declare_terms_refusal` adds the 403 body to the document. This keeps the
+`aptc.api.terms_gate.declare_terms_refusal` adds the 403 body to the document. This keeps the
 generated client typed for it.
 
 No database: the document is a pure function of the route table.
@@ -14,9 +14,9 @@ from typing import Any
 
 import pytest
 
-from nptc.api.openapi_document import build_document
-from nptc.api.prefix import API_PREFIX
-from nptc.api.terms_gate import EXEMPT_ROUTES
+from aptc.api.openapi_document import build_document
+from aptc.api.prefix import API_PREFIX
+from aptc.api.terms_gate import EXEMPT_ROUTES
 
 _REF = "#/components/schemas/TermsAcceptanceRequiredResponse"
 _SAFE = {"get", "head", "options"}

@@ -1,0 +1,54 @@
+"""Builds the frozen `PropertyDefinitionSpec` view `aptc.registry` handlers take, from the
+`PropertyDefinition` ORM row.
+
+It lives under `aptc.db`, not `aptc.registry`, for the reason `aptc.db.bootstrap` does: it imports
+the `PropertyDefinition` ORM model, which ADR-0013 SS2's leaf rule keeps out of `registry/`. It is
+not in `aptc.catalogue` because `aptc.db.property_indexes` needs the identical conversion to compute
+a property's desired index shape, and `aptc.catalogue` imports `aptc.db`, not the reverse. One
+conversion also means a column added to `PropertyDefinition` cannot update one copy and leave
+another stale.
+"""
+
+from __future__ import annotations
+
+from aptc.db.models.property_definition import PropertyDefinition
+from aptc.registry.handlers import BindingSpec, PropertyDefinitionSpec
+
+__all__ = ["spec_for"]
+
+
+def _binding_spec(definition: PropertyDefinition) -> BindingSpec | None:
+    if definition.binding_target is None:
+        return None
+    return BindingSpec(
+        binding_target=definition.binding_target,
+        value_set_uri=definition.value_set_uri,
+        strength=definition.strength or "",
+        edition=definition.edition or "",
+        local_code_system_key=definition.local_code_system_key,
+    )
+
+
+def _scope(definition: PropertyDefinition) -> frozenset[str]:
+    if definition.scope == "both":
+        return frozenset({"submission", "maintenance"})
+    return frozenset({definition.scope})
+
+
+def spec_for(definition: PropertyDefinition) -> PropertyDefinitionSpec:
+    """The frozen view `aptc.registry` handlers and `validate_values` take, never the ORM row
+    itself: `aptc.registry` must not import `aptc.db` (ADR-0013 SS2's leaf rule), so the conversion
+    happens on the `aptc.db` side.
+    """
+    return PropertyDefinitionSpec(
+        key=definition.key,
+        label=definition.label,
+        datatype=definition.datatype,
+        cardinality=definition.cardinality,
+        scope=_scope(definition),
+        required_for_submission=definition.required_for_submission,
+        required_for_publication=definition.required_for_publication,
+        binding=_binding_spec(definition),
+        filterable=definition.filterable,
+        constraints=definition.constraints,
+    )

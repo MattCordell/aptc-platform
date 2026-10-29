@@ -1,6 +1,6 @@
 """FR-77's named enforcement mechanism (ADR-0013 SS5): a pure-`ast` guard
 proving no `switch`/`match` on property datatype exists outside
-`backend/src/nptc/registry/datatypes/`.
+`backend/src/aptc/registry/datatypes/`.
 
 Modelled directly on `test_sql_parameterisation.py` (NFR-22's guard): same
 `SCAN_DIRS` (imported from `ast_guard_support`, not a second constant that
@@ -14,9 +14,9 @@ as tests that must not start Docker (`conftest.py`'s `migrated` fixture is
 deliberately not autouse for exactly this reason).
 
 The known-datatype literal set is imported from `BUILTIN_DATATYPES`
-(`nptc.registry.datatypes`), never hardcoded here - a hardcoded list would
+(`aptc.registry.datatypes`), never hardcoded here - a hardcoded list would
 make this guard a second enumeration of the valid set, i.e. the guard would
-itself violate the requirement it enforces. `backend/src/nptc/registry/datatypes/`
+itself violate the requirement it enforces. `backend/src/aptc/registry/datatypes/`
 is excluded from **this** guard only, never from `test_sql_parameterisation.py`;
 `backend/tests` is outside `SCAN_DIRS` either way, so #53's synthetic-datatype
 test may use datatype literals freely.
@@ -37,8 +37,8 @@ Four rules:
    `default`/`fallback` key", which a subset test alone would miss because
    it is a superset).
 4. `registry-imports-sibling` - an import inside `registry/**` naming
-   `nptc.db`, `nptc.catalogue`, `nptc.exports`, `nptc.api`, `nptc.validation`,
-   `nptc.submissions`, `nptc.releases`, or `nptc.jobs` (ADR-0013 SS2's leaf
+   `aptc.db`, `aptc.catalogue`, `aptc.exports`, `aptc.api`, `aptc.validation`,
+   `aptc.submissions`, `aptc.releases`, or `aptc.jobs` (ADR-0013 SS2's leaf
    rule made mechanical).
 
 **Worked false-positive analysis**: `{"code": "12345", "system":
@@ -102,29 +102,29 @@ REPO_ROOT = _ast_guard_support.REPO_ROOT
 SCAN_DIRS = _ast_guard_support.SCAN_DIRS
 _display = _ast_guard_support.display_path
 
-from nptc.registry.datatypes import BUILTIN_DATATYPES  # noqa: E402
+from aptc.registry.datatypes import BUILTIN_DATATYPES  # noqa: E402
 
 _KNOWN_DATATYPES = frozenset(BUILTIN_DATATYPES)
 
-#: `backend/src/nptc/registry/datatypes/` is excluded from this guard only -
+#: `backend/src/aptc/registry/datatypes/` is excluded from this guard only -
 #: it is the one place a datatype switch is allowed to live.
-_EXCLUDED_DIR_SUFFIX = str(Path("nptc") / "registry" / "datatypes")
+_EXCLUDED_DIR_SUFFIX = str(Path("aptc") / "registry" / "datatypes")
 
-#: ADR-0013 SS2's leaf rule: `nptc.registry` may import `nptc_shared`,
-#: SQLAlchemy, `jsonschema` and the stdlib, and nothing else from `nptc`.
+#: ADR-0013 SS2's leaf rule: `aptc.registry` may import `aptc_shared`,
+#: SQLAlchemy, `jsonschema` and the stdlib, and nothing else from `aptc`.
 _FORBIDDEN_SIBLING_IMPORTS = frozenset(
     {
-        "nptc.db",
-        "nptc.catalogue",
-        "nptc.exports",
-        "nptc.api",
-        "nptc.validation",
-        "nptc.submissions",
-        "nptc.releases",
-        "nptc.jobs",
+        "aptc.db",
+        "aptc.catalogue",
+        "aptc.exports",
+        "aptc.api",
+        "aptc.validation",
+        "aptc.submissions",
+        "aptc.releases",
+        "aptc.jobs",
     }
 )
-_REGISTRY_DIR_SUFFIX = str(Path("nptc") / "registry")
+_REGISTRY_DIR_SUFFIX = str(Path("aptc") / "registry")
 
 
 @dataclass(frozen=True)
@@ -348,8 +348,8 @@ def also_not_a_violation(binding):
 
 
 def test_guard_flags_a_sibling_import_inside_registry() -> None:
-    bad_source = "from nptc.db import models\n"
-    violations = _check_source(bad_source, "backend/src/nptc/registry/definitions.py")
+    bad_source = "from aptc.db import models\n"
+    violations = _check_source(bad_source, "backend/src/aptc/registry/definitions.py")
     assert [v.rule for v in violations] == ["registry-imports-sibling"]
 
 
@@ -357,6 +357,6 @@ def test_guard_does_not_flag_a_sibling_import_inside_datatypes() -> None:
     """Registry code excluded from the dispatch rules is *not* excluded
     from the leaf-import rule - only `registry/datatypes/` earns the
     dispatch-rule exclusion (module docstring)."""
-    bad_source = "from nptc.db import models\n"
-    violations = _check_source(bad_source, "backend/src/nptc/registry/datatypes/duration.py")
+    bad_source = "from aptc.db import models\n"
+    violations = _check_source(bad_source, "backend/src/aptc/registry/datatypes/duration.py")
     assert [v.rule for v in violations] == ["registry-imports-sibling"]

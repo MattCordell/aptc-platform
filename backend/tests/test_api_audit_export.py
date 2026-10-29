@@ -1,4 +1,4 @@
-"""HTTP tests for `nptc.api.routers.audit`'s export route (issue #286,
+"""HTTP tests for `aptc.api.routers.audit`'s export route (issue #286,
 NFR-12, FR-44, NFR-06, NFR-10).
 
 Matching `test_api_audit_search.py`'s own precedent: the domain-level
@@ -23,10 +23,10 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.engine import Connection
 
-from nptc.audit import hashing as audit_hashing
-from nptc.audit.writer import AuditContext
-from nptc.auth.identity import close_account
-from nptc.db.models.audit import AuditEvent
+from aptc.audit import hashing as audit_hashing
+from aptc.audit.writer import AuditContext
+from aptc.auth.identity import close_account
+from aptc.db.models.audit import AuditEvent
 
 
 def _load(name: str) -> Any:
@@ -140,10 +140,10 @@ def test_export_entry_hash_cannot_be_recomputed_from_the_exported_line_alone(
     """`prev_hash`/`entry_hash` let a reader with database access
     cross-reference an exported line against the stored row - they do not
     make the line, on its own, independently re-hashable (PR #309
-    review): `nptc.audit.hashing.digest_field_names` also covers `id`,
+    review): `aptc.audit.hashing.digest_field_names` also covers `id`,
     `correlation_id`, `actor_ip` and `user_agent`, none of which this
     payload carries. Pinned here so the payload and the documented claim
-    (`nptc.audit.queries.AuditEventRow`, ADR-0039, `docs/user/searching-
+    (`aptc.audit.queries.AuditEventRow`, ADR-0039, `docs/user/searching-
     the-audit-log.md`) cannot silently drift apart again."""
     entity_type = f"test-export-hash-scope-{uuid.uuid4()}"
     actor = _create_active_user(api, "uma-api-audit-export")

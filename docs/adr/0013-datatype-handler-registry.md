@@ -11,7 +11,7 @@ routine, a form control, and a serialiser for each export format" (PRD SS6.5). I
 condition is stated as precisely: "if adding a datatype requires edits in more than the
 handler module and its tests, the requirement has not been met." The check named alongside
 it is "a single test that registers a synthetic datatype and exercises it end to end through
-save, validate, filter and export" - [#53](https://github.com/MattCordell/nptc-platform/issues/53)'s
+save, validate, filter and export" - [#53](https://github.com/MattCordell/aptc-platform/issues/53)'s
 synthetic-datatype test.
 
 [ADR-0012](0012-property-registry-storage-and-validation.md) explicitly fenced this off ("the
@@ -23,11 +23,11 @@ the only place the valid datatype set is known**, so it is also the only thing t
 reject an unknown datatype at write time - a rejection ADR-0012 assumed but did not itself
 specify a mechanism for.
 
-This ADR cannot wait. Storage ([#51](https://github.com/MattCordell/nptc-platform/issues/51)),
+This ADR cannot wait. Storage ([#51](https://github.com/MattCordell/aptc-platform/issues/51)),
 export (the P4 renderers) and search
-([#54](https://github.com/MattCordell/nptc-platform/issues/54)) are all about to be written,
+([#54](https://github.com/MattCordell/aptc-platform/issues/54)) are all about to be written,
 and each is a place a `switch` on datatype naturally accumulates the moment its author reaches
-for the obvious thing. [#53](https://github.com/MattCordell/nptc-platform/issues/53) is
+for the obvious thing. [#53](https://github.com/MattCordell/aptc-platform/issues/53) is
 blocked on this ADR and must not open a PR until it merges.
 
 FR-77 is a SHOULD, but the constraint it places on four MUSTs is what earns an ADR of this
@@ -36,7 +36,7 @@ removal confined to the export renderer) and FR-09 (no migration/restart/deploym
 property). Each of those MUSTs has a specific way a datatype `switch` breaks it, argued in its
 own numbered decision below.
 
-**This is a documentation-only change.** No code is written; `backend/src/nptc/registry/`
+**This is a documentation-only change.** No code is written; `backend/src/aptc/registry/`
 stays a one-line docstring stub. FR-77 stays `status: planned` - an ADR is a design record,
 not evidence of implementation (ADR-0002's distinction, as ADR-0012 restated it).
 
@@ -53,24 +53,24 @@ has no constructor member of its own; a handler's own `__init__` (the `code` han
 `TerminologyClient` argument below) is part of the concrete class, not the eleven-member
 contract it satisfies. Handlers see a frozen `PropertyDefinitionSpec` view, never the ORM
 model - this
-is what keeps `nptc.registry` from importing `nptc.db`, and it is what lets
-[#53](https://github.com/MattCordell/nptc-platform/issues/53)'s test build every input by hand
+is what keeps `aptc.registry` from importing `aptc.db`, and it is what lets
+[#53](https://github.com/MattCordell/aptc-platform/issues/53)'s test build every input by hand
 with no database. `validate()` is local and structural; FR-10's binding check reaches the
 terminology server through a `TerminologyClient` injected into the `code` handler's
 constructor (ADR-0003's synchronous Protocol) - so handlers are **constructed**, not imported
 as module-level singletons, which is what keeps NFR-37 satisfiable via
 `StubTerminologyClient` with no second injection mechanism competing with the first.
 
-**2. The module boundary.** `nptc.registry` is a leaf: it may import `nptc_shared`,
-SQLAlchemy, `jsonschema` and the stdlib, and nothing else from `nptc`. Everyone else imports
-it. The rule is **"no datatype switch outside `backend/src/nptc/registry/datatypes/`"** -
+**2. The module boundary.** `aptc.registry` is a leaf: it may import `aptc_shared`,
+SQLAlchemy, `jsonschema` and the stdlib, and nothing else from `aptc`. Everyone else imports
+it. The rule is **"no datatype switch outside `backend/src/aptc/registry/datatypes/`"** -
 strictly narrower than CONTRIBUTING.md's current wording, deliberately: the registry's own
-definition CRUD ([#51](https://github.com/MattCordell/nptc-platform/issues/51)/[#55](https://github.com/MattCordell/nptc-platform/issues/55))
-and schema derivation ([#52](https://github.com/MattCordell/nptc-platform/issues/52)) have no
+definition CRUD ([#51](https://github.com/MattCordell/aptc-platform/issues/51)/[#55](https://github.com/MattCordell/aptc-platform/issues/55))
+and schema derivation ([#52](https://github.com/MattCordell/aptc-platform/issues/52)) have no
 business branching on datatype either. Layout:
 
 ```text
-backend/src/nptc/registry/
+backend/src/aptc/registry/
   __init__.py      public surface
   handlers.py      DatatypeHandler Protocol + value types + DatatypeRegistry + errors
   datatypes/
@@ -83,7 +83,7 @@ backend/src/nptc/registry/
 **3. The form control crosses a language boundary, and the ADR says so.** The handler returns
 a `FormControlDescriptor`: a `ControlKind` from a closed enum plus JSON-serialisable params,
 surfaced on the property-definition API response and therefore in the OpenAPI doc and the
-generated client ([#143](https://github.com/MattCordell/nptc-platform/issues/143)/[#147](https://github.com/MattCordell/nptc-platform/issues/147)).
+generated client ([#143](https://github.com/MattCordell/aptc-platform/issues/143)/[#147](https://github.com/MattCordell/aptc-platform/issues/147)).
 **`ControlKind` members are named after the interaction, never after a datatype** (`text`,
 `textarea`, `number`, `uri`, `concept_picker`) - that is the whole resolution: the frontend
 receives `control` and `params` and never learns a datatype name, so a new datatype selects an
@@ -109,9 +109,9 @@ Mapping table:
 frontend does not branch on `strength` either.
 
 **4. Registration is explicit construction in one function** -
-`nptc.registry.datatypes.build_builtin_handlers(deps)` returning a tuple. No decorator, no
+`aptc.registry.datatypes.build_builtin_handlers(deps)` returning a tuple. No decorator, no
 `pkgutil` scan, no entry points. `DatatypeRegistry` is an *instance*, not module globals, so
-[#53](https://github.com/MattCordell/nptc-platform/issues/53)'s test builds
+[#53](https://github.com/MattCordell/aptc-platform/issues/53)'s test builds
 builtins-plus-synthetic without mutating shared state. **`get()` has no default and no
 fallback and its return type is not `Optional`** - #53's "clear no-handler-registered error,
 not a silent fallthrough" AC expressed as a signature.
@@ -122,7 +122,7 @@ the handler package's own manifest of its own contents. Contrast the two things 
 rejected on these grounds - a `CHECK (datatype IN ...)` and a Postgres ENUM - both of which are
 edits to *storage*, a different layer entirely.
 
-Two obligations follow and must be stated as [#51](https://github.com/MattCordell/nptc-platform/issues/51)'s,
+Two obligations follow and must be stated as [#51](https://github.com/MattCordell/aptc-platform/issues/51)'s,
 since they are ADR-0012's unnamed compensating control: the write path resolves
 `registry.get(datatype)` before insert/update (unknown -> 422 naming the registered set, never
 a stored row); and a startup reconciliation
@@ -139,12 +139,12 @@ per-rule `Counter`. Marked `@pytest.mark.req("FR-77")`. Runs in CI already (the 
 `uv run pytest`), no new tooling.
 
 - **`SCAN_DIRS` is the exact same two paths as `test_sql_parameterisation.py`'s** -
-  `backend/src` and `backend/migrations`, not a narrower `backend/src/nptc` - so the two
+  `backend/src` and `backend/migrations`, not a narrower `backend/src/aptc` - so the two
   guards genuinely share one constant rather than two constants that happen to look alike.
   Scoping to `registry/datatypes/` is a separate, additional exclusion:
-  `backend/src/nptc/registry/datatypes/` is excluded from this guard only, not from
+  `backend/src/aptc/registry/datatypes/` is excluded from this guard only, not from
   `test_sql_parameterisation.py`. (`backend/tests` is outside `SCAN_DIRS` either way, so
-  [#53](https://github.com/MattCordell/nptc-platform/issues/53)'s synthetic test may use
+  [#53](https://github.com/MattCordell/aptc-platform/issues/53)'s synthetic test may use
   literals freely.)
 - **The known-datatype literal set is imported from `BUILTIN_DATATYPES`, not hardcoded** - the
   module-level tuple in `datatypes/__init__.py` (SS10's Protocol block), not
@@ -164,9 +164,9 @@ per-rule `Counter`. Marked `@pytest.mark.req("FR-77")`. Runs in CI already (the 
     whose key set is either a **subset** of the known datatypes, or a **superset** of them
     (catches the "all five plus a `\"default\"`/`\"fallback\"` key" shape, which a subset test
     alone would miss precisely because it is a superset).
-  - `registry-imports-sibling` - an import inside `registry/**` naming `nptc.db`,
-    `nptc.catalogue`, `nptc.exports`, `nptc.api`, `nptc.validation`, `nptc.submissions`,
-    `nptc.releases`, or `nptc.jobs` (SS2's leaf rule made mechanical).
+  - `registry-imports-sibling` - an import inside `registry/**` naming `aptc.db`,
+    `aptc.catalogue`, `aptc.exports`, `aptc.api`, `aptc.validation`, `aptc.submissions`,
+    `aptc.releases`, or `aptc.jobs` (SS2's leaf rule made mechanical).
 - **Worked false-positive analysis** (this is what makes the design reviewable):
   `{"code": "12345", "system": "http://snomed.info/sct"}` is not flagged, because `"system"`
   is not a datatype literal and neither the subset nor the superset test matches a key set
@@ -203,9 +203,9 @@ per-rule `Counter`. Marked `@pytest.mark.req("FR-77")`. Runs in CI already (the 
      the superset case the `datatype-dispatch-table` rule now also catches (added above after
      review), named here anyway since it is the shape most likely to be written unthinkingly.
 
-**6. The contract lives in `backend/src/nptc/registry/`, not `shared/`.** ADR-0003's criterion
+**6. The contract lives in `backend/src/aptc/registry/`, not `shared/`.** ADR-0003's criterion
 is that *both* backend and transform need it (FR-74); not met here. The transform has no
-notion of a property definition, let alone a datatype - `transform/src/nptc_transform/dataset.py`
+notion of a property definition, let alone a datatype - `transform/src/aptc_transform/dataset.py`
 emits four fixed properties whose values are `(value: str, code: str | None)`, and
 ADR-0010's `import-dataset.json` carries no `datatype` field. `shared/` would also acquire
 `jsonschema` and SQLAlchemy expression types, in a package ADR-0003 fought to hold at one
@@ -237,7 +237,7 @@ then false with no test failing.
 **8. The search seam (FR-13/FR-16): ADR-0012's index mapping is confirmed and relocated.**
 `code` -> GIN `jsonb_path_ops`, `string`/`url` -> text expression index,
 `decimal`/`positiveInt` -> numeric expression index is a switch on datatype, so per FR-77 it
-belongs in the handler; **[#54](https://github.com/MattCordell/nptc-platform/issues/54)
+belongs in the handler; **[#54](https://github.com/MattCordell/aptc-platform/issues/54)
 consumes an `IndexShape` it is handed, it does not compute one.** The handler declares the
 shape as a *value*, never as SQL text: `IndexShape(expression, requires_conformance_sweep)`,
 where `expression: ValueExpression` is a closed three-member enum (`RAW_JSONB`, `TEXT_SCALAR`,
@@ -255,7 +255,7 @@ flag** rather than a
 paragraph #54 must remember.
 
 FR-16 is the second half and the handler owns both: `supported_filter_ops()` tells
-[#139](https://github.com/MattCordell/nptc-platform/issues/139) which operators to offer,
+[#139](https://github.com/MattCordell/aptc-platform/issues/139) which operators to offer,
 `filter_clause()` builds the predicate as a SQLAlchemy `ColumnElement[bool]` (never a string -
 NFR-22 then holds by construction), `facet_expression()` returns the `GROUP BY` expression or
 `None` where faceting is meaningless (`decimal`). **FR-16's stated cost**: a datatype switch
@@ -265,7 +265,7 @@ why `get()` raises.
 
 **9. The initial set is exactly PRD SS6.5's five - `code`, `string`, `decimal`, `positiveInt`,
 `url` - and no sixth.** Extensibility is proven by
-[#53](https://github.com/MattCordell/nptc-platform/issues/53)'s synthetic datatype, not by
+[#53](https://github.com/MattCordell/aptc-platform/issues/53)'s synthetic datatype, not by
 pre-registering speculative ones. `positiveInt` is a separate handler, not `decimal` with a
 `minimum`: its fragment `{"type": "integer", "minimum": 1}` makes `1.5` *unrepresentable*
 rather than merely refused (ADR-0012's principle, applied here to a schema fragment instead of
@@ -286,7 +286,7 @@ ambiguity somewhere else.
 **10. The Protocol, verbatim.**
 
 ```python
-"""backend/src/nptc/registry/handlers.py - design record, not yet implemented.
+"""backend/src/aptc/registry/handlers.py - design record, not yet implemented.
 
 Reproduced verbatim from ADR-0013 so #53's synthetic-datatype test is
 writable from this ADR alone.
@@ -301,7 +301,7 @@ from typing import Any, Protocol
 
 from sqlalchemy import ColumnElement
 
-from nptc_shared.terminology import TerminologyClient
+from aptc_shared.terminology import TerminologyClient
 
 
 # --- value types the registry passes to and receives from a handler -----
@@ -514,7 +514,7 @@ class DatatypeRegistry:
 
 
 class LocalCodeLookup(Protocol):
-    """#56 (FR-90) landed this shape directly in `nptc.registry.handlers`
+    """#56 (FR-90) landed this shape directly in `aptc.registry.handlers`
     (this module), replacing the placeholder ADR-0013 first sketched:
 
     ```python
@@ -530,14 +530,14 @@ class LocalCodeLookup(Protocol):
         def resolve(self, system_key: str, code: str) -> ResolvedLocalCode | None: ...
     ```
 
-    Both stay leaf-safe (stdlib-only), unlike `nptc.catalogue.
-    local_codes` (below), which #56 could not land inside `nptc.registry`
+    Both stay leaf-safe (stdlib-only), unlike `aptc.catalogue.
+    local_codes` (below), which #56 could not land inside `aptc.registry`
     itself - #197/#53's own leaf-package rule (SS2) forbids it importing
-    `nptc.audit`/`nptc.auth`/`nptc.db.models`, which the write path and
+    `aptc.audit`/`aptc.auth`/`aptc.db.models`, which the write path and
     the database-backed lookup both need.
 
     One read method, deliberately - management goes through
-    `nptc.catalogue.local_codes`, gated on `Permission.REGISTRY_MANAGE`
+    `aptc.catalogue.local_codes`, gated on `Permission.REGISTRY_MANAGE`
     (FR-90's "administrator-only management"), not through this Protocol.
     `resolve` returning `None` is "does not exist in `system_key` at all";
     `ResolvedLocalCode.status == 'deprecated'` is "exists, but retired",
@@ -545,7 +545,7 @@ class LocalCodeLookup(Protocol):
     independently (deprecating a system does not cascade to its member
     codes) - the same distinction `code_binding.status` supports for
     SNOMED bindings, and what the FR-45 sweep's `local_code_retired`
-    warning reads. `nptc.catalogue.local_codes.DatabaseLocalCodeLookup`
+    warning reads. `aptc.catalogue.local_codes.DatabaseLocalCodeLookup`
     is the database-backed implementation #53 constructs `HandlerDeps`
     with; #53 still owns lifting `UnsupportedBindingError` for
     `binding_target = 'local_code_system'` and wiring `CodeHandler.
@@ -594,9 +594,9 @@ def build_builtin_handlers(deps: HandlerDeps) -> tuple[DatatypeHandler, ...]:
 | `pkgutil`/entry-point scanning of `datatypes/` | Discovery over a directory listing is one more place a `switch`-shaped thing could hide (a filename convention doing the dispatching), and it is unnecessary: five handlers is a five-line tuple. |
 | `typing.Literal["code", "string", ...]` datatype union plus `assert_never` | A closed `Literal` is a second enumeration of the valid set, and every `assert_never` site becomes a required edit when a datatype is added - FR-77's failure condition wearing a type checker's clothes. |
 | `enum.Enum` for `datatype` | Same objection as the `Literal` case, one layer further from the database: an enum member list is code that must be edited to add a datatype. |
-| An ABC instead of a `Protocol` | Forces every handler, including #53's synthetic one, to inherit from a base class in `nptc.registry` - a `Protocol` lets a handler be any object with the right shape, which is what keeps mypy's completeness check independent of any particular class hierarchy. |
+| An ABC instead of a `Protocol` | Forces every handler, including #53's synthetic one, to inherit from a base class in `aptc.registry` - a `Protocol` lets a handler be any object with the right shape, which is what keeps mypy's completeness check independent of any particular class hierarchy. |
 | One `serialise_<format>` method per export format | A handler would grow a method every time a new export format is added, even though the format selects an existing representation (SS7) - the multiplication FR-77 exists to prevent, just relocated to the method list instead of a `switch`. |
-| `DatatypeRegistry` importing `nptc.exports` (or vice versa, both ways) | Either direction other than the one chosen inverts the dependency SS7 states explicitly (`exports -> registry`) and would need a second guard rule to detect the reverse edge as well. |
+| `DatatypeRegistry` importing `aptc.exports` (or vice versa, both ways) | Either direction other than the one chosen inverts the dependency SS7 states explicitly (`exports -> registry`) and would need a second guard rule to detect the reverse edge as well. |
 | A `coerce()` member on the handler | Coercion (turning a submitted string into the stored JSONB shape) is a distinct concern from validation and was not named in FR-77's four; adding it now is scope creep the ADR does not need to carry. |
 | `IndexShape.expression` as raw SQL text | Defeats the point of a value-typed shape: the guard could no longer distinguish a handler-supplied SQL fragment from a literal, and NFR-22's posture would depend on review instead of construction. |
 | Leaving the index mapping decision inside #54 | #54 would then choose per-datatype SQL itself, which is a `switch` on datatype in the search layer - the exact violation SS8 exists to prevent. |
@@ -607,39 +607,39 @@ def build_builtin_handlers(deps: HandlerDeps) -> tuple[DatatypeHandler, ...]:
 | A guard rule flagging any bare string literal equal to a known datatype | `code`, `string` and `url` are ordinary English words and JSON keys elsewhere; the rule fires dozens of times on day one and is suppressed within a week. |
 | A hardcoded datatype list inside the AST guard | Makes the guard itself a second enumeration of the valid set - the guard would violate the requirement it enforces. |
 | Excluding all of `registry/` from the guard | Would also exempt `definitions.py` and `schema.py`, which have no legitimate reason to branch on datatype - only `datatypes/` earns the exclusion. |
-| CONTRIBUTING.md prose plus review alone, no mechanical guard | [#137](https://github.com/MattCordell/nptc-platform/issues/137)'s acceptance criteria explicitly reject this: a concrete enforcement mechanism is required, not a documented convention. |
+| CONTRIBUTING.md prose plus review alone, no mechanical guard | [#137](https://github.com/MattCordell/aptc-platform/issues/137)'s acceptance criteria explicitly reject this: a concrete enforcement mechanism is required, not a documented convention. |
 
 ### Consequences
 
 What each issue inherits from this ADR instead of choosing its own shape:
 
-- **[#53](https://github.com/MattCordell/nptc-platform/issues/53)** the full Protocol
+- **[#53](https://github.com/MattCordell/aptc-platform/issues/53)** the full Protocol
   signature list, so the synthetic-datatype test is writable from this ADR alone, with the
   `datatypes/__init__.py` manifest line (`BUILTIN_DATATYPES` plus `build_builtin_handlers`)
   pre-declared as inside the handler package. It may also drop `sort_key` (open question 5)
   and must construct `CodeHandler` with `local_code_lookup=None`, raising
   `UnsupportedBindingError` for `binding_target = 'local_code_system'` until #56 lands (open
   question 1).
-- **[#51](https://github.com/MattCordell/nptc-platform/issues/51)** the write-time
+- **[#51](https://github.com/MattCordell/aptc-platform/issues/51)** the write-time
   `registry.get()` resolution and the startup reconciliation
   (`SELECT DISTINCT datatype` subset-of registered set) - ADR-0012's unnamed compensating
   control for its no-CHECK/no-ENUM decision.
-- **[#52](https://github.com/MattCordell/nptc-platform/issues/52)** `constraints_schema()` as
+- **[#52](https://github.com/MattCordell/aptc-platform/issues/52)** `constraints_schema()` as
   the validator for ADR-0012's reserved `constraints` interior, run at definition-amendment
   time only.
-- **[#54](https://github.com/MattCordell/nptc-platform/issues/54)** `IndexShape` as an input
+- **[#54](https://github.com/MattCordell/aptc-platform/issues/54)** `IndexShape` as an input
   it consumes rather than computes, a `match` over `ValueExpression` instead of over
   `datatype`, and the cast-safety precondition carried as `requires_conformance_sweep` rather
   than a paragraph to remember.
-- **[#55](https://github.com/MattCordell/nptc-platform/issues/55)** unaffected -
+- **[#55](https://github.com/MattCordell/aptc-platform/issues/55)** unaffected -
   privilege-level, never touches a handler.
-- **[#139](https://github.com/MattCordell/nptc-platform/issues/139)** the three FR-16 members
+- **[#139](https://github.com/MattCordell/aptc-platform/issues/139)** the three FR-16 members
   (`supported_filter_ops`, `filter_clause`, `facet_expression`) and the rule that it never
   learns a datatype name; the `code` facet's grouping key is deferred to it as open question
   2.
 - **The P4 export renderers** a one-way `exports -> registry` import edge, a single
   `serialise` call per value, and the FR-83 prohibition on a second tag-strip call site.
-- **The frontend ([#147](https://github.com/MattCordell/nptc-platform/issues/147)/[#151](https://github.com/MattCordell/nptc-platform/issues/151))**
+- **The frontend ([#147](https://github.com/MattCordell/aptc-platform/issues/147)/[#151](https://github.com/MattCordell/aptc-platform/issues/151))**
   `FormControlDescriptor` on the property-definition API response, an exhaustive
   `Record<ControlKind, ...>` with no fallback branch, and one vitest literal guard.
 
@@ -647,7 +647,7 @@ Plus:
 
 - `backend/tests/test_datatype_dispatch.py` is new, marked `@pytest.mark.req("FR-77")`.
 - CONTRIBUTING.md's line on datatype dispatch and CLAUDE.md's FR-77 line get narrowed from
-  `registry/` to `registry/datatypes/` **when [#53](https://github.com/MattCordell/nptc-platform/issues/53)
+  `registry/` to `registry/datatypes/` **when [#53](https://github.com/MattCordell/aptc-platform/issues/53)
   lands** - flagged here so the wording travels with the code rather than being forgotten.
 - [docs/architecture/data-model.md](../architecture/data-model.md) gains that pointer **in
   this PR** (its `constraints` and `datatype` rows): `constraints`'s interior is each
@@ -661,13 +661,13 @@ Plus:
 
 Following ADR-0012's precedent of naming the deciding issue rather than guessing:
 
-1. `LocalCodeLookup`'s shape -> [#56](https://github.com/MattCordell/nptc-platform/issues/56)
-   (FR-90). Position taken here: [#53](https://github.com/MattCordell/nptc-platform/issues/53)
+1. `LocalCodeLookup`'s shape -> [#56](https://github.com/MattCordell/aptc-platform/issues/56)
+   (FR-90). Position taken here: [#53](https://github.com/MattCordell/aptc-platform/issues/53)
    constructs `CodeHandler` with `local_code_lookup=None` and raises
    `UnsupportedBindingError` for `binding_target = 'local_code_system'` - a loud refusal,
    never a silent pass.
 2. ~~`code`'s facet grouping key (code alone vs `(system, code)`)~~ -> **settled by
-   [#139](https://github.com/MattCordell/nptc-platform/issues/139) in
+   [#139](https://github.com/MattCordell/aptc-platform/issues/139) in
    [ADR-0032](0032-faceted-filter-query-surface.md): group by `code` alone**, labelled from
    the `display` stored beside it (no terminology call on the search path, FR-54). The
    catalogue binds one value set per property, so a code within one property is
@@ -678,7 +678,7 @@ Following ADR-0012's precedent of naming the deciding issue rather than guessing
    issue (not yet created). The target member (`SerialisationTarget.FHIR_VALUE`) is fixed
    here; the per-datatype FHIR types it maps to are not.
 4. Unknown `ControlKind` at runtime (a client older than the server encounters a kind it does
-   not recognise) -> [#151](https://github.com/MattCordell/nptc-platform/issues/151):
+   not recognise) -> [#151](https://github.com/MattCordell/aptc-platform/issues/151):
    render-nothing-plus-warning vs a read-only text view. Not decided here because it is a
    frontend UX call, not a registry design question.
 
@@ -696,7 +696,7 @@ Following ADR-0012's precedent of naming the deciding issue rather than guessing
    deployment shape yet, and speculative runtime handling for it is exactly the "arrive
    unargued" pattern this section exists to avoid.
 5. Whether `sort_key` belongs on the handler at all ->
-   [#53](https://github.com/MattCordell/nptc-platform/issues/53) may drop it. Named as the one
+   [#53](https://github.com/MattCordell/aptc-platform/issues/53) may drop it. Named as the one
    speculative member of the eleven, rather than letting it arrive unargued.
 
    **Resolved by #53: dropped.** No caller needs it - #139's faceted filters need
@@ -717,7 +717,7 @@ Following ADR-0012's precedent of naming the deciding issue rather than guessing
 ## Verification
 
 Documentation-only, so verification is the repo's own gates plus a read-through against
-[#137](https://github.com/MattCordell/nptc-platform/issues/137)'s acceptance criteria.
+[#137](https://github.com/MattCordell/aptc-platform/issues/137)'s acceptance criteria.
 
 ```powershell
 pre-commit run --all-files          # pre-commit-hooks, ruff, ruff-format, mypy, frontend lint/format
@@ -733,7 +733,7 @@ locally before pushing anyway, since they are what actually catch a bad heading 
 
 Checked against #137's four acceptance criteria explicitly:
 
-- Merged before [#53](https://github.com/MattCordell/nptc-platform/issues/53) opens a PR.
+- Merged before [#53](https://github.com/MattCordell/aptc-platform/issues/53) opens a PR.
 - Names a **concrete** enforcement mechanism - `backend/tests/test_datatype_dispatch.py` with
   its four rules, scan dirs, single exclusion and positive control, plus `mypy --strict` on
   the Protocol.

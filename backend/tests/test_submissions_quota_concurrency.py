@@ -24,15 +24,15 @@ from sqlalchemy import func, select, text
 from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.orm import Session
 
-from nptc.audit.writer import AUDIT_APPEND_LOCK_KEY, AuditContext
-from nptc.auth.permissions import QUOTAS, Role, SubmissionQuota
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.catalogue_entry import CatalogueEntry
-from nptc.db.models.submission import Submission, SubmissionKind
-from nptc.db.models.user import User
-from nptc.submissions.amendment import AmendmentInput, create_amendment_submission
-from nptc.submissions.quota import QuotaLimit, QuotaRefusal, enforce_submission_quota
-from nptc_shared.terminology import StubTerminologyClient
+from aptc.audit.writer import AUDIT_APPEND_LOCK_KEY, AuditContext
+from aptc.auth.permissions import QUOTAS, Role, SubmissionQuota
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.catalogue_entry import CatalogueEntry
+from aptc.db.models.submission import Submission, SubmissionKind
+from aptc.db.models.user import User
+from aptc.submissions.amendment import AmendmentInput, create_amendment_submission
+from aptc.submissions.quota import QuotaLimit, QuotaRefusal, enforce_submission_quota
+from aptc_shared.terminology import StubTerminologyClient
 
 
 def _load(name: str) -> Any:
@@ -67,7 +67,7 @@ def racing_user(
     with Session(app_engine) as setup:
         user = User(username=f"quota-race-{uuid.uuid4()}", display_name="Quota Racer")
         entry = CatalogueEntry(
-            business_key=f"NPTC-{random.randrange(100_000_000, 999_999_999)}",
+            business_key=f"APTC-{random.randrange(100_000_000, 999_999_999)}",
             preferred_term=f"Quota race entry {uuid.uuid4()}",
             status="active",
         )

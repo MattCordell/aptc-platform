@@ -56,7 +56,7 @@ tag removed. `specimens` is each `specimen` value's stored display, in `ordinal`
 trailing "specimen" word removed and repeats dropped, and the code where a value carries no
 display. The seed stores a SNOMED CT-AU preferred term as that display, but the admin write
 path stores whatever the client sends, so a value written there may be another wording. One
-loader, `nptc.catalogue.queries.row_facts`, fills these fields and `has_open_finding` in three
+loader, `aptc.catalogue.queries.row_facts`, fills these fields and `has_open_finding` in three
 statements per page, whatever its size. It is keyed on `business_key`, because a search
 hit carries no entry id.
 
@@ -87,7 +87,7 @@ could not detect its own expired session.
 
 **Only `active` entries, on every endpoint.** `draft`, `deprecated` and `withdrawn`
 entries are absent from the list, absent from search results, and a 404 on the detail
-routes. `nptc.catalogue.queries.PUBLIC_STATUSES` is the single filter every query
+routes. `aptc.catalogue.queries.PUBLIC_STATUSES` is the single filter every query
 imports.
 
 The 404 for a hidden entry is byte-identical to the 404 for a `business_key` that was
@@ -151,7 +151,7 @@ carries it.
 identifier a caller ever sees (PRD §6.2). `code_binding.replaced_by_binding_id` is a
 UUID in the database and is resolved to the successor's *code* in the read layer, so no
 route ever holds an id it could serialise by accident. A `business_key` path parameter
-is validated against `^NPTC-[0-9]{6,}$` before any query runs, so a UUID in the path is
+is validated against `^APTC-[0-9]{6,}$` before any query runs, so a UUID in the path is
 a 422 - not a 404, which would imply a UUID is a kind of identifier this API accepts.
 
 **Every SNOMED CT code is a JSON string** (FR-06). This is the defect class the platform
@@ -263,7 +263,7 @@ GET /api/v1/catalogue/lookup?system=http://snomed.info/sct&code=49466006
 Both forms resolve the same entry `GET /catalogue/entries/{business_key}` does for that
 entry, and serve the identical `EntryDetail` body - never a redirect, never a thinner
 shape. `sct` is a short alias for `http://snomed.info/sct`, registered in
-`nptc.catalogue.code_systems.SYSTEM_TOKENS` - a frozen mapping in code, not a database
+`aptc.catalogue.code_systems.SYSTEM_TOKENS` - a frozen mapping in code, not a database
 table (the same "permissions as code" reasoning [ADR-0019](../adr/0019-permission-framework.md)
 applies to the auth matrix). `/catalogue/lookup` is for a caller holding the full system
 URI rather than the short alias; it accepts the identical set of URIs the alias registry
@@ -363,7 +363,7 @@ See [ADR-0032](../adr/0032-faceted-filter-query-surface.md).
 ### Change history (FR-19)
 
 ```http
-GET /api/v1/catalogue/entries/NPTC-000247/history
+GET /api/v1/catalogue/entries/APTC-000247/history
 Authorization: Bearer <token>
 ```
 
@@ -432,13 +432,13 @@ response that never arrives.
 **A published code binding's `fsn` is never re-derived (issue #144, FR-98).** A binding's
 `fsn` is served exactly as stored (FR-82), and `label_provenance` declares what it is:
 `label_provenance.fsn` is `{"designation": "fsn", "semantic_tag": "intact"}` by default
-(`NPTC_FSN_SEMANTIC_TAG`, see `docs/operations/configuration.md`).
+(`APTC_FSN_SEMANTIC_TAG`, see `docs/operations/configuration.md`).
 
 **A list row's own `fsn` is stripped, and can fail to render (FR-83, FR-98).** Every public
 list row and search hit carries `fsn`: the active code's FSN with its
 final parenthesised group removed, or `null` when the entry has no active code. Its
 `label_provenance.fsn` is always `{"designation": "fsn", "semantic_tag": "stripped"}`. The
-strip is `nptc.exports.semantic_tag.render_display_term`, the renderer FR-83 names. It
+strip is `aptc.exports.semantic_tag.render_display_term`, the renderer FR-83 names. It
 refuses a stored FSN with no trailing group, because that value may already have been
 stripped. A catalogue seeded before the transform seeded served FSNs holds such values, so
 a refusal means stored data needs repair. It is a server-side fault, not a bad request: the
@@ -459,21 +459,21 @@ NFR-24 asks for rate limiting at three layers. This is the first: a request budg
 anonymous client address. The second, a per-user limit on authenticated actions, is not built.
 The third is the domain-level submission quota of FR-43, which is built: `POST /submissions`
 and `POST /submissions/amendments` count a user's earlier submissions against `QUOTAS` in
-`nptc.auth.permissions` and answer an over-limit request with a 429 whose body says which limit
+`aptc.auth.permissions` and answer an over-limit request with a 429 whose body says which limit
 was reached (see [`permissions.md`](permissions.md#submission-quota-fr-43-nfr-24)). The three layers are independent. This one never reads a user record, and
 neither of the others should read this one's counters.
 
 **Behaviour.**
 
-- Each client address may make `NPTC_ANON_RATE_LIMIT_REQUESTS` requests in each
-  `NPTC_ANON_RATE_LIMIT_WINDOW_SECONDS` window (600 and 60 by default). The window opens at the
+- Each client address may make `APTC_ANON_RATE_LIMIT_REQUESTS` requests in each
+  `APTC_ANON_RATE_LIMIT_WINDOW_SECONDS` window (600 and 60 by default). The window opens at the
   address's first counted request and closes at a fixed time after it. A refused request does not
   extend it.
 - A request over the budget gets `429` with a `Retry-After` header. The header is the whole
   number of seconds until the window closes, rounded up and never below 1, so a client that waits
   that long is served. The body is
   `{"detail": "<one sentence>", "bulk_artefacts": "<url>"}`, and `bulk_artefacts` is
-  `NPTC_BULK_ARTEFACTS_URL`. Like every other refusal, the body never repeats anything from the
+  `APTC_BULK_ARTEFACTS_URL`. Like every other refusal, the body never repeats anything from the
   request.
 - The 429 is declared on every operation in `docs/api/openapi.json` with its `Retry-After`
   header, and `Retry-After` is in the CORS `expose_headers`, so a browser calling cross-origin
@@ -501,17 +501,17 @@ until the window closes. Expired tokens that a client keeps sending spend that b
 **The healthcheck.** The compose healthcheck probes `/api/v1/openapi.json` from loopback, and a
 refused probe would mark a healthy container unhealthy. That one path from a loopback address is
 not limited. Every other request from loopback is, so an API behind a proxy on the same host
-with no `NPTC_TRUSTED_PROXIES` shows every caller as `127.0.0.1` and they share one budget. A
+with no `APTC_TRUSTED_PROXIES` shows every caller as `127.0.0.1` and they share one budget. A
 preflight (`OPTIONS`) request is answered by the CORS layer before the limiter sees it.
 
-**Where it runs.** `nptc.api.rate_limit.AnonymousRateLimitMiddleware` sits inside the CORS layer
+**Where it runs.** `aptc.api.rate_limit.AnonymousRateLimitMiddleware` sits inside the CORS layer
 and outside routing. A refused request therefore opens no database session, verifies no token,
 and still carries the CORS headers. It also covers `/docs` and `/openapi.json`, which are
 anonymous too.
 
-**Which address.** `nptc.api.client_ip` decides it. Behind Caddy the connecting address is
+**Which address.** `aptc.api.client_ip` decides it. Behind Caddy the connecting address is
 Caddy's, so the API reads `X-Forwarded-For` when, and only when, the connecting address is in
-`NPTC_TRUSTED_PROXIES`. It reads the header from the right and stops at the first address that
+`APTC_TRUSTED_PROXIES`. It reads the header from the right and stops at the first address that
 is not trusted, so an address a caller writes at the left of the header is never believed. A
 header sent as several lines is read as one list, and a hop with a port (`203.0.113.7:51234`,
 `[2001:db8::1]:443`) is read without it. A connecting address that is not an IP (a unix socket,
@@ -532,14 +532,14 @@ into the audit log's actor address.
   Caddy sees the Docker gateway address, such as `172.18.0.1`, as every visitor's address. That
   address is inside the trusted ranges, so the API resolves it as the caller, and every visitor
   shares one budget and the audit log records the gateway. This is a limit of the platform
-  Docker runs on, not of `NPTC_TRUSTED_PROXIES`. For local use, raise the limit; for a real
+  Docker runs on, not of `APTC_TRUSTED_PROXIES`. For local use, raise the limit; for a real
   deployment, use a host setup that preserves source addresses.
 
 ### Bulk release artefacts
 
 FR-22 says the refusal must direct heavy consumers to the bulk release artefacts, which are the
 published release files of FR-21. No release exists to serve until P4, so
-`NPTC_BULK_ARTEFACTS_URL` defaults to this section. When releases are published, set it to
+`APTC_BULK_ARTEFACTS_URL` defaults to this section. When releases are published, set it to
 their location. Until then, a consumer who needs the whole catalogue can page
 `GET /catalogue/entries` within the limit, or ask the maintainers for an export.
 
@@ -574,7 +574,7 @@ directly: `uv run python scripts/openapi_breaking_check.py --base <old.json> --h
 request/response interface should ever be hand-written alongside it. Regenerate it with:
 
 ```powershell
-pnpm --filter nptc-frontend generate:api
+pnpm --filter aptc-frontend generate:api
 ```
 
 Run this whenever `docs/api/openapi.json` changes (i.e. after regenerating it per

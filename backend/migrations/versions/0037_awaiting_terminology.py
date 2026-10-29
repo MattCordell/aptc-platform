@@ -7,7 +7,7 @@ Create Date: 2026-10-15
 FR-30, FR-31, NFR-08: the `Awaiting terminology` state and `submission_terminology_request`, the
 record of what a reviewer asked the terminology authority for, one row for each request, so a submission
 returned to `Under review` can wait again. See
-`nptc.db.models.submission_terminology_request` for the reasoning.
+`aptc.db.models.submission_terminology_request` for the reasoning.
 
 The `state` check on `submission` and the two state checks on `submission_transition` are widened
 together, so a transition row can never name a state the submission could not hold. Widening a check
@@ -30,7 +30,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-from nptc.db import roles
+from aptc.db import roles
 
 # revision identifiers, used by Alembic.
 revision: str = "0037"

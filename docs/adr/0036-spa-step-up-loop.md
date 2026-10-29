@@ -8,7 +8,7 @@
 NFR-06's mandatory-MFA-for-administrators loop was built at both ends and unjoined in the
 middle (issue #184). The API already answers an administrator whose MFA is unsatisfied
 with `403` + `WWW-Authenticate: Bearer error="insufficient_user_authentication",
-acr_values="2"` (RFC 9470, issue #41's `nptc.api.errors`), and the SPA's
+acr_values="2"` (RFC 9470, issue #41's `aptc.api.errors`), and the SPA's
 `buildAuthorizeUrl` already accepted an `acrValues` option (ADR-0021). Nothing reacted to
 the challenge: an administrator signed in with a password alone simply saw a refusal, and
 four user guides plus a `LoadFailure` branch in the catalogue edit page told them, in
@@ -30,7 +30,7 @@ recognised once, centrally, the same way `frontend/src/api/conflicts.ts` already
 
 `ApiError` (`frontend/src/api/unwrap.ts`) had to grow a `headers: Headers` field to make
 this possible: the challenge is otherwise discarded at `unwrap`'s single throw site.
-`nptc.api.app.create_app`'s CORS middleware also had to add
+`aptc.api.app.create_app`'s CORS middleware also had to add
 `expose_headers=["WWW-Authenticate"]` — without it, a browser's `fetch`/XHR hides the
 header from JavaScript on every cross-origin response (`vite dev` included), and the whole
 feature does nothing outside of a same-origin deployment, silently, with no failing test
@@ -90,7 +90,7 @@ state ("Checking…", disabled) rather than leaving the click looking inert for 
 
 ### The backend challenge itself stopped being a literal too
 
-`nptc.api.errors._STEP_UP_CHALLENGE` was `'Bearer error="insufficient_user_authentication",
+`aptc.api.errors._STEP_UP_CHALLENGE` was `'Bearer error="insufficient_user_authentication",
 acr_values="2"'` — a second hard-coded copy of the same fact the frontend was being asked
 not to hard-code. `register_exception_handlers` now takes an `AuthSettings` and builds the
 challenge from `mfa_acr_values`, so both ends read the one configured value.

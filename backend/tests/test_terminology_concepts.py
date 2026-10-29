@@ -1,4 +1,4 @@
-"""Unit tests for `nptc.terminology.concepts.resolve_concept` (issue #240,
+"""Unit tests for `aptc.terminology.concepts.resolve_concept` (issue #240,
 FR-26).
 
 No database, no HTTP, no Docker - a `StubTerminologyClient` is all
@@ -15,14 +15,14 @@ from dataclasses import dataclass, field
 import httpx
 import pytest
 
-from nptc.terminology.concepts import resolve_concept
-from nptc.terminology.errors import (
+from aptc.terminology.concepts import resolve_concept
+from aptc.terminology.errors import (
     ConceptNotFoundError,
     TerminologyUnavailableError,
     TerminologyUpstreamError,
 )
-from nptc_shared.sctid import InvalidSCTIDError
-from nptc_shared.terminology import (
+from aptc_shared.sctid import InvalidSCTIDError
+from aptc_shared.terminology import (
     AU_LANGUAGE_TAG,
     SNOMED_CT_AU,
     SNOMED_SYSTEM,
@@ -191,7 +191,7 @@ def test_resolved_system_is_the_servers_own_value() -> None:
     """issue #240 review: `resolve_concept` must report what the server
     actually said, not a locally-held constant that could silently
     disagree with it (and would also be a second copy of a URI
-    `nptc_shared.terminology.SNOMED_SYSTEM` already carries)."""
+    `aptc_shared.terminology.SNOMED_SYSTEM` already carries)."""
     client = StubTerminologyClient()
     client.seed_lookup(
         _CODE,
@@ -346,8 +346,8 @@ def test_unseeded_stub_raises_terminology_upstream_not_not_found() -> None:
 
 @pytest.mark.req("FR-54")
 def test_terminology_config_error_propagates_unchanged() -> None:
-    """A malformed `NPTC_TX_*` value is already mapped to 500 by
-    `nptc.api.errors` - `resolve_concept` must never fold it into
+    """A malformed `APTC_TX_*` value is already mapped to 500 by
+    `aptc.api.errors` - `resolve_concept` must never fold it into
     `classify_terminology_error`'s own 4xx/5xx types, since `TerminologyConfigError` is
     itself a `TerminologyError` subclass and would otherwise land in the
     502 catch-all (issue #240 review)."""

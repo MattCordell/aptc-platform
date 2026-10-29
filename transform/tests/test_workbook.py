@@ -8,7 +8,7 @@ from pathlib import Path
 import openpyxl
 import pytest
 
-from nptc_transform.workbook import (
+from aptc_transform.workbook import (
     CellType,
     ColumnRole,
     WorkbookReadError,

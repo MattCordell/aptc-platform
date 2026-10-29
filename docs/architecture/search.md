@@ -38,13 +38,13 @@ this choice accepts.
 
 ## How a match is found
 
-Nine scans, each its own `UNION ALL` branch in `nptc.catalogue.search._SEARCH_SQL`, each
+Nine scans, each its own `UNION ALL` branch in `aptc.catalogue.search._SEARCH_SQL`, each
 supported by its own index:
 
 | Branch | Index | Predicate |
 |---|---|---|
-| preferred term, trigram | `ix_catalogue_entry_preferred_term_trgm` | `nptc_search_text(col) % nptc_search_text(:q)` |
-| preferred term, full-text | `ix_catalogue_entry_preferred_term_fts` | `nptc_search_document(col) @@ nptc_search_query(:q)` |
+| preferred term, trigram | `ix_catalogue_entry_preferred_term_trgm` | `aptc_search_text(col) % aptc_search_text(:q)` |
+| preferred term, full-text | `ix_catalogue_entry_preferred_term_fts` | `aptc_search_document(col) @@ aptc_search_query(:q)` |
 | synonym, trigram | `ix_designation_term_trgm` | as above |
 | synonym, full-text | `ix_designation_term_fts` | as above |
 | FSN, trigram | `ix_code_binding_fsn_trgm` | as above |
@@ -93,7 +93,7 @@ only within the full-text branch. Calibrating it properly needs a production que
 
 **Negation is guarded.** `websearch_to_tsquery` reads `-` as NOT, and a tsquery that can be
 satisfied by *absence alone* matches every row with nothing for GIN to probe. Each
-full-text branch therefore carries `NOT ('' :: tsvector @@ nptc_search_query(:q))`, a
+full-text branch therefore carries `NOT ('' :: tsvector @@ aptc_search_query(:q))`, a
 direct test of that condition, which the planner resolves once and uses to prune the
 branch. Trigram is unaffected and still runs, so such a query is searched for the literal
 text typed rather than refused.
@@ -115,11 +115,11 @@ similarity.
 
 Both halves normalise through the same function, so the two agree on case and diacritics:
 
-- `nptc_search_text(text) -> text` — `lower(unaccent(...))`. Backs the trigram indexes
+- `aptc_search_text(text) -> text` — `lower(unaccent(...))`. Backs the trigram indexes
   and every trigram predicate.
-- `nptc_search_document(text) -> tsvector` — `to_tsvector('english', nptc_search_text(...))`.
+- `aptc_search_document(text) -> tsvector` — `to_tsvector('english', aptc_search_text(...))`.
   Backs the full-text indexes.
-- `nptc_search_query(text) -> tsquery` — `websearch_to_tsquery('english', nptc_search_text(...))`.
+- `aptc_search_query(text) -> tsquery` — `websearch_to_tsquery('english', aptc_search_text(...))`.
   The query-side half; never indexed, but paired with the document function so both use
   the same configuration.
 
@@ -133,13 +133,13 @@ A query that lexes to nothing (`the`, say - `english` drops stopwords) yields an
 `tsquery`, which matches nothing rather than everything. The full-text branches simply
 contribute no rows and the trigram branches still answer.
 
-`nptc_search_text` folds case and diacritics but does **not** trim. All five exact-match
+`aptc_search_text` folds case and diacritics but does **not** trim. All five exact-match
 comparisons therefore read `:q_exact`, which is `q` stripped in Python: a preferred term
 pasted with surrounding whitespace has a `similarity()` of `1.0` but is not `=` to the
 stored value, so without it a pasted term is scored as fuzzy and can be outranked by an
 exact synonym hit on a different entry. Python's `str.strip()` rather than SQL's
 `btrim(text)`, which trims spaces only - a cell copied out of a spreadsheet ends in a
-carriage return and a newline. Trimming the query rather than changing `nptc_search_text`
+carriage return and a newline. Trimming the query rather than changing `aptc_search_text`
 avoids rebuilding four trigram indexes for a difference `similarity()` does not notice,
 and only the query side is trimmed: whitespace on a *stored* label is a data defect to fix
 where it is written.
@@ -212,7 +212,7 @@ The facet list is not written down anywhere. It is a `SELECT` against
 restart, no cache to invalidate (FR-09). That is the point of the requirement; a
 hard-coded facet list would defeat the reason the property registry exists.
 
-Nothing in `nptc.catalogue.facets` names a datatype. Each facet's grouping expression, the
+Nothing in `aptc.catalogue.facets` names a datatype. Each facet's grouping expression, the
 operators it accepts and the predicate it renders all come from the property's
 `DatatypeHandler` — `facet_expression()`, `supported_filter_ops()` and `filter_clause()`,
 the three members [ADR-0013](../adr/0013-datatype-handler-registry.md) added for this
@@ -325,9 +325,9 @@ total whatever the filters are.
 ## Maintenance search (issue #266)
 
 `GET /catalogue/admin/search` runs the identical query, ranking and paging this document
-describes - `nptc.catalogue.search.search_entries`/`search_facets` take a `statuses`
+describes - `aptc.catalogue.search.search_entries`/`search_facets` take a `statuses`
 argument, and the admin route is the one caller that passes
-`nptc.catalogue.maintenance.MAINTENANCE_STATUSES` (every `CatalogueEntryStatus`) instead
+`aptc.catalogue.maintenance.MAINTENANCE_STATUSES` (every `CatalogueEntryStatus`) instead
 of the default `PUBLIC_STATUSES`. Nothing else about the query changes: the
 `designation`/`code_binding` branches still carry their literal `status = 'active'`
 predicates regardless of caller, because those are about a synonym or a binding being

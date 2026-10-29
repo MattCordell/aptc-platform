@@ -5,7 +5,7 @@ Revises: 0035
 Create Date: 2026-10-15
 
 FR-23, NFR-08: `submission_working_copy`, a reviewer's edited copy of a submission's content. See
-`nptc.db.models.submission_working_copy` for the reasoning.
+`aptc.db.models.submission_working_copy` for the reasoning.
 
 The grants live in this migration with the table. `submission_id` and `created_at` are left out of the
 `UPDATE` grant and `DELETE` and `TRUNCATE` are revoked, so a working copy is never moved or removed, at
@@ -22,7 +22,7 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-from nptc.db import roles
+from aptc.db import roles
 
 # revision identifiers, used by Alembic.
 revision: str = "0036"
@@ -76,7 +76,7 @@ def upgrade() -> None:
             name=op.f("ck_submission_working_copy_property_values_is_object"),
         ),
         sa.CheckConstraint(
-            "nptc_sctid_is_valid(snomed_code)", name=op.f("ck_submission_working_copy_snomed_code")
+            "aptc_sctid_is_valid(snomed_code)", name=op.f("ck_submission_working_copy_snomed_code")
         ),
         sa.CheckConstraint(
             "snomed_fsn IS NULL OR length(btrim(snomed_fsn)) > 0",

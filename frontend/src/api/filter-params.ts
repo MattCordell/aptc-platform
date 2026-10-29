@@ -21,7 +21,7 @@
  * **Repeated, not comma-joined.** `openapi-fetch@0.17.0`'s default query
  * serializer (`createQuerySerializer`) already explodes an array value with
  * `style: "form", explode: true` - one repeated `key=value` pair per array
- * entry - which is the exact wire shape `nptc.catalogue.facets.parse_filters`
+ * entry - which is the exact wire shape `aptc.catalogue.facets.parse_filters`
  * parses server-side (`request.query_params.multi_items()`, ADR-0032). No
  * explicit `querySerializer` override is needed in `client.ts`.
  */

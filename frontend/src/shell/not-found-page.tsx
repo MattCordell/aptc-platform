@@ -13,7 +13,7 @@ import { useDocumentTitle } from "./use-document-title.ts";
  * user asked for, so it moves focus to its own heading.
  */
 export function NotFoundPage() {
-  useDocumentTitle("Page not found — NPTC Catalogue");
+  useDocumentTitle("Page not found — APTC Catalogue");
 
   return (
     <NoticePage
@@ -31,8 +31,8 @@ export function NotFoundPage() {
     >
       <p className="m-0">
         The address may be mistyped, or the page may have moved. Catalogue entries are
-        addressed by their NPTC identifier, for example{" "}
-        <code>/catalogue/NPTC-000247</code>.
+        addressed by their APTC identifier, for example{" "}
+        <code>/catalogue/APTC-000247</code>.
       </p>
     </NoticePage>
   );

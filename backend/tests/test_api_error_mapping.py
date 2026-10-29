@@ -1,4 +1,4 @@
-"""How `nptc.api.errors` renders the two auth error families over HTTP
+"""How `aptc.api.errors` renders the two auth error families over HTTP
 (issue #41, FR-44, NFR-04, NFR-06, NFR-20).
 
 `backend/tests/authz_app_support.py` proved `require_permission` against a
@@ -25,21 +25,21 @@ from fastapi import Depends
 from sqlalchemy.engine import Connection
 from starlette.types import Message, Receive, Scope, Send
 
-from nptc.api.app import API_PREFIX
-from nptc.api.dependencies import permission_dep
-from nptc.api.unhandled import UNHANDLED_ERROR_DETAIL, UnhandledErrorMiddleware
-from nptc.auth.errors_authorisation import (
+from aptc.api.app import API_PREFIX
+from aptc.api.dependencies import permission_dep
+from aptc.api.unhandled import UNHANDLED_ERROR_DETAIL, UnhandledErrorMiddleware
+from aptc.auth.errors_authorisation import (
     AccountClosedError,
     LastAdministratorError,
     ManualLinkRequiredError,
 )
-from nptc.auth.permissions import Permission, Role
-from nptc.auth.principal import Principal
-from nptc_shared.terminology import TerminologyConfigError
+from aptc.auth.permissions import Permission, Role
+from aptc.auth.principal import Principal
+from aptc_shared.terminology import TerminologyConfigError
 
 #: A `TerminologyConfig.from_env` numeric variable, named here so the tests
 #: below assert the *value* never reaches a response body (NFR-26).
-_TX_CONFIG_VAR = "NPTC_TX_TIMEOUT_SECONDS"
+_TX_CONFIG_VAR = "APTC_TX_TIMEOUT_SECONDS"
 
 #: Exception text no response may carry (NFR-26, NFR-35).
 _UNHANDLED_SECRET = "internal-detail-7f3a"
@@ -67,7 +67,7 @@ _ADMIN_PERMISSION = Permission.ROLE_GRANT_MEMBER
 def api(app_db: Connection) -> Iterator[ApiTestApp]:
     for harness in build_api_test_app(app_db):
         # A route gated by the real permission_dep adapter. Added here
-        # rather than shipped in nptc.api so the production app keeps
+        # rather than shipped in aptc.api so the production app keeps
         # exactly one route until an issue actually adds a second.
         @harness.app.post(f"{API_PREFIX}/_test/gated")
         def _gated(_p: Principal = Depends(permission_dep(_ADMIN_PERMISSION))) -> dict[str, bool]:  # noqa: B008
@@ -167,8 +167,8 @@ def test_step_up_challenge_acr_values_come_from_settings_not_a_literal(
 ) -> None:
     """A regression guard for the wiring, not just the behaviour:
     `_STEP_UP_CHALLENGE` used to be a literal `'acr_values="2"'` in
-    `nptc.api.errors`, so changing the realm's LoA mapping
-    (`AuthSettings.mfa_acr_values`/`NPTC_MFA_ACR_VALUES`) needed a matching
+    `aptc.api.errors`, so changing the realm's LoA mapping
+    (`AuthSettings.mfa_acr_values`/`APTC_MFA_ACR_VALUES`) needed a matching
     code change here. Configuring a value other than the default `"2"` is
     what proves the header is actually read from settings rather than
     hard-coded - the same discipline
@@ -239,12 +239,12 @@ def test_an_unhandled_error_is_logged_but_never_echoed(
     api: ApiTestApp, caplog: pytest.LogCaptureFixture
 ) -> None:
     """The exception text and traceback belong in the log, not the response."""
-    with caplog.at_level(logging.ERROR, logger="nptc.api.unhandled"):
+    with caplog.at_level(logging.ERROR, logger="aptc.api.unhandled"):
         response = api.client.get(f"{API_PREFIX}/_test/boom")
 
     assert response.status_code == 500, response.text
     assert _UNHANDLED_SECRET not in response.text
-    record = next(r for r in caplog.records if r.name == "nptc.api.unhandled")
+    record = next(r for r in caplog.records if r.name == "aptc.api.unhandled")
     assert record.exc_info is not None
     assert _UNHANDLED_SECRET in repr(record.exc_info[1])
 
@@ -317,8 +317,8 @@ def test_a_malformed_terminology_config_fails_app_construction(
     No `integration` mark and no database: this is entirely about where the
     exception is raised.
     """
-    from nptc.api.app import create_app
-    from nptc.api.dependencies import get_terminology_client
+    from aptc.api.app import create_app
+    from aptc.api.dependencies import get_terminology_client
 
     monkeypatch.setenv(_TX_CONFIG_VAR, "not-a-number")
     # The cache is process-wide, so it is cleared on the way in (another test
@@ -337,12 +337,12 @@ def test_an_explicit_terminology_client_reads_no_terminology_variable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The one caller that supplies a client and a reference checker (the OpenAPI document
-    build) must not depend on `NPTC_TX_*`, and the app must serve that client, not a built one."""
-    from nptc.api.app import create_app
-    from nptc.api.dependencies import get_reference_checker, get_terminology_client
-    from nptc.settings import AuthSettings
-    from nptc.submissions.reference_check import HttpReferenceChecker
-    from nptc_shared.terminology import StubTerminologyClient
+    build) must not depend on `APTC_TX_*`, and the app must serve that client, not a built one."""
+    from aptc.api.app import create_app
+    from aptc.api.dependencies import get_reference_checker, get_terminology_client
+    from aptc.settings import AuthSettings
+    from aptc.submissions.reference_check import HttpReferenceChecker
+    from aptc_shared.terminology import StubTerminologyClient
 
     stub = StubTerminologyClient()
     monkeypatch.setenv(_TX_CONFIG_VAR, "not-a-number")

@@ -15,9 +15,9 @@ from sqlalchemy import event, func, select, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
-from nptc.audit.recording import AuditNoOpError
-from nptc.audit.writer import AuditContext
-from nptc.catalogue.entries import (
+from aptc.audit.recording import AuditNoOpError
+from aptc.audit.writer import AuditContext
+from aptc.catalogue.entries import (
     EntryChanges,
     create_entry,
     entry_child_write,
@@ -26,18 +26,18 @@ from nptc.catalogue.entries import (
     save_entries,
     save_entry,
 )
-from nptc.catalogue.errors import EntryVersionConflictError
-from nptc.catalogue.local_codes import DatabaseLocalCodeLookup
-from nptc.catalogue.property_values import (
+from aptc.catalogue.errors import EntryVersionConflictError
+from aptc.catalogue.local_codes import DatabaseLocalCodeLookup
+from aptc.catalogue.property_values import (
     EntryPropertyTarget,
     PropertyValueInput,
     save_property_values_for_entries,
 )
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.catalogue_entry import CatalogueEntry
-from nptc.registry.datatypes import build_builtin_handlers
-from nptc.registry.handlers import DatatypeRegistry, HandlerDeps
-from nptc_shared.terminology.stub import StubTerminologyClient
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.catalogue_entry import CatalogueEntry
+from aptc.registry.datatypes import build_builtin_handlers
+from aptc.registry.handlers import DatatypeRegistry, HandlerDeps
+from aptc_shared.terminology.stub import StubTerminologyClient
 
 
 def _audit_event_count(session: Session) -> int:
@@ -725,7 +725,7 @@ def test_version_id_col_backstop_catches_a_genuine_concurrent_race(
     disturb the hash chain or any other test's exact-content assertions
     against the shared container. Only `catalogue_entry` needs cleanup
     afterwards, via `owner_engine` - the only role with the DELETE
-    privilege `nptc_app` is deliberately refused (FR-03)."""
+    privilege `aptc_app` is deliberately refused (FR-03)."""
     business_key = format_business_key(999_000_001)
     with app_engine.connect() as setup_connection:
         entry_id = setup_connection.execute(

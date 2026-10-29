@@ -31,15 +31,15 @@ renewal rather than a refresh token.
 Every artifact already committed points this way, and the issue title predates all of
 them:
 
-- **The realm.** `nptc-frontend` is `publicClient: true` with
+- **The realm.** `aptc-frontend` is `publicClient: true` with
   `pkce.code.challenge.method: S256`, its `redirectUris` and `webOrigins` derive from
-  `${NPTC_FRONTEND_BASE_URL}` — the *frontend's* origin — and so does its
+  `${APTC_FRONTEND_BASE_URL}` — the *frontend's* origin — and so does its
   `post.logout.redirect.uris` (ADR-0014).
 - **The route table.** `route-tree.ts` already reserved a *frontend* `/auth/callback`
   route, tagged issue #41. A backend callback would leave it vestigial.
-- **The audience mapper.** `nptc-api-audience` sets `access.token.claim: true` and
+- **The audience mapper.** `aptc-api-audience` sets `access.token.claim: true` and
   `id.token.claim: false` — the access token is minted to be sent to the API.
-- **The verifier.** `nptc.auth.tokens.TokenVerifier` requires payload `typ == "Bearer"`,
+- **The verifier.** `aptc.auth.tokens.TokenVerifier` requires payload `typ == "Bearer"`,
   and `authenticate_identity` takes a bare token string.
 - **The step-up contract.** `docs/architecture/permissions.md` pre-specifies
   `403` + `WWW-Authenticate: Bearer error="insufficient_user_authentication",
@@ -88,7 +88,7 @@ navigation and the real implementation can only ever hit its own timeout under t
 ### The realm's browser flow is restructured into LoA 1 and LoA 2
 
 **This is a correction to ADR-0014's realm, found by the first test to actually drive a
-login.** As committed, `nptc browser forms` ran `auth-username-password-form` (REQUIRED)
+login.** As committed, `aptc browser forms` ran `auth-username-password-form` (REQUIRED)
 followed by a CONDITIONAL subflow whose only condition was
 `conditional-level-of-authentication` at level 2. With no satisfiable LoA-1 branch
 anywhere in the flow, Keycloak resolved *every* authorization request to LoA 2, required
@@ -116,9 +116,9 @@ exchanges, while `acr_values=2` still demands OTP.
   drives a real PKCE round trip against the pinned Keycloak image, covering the two
   acceptance criteria that belong to the authorisation server rather than to us: a
   mismatched `code_verifier` is refused, and a replayed authorisation code fails.
-- `nptc.api` exists: an app factory, the `current_principal`/`permission_dep`
+- `aptc.api` exists: an app factory, the `current_principal`/`permission_dep`
   dependencies ADR-0016 and ADR-0019 deferred, the auth-error-to-HTTP mapping, and
-  `GET /api/v1/auth/me`. `nptc.db.session` exists for the same reason.
+  `GET /api/v1/auth/me`. `aptc.db.session` exists for the same reason.
 - CORS is now load-bearing. The browser holds the token and calls the API cross-origin,
   so `ApiSettings.frontend_base_url` names exactly one allowed origin — never `*`.
 - Two new `VITE_*` variables, the first in this repo: `VITE_OIDC_ISSUER` and
@@ -150,7 +150,7 @@ NFR-23's restrictive CSP.
 | **Refresh token held in browser memory** | Fewer round trips than `prompt=none`, and a common SPA pattern. Rejected because it puts a long-lived credential in JavaScript — precisely the asset the in-memory-only decision exists to avoid — for a saving measured in one redirect per five minutes. |
 | **Re-prompting the user when the access token expires** | Simplest and safest, but a visible interruption every five minutes of activity is not usable for a curation tool whose users work in long sessions. |
 | **Persisting tokens in `localStorage`** | Would survive a reload without any renewal round trip. Rejected: it makes a stolen storage entry outlive the tab, and `prompt=none` already restores a session on cold load. |
-| **Setting `default.acr.values: ["1"]` on `nptc-frontend`** | The obvious-looking fix for the TOTP-for-everyone defect. Keycloak refuses to start with it, because level 1 appears nowhere in the browser flow — which is the underlying problem the LoA-1 subflow actually fixes. |
+| **Setting `default.acr.values: ["1"]` on `aptc-frontend`** | The obvious-looking fix for the TOTP-for-everyone defect. Keycloak refuses to start with it, because level 1 appears nowhere in the browser flow — which is the underlying problem the LoA-1 subflow actually fixes. |
 | **Leaving the realm as committed (MFA for every user)** | Would have avoided touching ADR-0014's realm. Rejected because it contradicts NFR-02 and makes registration materially harder than the PRD describes, for a security property NFR-06 only asks of administrators. |
 
 ## Follow-ups

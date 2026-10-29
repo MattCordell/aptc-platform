@@ -1,4 +1,4 @@
-"""`nptc.auth.grants` (issue #44, FR-44, FR-01): granting/revoking roles,
+"""`aptc.auth.grants` (issue #44, FR-44, FR-01): granting/revoking roles,
 the Reviewer promote-to-Member carve-out, idempotence, the audit trail
 each mutation emits, and the last-administrator guard's principal failure
 mode - two genuinely concurrent transactions racing to revoke the last two
@@ -15,13 +15,13 @@ from sqlalchemy import select, text
 from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.orm import Session
 
-from nptc.audit.writer import AuditContext
-from nptc.auth.errors_authorisation import LastAdministratorError, PermissionDeniedError
-from nptc.auth.grants import grant_role, grant_role_unchecked, revoke_role, roles_for_user
-from nptc.auth.permissions import Role, permissions_for_roles
-from nptc.auth.principal import Principal
-from nptc.db.models.user import User
-from nptc.db.models.user_role import UserRole
+from aptc.audit.writer import AuditContext
+from aptc.auth.errors_authorisation import LastAdministratorError, PermissionDeniedError
+from aptc.auth.grants import grant_role, grant_role_unchecked, revoke_role, roles_for_user
+from aptc.auth.permissions import Role, permissions_for_roles
+from aptc.auth.principal import Principal
+from aptc.db.models.user import User
+from aptc.db.models.user_role import UserRole
 
 
 def _principal(*, user_id: uuid.UUID, roles: frozenset[Role]) -> Principal:
@@ -387,7 +387,7 @@ def test_concurrent_revocation_of_the_last_two_administrators_leaves_exactly_one
 
     # No manual cleanup needed here: `pristine_audit_event`'s teardown
     # wipes `user_role`/`audit_event`/`app_user` (as the owner role,
-    # which nptc_app lacks DELETE on for app_user at all - NFR-17: users
+    # which aptc_app lacks DELETE on for app_user at all - NFR-17: users
     # are never deleted, only pseudonymised) regardless of whether this
     # assertion passes, so a failure here can no longer leak a committed
     # administrator row into later tests the way an inline, non-`finally`

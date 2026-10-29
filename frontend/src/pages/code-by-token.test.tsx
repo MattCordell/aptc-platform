@@ -12,7 +12,7 @@ import { stubApi } from "../test/stub-api.ts";
  * NFR-31), driven through the real router and signed out.
  */
 
-const KEY = "NPTC-000247";
+const KEY = "APTC-000247";
 // Past `Number.MAX_SAFE_INTEGER`: a coerced code would render differently.
 const LONG_CODE = "900000000000003001";
 const LEADING_ZEROS = "000123";
@@ -122,7 +122,7 @@ describe("a code that an entry binds", () => {
     await renderLookup(LONG_CODE, [lookupRoute(LONG_CODE)]);
 
     await screen.findByRole("region", { name: "Matching entry" });
-    await waitFor(() => expect(document.title).toBe("Code lookup — NPTC Catalogue"));
+    await waitFor(() => expect(document.title).toBe("Code lookup — APTC Catalogue"));
   });
 
   // FR-06: `JSON.parse` cannot tell a quoted code from a bare number, so the

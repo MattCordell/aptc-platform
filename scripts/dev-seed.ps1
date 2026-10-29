@@ -41,7 +41,7 @@ $ErrorActionPreference = 'Stop'
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $ComposeFile = Join-Path $RepoRoot 'deploy\compose.yml'
 $Workbook = Join-Path $RepoRoot 'transform\tests\fixtures\spia-requesting-sample.xlsx'
-$WorkDir = Join-Path ([System.IO.Path]::GetTempPath()) ('nptc-dev-seed-' + [guid]::NewGuid().ToString('N'))
+$WorkDir = Join-Path ([System.IO.Path]::GetTempPath()) ('aptc-dev-seed-' + [guid]::NewGuid().ToString('N'))
 $WorkbookCopy = Join-Path $WorkDir (Split-Path -Leaf $Workbook)
 $ContainerPath = '/tmp/import-dataset.json'
 $ExitCatalogueNotEmpty = 4
@@ -84,7 +84,7 @@ try {
     if ($code -ne 0) { Write-Host "error: the workbook filter failed (exit $code)"; exit $ExitFilterFailed }
 
     $code = Invoke-Step 'Run the transform on the sample workbook' 'uv' @(
-        'run', 'nptc-transform', 'run', '--workbook', $WorkbookCopy,
+        'run', 'aptc-transform', 'run', '--workbook', $WorkbookCopy,
         '--emit-dataset', '--release-name', $ReleaseName, '--check-terminology',
         '--report-dir', $RawDir)
     if ($code -ne 0) { Write-Host "error: the transform failed (exit $code)"; exit $ExitTransformFailed }

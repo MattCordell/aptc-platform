@@ -1,7 +1,7 @@
 /**
  * The collection notice the terms acceptance gate shows (NFR-45). It repeats
  * Keycloak's registration notice
- * (`deploy/keycloak/themes/nptc/login/messages/messages_en.properties`) so a
+ * (`deploy/keycloak/themes/aptc/login/messages/messages_en.properties`) so a
  * person who registered reads the same account of their details when they
  * accept the terms. `frontend/tests/terms-collection-notice.test.ts` fails if
  * the two differ. The terms text is served by the API; this notice is SPA copy.

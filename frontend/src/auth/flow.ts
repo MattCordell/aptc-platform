@@ -1,7 +1,7 @@
 /**
  * The authorisation-code + PKCE flow itself (issue #41, NFR-01).
  *
- * The browser performs the exchange because `nptc-frontend` is a public
+ * The browser performs the exchange because `aptc-frontend` is a public
  * client with no secret to protect (ADR-0021). What the browser must *not*
  * do is decide anything about authorisation: the token is opaque here, and
  * every permission question is answered by the API (NFR-20).

@@ -14,8 +14,8 @@ detection.
 **Error and warning severity share one comparison key, backfilled here.**
 `designation.term_key` and `catalogue_entry.preferred_term_key` are added
 nullable, backfilled in Python from every existing row's `term`/
-`preferred_term` via `nptc_shared.similarity.collision_key` - the same
-function `nptc.catalogue.collisions` and the two models' own
+`preferred_term` via `aptc_shared.similarity.collision_key` - the same
+function `aptc.catalogue.collisions` and the two models' own
 `@validates` hooks call, so the backfilled value can never diverge from
 what a fresh insert would compute (ADR-0001/FR-74's own principle: one
 implementation, not a hand-written SQL approximation of it). Only once
@@ -32,9 +32,9 @@ supplemented: issue #47's version keyed on `(entry_id, term, language)`,
 which only caught a byte-for-byte duplicate. Re-created here on
 `(entry_id, term_key, language)` so a case/punctuation variant of an
 already-active synonym on the same entry is unrepresentable too, matching
-`nptc.catalogue.designations.add_synonyms`'s own dedup-before-insert
+`aptc.catalogue.designations.add_synonyms`'s own dedup-before-insert
 behaviour. `ix_designation_term_key` and `ix_catalogue_entry_
-preferred_term_key` are plain (non-partial) btree indexes: `nptc.catalogue.
+preferred_term_key` are plain (non-partial) btree indexes: `aptc.catalogue.
 collisions` filters by entry status in the query itself, so there is no
 fixed `WHERE` clause a partial index could usefully pin.
 
@@ -53,7 +53,7 @@ loaded, so this has never had a real violation to catch in practice.
 
 **Warning severity's acknowledgement is a new, narrow table -
 `designation_collision_acknowledgement` - not the PRD SS6.1
-`ValidationFinding` lifecycle.** That entity is P3 (`nptc.validation` is
+`ValidationFinding` lifecycle.** That entity is P3 (`aptc.validation` is
 still a placeholder); FR-05's own acknowledgement requirement cannot wait
 on it. See the model's own module docstring for the full reasoning and
 scope `(entry_id, term_key, language)`.
@@ -72,8 +72,8 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-from nptc.db import roles
-from nptc_shared.similarity import collision_key
+from aptc.db import roles
+from aptc_shared.similarity import collision_key
 
 # revision identifiers, used by Alembic.
 revision: str = "0009"

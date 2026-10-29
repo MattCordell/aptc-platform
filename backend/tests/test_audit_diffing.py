@@ -1,4 +1,4 @@
-"""Offline unit tests for nptc.audit.diffing (issue #37, NFR-08).
+"""Offline unit tests for aptc.audit.diffing (issue #37, NFR-08).
 
 No container, no network: exercises SQLAlchemy's own attribute history and
 `diff_snapshots` against an isolated in-memory mapped model, never a real
@@ -16,8 +16,8 @@ from sqlalchemy import Text, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from nptc.audit.diffing import ChangeKind, FieldChange, FieldDiff, diff_instance, diff_snapshots
-from nptc.audit.policy import (
+from aptc.audit.diffing import ChangeKind, FieldChange, FieldDiff, diff_instance, diff_snapshots
+from aptc.audit.policy import (
     AmbiguousSnapshotFieldError,
     AuditFieldPolicy,
     AuditPolicyError,
@@ -41,7 +41,7 @@ class _Widget(_Base):
     # active_history=True on every auditable/withheld column: policy_for
     # enforces this (issue #37) since diff_instance's load_history() call
     # cannot recover a prior value reassigned before ever being loaded
-    # without it - see nptc.db.models.user's own comment on the same rule.
+    # without it - see aptc.db.models.user's own comment on the same rule.
     status: Mapped[str] = mapped_column(Text, nullable=False, active_history=True)
     count: Mapped[int] = mapped_column(nullable=False, default=0, active_history=True)
     owner_name: Mapped[str | None] = mapped_column(Text, nullable=True, active_history=True)

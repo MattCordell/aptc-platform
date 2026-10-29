@@ -8,7 +8,7 @@
 Every P1 backlog item is blocked on issue #33 - the P1 milestone's own priority ordering
 puts it before every other P1 issue, since #35, #36, #42, #46-#48, #51-#55 and #138 all
 need a real schema, a role model, and a working migration/test harness to build on.
-Before this issue, `backend/src/nptc/db/` was a docstring-only stub, `backend/migrations/`
+Before this issue, `backend/src/aptc/db/` was a docstring-only stub, `backend/migrations/`
 held a placeholder README, there was no Alembic configuration, no backend settings module
 (`pydantic-settings` was declared but unused), and `backend/tests/` held a single
 scaffolding test whose own docstring said it goes once real backend tests land.
@@ -40,8 +40,8 @@ in directly - Alembic's own connection-sharing recipe), then
 `MigrationSettings().migration_database_url` (the operator path, documented in
 `docs/operations/upgrade.md`). `MigrationSettings` is a dedicated `pydantic-settings` class
 carrying only `migration_database_url`, separate from the app-facing `DatabaseSettings`
-(`nptc.settings`) which carries only `database_url` - both fields living on one combined
-class would mean `env.py` demanded `NPTC_DATABASE_URL` too, a variable Alembic has no use
+(`aptc.settings`) which carries only `database_url` - both fields living on one combined
+class would mean `env.py` demanded `APTC_DATABASE_URL` too, a variable Alembic has no use
 for at all. There is no third fallback to `config.get_main_option("sqlalchemy.url")` - a
 misconfigured environment must fail loudly, naming the missing variable, rather than
 silently attempting Alembic's own placeholder URL. `env.py` also guards `fileConfig()`:
@@ -83,7 +83,7 @@ dies with the table itself, so a separate migration would leave the re-created t
 grant-less after a `downgrade base` → `upgrade head` round-trip - exactly the shape issue #35's
 re-assertion criterion exists to catch.
 
-**`nptc.db.roles`** holds the app role name and every grant/revoke statement as plain string
+**`aptc.db.roles`** holds the app role name and every grant/revoke statement as plain string
 constants (never an f-string, `%`/`+` concatenation, or `.format()`), imported by both the
 migration and the tests, so the granted and asserted privilege sets cannot drift apart.
 `GRANT ALL` is never written against an audit table; the `REVOKE UPDATE, DELETE, TRUNCATE`
@@ -98,7 +98,7 @@ constant (`roles.GRANT_AUDIT_EVENT_SQL`) passes; an f-string, `%`/`+` concatenat
 above the call (rule 2) or a literal `GRANT ALL` against `audit_event` anywhere (rule 3).
 The distinction that actually matters for SQL injection is whether runtime data reaches the
 query text, not whether the reference is spelled inline - and rejecting `Name`/`Attribute`
-references would make `nptc.db.roles`'s entire reuse-across-migration-and-test design
+references would make `aptc.db.roles`'s entire reuse-across-migration-and-test design
 impossible to write without duplicating every SQL string. The guard ships with its own
 positive control run over an inline source string, so a refactor that silently made the
 walker match nothing would fail loudly rather than the check rotting into one that always
@@ -112,7 +112,7 @@ required - testcontainers 4.x defaults to `psycopg2`, which is not a workspace d
 Migrations are applied via `command.upgrade`, never `metadata.create_all` - the acceptance
 criteria are about the migrations themselves running, and `create_all` would never execute
 their `GRANT`/`REVOKE` statements at all. The restricted connection
-(`nptc_app_login`) is a genuinely separate authentication, not `SET ROLE` on the owner
+(`aptc_app_login`) is a genuinely separate authentication, not `SET ROLE` on the owner
 connection - a superuser's `SET ROLE` still bypasses some privilege checks, so only a real
 non-superuser login proves the grant. Each refusal (`UPDATE`, `DELETE`, `TRUNCATE`) gets its
 own test function: a privilege error aborts the surrounding transaction, so a second
@@ -148,8 +148,8 @@ job and `transform-offline`), which is what actually justifies moving NFR-37 to
 `implemented`.
 
 **The downgrade/upgrade round-trip is checked with a reflection fingerprint, not
-`compare_metadata` alone**, and it runs against its own dedicated `nptc_roundtrip` database
-in the same container rather than the shared `nptc_test` database:
+`compare_metadata` alone**, and it runs against its own dedicated `aptc_roundtrip` database
+in the same container rather than the shared `aptc_test` database:
 `downgrade base` drops every table, and sharing a database with the session-scoped
 `app_engine`/`owner_engine` fixtures would produce intermittent `UndefinedTable` errors from
 pooled connections still open against the dropped schema. `compare_metadata` only asks "do
@@ -159,8 +159,8 @@ fingerprint instead covers `inspect()` over columns/PK/FKs/uniques/checks/indexe
 `pg_extension`, plus `information_schema.role_table_grants` - the last of which is what
 makes this single test also satisfy #35's "grants re-asserted after downgrade then upgrade"
 criterion, nearly free here and expensive to retrofit later. Incidentally, this test is a
-live proof that `0001`'s `IF NOT EXISTS` role guard is load-bearing: `nptc_app` already
-exists in the cluster (created against `nptc_test` first) by the time the dedicated
+live proof that `0001`'s `IF NOT EXISTS` role guard is load-bearing: `aptc_app` already
+exists in the cluster (created against `aptc_test` first) by the time the dedicated
 database's own migration creates it again, since roles are cluster-wide, not per-database.
 
 **`downgrade()` in `0001` drops both extensions but deliberately does not `DROP ROLE`**:
@@ -190,7 +190,7 @@ to prevent (ADR-0002; NFR-25/NFR-26 are existing precedent for the same restrain
 | `alembic.ini` in `backend/` or at the repo root | Breaks `script_location` resolution from the repo root (the load-bearing detail above), and duplicates configuration ownership that the root `pyproject.toml` already holds for every other tool. |
 | `pytest.mark.skipif` when Docker is absent | Docker is already a declared, non-optional prerequisite (`CONTRIBUTING.md`); a skip would let a broken or absent Docker daemon read as "tests passed" instead of "tests didn't run". |
 | `pg_dump --schema-only` text diff for the round-trip check | Needs a `pg_dump` binary matching the server version - absent on a Windows development machine, and version-skewed against PG18 on many Linux boxes. Reflection is pure SQLAlchemy and produces a diff pytest can render directly. |
-| One combined `Settings` class with both `database_url` and `migration_database_url` required | Caught in review: `env.py` instantiating that class to read `migration_database_url` would then also demand `NPTC_DATABASE_URL`, a variable Alembic never uses - an operator following `upgrade.md`'s "exactly one environment variable" claim would hit a `ValidationError` naming the wrong field. Split into `DatabaseSettings`/`MigrationSettings`, each carrying only the one field its own consumer needs. |
+| One combined `Settings` class with both `database_url` and `migration_database_url` required | Caught in review: `env.py` instantiating that class to read `migration_database_url` would then also demand `APTC_DATABASE_URL`, a variable Alembic never uses - an operator following `upgrade.md`'s "exactly one environment variable" claim would hit a `ValidationError` naming the wrong field. Split into `DatabaseSettings`/`MigrationSettings`, each carrying only the one field its own consumer needs. |
 | The `migrated` fixture as `autouse=True` | Caught in review: every test under `backend/tests` started Docker regardless of whether it touched a database, including `test_settings.py` and `test_sql_parameterisation.py`, whose own docstrings say they need neither. Made non-autouse; `db`/`app_engine` request it explicitly, and `test_db_round_trip.py`'s `roundtrip_engine` fixture requests it too, purely to keep the "0001's `IF NOT EXISTS` guard is proven" comment true regardless of test collection order. |
 
 ## Consequences
@@ -198,9 +198,9 @@ to prevent (ADR-0002; NFR-25/NFR-26 are existing precedent for the same restrain
 - Every later backend issue that touches the database (#35, #36, #42, #46-#48, #51-#55,
   #138) builds on this migration layout, role model, and test harness rather than
   reinventing any part of it.
-- `nptc.db.roles` becomes the one place a future least-privilege role's grants are defined -
+- `aptc.db.roles` becomes the one place a future least-privilege role's grants are defined -
   the pattern (constants imported by both a migration and its tests) is meant to repeat, not
-  be special-cased to `nptc_app`.
+  be special-cased to `aptc_app`.
 - The `backend-integration` CI job runs `backend/tests` under the egress block, the same
   trade-off `transform-offline` makes for `transform/tests`/`shared/tests`. The `python` job
   skips the container tests, so each container test runs once; the coverage floor is held on

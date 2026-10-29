@@ -20,7 +20,7 @@ status, instead of showing the form. A visitor who is not signed in sees no
 link, and a page that is still checking your sign-in shows none yet.
 
 The form opens at `/submissions/new?entry=` followed by the entry's key, for example
-`/submissions/new?entry=NPTC-000006`. If you open that address while signed out, you are asked
+`/submissions/new?entry=APTC-000006`. If you open that address while signed out, you are asked
 to sign in and then return to the form. To propose a new test instead, use
 [Submitting a new test](submitting-a-new-test.md).
 

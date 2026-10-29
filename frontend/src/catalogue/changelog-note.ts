@@ -2,7 +2,7 @@
  * FR-37 changelog note validation (issue #62's client-side gate).
  *
  * A deliberate, tested mirror of `validate_changelog_note` in
- * `backend/src/nptc/catalogue/changelog.py` (issue #47) - see
+ * `backend/src/aptc/catalogue/changelog.py` (issue #47) - see
  * `docs/adr/0030-domain-logic-at-the-browser-boundary.md` for why this is
  * duplicated rather than shared, and what keeps the two honest.
  *

@@ -16,7 +16,7 @@ import { waitForSession } from "../test/wait-for-session.ts";
  * the shipped route as well as the page.
  */
 
-const BUSINESS_KEY = "NPTC-000247";
+const BUSINESS_KEY = "APTC-000247";
 const EDIT_URL = `/admin/catalogue/${BUSINESS_KEY}/edit`;
 
 const ENTRY = {

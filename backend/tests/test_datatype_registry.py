@@ -12,7 +12,7 @@ from typing import Any
 import pytest
 from sqlalchemy import ColumnElement
 
-from nptc.registry import (
+from aptc.registry import (
     ControlKind,
     DatatypeRegistry,
     DuplicateDatatypeError,

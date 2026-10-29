@@ -1,4 +1,4 @@
-# Code owners for aehrc/nptc-platform
+# Code owners for MattCordell/aptc-platform
 #
 # Review is currently advisory: `main` does not require an approval, because GitHub
 # does not permit self-approval and this is a single-committer repository. See

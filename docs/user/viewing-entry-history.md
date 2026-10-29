@@ -5,11 +5,11 @@ to open that record and how to read it. Anyone can read it, signed in or not.
 
 ## Open the history
 
-1. Open the test's page, for example `/catalogue/NPTC-000247`. See
+1. Open the test's page, for example `/catalogue/APTC-000247`. See
    [Reading an entry](reading-an-entry.md).
 2. In **Recent changes**, choose **View full history**.
 
-The history has its own address, `/catalogue/NPTC-000247/history`. You can bookmark it or
+The history has its own address, `/catalogue/APTC-000247/history`. You can bookmark it or
 send it to someone. The breadcrumb at the top links back to the test.
 
 ## Read a change

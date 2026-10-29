@@ -13,8 +13,8 @@ import openpyxl
 import pytest
 from openpyxl.worksheet.worksheet import Worksheet
 
-from nptc_transform.cellref import CellRef
-from nptc_transform.pipeline import Finding, Mode, RunResult, SourceRef
+from aptc_transform.cellref import CellRef
+from aptc_transform.pipeline import Finding, Mode, RunResult, SourceRef
 
 ISO_DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
 
@@ -72,7 +72,7 @@ def _run_cli(
     *args: str, env: dict[str, str] | None = None, expected_returncode: int = 0
 ) -> subprocess.CompletedProcess[str]:
     result = subprocess.run(
-        [sys.executable, "-m", "nptc_transform.cli", *args],
+        [sys.executable, "-m", "aptc_transform.cli", *args],
         capture_output=True,
         text=True,
         env=env,

@@ -29,7 +29,7 @@ You need all of these:
 5. **A release name in `YYYY-MM` form,** such as `2026-06`, for the workbook's publication
    month. The seed record keeps it, so choose it before you load.
 6. **Network access to the terminology server,** if you run the terminology check in step 1.
-   The settings are the `NPTC_TX_*` variables in [`configuration.md`](../configuration.md).
+   The settings are the `APTC_TX_*` variables in [`configuration.md`](../configuration.md).
 
 ## Step 1: Check the workbook (report only)
 
@@ -37,7 +37,7 @@ A report-only run changes nothing. Add the terminology check, which validates ev
 against SNOMED CT-AU and International (FR-52):
 
 ```powershell
-uv run nptc-transform run --workbook path\to\SPIA-Requesting.xlsx --check-terminology
+uv run aptc-transform run --workbook path\to\SPIA-Requesting.xlsx --check-terminology
 ```
 
 The command writes `report.json` and `report.md` into `transform-report/`. Open `report.md`.
@@ -48,7 +48,7 @@ Blocking findings come first.
 | `0` | No finding blocks the import. | Go to step 3. |
 | `1` | At least one finding blocks the import. | Go to step 2. |
 | `2` | The command was wrong, or the workbook is unreadable. | Read the message, fix the command or the file, and run again. |
-| `3` | The terminology server could not be reached. No report is written. | Check the network and the `NPTC_TX_*` settings, then run again. |
+| `3` | The terminology server could not be reached. No report is written. | Check the network and the `APTC_TX_*` settings, then run again. |
 
 ## Step 2: Settle blocking findings at source
 
@@ -65,7 +65,7 @@ The transform blocks on a specimen string that its reviewed map does not cover
 two ways:
 
 - **A terminologist adds one row to the specimen map**
-  (`transform/src/nptc_transform/data/specimen_map.tsv`) with a verified SNOMED CT code. This
+  (`transform/src/aptc_transform/data/specimen_map.tsv`) with a verified SNOMED CT code. This
   is a data change, so it goes through a pull request.
 - **RCPA-QAP corrects the workbook value** to a string the map already covers.
 
@@ -87,7 +87,7 @@ Name the release and ask for the dataset. Keep the terminology check on, so the 
 blocking rules apply:
 
 ```powershell
-uv run nptc-transform run --workbook path\to\SPIA-Requesting.xlsx --check-terminology --emit-dataset --release-name 2026-06
+uv run aptc-transform run --workbook path\to\SPIA-Requesting.xlsx --check-terminology --emit-dataset --release-name 2026-06
 ```
 
 A good run exits `0` and writes `transform-report/import-dataset.json` next to the report.

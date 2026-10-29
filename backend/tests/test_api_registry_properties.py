@@ -1,11 +1,11 @@
-"""HTTP tests for `nptc.api.routers.registry` (issue #55, FR-11, FR-12,
+"""HTTP tests for `aptc.api.routers.registry` (issue #55, FR-11, FR-12,
 FR-38, FR-44, NFR-08).
 
 Follows `test_api_catalogue_bindings.py`'s own precedent exactly: the
 service layer already has its own unit tests
 (`test_registry_definitions.py`); this module proves the HTTP adapter -
 request/response shape, status codes, the exception-handler mapping in
-`nptc.api.errors`, and authorisation - against the real `create_app()`.
+`aptc.api.errors`, and authorisation - against the real `create_app()`.
 """
 
 from __future__ import annotations
@@ -21,10 +21,10 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.engine import Connection
 
-from nptc.audit.writer import AuditContext
-from nptc.auth.permissions import Role
-from nptc.catalogue.entries import create_entry
-from nptc.db.models.audit import AuditEvent
+from aptc.audit.writer import AuditContext
+from aptc.auth.permissions import Role
+from aptc.catalogue.entries import create_entry
+from aptc.db.models.audit import AuditEvent
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -381,13 +381,13 @@ def test_get_property_returns_a_form_control(api: ApiTestApp) -> None:
 @pytest.mark.integration
 def test_list_properties_returns_a_synthetic_datatypes_own_form_control(api: ApiTestApp) -> None:
     """FR-77's own acceptance criterion, at the HTTP layer: a datatype
-    registered nowhere in `nptc.registry.datatypes.BUILTIN_DATATYPES`
+    registered nowhere in `aptc.registry.datatypes.BUILTIN_DATATYPES`
     still appears in `GET /registry/properties` with its own handler's
-    `form_control` - no route or response model in `nptc.api.routers.
+    `form_control` - no route or response model in `aptc.api.routers.
     registry` is edited to make this work, matching `test_synthetic_
     datatype.py`'s own service-layer proof of the same claim."""
-    from nptc.api.dependencies import get_datatype_registry
-    from nptc.registry import (
+    from aptc.api.dependencies import get_datatype_registry
+    from aptc.registry import (
         ControlKind,
         DatatypeRegistry,
         FormControlDescriptor,
@@ -397,7 +397,7 @@ def test_list_properties_returns_a_synthetic_datatypes_own_form_control(api: Api
         ValidationIssue,
         build_builtin_handlers,
     )
-    from nptc_shared.terminology.stub import StubTerminologyClient
+    from aptc_shared.terminology.stub import StubTerminologyClient
 
     class _SyntheticColourHandler:
         """A wholly synthetic datatype - never one of PRD SS6.5's five and
@@ -477,10 +477,10 @@ def test_get_property_returns_a_code_datatypes_form_control_from_its_binding(
     `registry/datatypes/code.py::CodeHandler.form_control`), derived from
     the definition's own binding rather than a literal dict, so a synthetic
     handler cannot stand in for it - `specimen`
-    (`nptc.db.bootstrap.seed_system_properties`) is a real `code` property
+    (`aptc.db.bootstrap.seed_system_properties`) is a real `code` property
     with a real `value_set` binding, already used two tests over in
     `test_api_catalogue_properties.py`."""
-    from nptc.db.bootstrap import seed_system_properties
+    from aptc.db.bootstrap import seed_system_properties
 
     token = api.admin_token(subject="sub-form-control-code")
     seed_system_properties(api.session)
@@ -523,8 +523,8 @@ def test_list_properties_with_one_drifted_datatype_is_a_whole_list_500(
     green for any unrelated server error the route happened to raise,
     including one that stopped exercising the drift this test exists to
     pin."""
-    from nptc.api.errors import _DETAIL_SERVER_MISCONFIGURED
-    from nptc.db.models.property_definition import PropertyDefinition
+    from aptc.api.errors import _DETAIL_SERVER_MISCONFIGURED
+    from aptc.db.models.property_definition import PropertyDefinition
 
     token = api.admin_token(subject="sub-list-drifted-datatype")
     key = _unique_key("drifted_datatype")
@@ -642,12 +642,12 @@ def test_delete_property_is_always_409(api: ApiTestApp) -> None:
 @pytest.mark.req("FR-11")
 @pytest.mark.integration
 def test_deprecate_property_system_origin_is_409(api: ApiTestApp) -> None:
-    """A built-in system property (`nptc.db.bootstrap.seed_system_properties`)
+    """A built-in system property (`aptc.db.bootstrap.seed_system_properties`)
     must refuse deprecation at the HTTP layer too, not just at the service
     layer (`test_registry_definitions.py::
     test_deprecate_definition_refuses_a_system_property`)."""
-    from nptc.db.bootstrap import seed_system_properties
-    from nptc.db.definitions import load_definition
+    from aptc.db.bootstrap import seed_system_properties
+    from aptc.db.definitions import load_definition
 
     token = api.admin_token(subject="sub-deprecate-system")
     seed_system_properties(api.session)
@@ -717,9 +717,9 @@ def test_list_datatypes_describes_every_builtin_in_name_order(api: ApiTestApp) -
 def test_list_datatypes_includes_a_datatype_registered_only_at_runtime(api: ApiTestApp) -> None:
     """The route reads the live registry, so FR-77's "no edit outside the handler" claim holds
     for the listing too."""
-    from nptc.api.dependencies import get_datatype_registry
-    from nptc.registry import DatatypeRegistry, HandlerDeps, build_builtin_handlers
-    from nptc_shared.terminology.stub import StubTerminologyClient
+    from aptc.api.dependencies import get_datatype_registry
+    from aptc.registry import DatatypeRegistry, HandlerDeps, build_builtin_handlers
+    from aptc_shared.terminology.stub import StubTerminologyClient
 
     class _AddedHandler:
         datatype = "added_at_runtime"
@@ -794,7 +794,7 @@ def test_list_properties_no_credential_is_401(api: ApiTestApp) -> None:
 def test_list_properties_authenticated_without_permission_is_403(api: ApiTestApp) -> None:
     """See `test_list_properties_no_credential_is_401`'s own docstring.
     `_create_user` auto-grants a brand-new identity `Role.PROVISIONAL`
-    (`nptc.auth.identity`), and round-4 review (issue #223) gave
+    (`aptc.auth.identity`), and round-4 review (issue #223) gave
     `Role.PROVISIONAL` `Permission.REGISTRY_READ` too (FR-23 - the
     submission form Provisional can already create is generated from this
     registry), so a bare newly-seen subject is no longer the right
@@ -1002,11 +1002,11 @@ def test_end_to_end_create_record_value_deprecate_still_readable(api: ApiTestApp
     )
     api.session.flush()
 
-    from nptc.catalogue.local_codes import DatabaseLocalCodeLookup
-    from nptc.catalogue.property_values import PropertyValueInput, save_property_values
-    from nptc.registry.datatypes import build_builtin_handlers
-    from nptc.registry.handlers import DatatypeRegistry, HandlerDeps
-    from nptc_shared.terminology.stub import StubTerminologyClient
+    from aptc.catalogue.local_codes import DatabaseLocalCodeLookup
+    from aptc.catalogue.property_values import PropertyValueInput, save_property_values
+    from aptc.registry.datatypes import build_builtin_handlers
+    from aptc.registry.handlers import DatatypeRegistry, HandlerDeps
+    from aptc_shared.terminology.stub import StubTerminologyClient
 
     registry = DatatypeRegistry(
         build_builtin_handlers(
@@ -1047,7 +1047,7 @@ def test_end_to_end_create_record_value_deprecate_still_readable(api: ApiTestApp
 
     # Further value write refused - proven at the service layer directly,
     # since no dedicated HTTP property-value write route exists yet.
-    from nptc.registry.definitions import DeprecatedPropertyWriteError
+    from aptc.registry.definitions import DeprecatedPropertyWriteError
 
     with pytest.raises(DeprecatedPropertyWriteError):
         save_property_values(

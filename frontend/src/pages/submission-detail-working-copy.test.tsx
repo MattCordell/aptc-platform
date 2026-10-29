@@ -946,7 +946,7 @@ describe("editing a new test's working copy (FR-23)", () => {
 describe("editing an amendment's working copy (FR-23, FR-35)", () => {
   const amendment = {
     kind: "amendment",
-    entry_business_key: "NPTC-000247",
+    entry_business_key: "APTC-000247",
     preferred_term: "Full blood count",
     snomed_code: null,
     snomed_fsn: null,

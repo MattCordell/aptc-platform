@@ -2,7 +2,7 @@ import type { StatusTone } from "../components/status-badge.tsx";
 
 /**
  * The lifecycle values `statusToneFor` maps by name, matching
- * `nptc.catalogue.maintenance.MAINTENANCE_STATUSES` (derived from the same
+ * `aptc.catalogue.maintenance.MAINTENANCE_STATUSES` (derived from the same
  * enum server-side). Hand-written, not derived from `STATUS_OPTIONS` via
  * `satisfies` (PR #327 second review): `satisfies` only checks a value's
  * *shape*, not its literal type, against a target property typed `string` -

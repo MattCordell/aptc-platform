@@ -6,13 +6,13 @@
 GIN trigram indexes or sequentially scans `catalogue_entry` and
 `designation` in full. A predicate written so that the index cannot be used
 - `similarity(...) > 0.3` instead of the `%` operator, or `unaccent(lower(
-term))` instead of `nptc_search_text(term)`, a composition Postgres has no
+term))` instead of `aptc_search_text(term)`, a composition Postgres has no
 reason to recognise as the indexed expression - is therefore invisible to
 every other test in the suite and shows up only as a slow catalogue in
 production. This module is the only defence, so it asserts the plan, not
 just the answer.
 
-Marked `integration`: `nptc_search_text` is a database function and a query
+Marked `integration`: `aptc_search_text` is a database function and a query
 plan is a database fact - there is no unit-level substitute (NFR-39).
 """
 
@@ -27,17 +27,17 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import ClauseElement, Executable
 
-from nptc.catalogue.facets import (
+from aptc.catalogue.facets import (
     FacetDescriptor,
     _PropertyFacetSource,
     build_facet_counts_statement,
 )
-from nptc.catalogue.maintenance import MAINTENANCE_STATUSES
-from nptc.catalogue.search import PUBLIC_STATUSES
-from nptc.registry.datatypes.string import StringHandler
-from nptc.registry.handlers import PropertyDefinitionSpec
+from aptc.catalogue.maintenance import MAINTENANCE_STATUSES
+from aptc.catalogue.search import PUBLIC_STATUSES
+from aptc.registry.datatypes.string import StringHandler
+from aptc.registry.handlers import PropertyDefinitionSpec
 
-_NORMALISE_SQL = text("SELECT nptc_search_text(:value)")
+_NORMALISE_SQL = text("SELECT aptc_search_text(:value)")
 
 _INDEX_DEFINITION_SQL = text(
     "SELECT indexdef FROM pg_indexes WHERE schemaname = 'public' AND indexname = :name"
@@ -76,7 +76,7 @@ def test_search_text_is_strict_so_null_does_not_fold_to_empty(db: Connection) ->
 #: what makes a retired row unreachable, not a size optimisation.
 _ACTIVE_ONLY = "WHERE (status = 'active'::text)"
 
-#: Every index `nptc.catalogue.search._SCORED_SQL` depends on, with what its
+#: Every index `aptc.catalogue.search._SCORED_SQL` depends on, with what its
 #: definition must contain. Nine entries for nine branches - the table is the
 #: point, because the failure this module exists to catch is a branch that
 #: quietly stops being index-supported, and a list that omitted one would
@@ -84,29 +84,29 @@ _ACTIVE_ONLY = "WHERE (status = 'active'::text)"
 _EXPECTED_INDEXES: tuple[tuple[str, tuple[str, ...]], ...] = (
     (
         "ix_catalogue_entry_preferred_term_trgm",
-        ("USING gin", "nptc_search_text(preferred_term)", "gin_trgm_ops"),
+        ("USING gin", "aptc_search_text(preferred_term)", "gin_trgm_ops"),
     ),
     (
         "ix_catalogue_entry_preferred_term_fts",
-        ("USING gin", "nptc_search_document(preferred_term)"),
+        ("USING gin", "aptc_search_document(preferred_term)"),
     ),
     (
         "ix_designation_term_trgm",
-        ("USING gin", "nptc_search_text(term)", "gin_trgm_ops", _ACTIVE_ONLY),
+        ("USING gin", "aptc_search_text(term)", "gin_trgm_ops", _ACTIVE_ONLY),
     ),
-    ("ix_designation_term_fts", ("USING gin", "nptc_search_document(term)", _ACTIVE_ONLY)),
+    ("ix_designation_term_fts", ("USING gin", "aptc_search_document(term)", _ACTIVE_ONLY)),
     (
         "ix_code_binding_fsn_trgm",
-        ("USING gin", "nptc_search_text(fsn)", "gin_trgm_ops", _ACTIVE_ONLY),
+        ("USING gin", "aptc_search_text(fsn)", "gin_trgm_ops", _ACTIVE_ONLY),
     ),
-    ("ix_code_binding_fsn_fts", ("USING gin", "nptc_search_document(fsn)", _ACTIVE_ONLY)),
+    ("ix_code_binding_fsn_fts", ("USING gin", "aptc_search_document(fsn)", _ACTIVE_ONLY)),
     (
         "ix_code_binding_au_preferred_term_trgm",
-        ("USING gin", "nptc_search_text(au_preferred_term)", "gin_trgm_ops", _ACTIVE_ONLY),
+        ("USING gin", "aptc_search_text(au_preferred_term)", "gin_trgm_ops", _ACTIVE_ONLY),
     ),
     (
         "ix_code_binding_au_preferred_term_fts",
-        ("USING gin", "nptc_search_document(au_preferred_term)", _ACTIVE_ONLY),
+        ("USING gin", "aptc_search_document(au_preferred_term)", _ACTIVE_ONLY),
     ),
     # btree, not gin: the code is matched by equality (ADR-0029).
     ("ix_code_binding_code", ("USING btree", "(code)", _ACTIVE_ONLY)),
@@ -120,7 +120,7 @@ def test_each_search_index_exists_over_the_expression_the_query_uses(
     db: Connection, name: str, fragments: tuple[str, ...]
 ) -> None:
     """Index *definitions*, not merely names: an index created over the raw
-    column instead of `nptc_search_text(...)`/`nptc_search_document(...)`
+    column instead of `aptc_search_text(...)`/`aptc_search_document(...)`
     would still be present under the expected name while accelerating
     nothing the search predicate asks for.
 
@@ -136,8 +136,8 @@ def test_each_search_index_exists_over_the_expression_the_query_uses(
 
 # --- the full-text half of the pair ---------------------------------------
 
-_DOCUMENT_SQL = text("SELECT nptc_search_document(:value)")
-_MATCH_SQL = text("SELECT nptc_search_document(:value) @@ nptc_search_query(:q)")
+_DOCUMENT_SQL = text("SELECT aptc_search_document(:value)")
+_MATCH_SQL = text("SELECT aptc_search_document(:value) @@ aptc_search_query(:q)")
 
 
 def _matches(db: Connection, value: str, q: str) -> bool:
@@ -178,7 +178,7 @@ def test_full_text_matches_an_inflected_form_that_trigram_scores_as_a_near_miss(
 def test_the_document_function_folds_diacritics_like_its_trigram_counterpart(
     db: Connection,
 ) -> None:
-    """Both halves normalise through `nptc_search_text`, so `muller` reaches
+    """Both halves normalise through `aptc_search_text`, so `muller` reaches
     `Müller` by either route. If only the trigram half folded, an accented
     term would be findable at one score and not at all at another."""
     assert _matches(db, "Müller cell antibody", "muller cell antibody")
@@ -238,7 +238,7 @@ _ROW_COUNT = 20_000
 _BULK_ENTRIES_SQL = text("""
 INSERT INTO catalogue_entry (business_key, preferred_term, status)
 SELECT
-    'NPTC-8' || lpad(g::text, 8, '0'),
+    'APTC-8' || lpad(g::text, 8, '0'),
     'assay ' || md5(g::text),
     'active'
 FROM generate_series(1, :count) AS g
@@ -251,14 +251,14 @@ SELECT
     'synonym ' || md5(e.business_key),
     'active'
 FROM catalogue_entry AS e
-WHERE e.business_key LIKE 'NPTC-8%'
+WHERE e.business_key LIKE 'APTC-8%'
 """)
 
 #: One active binding per bulk entry, so the five `code_binding` branches
 #: have a table of realistic shape to plan against rather than an empty one.
 #:
 #: **Why the codes are generated by filtering rather than counted off.**
-#: `code_binding.code` carries a `CHECK` calling `nptc_sctid_is_valid`, so a
+#: `code_binding.code` carries a `CHECK` calling `aptc_sctid_is_valid`, so a
 #: sequence of consecutive integers would be rejected outright - roughly one
 #: number in ten has a valid Verhoeff check digit. Generating a wide range
 #: and keeping the ones that pass is the cheapest way to get 20,000 codes
@@ -287,7 +287,7 @@ FROM (
         inner_entry.business_key AS business_key,
         row_number() OVER (ORDER BY inner_entry.business_key) AS rn
     FROM catalogue_entry AS inner_entry
-    WHERE inner_entry.business_key LIKE 'NPTC-8%'
+    WHERE inner_entry.business_key LIKE 'APTC-8%'
     LIMIT :bindings
 ) AS e
 JOIN (
@@ -295,7 +295,7 @@ JOIN (
         g::text AS code,
         row_number() OVER (ORDER BY g) AS rn
     FROM generate_series(100000000, 100000000 + :candidates) AS g
-    WHERE nptc_sctid_is_valid(g::text)
+    WHERE aptc_sctid_is_valid(g::text)
 ) AS c ON c.rn = e.rn
 """)
 
@@ -317,7 +317,7 @@ _CODE_CANDIDATES = 60_000
 _BINDING_COUNT = 5_000
 
 _ONE_TERM_SQL = text(
-    "SELECT preferred_term FROM catalogue_entry WHERE business_key = 'NPTC-800000123'"
+    "SELECT preferred_term FROM catalogue_entry WHERE business_key = 'APTC-800000123'"
 )
 
 
@@ -360,7 +360,7 @@ def _explain(db: Connection, statement: ClauseElement, params: dict[str, object]
 def test_the_real_search_query_plans_against_the_trigram_indexes(
     db: Connection, statuses: tuple[str, ...]
 ) -> None:
-    """`EXPLAIN` on the exact statement `nptc.catalogue.search` runs.
+    """`EXPLAIN` on the exact statement `aptc.catalogue.search` runs.
 
     Builds the statement through `build_search_statement` on purpose:
     explaining a hand-copied approximation of the query would be a test of
@@ -387,13 +387,13 @@ def test_the_real_search_query_plans_against_the_trigram_indexes(
     cost race would be a test of the fixture's row count. Disabling
     sequential scans removes the cost race without weakening the assertion
     at all: an unindexable predicate - `similarity(...) >= 0.3` instead of
-    `%`, or `lower(unaccent(term))` instead of `nptc_search_text(term)` -
+    `%`, or `lower(unaccent(term))` instead of `aptc_search_text(term)` -
     still cannot become an `Index Cond`, because no amount of cost
     persuasion makes an expression the index does not contain usable. It
     appears as a `Filter` on a (now expensive) sequential scan, and the
     assertions below fail exactly as they should.
     """
-    from nptc.catalogue import search
+    from aptc.catalogue import search
 
     db.execute(_BULK_ENTRIES_SQL, {"count": _ROW_COUNT})
     db.execute(_BULK_DESIGNATIONS_SQL)
@@ -407,7 +407,7 @@ def test_the_real_search_query_plans_against_the_trigram_indexes(
     db.execute(text("ANALYZE catalogue_entry"))
     db.execute(text("ANALYZE designation"))
     db.execute(text("ANALYZE code_binding"))
-    # `is_local => true`, matching what `nptc.catalogue.search` itself does:
+    # `is_local => true`, matching what `aptc.catalogue.search` itself does:
     # a session-scoped `set_limit()` here would survive this test's rollback
     # and change the threshold for every later test handed this connection.
     db.execute(
@@ -436,16 +436,16 @@ def test_the_real_search_query_plans_against_the_trigram_indexes(
     # answering the predicate and the index merely being read before the
     # predicate is applied by hand. Four trigram scans, four full-text
     # scans, and the code equality.
-    assert plan.count("Index Cond: (nptc_search_text(") == 4, plan
+    assert plan.count("Index Cond: (aptc_search_text(") == 4, plan
     assert plan.count("Index Cond: (to_tsvector(") == 4, plan
     assert plan.count("Index Cond: (code = ") == 1, plan
     # The match predicates specifically must not be demoted to filters. The
     # threshold restatement *does* appear as a filter on the four trigram
     # branches, and correctly so - it is a recheck of an already-scanned
     # row, not the predicate that selected it - so it is spelled
-    # `Filter: ((similarity(nptc_search_text(...` and does not collide with
+    # `Filter: ((similarity(aptc_search_text(...` and does not collide with
     # this assertion.
-    assert "Filter: (nptc_search_text(" not in plan, plan
+    assert "Filter: (aptc_search_text(" not in plan, plan
     assert "Filter: (to_tsvector(" not in plan, plan
 
 
@@ -497,11 +497,11 @@ def test_the_combined_facet_counts_statement_scans_the_scoring_cte_a_fixed_numbe
     visible only as a plan that grows with the facet count.
 
     Built through `build_facet_counts_statement` and
-    `nptc.catalogue.search._matching_entry_ids` themselves, for the same
+    `aptc.catalogue.search._matching_entry_ids` themselves, for the same
     reason every other plan test in this module explains the real
     statement rather than a hand-copied approximation of it.
     """
-    from nptc.catalogue import search
+    from aptc.catalogue import search
 
     db.execute(_BULK_ENTRIES_SQL, {"count": _ROW_COUNT})
     db.execute(_BULK_DESIGNATIONS_SQL)
@@ -536,7 +536,7 @@ def test_the_combined_facet_counts_statement_scans_the_scoring_cte_a_fixed_numbe
     # as many as `test_the_real_search_query_plans_against_the_trigram_indexes`
     # asserts for the single-page statement, and unchanged between 2 and 5
     # facets: the claim this test exists for.
-    assert plan.count("Index Cond: (nptc_search_text(") == 4, plan
+    assert plan.count("Index Cond: (aptc_search_text(") == 4, plan
     assert plan.count("Index Cond: (to_tsvector(") == 4, plan
     assert plan.count("Index Cond: (code = ") == 1, plan
 
@@ -559,7 +559,7 @@ def test_a_negation_only_query_plans_away_the_full_text_branches(
     a guard applied as a per-row filter would return the same empty result
     while still reading every row.
 
-    `NOT ('' :: tsvector @@ nptc_search_query(:q))` depends only on `:q`, so
+    `NOT ('' :: tsvector @@ aptc_search_query(:q))` depends only on `:q`, so
     the planner resolves it once and prunes the branch outright. Four
     `One-Time Filter: false` nodes is that pruning, one per full-text branch,
     and no `to_tsvector` index condition surviving is the same statement from
@@ -570,7 +570,7 @@ def test_a_negation_only_query_plans_away_the_full_text_branches(
     sibling test above, for the same reason - this pruning depends only on
     `:q`, so it should be provably unaffected by `:statuses` too, not merely
     assumed to be."""
-    from nptc.catalogue import search
+    from aptc.catalogue import search
 
     plan = _explain(
         db,
@@ -582,10 +582,10 @@ def test_a_negation_only_query_plans_away_the_full_text_branches(
     assert "Index Cond: (to_tsvector(" not in plan, plan
     # The trigram branches are deliberately untouched: `%` has no negation,
     # so the query is still searched for the literal text the user typed.
-    assert "Index Cond: (nptc_search_text(" in plan, plan
+    assert "Index Cond: (aptc_search_text(" in plan, plan
 
 
-#: Deliberately not `nptc.catalogue.search.SIMILARITY_THRESHOLD`. It stands
+#: Deliberately not `aptc.catalogue.search.SIMILARITY_THRESHOLD`. It stands
 #: in for "whatever the previous user of this pooled connection left behind",
 #: and it has to differ from the module's own threshold for the assertion
 #: below to be able to fail: a leak of 0.3 onto a connection whose threshold
@@ -601,7 +601,7 @@ def test_the_similarity_threshold_reverts_when_the_transaction_ends(
     """`pg_trgm.similarity_threshold` must be set at *transaction* scope, not
     session scope.
 
-    This is why `nptc.catalogue.search` uses `set_config(..., is_local =>
+    This is why `aptc.catalogue.search` uses `set_config(..., is_local =>
     true)` rather than `set_limit()`. `set_limit` sets the GUC for the
     session, so the value survives the commit and follows the connection back
     into the pool - and the next, unrelated request handed that connection
@@ -621,7 +621,7 @@ def test_the_similarity_threshold_reverts_when_the_transaction_ends(
         connection.commit()
 
         with Session(bind=connection) as session:
-            from nptc.catalogue.search import search_entries
+            from aptc.catalogue.search import search_entries
 
             search_entries(session, q="a query that need not match anything", limit=1)
             session.commit()
@@ -642,11 +642,11 @@ def test_the_similarity_threshold_reverts_when_the_transaction_ends(
 # --- the admin listing sort (issue #287): evidence for "no new indexes" ----
 
 #: A different `business_key` prefix from `_BULK_ENTRIES_SQL`'s own
-#: `NPTC-8...`, so the two bulk fixtures cannot collide if a future change
+#: `APTC-8...`, so the two bulk fixtures cannot collide if a future change
 #: ever ran them in the same transaction - each test's own transaction rolls
 #: back regardless, so this is belt-and-braces rather than load-bearing.
 #:
-#: Sized to this catalogue's real ceiling (~5,000 rows - see `nptc.catalogue.
+#: Sized to this catalogue's real ceiling (~5,000 rows - see `aptc.catalogue.
 #: maintenance`'s own module docstring), not to the trigram test's 20,000:
 #: the point of this test is that the *real* size needs no more than a plain
 #: scan and sort, and a larger fixture would prove a different, easier
@@ -657,7 +657,7 @@ _LISTING_ROW_COUNT = 5_000
 _BULK_LISTING_ENTRIES_SQL = text("""
 INSERT INTO catalogue_entry (business_key, preferred_term, status, updated_at)
 SELECT
-    'NPTC-9' || lpad(g::text, 8, '0'),
+    'APTC-9' || lpad(g::text, 8, '0'),
     'assay ' || md5(g::text),
     (ARRAY['draft', 'active', 'deprecated', 'withdrawn'])[1 + (g % 4)],
     now() - (g || ' seconds')::interval
@@ -694,10 +694,10 @@ def _assert_one_base_table_access(plan: str) -> None:
 def test_the_real_listing_query_plans_as_one_scan_and_sort(db: Connection, sort: str) -> None:
     """`EXPLAIN` on the exact statement `maintenance.list_entries_any_status`
     runs, for each `sort` (issue #287) - evidence for this issue's own "no
-    new database indexes" deferral (see `nptc.catalogue.maintenance`'s
+    new database indexes" deferral (see `aptc.catalogue.maintenance`'s
     module docstring), rather than an unverified assumption.
 
-    Built through `build_listing_statement` on purpose, matching `nptc.
+    Built through `build_listing_statement` on purpose, matching `aptc.
     catalogue.search.build_search_statement`'s own precedent above:
     explaining a hand-copied approximation would be a test of the copy.
 
@@ -720,7 +720,7 @@ def test_the_real_listing_query_plans_as_one_scan_and_sort(db: Connection, sort:
     `ix_catalogue_entry_preferred_term_key`, or a `Bitmap Heap Scan` pair, is
     cheap at this table's real size either way.
     """
-    from nptc.catalogue import maintenance
+    from aptc.catalogue import maintenance
 
     db.execute(_BULK_LISTING_ENTRIES_SQL, {"count": _LISTING_ROW_COUNT})
     # Statistics, or the planner is working from defaults unrelated to the

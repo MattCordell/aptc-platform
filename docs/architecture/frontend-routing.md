@@ -89,7 +89,7 @@ table rather than left as a comment.
 
 Three forms resolve the same entry:
 
-- `/catalogue/{business_key}` — e.g. `/catalogue/NPTC-000247`. `business_key` is the
+- `/catalogue/{business_key}` — e.g. `/catalogue/APTC-000247`. `business_key` is the
   public identifier (FR-03); the internal UUID never appears in a route (PRD §6.2).
 - `/catalogue/code/{system_token}/{code}` — `sct` is the registered alias for
   `http://snomed.info/sct`.
@@ -371,7 +371,7 @@ Two things a deployment must get right that this issue cannot enforce itself:
   file under `/assets/` returns 404 on purpose, so a stale hashed URL never receives
   `index.html`. Any other reverse proxy in front of the SPA must do the same.
 
-  Without it, deep-linking to `/catalogue/NPTC-000247` in a fresh session 404s at the
+  Without it, deep-linking to `/catalogue/APTC-000247` in a fresh session 404s at the
   proxy in production only — `vite dev`/`vite preview`'s default `appType: "spa"` already
   does this locally, so the gap is easy to miss.
 - **Base path.** Vite's `base` and `createAppRouter`'s `basepath` (unset today, meaning

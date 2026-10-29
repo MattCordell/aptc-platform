@@ -15,7 +15,7 @@ granting a role and setting up an authenticator. In order, it:
      it under a new Keycloak id, which the platform treats as a new person.
   4. Signs that user in once through the API, which creates the app_user row, and accepts the
      current terms of use. The sign-in uses a direct password grant that the script switches on for
-     the nptc-frontend client for these few calls and switches off again.
+     the aptc-frontend client for these few calls and switches off again.
   5. Grants the administrator role (scripts/grant_role.py inside the backend container) to the
      username the platform reports for that sign-in. After a restart that is a suffixed name such
      as devadmin-1a2b3c4d, because the plain name belongs to the earlier account.
@@ -81,8 +81,8 @@ $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $ComposeFile = Join-Path $RepoRoot 'deploy\compose.yml'
 $EnvFile = Join-Path $RepoRoot 'deploy\.env'
 $StateFile = Join-Path $RepoRoot 'deploy\.dev-user.json'
-$Realm = 'nptc'
-$FrontendClient = 'nptc-frontend'
+$Realm = 'aptc'
+$FrontendClient = 'aptc-frontend'
 $Base32Alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
 $TotpPeriod = 30
 $ExitPrerequisite = 1
@@ -246,7 +246,7 @@ if (-not (Test-Path -LiteralPath $EnvFile)) {
 
 $settings = Read-DotEnv $EnvFile
 $keycloakPort = if ($settings.ContainsKey('KEYCLOAK_PORT') -and $settings['KEYCLOAK_PORT']) { $settings['KEYCLOAK_PORT'] } else { '8080' }
-$webPort = if ($settings.ContainsKey('NPTC_WEB_PORT') -and $settings['NPTC_WEB_PORT']) { $settings['NPTC_WEB_PORT'] } else { '8081' }
+$webPort = if ($settings.ContainsKey('APTC_WEB_PORT') -and $settings['APTC_WEB_PORT']) { $settings['APTC_WEB_PORT'] } else { '8081' }
 $keycloakUrl = "http://localhost:$keycloakPort"
 $webUrl = "http://localhost:$webPort"
 $state = Get-DevUserState

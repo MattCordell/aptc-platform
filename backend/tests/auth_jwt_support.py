@@ -28,7 +28,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 from jwt.algorithms import RSAAlgorithm
 
-REALM_PATH = "/realms/nptc"
+REALM_PATH = "/realms/aptc"
 DISCOVERY_PATH = f"{REALM_PATH}/.well-known/openid-configuration"
 CERTS_PATH = f"{REALM_PATH}/protocol/openid-connect/certs"
 
@@ -131,7 +131,7 @@ def mint_token(
     *,
     kid: str,
     issuer: str,
-    audience: str | list[str] = "nptc-api",
+    audience: str | list[str] = "aptc-api",
     subject: str = "auth0|test-subject",
     alg: str = "RS256",
     typ: str = "Bearer",

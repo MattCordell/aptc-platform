@@ -27,15 +27,15 @@ Run from the repository root - `[tool.alembic]` in the root `pyproject.toml` res
 `script_location` relative to that file's own directory (`%(here)s`), not the process's
 working directory, so this is the one place these commands must be run from.
 
-Alembic needs exactly one environment variable to run outside a test: `NPTC_MIGRATION_
+Alembic needs exactly one environment variable to run outside a test: `APTC_MIGRATION_
 DATABASE_URL`, a DSN for a role that owns the schema (able to `CREATE EXTENSION`,
 `CREATE ROLE`, `GRANT`/`REVOKE`, and create/alter tables) - never the least-privilege
-`nptc_app` runtime role, which cannot do any of that by design. See
+`aptc_app` runtime role, which cannot do any of that by design. See
 [`configuration.md`](configuration.md) for both database DSNs this stack reads.
 
 **`CREATE EXTENSION` needs superuser** (or a role explicitly granted `CREATE` on the
 database, in a managed Postgres offering that restricts real superuser). The owning role
-used for `NPTC_MIGRATION_DATABASE_URL` must have this - `0001_extensions_and_app_role.py`
+used for `APTC_MIGRATION_DATABASE_URL` must have this - `0001_extensions_and_app_role.py`
 installs `pg_trgm` and `unaccent` and will fail with a permission error otherwise.
 
 ## Migration index
@@ -46,7 +46,7 @@ and/or `data-model.md`, so it gets no section of its own below.
 
 | Revision | Adds | Operator consequence |
 |---|---|---|
-| [`0001_extensions_and_app_role.py`](../../backend/migrations/versions/0001_extensions_and_app_role.py) | `pg_trgm`, `unaccent`, the `nptc_app` role | Needs a superuser-equivalent DSN (above); see [The asymmetric downgrade](#the-asymmetric-downgrade) |
+| [`0001_extensions_and_app_role.py`](../../backend/migrations/versions/0001_extensions_and_app_role.py) | `pg_trgm`, `unaccent`, the `aptc_app` role | Needs a superuser-equivalent DSN (above); see [The asymmetric downgrade](#the-asymmetric-downgrade) |
 | [`0002_audit_event.py`](../../backend/migrations/versions/0002_audit_event.py) | `audit_event` (see [`data-model.md`](../architecture/data-model.md#audit_event)) | None |
 | [`0003_user_and_user_identity.py`](../../backend/migrations/versions/0003_user_and_user_identity.py) | `app_user`, `user_identity` | See [below](#0003_user_and_user_identitypy) |
 | [`0004_audit_event_hash_chain.py`](../../backend/migrations/versions/0004_audit_event_hash_chain.py) | `prev_hash`/`entry_hash` on `audit_event` | See [below](#0004_audit_event_hash_chainpy) |
@@ -57,10 +57,10 @@ and/or `data-model.md`, so it gets no section of its own below.
 | [`0009_collision_detection.py`](../../backend/migrations/versions/0009_collision_detection.py) | `designation.term_key`/`catalogue_entry.preferred_term_key`, `designation_collision_acknowledgement`, `ix_code_binding_one_active_entry_per_code` (see [`data-model.md`](../architecture/data-model.md#collision-detection-issue-49-fr-05-fr-08)) | See [below](#0009_collision_detectionpy) - backfills the two key columns from existing rows before adding `NOT NULL` |
 | [`0010_property_definition_and_value.py`](../../backend/migrations/versions/0010_property_definition_and_value.py) | `property_definition`, `property_value` (see [`data-model.md`](../architecture/data-model.md#property-registry-issue-51-fr-09-fr-10-fr-11-fr-12)) | None |
 | [`0011_local_code_systems.py`](../../backend/migrations/versions/0011_local_code_systems.py) | `local_code_system`, `local_code`, `local_code_snomed_map`, plus their seed data (see [`data-model.md`](../architecture/data-model.md#local-code-systems-and-the-advisory-snomed-map-issue-56-fr-90-fr-91-fr-92)) | None |
-| [`0012_catalogue_search_indexes.py`](../../backend/migrations/versions/0012_catalogue_search_indexes.py) | `nptc_search_text`, two GIN trigram indexes | See [below](#0012_catalogue_search_indexespy) - a standing `REINDEX` obligation if the `unaccent` dictionary ever changes |
+| [`0012_catalogue_search_indexes.py`](../../backend/migrations/versions/0012_catalogue_search_indexes.py) | `aptc_search_text`, two GIN trigram indexes | See [below](#0012_catalogue_search_indexespy) - a standing `REINDEX` obligation if the `unaccent` dictionary ever changes |
 | [`0013_property_definition_local_code_system_key.py`](../../backend/migrations/versions/0013_property_definition_local_code_system_key.py) | `property_definition.local_code_system_key` (see [`data-model.md`](../architecture/data-model.md#property-registry-issue-51-fr-09-fr-10-fr-11-fr-12)) | See [below](#0013_property_definition_local_code_system_keypy) - backfills the new column on any database that already ran `seed_system_properties` before adding the `NOT NULL`-when-bound `CHECK` |
-| [`0014_numeric_or_null_function.py`](../../backend/migrations/versions/0014_numeric_or_null_function.py) | `nptc_numeric_or_null` (see [`data-model.md`](../architecture/data-model.md#automatic-index-generation-issue-54-fr-13)) | See [below](#0014_numeric_or_null_functionpy) - downgrading past it requires no reconciler-built numeric-shaped index to still exist |
-| [`0015_hybrid_search_indexes.py`](../../backend/migrations/versions/0015_hybrid_search_indexes.py) | `nptc_search_document`, `nptc_search_query`, four GIN full-text indexes, two GIN trigram indexes, one btree | See [below](#0015_hybrid_search_indexespy) - a second standing `REINDEX` obligation, this one on the `english` text search configuration |
+| [`0014_numeric_or_null_function.py`](../../backend/migrations/versions/0014_numeric_or_null_function.py) | `aptc_numeric_or_null` (see [`data-model.md`](../architecture/data-model.md#automatic-index-generation-issue-54-fr-13)) | See [below](#0014_numeric_or_null_functionpy) - downgrading past it requires no reconciler-built numeric-shaped index to still exist |
+| [`0015_hybrid_search_indexes.py`](../../backend/migrations/versions/0015_hybrid_search_indexes.py) | `aptc_search_document`, `aptc_search_query`, four GIN full-text indexes, two GIN trigram indexes, one btree | See [below](#0015_hybrid_search_indexespy) - a second standing `REINDEX` obligation, this one on the `english` text search configuration |
 | [`0016_code_binding_retired_at.py`](../../backend/migrations/versions/0016_code_binding_retired_at.py) | `code_binding.retired_at`, `ck_code_binding_retired_at` (see [`data-model.md`](../architecture/data-model.md#code_binding-issue-48-fr-06-fr-08-fr-82-fr-83)) | See [below](#0016_code_binding_retired_atpy) - backfills existing retired rows from `updated_at` before adding the `NOT NULL`-when-retired `CHECK` |
 | [`0017_code_binding_system_code_index.py`](../../backend/migrations/versions/0017_code_binding_system_code_index.py) | `ix_code_binding_system_code` (see [`data-model.md`](../architecture/data-model.md#code_binding-issue-48-fr-06-fr-08-fr-82-fr-83)) | None |
 | [`0018_validation_finding.py`](../../backend/migrations/versions/0018_validation_finding.py) | `validation_finding`, `ix_audit_event_entity_type_entity_id_sequence` on `audit_event` (see [`data-model.md`](../architecture/data-model.md#validation_finding-fr-18-fr-45-fr-55-issue-141)) | See [below](#0018_validation_findingpy) - the new `audit_event` index is a blocking build |
@@ -68,7 +68,7 @@ and/or `data-model.md`, so it gets no section of its own below.
 | [`0022_terms_acceptance.py`](../../backend/migrations/versions/0022_terms_acceptance.py) | `terms_acceptance` (see [`data-model.md`](../architecture/data-model.md#terms_acceptance-nfr-45-nfr-47-adr-0043)) | See [below](#0022_terms_acceptancepy) - every existing user must accept the current terms before their next contribution |
 | [`0023_specimen_binding_includes_root.py`](../../backend/migrations/versions/0023_specimen_binding_includes_root.py) | The `specimen` binding `<<123038009` (see [`data-model.md`](../architecture/data-model.md)) | See [below](#0023_specimen_binding_includes_rootpy) - re-emit any dataset made before this release |
 | [`0024_retire_specimen_unconstrained.py`](../../backend/migrations/versions/0024_retire_specimen_unconstrained.py) | Drops `catalogue_entry.specimen_unconstrained` (see [`data-model.md`](../architecture/data-model.md#catalogue_entry-issue-46-fr-03-fr-38)) | See [below](#0024_retire_specimen_unconstrainedpy) - converts the flag to the specimen root first |
-| [`0025_property_index_owner_role.py`](../../backend/migrations/versions/0025_property_index_owner_role.py) | The `nptc_property_index_owner` role, which takes over ownership of `property_value` (see [`data-model.md`](../architecture/data-model.md#automatic-index-generation-issue-54-fr-13)) | See [below](#0025_property_index_owner_rolepy) - a non-superuser migration role needs membership of the new role |
+| [`0025_property_index_owner_role.py`](../../backend/migrations/versions/0025_property_index_owner_role.py) | The `aptc_property_index_owner` role, which takes over ownership of `property_value` (see [`data-model.md`](../architecture/data-model.md#automatic-index-generation-issue-54-fr-13)) | See [below](#0025_property_index_owner_rolepy) - a non-superuser migration role needs membership of the new role |
 | [`0026_drop_designation_language.py`](../../backend/migrations/versions/0026_drop_designation_language.py) | Drops `designation.use`, `designation.language` and `designation_collision_acknowledgement.language` (see [`data-model.md`](../architecture/data-model.md#designation-issue-47-fr-04-fr-24-fr-37-fr-85)) | See [below](#0026_drop_designation_languagepy) - refuses to run if any row is not an en-AU synonym; re-emit any dataset made before this release |
 | [`0027_submission.py`](../../backend/migrations/versions/0027_submission.py) | `submission` (see [`data-model.md`](../architecture/data-model.md#submission-fr-23-fr-27-fr-28-fr-29-nfr-08)) | See [below](#0027_submissionpy) - an empty table on upgrade, and the downgrade discards every submission |
 | [`0028_submission_reference.py`](../../backend/migrations/versions/0028_submission_reference.py) | `submission.reference_url`, `reference_checked_at` and `reference_status` (see [`data-model.md`](../architecture/data-model.md#submission-fr-23-fr-27-fr-28-fr-29-nfr-08)) | See [below](#0028_submission_referencepy) - three nullable columns, and the downgrade discards every stored reference |
@@ -85,22 +85,22 @@ and/or `data-model.md`, so it gets no section of its own below.
 
 ## Provisioning the app role's login
 
-Migrations create the `nptc_app` role (`NOLOGIN`) and grant it the privileges the
+Migrations create the `aptc_app` role (`NOLOGIN`) and grant it the privileges the
 application needs - they deliberately do **not** create a `LOGIN` role or set a password
 anywhere (NFR-26: no secrets committed to the repository). The login role is created after
-the migration has run, by `nptc.db.provision_login`:
+the migration has run, by `aptc.db.provision_login`:
 
 ```powershell
-uv run python -m nptc.db.provision_login
+uv run python -m aptc.db.provision_login
 ```
 
-The command connects with `NPTC_MIGRATION_DATABASE_URL`, then creates `nptc_app_login` with
-the password in `NPTC_APP_DB_PASSWORD` and makes it a member of `nptc_app`. It is safe to
+The command connects with `APTC_MIGRATION_DATABASE_URL`, then creates `aptc_app_login` with
+the password in `APTC_APP_DB_PASSWORD` and makes it a member of `aptc_app`. It is safe to
 repeat: a second run sets the password to the current value, which is also how you rotate
 it. The compose `migrate` service runs this command for you.
 
-`NPTC_DATABASE_URL` (the application's own runtime DSN) then authenticates as
-`nptc_app_login`. `backend/tests/conftest.py` calls the same function inside the disposable
+`APTC_DATABASE_URL` (the application's own runtime DSN) then authenticates as
+`aptc_app_login`. `backend/tests/conftest.py` calls the same function inside the disposable
 test container, with an obviously-synthetic local-only password - never real credentials,
 and never anything committed.
 
@@ -108,29 +108,29 @@ If you manage database roles by other means, you can skip the command and run th
 equivalent SQL yourself, once:
 
 ```sql
-CREATE ROLE nptc_app_login LOGIN PASSWORD '<a real, generated secret>';
-GRANT nptc_app TO nptc_app_login;
+CREATE ROLE aptc_app_login LOGIN PASSWORD '<a real, generated secret>';
+GRANT aptc_app TO aptc_app_login;
 ```
 
 ## Provisioning the index reconciler's login (issues #54 and #274, FR-13)
 
 After a registry write commits, the API builds or drops the index a `filterable` property needs
-(`nptc.db.property_reconciler_dispatch`, `nptc.db.property_reconciler`). It does this as its own
-login, `nptc_indexer`. It does not use `nptc_app_login`, which cannot run DDL. It does not use the
+(`aptc.db.property_reconciler_dispatch`, `aptc.db.property_reconciler`). It does this as its own
+login, `aptc_indexer`. It does not use `aptc_app_login`, which cannot run DDL. It does not use the
 migration owner either, which can `CREATE ROLE` and `DROP TABLE`, far more than an index needs.
 
 **The compose stack provisions this for you.** The `migrate` service runs
-`python -m nptc.db.provision_login`. That command creates `nptc_indexer` with the password in
-`NPTC_INDEXER_DB_PASSWORD` and makes it a member of `nptc_property_index_owner`. Compose gives
-the `backend` service the matching `NPTC_INDEXER_DATABASE_URL`. Run the command again to rotate
+`python -m aptc.db.provision_login`. That command creates `aptc_indexer` with the password in
+`APTC_INDEXER_DB_PASSWORD` and makes it a member of `aptc_property_index_owner`. Compose gives
+the `backend` service the matching `APTC_INDEXER_DATABASE_URL`. Run the command again to rotate
 the password. A `deploy/.env` from before this change makes compose stop with "required variable
-NPTC_INDEXER_DB_PASSWORD is missing a value". Copy the line from `deploy/.env.example`.
+APTC_INDEXER_DB_PASSWORD is missing a value". Copy the line from `deploy/.env.example`.
 
 **What the login can do, and why.** Postgres has no "create index" privilege. `CREATE INDEX`
 needs ownership of the table, and Postgres also checks `CREATE` on the schema that will hold the
 index. Migration `0025_property_index_owner_role.py` therefore creates a `NOLOGIN` role,
-`nptc_property_index_owner`. That role owns `property_value`, holds `CREATE` on schema `public`
-and holds `SELECT` on `property_definition`, which the reconciler reads. `nptc_indexer` is a
+`aptc_property_index_owner`. That role owns `property_value`, holds `CREATE` on schema `public`
+and holds `SELECT` on `property_definition`, which the reconciler reads. `aptc_indexer` is a
 member of it.
 
 So the login can create and drop indexes on `property_value`. It can also alter, drop and
@@ -142,16 +142,16 @@ truncate `property_value`, and create new objects in `public`, because ownership
 **The accepted risk: planted code runs as the writer.** With those rights the login can create
 a function in `public`, then a trigger or rule on `property_value`, or an index whose expression
 calls the function. That code runs as whichever role next writes the table, not as the login.
-The writers are the `nptc_app` runtime role and, during a migration, the migration role, which is
-a superuser in the compose stack. The API holds `NPTC_INDEXER_DATABASE_URL`, so a leaked copy of
+The writers are the `aptc_app` runtime role and, during a migration, the migration role, which is
+a superuser in the compose stack. The API holds `APTC_INDEXER_DATABASE_URL`, so a leaked copy of
 it could become superuser at the next migration that writes `property_value`.
 
 Three things limit this, and none removes it:
 
-- Treat `NPTC_INDEXER_DATABASE_URL` as a credential equal to the migration role's, not a minor
+- Treat `APTC_INDEXER_DATABASE_URL` as a credential equal to the migration role's, not a minor
   one. In production, run migrations as a role that is not a superuser.
 - A migration that writes `property_value` calls
-  `nptc.db.migration_guards.refuse_foreign_code_on_property_value` first. It stops with the names
+  `aptc.db.migration_guards.refuse_foreign_code_on_property_value` first. It stops with the names
   if a trigger, a rule or a function owned by the index owner role or its members is present.
   It also locks `property_value` (`SHARE ROW EXCLUSIVE`) until the migration's transaction ends,
   so the login cannot plant a trigger between the check and the write. The lock blocks ordinary
@@ -162,43 +162,43 @@ Three things limit this, and none removes it:
   risk, so changing it means changing this page.
 
 To look by hand, list non-internal triggers (`pg_trigger`), rules (`pg_rules`) and functions
-owned by `nptc_property_index_owner` or its members (`pg_proc`, `pg_auth_members`). Look at the
+owned by `aptc_property_index_owner` or its members (`pg_proc`, `pg_auth_members`). Look at the
 indexes on `property_value` too: generated ones are named `ix_propval_p<n>_<slot>` and the
 reconciler rebuilds one whose definition no longer matches.
 
 **If you manage database roles yourself**, run this once after `alembic upgrade head`:
 
 ```sql
-CREATE ROLE nptc_indexer LOGIN PASSWORD '<a real, generated secret>';
-GRANT nptc_property_index_owner TO nptc_indexer;
+CREATE ROLE aptc_indexer LOGIN PASSWORD '<a real, generated secret>';
+GRANT aptc_property_index_owner TO aptc_indexer;
 ```
 
 **Who runs migrations after 0025.** The migration role no longer owns `property_value`. A
 superuser migration role, such as the compose `POSTGRES_USER`, needs nothing more. A
-non-superuser migration role must be a member of `nptc_property_index_owner` to run 0025's
+non-superuser migration role must be a member of `aptc_property_index_owner` to run 0025's
 `ALTER TABLE ... OWNER TO`, and to alter `property_value` in any later migration. Before you
 upgrade to 0025, create the role and grant it to the migration role:
 
 ```sql
-CREATE ROLE nptc_property_index_owner NOLOGIN;
-GRANT nptc_property_index_owner TO <migration role>;
+CREATE ROLE aptc_property_index_owner NOLOGIN;
+GRANT aptc_property_index_owner TO <migration role>;
 ```
 
 Migration 0025 skips creating a role that already exists.
 
-**Leaving `NPTC_INDEXER_DATABASE_URL` unset** is still a valid, safe setup (`IndexerSettings`
+**Leaving `APTC_INDEXER_DATABASE_URL` unset** is still a valid, safe setup (`IndexerSettings`
 fails closed). A registry write then logs a warning and builds no index. Run
 `scripts/reconcile_property_indexes.py` to converge, as the
 [runbook](runbooks/reconcile-property-indexes.md) describes.
 
-`backend/tests/conftest.py` does not provision `nptc_indexer`. `test_db_property_indexes.py` and
-`test_db_property_index_plan.py` point `NPTC_INDEXER_DATABASE_URL` at the container's bootstrap
+`backend/tests/conftest.py` does not provision `aptc_indexer`. `test_db_property_indexes.py` and
+`test_db_property_index_plan.py` point `APTC_INDEXER_DATABASE_URL` at the container's bootstrap
 superuser. `test_indexer_role.py` provisions the real login.
 
 ## The asymmetric downgrade
 
 `0001_extensions_and_app_role.py`'s `downgrade()` drops both extensions but **does not**
-`DROP ROLE nptc_app`. This is deliberate, not an oversight: roles are cluster-wide, not
+`DROP ROLE aptc_app`. This is deliberate, not an oversight: roles are cluster-wide, not
 per-database, so dropping a role that still holds privileges in any other database sharing
 the cluster fails - which would make `downgrade base` fail outright on a shared cluster (the
 normal case in any real deployment, and even in this repo's own round-trip test, which runs
@@ -206,10 +206,10 @@ a dedicated database in the *same* container as the rest of the test suite). A r
 schema, so this doesn't compromise the round-trip criterion (schema equality after
 `downgrade base` → `upgrade head`) - only that a stale, unused role can be left behind in
 the cluster after a full downgrade. If a role genuinely needs to be removed, that is a
-manual operator step (`DROP ROLE nptc_app;`, after confirming it holds nothing elsewhere in
+manual operator step (`DROP ROLE aptc_app;`, after confirming it holds nothing elsewhere in
 the cluster), not something a migration can safely automate.
 
-The same downgrade also leaves `GRANT USAGE ON SCHEMA public TO nptc_app` in place - it is
+The same downgrade also leaves `GRANT USAGE ON SCHEMA public TO aptc_app` in place - it is
 a schema-level grant, not a table-level one, and revoking it isn't necessary for the same
 reason dropping the role isn't: the role persisting with a stray schema grant is harmless,
 and the alternative (`REVOKE USAGE ... ; downgrade base` re-`GRANT`-ing it on every
@@ -251,7 +251,7 @@ flagging: `UPDATE (granted_at)` **is** granted, narrowly, alongside `SELECT, INS
 DELETE`. This is not an oversight against "a grant is created or removed, never edited" -
 Postgres requires *some* `UPDATE` privilege on a table before it honours `SELECT ... FOR
 UPDATE` at all (confirmed against a real container while building this migration), and
-`nptc.auth.grants.assert_not_last_administrator`'s row lock (FR-01) depends on exactly
+`aptc.auth.grants.assert_not_last_administrator`'s row lock (FR-01) depends on exactly
 that. `granted_at` is the one column nothing ever writes to after insert, so the
 column-level grant costs nothing real while `user_id`/`role`/`granted_by_user_id` stay
 immutable at the privilege level.
@@ -261,7 +261,7 @@ immutable at the privilege level.
 FR-01's last-administrator guard means a fresh deployment can never acquire its first
 Administrator through the ordinary, `Principal`-checked path - there is no `Principal` yet
 that could hold `role.grant.any`. After `upgrade head` and at least one real login (which
-creates the `app_user` row via `nptc.auth.identity._create_user`'s default Provisional
+creates the `app_user` row via `aptc.auth.identity._create_user`'s default Provisional
 grant), an operator with direct database access runs:
 
 ```powershell
@@ -274,11 +274,11 @@ In the compose stack, run it inside the `backend` container instead:
 docker compose -f deploy/compose.yml exec backend python scripts/grant_role.py --username <the user's username> --role administrator
 ```
 
-This calls the same `nptc.auth.grants.grant_role_unchecked` a first-login Provisional grant
+This calls the same `aptc.auth.grants.grant_role_unchecked` a first-login Provisional grant
 uses - still emits a `user_role.granted` audit event (`granted_by_user_id` null, the one
 case that column is nullable for), and is still idempotent. There is no `--force` and no
 revoke path through this script; once a second Administrator exists, every further
-grant/revoke should go through the ordinary checked functions (`nptc.auth.grants.
+grant/revoke should go through the ordinary checked functions (`aptc.auth.grants.
 grant_role`/`revoke_role`, landing with the P2 user-administration endpoints).
 
 ## `0009_collision_detection.py`
@@ -288,20 +288,20 @@ Adds `designation.term_key`/`catalogue_entry.preferred_term_key` (issue #49, FR-
 `designation_collision_acknowledgement`, and `ix_code_binding_one_active_entry_per_code`.
 Unlike `0004_audit_event_hash_chain.py` above, the two new key columns **do** backfill: for
 every pre-existing `designation`/`catalogue_entry` row, the migration computes
-`nptc_shared.similarity.collision_key(term)` in Python (the same function a fresh write
+`aptc_shared.similarity.collision_key(term)` in Python (the same function a fresh write
 uses) and writes it before the column becomes `NOT NULL` - so a deployment upgrading with
 real catalogue content already in place never has to backfill by hand. Pre-alpha, no seed
 data has ever been loaded, so this backfill has never had a real row to act on in practice.
 
 ## `0012_catalogue_search_indexes.py`
 
-Adds the `nptc_search_text` normalisation function and the two GIN trigram indexes the
+Adds the `aptc_search_text` normalisation function and the two GIN trigram indexes the
 public catalogue search matches through (issue #142 - see
 [`data-model.md`](../architecture/data-model.md#search-normalisation-and-the-trigram-indexes-issue-142-fr-14-fr-15)
 and [ADR-0024](../adr/0024-catalogue-search-and-pagination.md)). No table, no column, no
 grant changes, and nothing to backfill: `upgrade head` is all that is required.
 
-**One standing operator obligation.** `nptc_search_text` is declared `IMMUTABLE`, which
+**One standing operator obligation.** `aptc_search_text` is declared `IMMUTABLE`, which
 is honest only for a *fixed* `unaccent` dictionary definition. Both trigram indexes
 store values produced by that dictionary, so if its rule file ever changes underneath a
 running database, the stored index entries stop corresponding to what the function now
@@ -349,7 +349,7 @@ it manually before upgrading, or accept that it will be backfilled to the standa
 
 ## `0014_numeric_or_null_function.py`
 
-Adds `nptc_numeric_or_null` (issue #54, FR-13 - see
+Adds `aptc_numeric_or_null` (issue #54, FR-13 - see
 [`data-model.md`](../architecture/data-model.md#automatic-index-generation-issue-54-fr-13)
 and [ADR-0027](../adr/0027-cast-safe-numeric-index-expression.md)). No table, no column, no
 grant changes, and nothing to backfill: `upgrade head` is all that is required. Creates no
@@ -361,7 +361,7 @@ body, because the original `sql` body raised on a non-numeric value on a fresh P
 connection. No new migration replaces it. A development database created before this change
 keeps the `sql` body, so recreate it (`docker compose -f deploy/compose.yml down -v`, then
 `up`). A database you cannot recreate can run the `CREATE OR REPLACE FUNCTION` statement in
-`nptc.db.functions.CREATE_NUMERIC_OR_NULL_FUNCTION_SQL` by hand as the owner role.
+`aptc.db.functions.CREATE_NUMERIC_OR_NULL_FUNCTION_SQL` by hand as the owner role.
 
 **Downgrade obligation, the mirror of the trigram indexes' obligation above.** Postgres
 tracks a dependency from a generated expression index to this function, so `downgrade()`
@@ -373,7 +373,7 @@ index by hand) first.
 
 ## `0015_hybrid_search_indexes.py`
 
-Adds the `nptc_search_document`/`nptc_search_query` function pair and the seven indexes
+Adds the `aptc_search_document`/`aptc_search_query` function pair and the seven indexes
 that bring the stored `fsn`, the stored `au_preferred_term` and the SNOMED code into the
 search, alongside the full-text half of the ranking (issue #138 - see
 [`search.md`](../architecture/search.md) and
@@ -388,7 +388,7 @@ rather than running it against live traffic. The indexes are created non-concurr
 (an Alembic migration runs in a transaction, and `CREATE INDEX CONCURRENTLY` cannot),
 so each takes a lock that blocks writes to its table for the duration.
 
-**A second standing operator obligation**, independent of `0012`'s. `nptc_search_document`
+**A second standing operator obligation**, independent of `0012`'s. `aptc_search_document`
 is declared `IMMUTABLE`, which is honest only for a *fixed* `english` text search
 configuration - its stemmer (the `english_stem` Snowball dictionary) and its stopword
 list. The four full-text indexes store lexemes produced by that configuration, so if it
@@ -410,7 +410,7 @@ REINDEX INDEX CONCURRENTLY ix_code_binding_au_preferred_term_fts;
 ```
 
 **The `unaccent` obligation from `0012` now covers six indexes, not two.** Both function
-families normalise through `nptc_search_text`, so a change to the `unaccent` dictionary
+families normalise through `aptc_search_text`, so a change to the `unaccent` dictionary
 invalidates the two new trigram indexes and all four full-text indexes as well as
 `0012`'s original pair. After an `unaccent` change, reindex `0012`'s two plus:
 
@@ -427,7 +427,7 @@ triggers are separate: a stemmer change does not touch the trigram indexes, and 
 
 `downgrade()` drops all seven indexes and then the two functions, in that order (the
 reverse of `upgrade()`), since four of the index expressions depend on
-`nptc_search_document`.
+`aptc_search_document`.
 
 ## `0016_code_binding_retired_at.py`
 
@@ -475,7 +475,7 @@ sign-in, and the accept request itself stay open. The SPA shows each such user a
 needed. Any other client accepts by calling `POST /api/v1/auth/terms/acceptance` with the
 current `version` from `GET /api/v1/auth/terms`.
 
-The API reads the terms files named by `NPTC_TERMS_CURRENT_VERSION` and refuses to start if
+The API reads the terms files named by `APTC_TERMS_CURRENT_VERSION` and refuses to start if
 that version has no file. See [`configuration.md`](configuration.md).
 
 The downgrade drops the table, which discards every recorded acceptance.
@@ -523,26 +523,26 @@ entry, so a catalogue that holds entries has it.
 other field. A client built for the old shape must change. Entries edited through the API now
 record "any specimen" by writing the root as the one specimen value.
 
-The downgrade re-adds the column and re-grants `nptc_app` its `UPDATE` on it. An entry whose only
+The downgrade re-adds the column and re-grants `aptc_app` its `UPDATE` on it. An entry whose only
 specimen is the root becomes flagged again, and that value is removed, which restores the old
 rule that an entry holds the flag or specimens, never both. An entry that holds the root beside
 named specimens (the new rule refuses that pair) is left as it is.
 
 ## `0025_property_index_owner_role.py`
 
-Creates the `NOLOGIN` role `nptc_property_index_owner` and makes it the owner of
+Creates the `NOLOGIN` role `aptc_property_index_owner` and makes it the owner of
 `property_value` (FR-13). It also grants the role `SELECT` on `property_definition` and `CREATE`
-on schema `public`. The reconciler's login, `nptc_indexer`, is a member of it. See
+on schema `public`. The reconciler's login, `aptc_indexer`, is a member of it. See
 [Provisioning the index reconciler's login](#provisioning-the-index-reconcilers-login-issues-54-and-274-fr-13)
 for why Postgres needs all three, and for what the login can then do.
 
 **Who runs the upgrade.** A superuser migration role, such as the compose `POSTGRES_USER`, needs
-nothing more. A non-superuser migration role must be a member of `nptc_property_index_owner`
+nothing more. A non-superuser migration role must be a member of `aptc_property_index_owner`
 before 0025 runs, because `ALTER TABLE ... OWNER TO` needs it. Create the role by hand and grant
 it to the migration role first. The migration skips creating a role that already exists. The same
 membership is needed for any later migration that alters `property_value`.
 
-**Existing grants are unchanged.** `nptc_app` keeps the privileges it had on `property_value`.
+**Existing grants are unchanged.** `aptc_app` keeps the privileges it had on `property_value`.
 
 The downgrade revokes the two grants and gives ownership of `property_value` to the role that
 runs it, so run it as the role that created the tables (normally the migration role). A different

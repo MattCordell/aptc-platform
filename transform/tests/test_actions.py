@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from nptc_transform.actions import ACTION_BY_CODE, action_for
-from nptc_transform.bands import Band, FindingCode, band_for
+from aptc_transform.actions import ACTION_BY_CODE, action_for
+from aptc_transform.bands import Band, FindingCode, band_for
 
 _RUNBOOK = Path(__file__).resolve().parents[2] / "docs" / "operations" / "runbooks" / "transform.md"
 

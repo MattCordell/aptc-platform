@@ -4,7 +4,7 @@ FHIR R4 response bodies for `ValueSet/$expand`, `CodeSystem/$lookup`,
 `CodeSystem/$subsumes` and `$validate-code`, used by
 `test_terminology_contract.py` to seed both `OntoserverClient` (via
 `httpx.MockTransport`) and `StubTerminologyClient` from the *same* bodies,
-parsed by the *same* `nptc_shared.terminology.fhir` functions.
+parsed by the *same* `aptc_shared.terminology.fhir` functions.
 
 Every code, FSN and designation used here was confirmed against a live
 Ontoserver instance (`tx.ontoserver.csiro.au`) while this fixture set was

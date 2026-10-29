@@ -3,7 +3,7 @@
 `scripts/seed_baseline.py` loads the transform's `import-dataset.json` into an empty
 catalogue as the seeded baseline (FR-70, FR-76). Run it once, on a new deployment, after
 migrations and before real users edit anything. It is a thin wrapper around
-`nptc.catalogue.seed_import.seed_baseline`; no seeding logic lives in the script.
+`aptc.catalogue.seed_import.seed_baseline`; no seeding logic lives in the script.
 
 The decision to record the baseline as a seed record, and not as a `Release`, is
 [ADR-0042](../../adr/0042-seeded-baseline-representation.md). The two tables it writes are in
@@ -25,14 +25,14 @@ baseline: the refusals below are the point.
 2. The transform has emitted a dataset with no blocking finding:
 
    ```powershell
-   uv run nptc-transform run --workbook path/to/SPIA-Requesting.xlsx --check-terminology --emit-dataset --release-name 2026-06
+   uv run aptc-transform run --workbook path/to/SPIA-Requesting.xlsx --check-terminology --emit-dataset --release-name 2026-06
    ```
 
    `--check-terminology` is required. It resolves each specimen's SNOMED CT-AU preferred term,
    which the loader stores as the specimen's display. See [`transform.md`](transform.md) for the
    flags and the dataset format.
 3. The catalogue is empty. The loader refuses anything else (exit `4`).
-4. Optional, and recommended: `NPTC_INDEXER_DATABASE_URL` is set in the process that runs the
+4. Optional, and recommended: `APTC_INDEXER_DATABASE_URL` is set in the process that runs the
    script. The compose `backend` service already has it. From a checkout, export it or pass
    `--indexer-database-url`. Without it the run still seeds, and the indexes wait for
    `scripts/reconcile_property_indexes.py` (see "Generated indexes").
@@ -48,8 +48,8 @@ docker compose -f deploy/compose.yml exec backend python scripts/seed_baseline.p
 docker compose -f deploy/compose.yml exec backend python scripts/seed_baseline.py --dataset /tmp/import-dataset.json
 ```
 
-From a checkout, with `NPTC_DATABASE_URL` set to the application role's DSN and
-`NPTC_INDEXER_DATABASE_URL` set to the indexer role's:
+From a checkout, with `APTC_DATABASE_URL` set to the application role's DSN and
+`APTC_INDEXER_DATABASE_URL` set to the indexer role's:
 
 ```powershell
 uv run python scripts/seed_baseline.py --dataset transform-report/import-dataset.json
@@ -58,8 +58,8 @@ uv run python scripts/seed_baseline.py --dataset transform-report/import-dataset
 | Flag | Default | Meaning |
 |---|---|---|
 | `--dataset` | *(required)* | Path to `import-dataset.json`. |
-| `--database-url` | *(none)* | DSN to connect with. Falls back to `NPTC_DATABASE_URL`. Use the application role (`nptc_app_login`), not the owner: the loader writes through the same code paths as the API. See [`upgrade.md`](../upgrade.md) for the DSNs. |
-| `--indexer-database-url` | *(none)* | DSN of the role that builds the generated indexes. Falls back to `NPTC_INDEXER_DATABASE_URL`. An explicitly empty value is a usage error (exit `2`). With neither set, no index is built. See "Generated indexes". |
+| `--database-url` | *(none)* | DSN to connect with. Falls back to `APTC_DATABASE_URL`. Use the application role (`aptc_app_login`), not the owner: the loader writes through the same code paths as the API. See [`upgrade.md`](../upgrade.md) for the DSNs. |
+| `--indexer-database-url` | *(none)* | DSN of the role that builds the generated indexes. Falls back to `APTC_INDEXER_DATABASE_URL`. An explicitly empty value is a usage error (exit `2`). With neither set, no index is built. See "Generated indexes". |
 | `--dry-run` | off | Runs the whole import, then rolls it back. Use it first: it finds every refusal below without leaving a trace. It never builds an index, because the rolled-back property definitions no longer exist. |
 
 Run `--dry-run` first. A dry run still takes the audit append lock and advances the
@@ -98,7 +98,7 @@ place to validate codes before you emit the dataset.
 
 A filterable property needs an index for fast facets (FR-13). The seed creates the three
 filterable system properties, so after the commit the CLI runs the index reconciler once, as the
-indexer role (`NPTC_INDEXER_DATABASE_URL`). It prints one `created index: <name>` line per index.
+indexer role (`APTC_INDEXER_DATABASE_URL`). It prints one `created index: <name>` line per index.
 It runs after the commit because `CREATE INDEX CONCURRENTLY` cannot run inside a transaction, and
 because the reconciler reads the committed property definitions.
 
@@ -109,7 +109,7 @@ definitions and builds whatever is missing.
 
 | Warning | Cause |
 |---|---|
-| `no property index was built: NPTC_INDEXER_DATABASE_URL is not set` | Neither the variable nor `--indexer-database-url` was given. |
+| `no property index was built: APTC_INDEXER_DATABASE_URL is not set` | Neither the variable nor `--indexer-database-url` was given. |
 | `property indexes were not built (<ExceptionType>)` | The indexer database was unreachable or refused the credential. The message names only the exception type (NFR-26). |
 | `index <name> was not built (<ExceptionType>)` | One index failed, for example for lack of privilege. The others still converge. |
 | `property indexes were not built: another reconciliation is in progress` | Another process holds the reconciler's lock. The CLI does not wait. |
@@ -122,7 +122,7 @@ Facets still work without the indexes, but slowly.
 | Code | Meaning |
 |---|---|
 | `0` | Seeded and committed. With `--dry-run`: the dataset is seedable, and nothing was committed. |
-| `2` | Usage error: no DSN from `--database-url` or `NPTC_DATABASE_URL`, or an explicitly empty `--database-url ""`. |
+| `2` | Usage error: no DSN from `--database-url` or `APTC_DATABASE_URL`, or an explicitly empty `--database-url ""`. |
 | `3` | The dataset was refused before any write: the file is missing or not JSON, its `schema_version` is not `4`, it does not match the format, or the backend cannot store it. Every problem is listed. See "Refusals and how to fix them". |
 | `4` | The catalogue already holds an entry, or a seeding run is already recorded. Nothing was written. See "Reseeding". |
 | `5` | A write was refused and everything was rolled back: an FR-05 designation collision, a discipline label with no matching code, or a missing local code system. The message names the entry by business key, preferred term, sheet and row. |
@@ -143,7 +143,7 @@ Each fix is a data change followed by a new transform run. The loader never repa
 | `discipline '...' is not a code in the 'discipline' local code system` | The workbook names a discipline the governed code system lacks. | Correct the workbook, or have an administrator add the code (FR-90). |
 | `... matches only a deprecated code` | A discipline or subgroup label matches a code that has been deprecated. | Correct the workbook, or have an administrator add an active code. |
 | `... matches N active codes` | A label matches more than one active code, by display or code, ignoring case. | An administrator removes the ambiguity in the code system. |
-| `... DesignationCollisionError: ... collision(s) against NPTC-nnnnnn (FR-05)` | A term collides with another entry's designation at error severity. The baseline cannot exist until RCPA-QAP resolves it editorially (PRD 6.3). | Resolve it in the workbook, then run the transform again. The message names the entry that failed, and the entry it collided with. The transform reports the same pair as `DESIGNATION_COLLISION` and blocks `--emit-dataset`, so you meet this refusal only if you skipped the transform or built the dataset another way. |
+| `... DesignationCollisionError: ... collision(s) against APTC-nnnnnn (FR-05)` | A term collides with another entry's designation at error severity. The baseline cannot exist until RCPA-QAP resolves it editorially (PRD 6.3). | Resolve it in the workbook, then run the transform again. The message names the entry that failed, and the entry it collided with. The transform reports the same pair as `DESIGNATION_COLLISION` and blocks `--emit-dataset`, so you meet this refusal only if you skipped the transform or built the dataset another way. |
 | `the catalogue already holds entries` | Not a data problem. See "Reseeding". | |
 
 ## Reseeding

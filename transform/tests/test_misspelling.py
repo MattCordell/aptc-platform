@@ -21,14 +21,14 @@ import openpyxl
 import pytest
 from openpyxl.worksheet.worksheet import Worksheet
 
-from nptc_shared.similarity import tokenise
-from nptc_shared.terminology.stub import StubConcept, StubTerminologyClient
-from nptc_shared.terminology.sweep import TerminologySweep
-from nptc_transform.bands import Band, FindingCode
-from nptc_transform.findings import Finding
-from nptc_transform.misspelling import AuthoritySource, MisspellingOutcome, check_misspellings
-from nptc_transform.terminology_check import check_terminology
-from nptc_transform.workbook import read_workbook
+from aptc_shared.similarity import tokenise
+from aptc_shared.terminology.stub import StubConcept, StubTerminologyClient
+from aptc_shared.terminology.sweep import TerminologySweep
+from aptc_transform.bands import Band, FindingCode
+from aptc_transform.findings import Finding
+from aptc_transform.misspelling import AuthoritySource, MisspellingOutcome, check_misspellings
+from aptc_transform.terminology_check import check_terminology
+from aptc_transform.workbook import read_workbook
 
 # Real, Verhoeff-valid SCTIDs, minted for this fixture only (not a claim
 # about the live terminology) - see test_designation_check.py's own comment

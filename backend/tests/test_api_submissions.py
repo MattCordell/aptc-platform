@@ -22,23 +22,23 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.engine import Connection
 
-from nptc.api.errors import TERMS_ACCEPTANCE_REQUIRED_CODE
-from nptc.audit.diffing import REDACTED_KEY
-from nptc.auth.permissions import Role
-from nptc.db.bootstrap import seed_system_properties
-from nptc.db.models.audit import AuditEvent
-from nptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
-from nptc.db.models.code_binding import CodeBinding
-from nptc.db.models.property_definition import PropertyDefinition, PropertyOrigin, PropertyScope
-from nptc.db.models.submission import Submission
-from nptc.db.models.user import User
-from nptc.db.models.user_identity import UserIdentity
-from nptc.submissions.reference_check import (
+from aptc.api.errors import TERMS_ACCEPTANCE_REQUIRED_CODE
+from aptc.audit.diffing import REDACTED_KEY
+from aptc.auth.permissions import Role
+from aptc.db.bootstrap import seed_system_properties
+from aptc.db.models.audit import AuditEvent
+from aptc.db.models.catalogue_entry import CatalogueEntry, CatalogueEntryStatus
+from aptc.db.models.code_binding import CodeBinding
+from aptc.db.models.property_definition import PropertyDefinition, PropertyOrigin, PropertyScope
+from aptc.db.models.submission import Submission
+from aptc.db.models.user import User
+from aptc.db.models.user_identity import UserIdentity
+from aptc.submissions.reference_check import (
     ReferenceCheckFailedError,
     ReferenceCheckUnavailableError,
     ReferenceFailure,
 )
-from nptc_shared.terminology import (
+from aptc_shared.terminology import (
     AU_LANGUAGE_TAG,
     SNOMED_CT_AU,
     SNOMED_SYSTEM,
@@ -53,7 +53,7 @@ from nptc_shared.terminology import (
     TerminologyStatusError,
     TerminologyTimeoutError,
 )
-from nptc_shared.terminology.models import ValidationResult
+from aptc_shared.terminology.models import ValidationResult
 
 
 def _load(name: str) -> Any:
@@ -1118,7 +1118,7 @@ def _entry(
     status: CatalogueEntryStatus = CatalogueEntryStatus.ACTIVE,
 ) -> CatalogueEntry:
     entry = CatalogueEntry(
-        business_key=f"NPTC-{random.randrange(100_000_000, 999_999_999)}",
+        business_key=f"APTC-{random.randrange(100_000_000, 999_999_999)}",
         preferred_term=term,
         status=status.value,
     )

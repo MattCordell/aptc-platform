@@ -54,7 +54,7 @@ match, and it has no notion of "this query word appears in this document" at all
 
 ### Both mechanisms, per column, unioned rather than layered
 
-`nptc.catalogue.search._SEARCH_SQL` is nine index-supported scans:
+`aptc.catalogue.search._SEARCH_SQL` is nine index-supported scans:
 
 | Source | Trigram | Full-text |
 |---|---|---|
@@ -77,9 +77,9 @@ has no such blind spot.
 
 ### The text search configuration is `english`, pinned in a function pair
 
-`nptc_search_document(text) -> tsvector` and `nptc_search_query(text) -> tsquery`, in
-`nptc.db.functions`, created by migration `0015`. Both wrap ADR-0024's own
-`nptc_search_text` normalisation, so the two halves fold case and diacritics identically.
+`aptc_search_document(text) -> tsvector` and `aptc_search_query(text) -> tsquery`, in
+`aptc.db.functions`, created by migration `0015`. Both wrap ADR-0024's own
+`aptc_search_text` normalisation, so the two halves fold case and diacritics identically.
 
 A pair, not two inline expressions, because a document lexed as `english` and a query
 lexed as `simple` share no stems and match nothing - a failure invisible in every index
@@ -171,14 +171,14 @@ discipline exists to prevent, arriving through the half of the query that has no
 threshold, and no nonsense-query test detects it because a nonsense *word* still lexes to
 a positive lexeme.
 
-Each full-text branch therefore carries `NOT ('' :: tsvector @@ nptc_search_query(:q))`. A
+Each full-text branch therefore carries `NOT ('' :: tsvector @@ aptc_search_query(:q))`. A
 tsquery matches the empty document exactly when nothing positive is *required* of a row,
 so this tests the condition itself rather than scanning the input for `-`; the predicate
 depends only on `:q`, so the planner resolves it once and prunes the branch
 (`One-Time Filter: false`) rather than evaluating it per row. The condition is wider than
 "every word was excluded" - see the Consequences section on the disjunction case.
 
-Rewriting the query inside `nptc_search_query` was rejected: the function would then
+Rewriting the query inside `aptc_search_query` was rejected: the function would then
 return a `tsquery` that is not what the caller asked for, and the guard belongs where the
 consequence is. The trigram branches need no guard - `%` has no negation - so the query is
 still searched, by similarity, for the literal text typed. Refusing such a query outright
@@ -190,13 +190,13 @@ interpretation is degenerate.
 A btree index on `code`, partial on `status = 'active'`, and `cb.code = :q_exact`.
 
 All five exact comparisons read `:q_exact` rather than `:q` (PR #237 review):
-`nptc_search_text` folds case and diacritics but does not trim, so a term pasted with
+`aptc_search_text` folds case and diacritics but does not trim, so a term pasted with
 surrounding whitespace has a `similarity()` of `1.0` yet is not `=` to the stored value,
 and would be scored as fuzzy - beneath an exact synonym hit on a different entry. The
 trim is Python's `str.strip()` rather than SQL's `btrim(text)`, which trims **spaces
 only**: a single cell copied out of a spreadsheet ends in a carriage return and a newline,
 so the first, SQL-side fix was too narrow. Trimming the query in Python rather than inside
-`nptc_search_text` also avoids rebuilding the four trigram indexes for a difference
+`aptc_search_text` also avoids rebuilding the four trigram indexes for a difference
 `similarity()` cannot see.
 
 Only the query side is trimmed. A *stored* label carrying surrounding whitespace is a data
@@ -229,13 +229,13 @@ Jaccard length penalty makes a short query a poor match however well it correspo
 the field would be searched in name more than in practice. Adding a field that is hard
 to reach is a worse outcome than not adding it, because it looks done.
 
-### A SQL-side `nptc_strip_semantic_tag(text)` and a second index over the stripped form
+### A SQL-side `aptc_strip_semantic_tag(text)` and a second index over the stripped form
 
 The literal reading of FR-98's "both forms indexed", and the obvious way to guarantee a
 tag-omitted query matches at full strength rather than merely well enough.
 
 Rejected. The semantic-tag regex exists exactly once in this codebase, in
-`nptc_shared.terminology.snomed`, and `test_catalogue_bindings.py` enforces by AST scan
+`aptc_shared.terminology.snomed`, and `test_catalogue_bindings.py` enforces by AST scan
 that `strip_semantic_tag` has one legitimate call site. A SQL copy would put a second
 implementation of that regex in the database, which
 [ADR-0006](0006-designation-reconciliation-strategy.md)'s rejected-alternatives table
@@ -289,8 +289,8 @@ this one, not a larger.
   same is true of the four full-text indexes if the `english` configuration, its stemmer
   or its stopword list changes underneath a running database - a PostgreSQL upgrade being
   the realistic trigger. Both are in `docs/operations/upgrade.md`.
-- **`nptc_search_document` and `nptc_search_query` are the third and fourth database
-  functions.** ADR-0023's bar is met the same way `nptc_search_text` met it: pure,
+- **`aptc_search_document` and `aptc_search_query` are the third and fourth database
+  functions.** ADR-0023's bar is met the same way `aptc_search_text` met it: pure,
   side-effect-free, defined in a versioned module and created by a migration, with their
   own tests. They normalise; they decide nothing.
 - **The `EXPLAIN` guard grew from two assertions to nine.** It is now the only thing
@@ -332,7 +332,7 @@ this one, not a larger.
   `vitamin -d` still requires a lexeme and is not pruned. The behaviour is pinned by
   `test_a_query_that_excludes_every_word_does_not_return_the_catalogue`, which carries
   the disjunction case, so it reads as documented rather than as a bug.
-- **`nptc_search_query` is noisy on stopword-only input.** `websearch_to_tsquery` raises
+- **`aptc_search_query` is noisy on stopword-only input.** `websearch_to_tsquery` raises
   a `NOTICE` each time it returns an empty query, and `_SEARCH_SQL` names it twelve times,
   so `q=the` produces twelve identical notices from one request. Nothing consumes them
   today - psycopg discards notices unless a handler is registered, and the server's

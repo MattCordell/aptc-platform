@@ -767,7 +767,7 @@ describe("RepeatableValues (FR-23, FR-52)", () => {
     });
 
     it("lists the same code from two systems as two values, each with its own name", async () => {
-      const LOCAL = "https://nptc.example/code-system/subgroup";
+      const LOCAL = "https://aptc.example/code-system/subgroup";
       stubValues(() => ({
         body: {
           items: [
@@ -809,7 +809,7 @@ describe("RepeatableValues (FR-23, FR-52)", () => {
     });
 
     it("tells two values with the same name apart by their codes", async () => {
-      const LOCAL = "https://nptc.example/code-system/subgroup";
+      const LOCAL = "https://aptc.example/code-system/subgroup";
       stubValues(() => ({ body: { items: [], total: 0 } }));
       render(
         withProviders(

@@ -2,9 +2,9 @@
 # /api/* to the backend (deploy/caddy/Caddyfile). Build context is the
 # repository root: the pnpm workspace and lockfile live there.
 #
-#   docker build -f frontend/Dockerfile -t nptc-frontend \
-#     --build-arg VITE_OIDC_ISSUER=http://localhost:8080/realms/nptc \
-#     --build-arg VITE_OIDC_CLIENT_ID=nptc-frontend .
+#   docker build -f frontend/Dockerfile -t aptc-frontend \
+#     --build-arg VITE_OIDC_ISSUER=http://localhost:8080/realms/aptc \
+#     --build-arg VITE_OIDC_CLIENT_ID=aptc-frontend .
 
 FROM node:26.12.0-slim AS build
 WORKDIR /app
@@ -15,7 +15,7 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 # everywhere else.
 RUN npm install --global "pnpm@$(node -p "require('./package.json').packageManager.split('@')[1]")"
 COPY frontend/package.json frontend/package.json
-RUN pnpm install --frozen-lockfile --filter nptc-frontend...
+RUN pnpm install --frozen-lockfile --filter aptc-frontend...
 
 COPY frontend frontend
 # A test file that `tsc -b` type-checks imports this document.
@@ -30,19 +30,19 @@ ARG VITE_API_BASE_URL
 ENV VITE_OIDC_ISSUER=$VITE_OIDC_ISSUER \
     VITE_OIDC_CLIENT_ID=$VITE_OIDC_CLIENT_ID \
     VITE_API_BASE_URL=$VITE_API_BASE_URL
-RUN pnpm --filter nptc-frontend build
+RUN pnpm --filter aptc-frontend build
 
 FROM caddy:2.11.7-alpine AS runtime
 # The base image declares /data and /config as root-owned volumes, so Caddy's
 # state goes to a directory this user owns. The official binary carries the
 # capability to bind port 80 without root.
-RUN addgroup -S -g 10001 nptc \
-    && adduser -S -u 10001 -G nptc -H nptc \
+RUN addgroup -S -g 10001 aptc \
+    && adduser -S -u 10001 -G aptc -H aptc \
     && mkdir -p /tmp/caddy/data /tmp/caddy/config \
-    && chown -R nptc:nptc /tmp/caddy
+    && chown -R aptc:aptc /tmp/caddy
 ENV XDG_DATA_HOME=/tmp/caddy/data \
     XDG_CONFIG_HOME=/tmp/caddy/config
 COPY deploy/caddy/Caddyfile /etc/caddy/Caddyfile
 COPY --from=build /app/frontend/dist /srv
-USER nptc
+USER aptc
 EXPOSE 80
