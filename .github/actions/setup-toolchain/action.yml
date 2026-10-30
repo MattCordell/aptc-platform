@@ -1,0 +1,61 @@
+name: Set up toolchain
+description: >-
+  Install uv and Python at the tags backend/Dockerfile ships, so CI tests the
+  toolchain that runs in production. Needs a checkout first.
+
+inputs:
+  # The two defaults below repeat astral-sh/setup-uv's own, so a workflow that
+  # leaves an input out behaves as it did when it called setup-uv directly.
+  enable-cache:
+    description: Passed to astral-sh/setup-uv.
+    default: auto
+  cache-dependency-glob:
+    description: Passed to astral-sh/setup-uv.
+    default: |
+      **/*requirements*.txt
+      **/*requirements*.in
+      **/*constraints*.txt
+      **/*constraints*.in
+      **/pyproject.toml
+      **/uv.lock
+      **/*.py.lock
+
+runs:
+  using: composite
+  steps:
+    # Absolute path: a job's `defaults.run.working-directory` must not decide
+    # which Dockerfile is read.
+    - name: Read uv and Python tags from backend/Dockerfile
+      id: tags
+      shell: bash
+      env:
+        DOCKERFILE: ${{ github.workspace }}/backend/Dockerfile
+      run: |
+        set -euo pipefail
+
+        # Sets the variable named by $1 rather than printing the tag: a command
+        # substitution would swallow the ::error line.
+        read_single_tag() {
+          local var="$1" name="$2" pattern="$3" found count
+          found="$(sed -nE "s/${pattern}/\1/p" "$DOCKERFILE" | sort -u)"
+          count="$(printf '%s' "$found" | grep -c . || true)"
+          if [ "$count" -ne 1 ]; then
+            echo "::error file=backend/Dockerfile::expected exactly one ${name} tag in backend/Dockerfile, found ${count}${found:+: $(echo $found)}. If a FROM line changed shape (a digest or a variant suffix), update the pattern in .github/actions/setup-toolchain/action.yml"
+            exit 1
+          fi
+          printf -v "$var" '%s' "$found"
+        }
+
+        read_single_tag uv_tag uv '^FROM ghcr\.io\/astral-sh\/uv:([0-9]+\.[0-9]+\.[0-9]+)[[:space:]].*'
+        read_single_tag python_tag Python '^FROM python:([0-9]+\.[0-9]+\.[0-9]+)-slim[[:space:]].*'
+        echo "uv=${uv_tag}" >> "$GITHUB_OUTPUT"
+        echo "python=${python_tag}" >> "$GITHUB_OUTPUT"
+        echo "backend/Dockerfile ships uv ${uv_tag} and Python ${python_tag}"
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      with:
+        version: ${{ steps.tags.outputs.uv }}
+        python-version: ${{ steps.tags.outputs.python }}
+        enable-cache: ${{ inputs.enable-cache }}
+        cache-dependency-glob: ${{ inputs.cache-dependency-glob }}
