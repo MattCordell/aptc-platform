@@ -4,21 +4,14 @@ description: >-
   toolchain that runs in production. Needs a checkout first.
 
 inputs:
-  # The two defaults below repeat astral-sh/setup-uv's own, so a workflow that
-  # leaves an input out behaves as it did when it called setup-uv directly.
+  # This repo's own defaults, not setup-uv's: copying upstream's would leave
+  # them stale, with no signal, after a setup-uv bump changes them.
   enable-cache:
     description: Passed to astral-sh/setup-uv.
-    default: auto
+    default: "false"
   cache-dependency-glob:
     description: Passed to astral-sh/setup-uv.
-    default: |
-      **/*requirements*.txt
-      **/*requirements*.in
-      **/*constraints*.txt
-      **/*constraints*.in
-      **/pyproject.toml
-      **/uv.lock
-      **/*.py.lock
+    default: uv.lock
 
 runs:
   using: composite

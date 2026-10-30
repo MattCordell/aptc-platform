@@ -77,6 +77,9 @@ jobs:
 
       - name: Install uv
         uses: ./.github/actions/setup-toolchain
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
 
       # --no-dev: audit what ships, not ruff/mypy/pytest. uv export reads the
       # lockfile directly - no `uv sync` needed just to produce this file.

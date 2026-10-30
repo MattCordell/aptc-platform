@@ -56,19 +56,37 @@ def _load(path: Path) -> dict[str, Any]:
     return document
 
 
+def _workflow_jobs(workflow: Path) -> list[tuple[str, dict[str, Any]]]:
+    return [
+        (f"{workflow.name}:{job_name}", job)
+        for job_name, job in _load(workflow).get("jobs", {}).items()
+    ]
+
+
 def _workflow_steps(workflow: Path) -> list[tuple[str, dict[str, Any]]]:
-    steps: list[tuple[str, dict[str, Any]]] = []
-    for job_name, job in _load(workflow).get("jobs", {}).items():
-        steps.extend((f"{workflow.name}:{job_name}", step) for step in job.get("steps", []))
-    return steps
+    return [
+        (where, step) for where, job in _workflow_jobs(workflow) for step in job.get("steps", [])
+    ]
 
 
 def _uses(step: dict[str, Any]) -> str:
     return str(step.get("uses", ""))
 
 
-def _runs_uv(workflow: Path) -> bool:
-    return any(UV_COMMAND.search(str(step.get("run", ""))) for _, step in _workflow_steps(workflow))
+def _runs_uv(job: dict[str, Any]) -> bool:
+    return any(UV_COMMAND.search(str(step.get("run", ""))) for step in job.get("steps", []))
+
+
+def _uses_action(job: dict[str, Any]) -> bool:
+    return any(_uses(step) == ACTION_USES for step in job.get("steps", []))
+
+
+UV_JOBS = [
+    (where, job)
+    for workflow in WORKFLOWS
+    for where, job in _workflow_jobs(workflow)
+    if _runs_uv(job)
+]
 
 
 def test_node_version_file_matches_frontend_image() -> None:
@@ -122,12 +140,25 @@ def test_no_workflow_calls_setup_uv_directly(workflow: Path) -> None:
     )
 
 
-@pytest.mark.parametrize("workflow", WORKFLOWS, ids=lambda path: path.name)
-def test_workflow_that_runs_uv_installs_it_through_the_action(workflow: Path) -> None:
-    if not _runs_uv(workflow):
-        pytest.skip(f"{workflow.name} runs no uv command")
-    assert any(_uses(step) == ACTION_USES for _, step in _workflow_steps(workflow)), (
-        f"{workflow.name} runs uv but never uses {ACTION_USES}"
+def test_some_job_runs_uv() -> None:
+    assert UV_JOBS, "no job runs a uv command; the per-job check below would pass vacuously"
+
+
+@pytest.mark.parametrize(("where", "job"), UV_JOBS, ids=[where for where, _ in UV_JOBS])
+def test_job_that_runs_uv_installs_it_through_the_action(where: str, job: dict[str, Any]) -> None:
+    assert _uses_action(job), f"{where} runs uv but never uses {ACTION_USES}"
+
+
+def test_every_use_of_the_action_sets_enable_cache() -> None:
+    unset = [
+        where
+        for workflow in WORKFLOWS
+        for where, step in _workflow_steps(workflow)
+        if _uses(step) == ACTION_USES and "enable-cache" not in step.get("with", {})
+    ]
+    assert not unset, (
+        f"{', '.join(unset)} leave `enable-cache` unset; set it on the step so the caching "
+        "choice is visible where the action is used"
     )
 
 
