@@ -106,12 +106,16 @@ def test_some_workflow_step_uses_the_action() -> None:
         for where, step in _workflow_steps(workflow)
         if _uses(step) == ACTION_USES
     ]
-    assert users, "no workflow step uses the setup-toolchain action; the checks would pass vacuously"
+    assert users, (
+        "no workflow step uses the setup-toolchain action; the checks would pass vacuously"
+    )
 
 
 @pytest.mark.parametrize("workflow", WORKFLOWS, ids=lambda path: path.name)
 def test_no_workflow_calls_setup_uv_directly(workflow: Path) -> None:
-    direct = [where for where, step in _workflow_steps(workflow) if _uses(step).startswith(SETUP_UV)]
+    direct = [
+        where for where, step in _workflow_steps(workflow) if _uses(step).startswith(SETUP_UV)
+    ]
     assert not direct, (
         f"{', '.join(direct)} call astral-sh/setup-uv directly, which would pin its own uv and "
         f"python version; use `uses: {ACTION_USES}` so both come from backend/Dockerfile"
