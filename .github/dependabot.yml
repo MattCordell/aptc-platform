@@ -66,8 +66,12 @@ updates:
         versions: [">=7"]
     labels: ["frontend", "dependencies"]
 
+  # "/" covers .github/workflows only. The local setup-toolchain action holds a
+  # hash-pinned astral-sh/setup-uv of its own, so its directory is listed too.
   - package-ecosystem: "github-actions"
-    directory: "/"
+    directories:
+      - "/"
+      - "/.github/actions/setup-toolchain"
     schedule:
       interval: "monthly"
     open-pull-requests-limit: 5
