@@ -6,7 +6,7 @@
 #     --build-arg VITE_OIDC_ISSUER=http://localhost:8080/realms/aptc \
 #     --build-arg VITE_OIDC_CLIENT_ID=aptc-frontend .
 
-FROM node:26.12.0-slim AS build
+FROM node:26.13.0-slim AS build
 WORKDIR /app
 
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
